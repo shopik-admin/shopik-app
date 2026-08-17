@@ -1,0 +1,183 @@
+.permissions {
+    display: flex;
+    height: 100%;
+    min-height: 32rem;
+    overflow: hidden;
+    background: var(--bg-surface);
+    border-radius: var(--radiusL);
+}
+
+.roles {
+    flex: 0 0 20rem;
+    overflow: auto;
+    padding: 1rem;
+    border-inline-end: 1px solid var(--border-default);
+    background: var(--bg-surface);
+}
+
+.permissionList {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: auto;
+    padding: 1.5rem;
+    background: var(--bg-surface);
+
+    h3 {
+        margin: 0 0 1.25rem;
+        color: var(--text-primary);
+        font-size: 1.125rem;
+        font-weight: 600;
+    }
+}
+
+/* Mobile Header Back Button (Hidden on Desktop) */
+.backButton {
+    display: none !important;
+    align-items: center;
+    background: none;
+    border: none;
+    color: var(--text-accent) !important;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    margin-bottom: 1rem;
+    padding: 0;
+    width: fit-content;
+}
+
+/* Categories Container styling */
+.categoriesContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.categoryGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.categoryHeader {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    text-transform: capitalize;
+    font-size: 0.95rem;
+}
+
+.folderIcon {
+    font-size: 1rem;
+}
+
+/* Indented Action List */
+.actionList {
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+    margin: 0 0 0 1.5rem;
+    padding: 0;
+    list-style: none;
+    border-inline-start: 2px solid var(--border-default);
+    padding-inline-start: 16px;
+    margin-inline-start: 8px;
+}
+
+.actionList li {
+    padding: .5rem .75rem;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radiusM);
+    background: var(--bg-surface-raised);
+    color: var(--text-secondary);
+    font-size: .875rem;
+    transition:
+        background-color .15s ease,
+        border-color .15s ease,
+        color .15s ease;
+    user-select: none;
+
+    &:hover {
+        border-color: var(--border-strong);
+        color: var(--text-primary);
+    }
+}
+
+/* Active Permission State (Checked) */
+.actionList li.active {
+    border-color: var(--text-accent);
+    background: color-mix(in srgb, var(--text-accent) 14%, transparent);
+    font-weight: bold;
+    color: var(--text-primary);
+}
+
+/* Checkbox alignment */
+.checkboxLabel {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    cursor: pointer;
+}
+
+.checkboxInput {
+    accent-color: var(--brand-primary, #3b82f6);
+    width: 1rem;
+    height: 1rem;
+}
+
+.noPermissions {
+    margin: 0;
+    color: var(--text-tertiary);
+}
+
+.form {
+    :global(.Form_footer) {
+        position: sticky;
+        inset-inline-start: 0;
+        bottom: -25px;
+        width: 100%;
+        background-color: var(--bg-surface);
+        border-top: 1px solid var(--border-default);
+
+        button {
+            width: 300px !important;
+        }
+    }
+}
+
+/* --- Mobile Breakpoint Rules --- */
+@media (max-width: 767px) {
+    .backButton {
+        display: inline-flex !important;
+    }
+
+    /* When mobileView is 'tree', hide the permissions details panel completely */
+    .permissions.tree .permissionList {
+        display: none;
+    }
+
+    .permissions.tree .roles {
+        flex: 1;
+        width: 100%;
+        border-inline-end: none;
+    }
+
+    /* When mobileView is 'form', hide the sidebar tree list completely */
+    .permissions.form .roles {
+        display: none;
+    }
+
+    .permissions.form .permissionList {
+        display: flex;
+        width: 100%;
+    }
+
+    .form :global(.Form_footer) button {
+        width: 100% !important;
+        /* Full width footer button for mobile fingers */
+    }
+}

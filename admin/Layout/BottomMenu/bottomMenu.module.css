@@ -1,0 +1,79 @@
+.bottomMenu {
+    position: fixed;
+    z-index: 9999;
+    bottom: calc(16px + env(safe-area-inset-bottom));
+    width: calc(100vw - 32px);
+    inset-inline-start: 16px;
+    padding: 6px 8px;
+    border-radius: 32px;
+
+    /* iOS Frosted Glass Effect */
+    background-color: var(--sidebar-bg, rgba(255, 255, 255, 0.75));
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    backdrop-filter: blur(20px) saturate(180%);
+
+    /* iOS Border & Floating Elevation Shadow */
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12),
+        0 2px 6px rgba(0, 0, 0, 0.04);
+
+    /* Transition & Alignment */
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+        opacity 0.3s ease,
+        bottom 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    display: none !important;
+
+    &.hide {
+        bottom: calc(-100px - env(safe-area-inset-bottom));
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .menuItem {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding-block: 6px;
+        padding-inline: 12px;
+        border-radius: 20px;
+        text-decoration: none;
+        font-size: 10px;
+        font-weight: 500;
+        letter-spacing: -0.1px;
+        color: var(--sidebar-text-muted, #8e8e93);
+        transition: background-color 0.25s ease, color 0.25s ease, transform 0.15s ease;
+        -webkit-tap-highlight-color: transparent;
+
+        /* Touch interaction (iOS spring feel on tap) */
+        &:active {
+            transform: scale(0.92);
+        }
+
+        svg {
+            font-size: 22px;
+            height: 22px;
+            width: 22px;
+            margin-bottom: 3px;
+            color: var(--sidebar-text-muted, #8e8e93);
+            transition: color 0.25s ease, transform 0.25s ease;
+        }
+
+        &.active {
+            background: var(--sidebar-active-bg, rgba(0, 122, 255, 0.12));
+            color: var(--sidebar-active-text, #007aff);
+
+            svg {
+                color: var(--sidebar-active-text, #007aff);
+                transform: scale(1.05);
+            }
+        }
+    }
+
+    @media screen and (max-width: 650px) {
+        display: flex !important;
+        justify-content: space-between;
+        align-items: center;
+    }
+}

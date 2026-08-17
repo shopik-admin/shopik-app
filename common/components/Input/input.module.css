@@ -1,0 +1,114 @@
+.input {
+    width: 200px;
+    position: relative;
+    text-align: start;
+
+    .label,
+    .info,
+    .error {
+        display: block;
+        transition: .2s;
+        font-weight: 400;
+        margin-top: 10px;
+    }
+
+    .info {
+        padding-top: 8px;
+        color: var(--text-tertiary) !important;
+    }
+
+    .label {
+        font-weight: 600;
+        font-size: 13px;
+        padding-bottom: 8px;
+    }
+
+    .error {
+        padding-top: 8px;
+        color: var(--text-error) !important;
+    }
+
+    input,
+    textarea {
+        background-color: var(--bg-surface);
+        border: 1.5px solid var(--border-default);
+        border-radius: var(--radiusM);
+        color: var(--txtColor);
+        direction: inherit;
+        padding: 10px 12px;
+        /* padding-bottom: 0 !important;
+        height: 55px; */
+        transition: .2s;
+        font-size: 14px !important;
+        display: block;
+        width: 100%;
+        font-weight: 400;
+
+        &:focus {
+            border-color: var(--border-focus);
+        }
+
+        &[type='textarea'] {
+            line-height: 1.35;
+            height: 130px;
+            resize: none;
+        }
+
+        &::placeholder {
+            text-transform: capitalize;
+            color: var(--text-tertiary);
+            opacity: .8;
+        }
+
+        &:read-only {
+            cursor: default;
+        }
+
+    }
+
+    .error {
+        height: 0;
+        overflow: hidden;
+    }
+
+    &.invalid.visited {
+        .error {
+            height: 30px;
+        }
+
+        input {
+            border-color: var(--text-error);
+            /*    background-color: rgb(255, 241, 244); */
+        }
+
+        /* .label {
+            color: var(----text-error);
+        } */
+    }
+
+    &.withIcon {
+        input {
+            padding-inline-start: 32px;
+        }
+
+        .icon {
+            position: absolute;
+            top: calc(50% - 8px);
+            inset-inline-start: 10px;
+            color: var(--text-tertiary);
+        }
+    }
+
+    @media screen and (max-width:650px) {
+        width: unset;
+    }
+}
+
+/* @keyframes apear {
+  0% {
+    height: 0;
+  }
+  100% {
+    transform: translateX(0);
+  }
+} */

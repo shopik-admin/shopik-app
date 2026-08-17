@@ -1,0 +1,11 @@
+.userInfo {
+    .avatar {
+        cursor: pointer;
+        font-weight: bold;
+        font-size: 12px;
+        width: 32px;
+        height: 32px;
+        border: 1px solid var(--border-default);
+        border-radius: 50%;
+    }
+}

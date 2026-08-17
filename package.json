@@ -1,0 +1,32 @@
+{
+  "name": "store",
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node server",
+    "build:client": "vite build --config client/vite.config.js",
+    "build:admin": "vite build --config admin/vite.config.js",
+    "build:server": "vite build --ssr entry-server.jsx --outDir ../build/server --config client/vite.config.js",
+    "build": "npm run build:client && npm run build:admin && npm run build:server"
+  },
+  "dependencies": {
+    "cookie-parser": "^1.4.7",
+    "express": "^5.2.1",
+    "fast-xml-parser": "^4.5.7",
+    "ioredis": "^6.0.0",
+    "mongoose": "^9.8.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-icons": "^5.7.0",
+    "react-router": "^8.2.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.0.4",
+    "vite": "^8.1.5"
+  },
+  "imports": {
+    "#package.json": "./package.json",
+    "#common/*": "./common/*",
+    "#server/*": "./server/*"
+  }
+}

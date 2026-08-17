@@ -1,0 +1,57 @@
+import { buildComaxParams, buildComaxPromotionParams } from './utils.js'
+import { fetchComax, fetchComaxPromotions } from './client.js'
+import { parseXml, normalizeArray, parseXmlFile } from './parser.js'
+import { mapItem, mapPromotion } from './mapper.js'
+
+async function getProducts({ DL, ...options }) {
+    // 1. Build query params
+    const params = buildComaxParams(options)
+
+    // 2. Fetch XML
+    const xml = await fetchComax({ params }, { DL })
+
+    // 3. Parse XML
+    const parsed = parseXml(xml)
+
+    // 4. Extract products array from SOAP envelope
+    const items = normalizeArray(parsed?.ArrayOfClsItems?.ClsItems)
+
+    if (items.length === 0) {
+        console.log(`[Comax] No products returned`)
+        return []
+    }
+
+    // 5. Map to clean objects
+    const products = items.map(mapItem).filter(p => p.superDepartmentCode != 12 && p.price > 0)
+
+    console.log(`[Comax] Fetched ${products.length} products`)
+
+    return products
+}
+
+async function getProductsFromFile({ inputFile }) {
+    const items = await parseXmlFile(inputFile)
+    const products = items.map(mapItem).filter(p => p.superDepartmentCode != 12 && p.price > 0)
+    console.log(`[Comax] Fetched ${products.length} products from file`)
+    return products
+
+}
+
+async function getPromotions({ DL, ...options }) {
+    const params = buildComaxPromotionParams(options)
+    const rawPromotions = await fetchComaxPromotions({ params }, { DL })
+    if (!rawPromotions || rawPromotions.length === 0) {
+        console.log('[Comax] No promotions returned')
+        return []
+    }
+    const promotions = rawPromotions.map(mapPromotion)
+    console.log(`[Comax] Fetched ${promotions.length} promotions`)
+    return promotions
+}
+
+const comax = ({ DL }) => ({
+    getProducts: options => getProducts({ ...options, DL }),
+    getProductsFromFile,
+    getPromotions: options => getPromotions({ ...options, DL })
+})
+export default comax

@@ -1,0 +1,25 @@
+.button {
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 12px 16px;
+    border-radius: var(--radiusM);
+    background-color: var(--text-primary);
+    color: var(--primary-text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    text-transform: capitalize;
+    text-align: center;
+
+    svg {
+        font-size: 16px;
+    }
+
+    &.text {
+        padding: 0;
+        background-color: transparent;
+        color: var(--text-primary);
+    }
+}

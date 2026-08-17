@@ -1,0 +1,22 @@
+export function extractFields(payload, fields) {
+    const values = fields.map(f => payload[f])
+    fields.forEach(f => delete payload[f])
+    return Object.fromEntries(fields.map((f, i) => [f.split('.').pop(), values[i]]))
+}
+
+const requiredAddressFields = ['address.city', 'address.street', 'address.building']
+const addressFields = [...requiredAddressFields, 'address.zip']
+export function getAddress(payload) {
+    if (requiredAddressFields.some(f => !payload[f]))
+        return null
+    const address = extractFields(payload, addressFields)
+    return address
+}
+
+const nameFields = ['name.first', 'name.last']
+export function getName(payload) {
+    return extractFields(payload, nameFields)
+}
+
+const extractors = { getAddress, getName }
+export default extractors

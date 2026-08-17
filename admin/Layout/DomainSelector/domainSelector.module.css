@@ -1,0 +1,6 @@
+.domainSelector {
+    color: var(--sidebar-text-muted);
+    font-size: 13px;
+    margin-bottom: 40px;
+    width: 200px;
+}

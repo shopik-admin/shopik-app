@@ -1,0 +1,52 @@
+{
+    "compilerOptions": {
+        "target": "ESNext",
+        "module": "ESNext",
+        "moduleResolution": "bundler",
+        "jsx": "react-jsx",
+        "baseUrl": ".",
+        /* "checkJs": true, */
+        "paths": {
+            "#common/*": [
+                "common/*"
+            ],
+            "#server/*": [
+                "server/*"
+            ],
+            "common/*": [
+                "common/*"
+            ],
+            "layout/*": [
+                "client/layout/*"
+            ],
+            "pages/*": [
+                "client/pages/*"
+            ],
+            "context/*": [
+                "client/context/*"
+            ],
+            "App/*": [
+                "admin/App/*"
+            ],
+            "Features/*": [
+                "admin/Features/*"
+            ],
+            "GenericPage/*": [
+                "admin/GenericPage/*"
+            ],
+            "Pages/*": [
+                "admin/Pages/*"
+            ]
+        }
+    },
+    "include": [
+        "client/**/*",
+        "common/**/*",
+        "admin/**/*",
+        "server/**/*",
+        "types/**/*"
+    ],
+    "exclude": [
+        "node_modules"
+    ]
+}

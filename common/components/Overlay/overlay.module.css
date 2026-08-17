@@ -1,0 +1,18 @@
+.overlay {
+    position: fixed;
+    width: 100vw;
+    width: 100dvw;
+    height: 100vh;
+    height: 100dvh;
+    top: 0;
+    inset-inline-start: 0;
+    background-color: transparent;
+    z-index: 9999;
+    pointer-events: none;
+    transition: background-color .2s;
+
+    &.open {
+        pointer-events: auto;
+        background-color: var(--overlay);
+    }
+}

@@ -1,0 +1,16 @@
+.header {
+    height: var(--headerHeight);
+    top: 0;
+    border-bottom: 1px solid var(--header-border);
+    background-color: var(--header-bg);
+    position: fixed;
+    padding: 12px 22px;
+    transition: .3s;
+    width: 100%;
+    z-index: 999;
+
+    @media screen and (min-width: 650px) {
+        inset-inline-start: var(--sidebarWidth);
+        width: calc(100vw - var(--sidebarWidth));
+    }
+}

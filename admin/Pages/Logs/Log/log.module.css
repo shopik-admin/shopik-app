@@ -1,0 +1,180 @@
+.container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    color: var(--text-primary);
+    width: 100%;
+    direction: ltr;
+    min-width: 900px;
+
+    & .statusBar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--border-subtle);
+
+        & .statusGroup {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+
+            & .label {
+                font-size: 0.75rem;
+                font-weight: 600;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                color: var(--text-tertiary);
+            }
+
+            & .statusBadge {
+                padding: 2px 10px;
+                border-radius: 9999px;
+                font-size: 0.75rem;
+                font-weight: 600;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                border: 1px solid var(--border-default);
+                background-color: var(--bg-page);
+                color: var(--text-secondary);
+
+                &.statusSuccess {
+                    border-color: var(--text-accent);
+                    color: var(--text-accent);
+                }
+
+                &.statusError {
+                    border-color: var(--border-error);
+                    color: var(--text-error);
+                    background-color: rgba(220, 38, 38, 0.08);
+                }
+
+                &.statusPending {
+                    border-color: var(--border-strong);
+                    color: var(--text-tertiary);
+                }
+            }
+        }
+
+        & .topActions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        & .secondaryBtn {
+            background: transparent;
+            border: 1px solid var(--secondary-border);
+            color: var(--text-primary);
+            padding: 6px 12px;
+            border-radius: var(--radiusM);
+            font-size: 0.8rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+
+            &:hover {
+                background-color: var(--bg-surface-raised);
+                border-color: var(--border-focus);
+                color: var(--text-accent);
+            }
+        }
+    }
+
+    & .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 12px;
+    }
+
+    & .card {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        padding: 12px;
+        background-color: var(--bg-page);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radiusM);
+
+        & .cardLabel {
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-tertiary);
+        }
+
+        & .cardValue {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-primary);
+            word-break: break-all;
+
+            &.mono {
+                font-family: monospace;
+            }
+
+            & .subText {
+                font-size: 0.75rem;
+                color: var(--text-tertiary);
+                font-weight: normal;
+            }
+        }
+    }
+
+    & .dataGrid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 16px;
+    }
+
+    & .payloadSection {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+
+        & .payloadHeader {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+
+            & .cardLabel {
+                font-size: 0.7rem;
+                font-weight: 600;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                color: var(--text-tertiary);
+            }
+
+            & .copyTextBtn {
+                background: transparent;
+                border: none;
+                color: var(--text-accent);
+                font-size: 0.75rem;
+                font-weight: 600;
+                cursor: pointer;
+                padding: 0;
+
+                &:hover {
+                    text-decoration: underline;
+                }
+            }
+        }
+
+        & .jsonViewer {
+            margin: 0;
+            padding: 16px;
+            height: 100%;
+            min-height: 120px;
+            background-color: var(--sidebar-bg);
+            color: var(--sidebar-text);
+            border-radius: var(--radiusM);
+            border: 1px solid var(--border-subtle);
+            font-family: monospace;
+            font-size: 0.825rem;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+    }
+}

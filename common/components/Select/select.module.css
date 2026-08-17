@@ -1,0 +1,57 @@
+.select {
+    position: relative;
+    width: 100%;
+    display: inline-flex;
+    align-items: center;
+
+    select {
+        width: 100%;
+        display: block;
+        font-size: 14px;
+        font-weight: 400;
+        padding: 10px 12px;
+        padding-inline-end: 32px;
+
+        background-color: var(--bg-surface);
+        color: var(--txtColor);
+        border: 1.5px solid var(--border-default);
+        border-radius: var(--radiusM);
+        direction: inherit;
+        transition: border-color 0.2s ease;
+        outline: none;
+
+        appearance: none;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        cursor: pointer;
+
+        &:focus {
+            border-color: var(--border-focus);
+        }
+
+        &:disabled {
+            cursor: default;
+        }
+
+        option {
+            background-color: var(--bg-surface);
+            color: var(--txtColor);
+        }
+    }
+
+    .chevron {
+        position: absolute;
+        inset-inline-end: 10px;
+        pointer-events: none;
+        color: var(--text-tertiary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: .2s;
+    }
+
+    &:has(select:open) .chevron {
+        transform: rotate(180deg);
+    }
+
+}

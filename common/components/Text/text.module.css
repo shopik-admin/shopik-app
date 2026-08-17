@@ -1,0 +1,92 @@
+.text {
+    margin: 0;
+    font-weight: normal;
+    text-decoration: none;
+
+    &.h1 {
+        font-size: 28px;
+    }
+
+    &.h2 {
+        font-size: 24px;
+    }
+
+    &.h3 {
+        font-size: 22px;
+    }
+
+    &.h4 {
+        font-size: 20px;
+    }
+
+    &.xl {
+        font-size: 18px;
+    }
+
+    &.l {
+        font-size: 16px;
+    }
+
+    &.m {
+        font-size: 14px;
+    }
+
+    &.s {
+        font-size: 12px;
+    }
+
+    &.xs {
+        font-size: 10px;
+    }
+
+    &.link {
+        color: var(--text-accent);
+        cursor: pointer;
+
+        &:hover {
+            text-decoration: underline;
+        }
+    }
+
+    &.bold {
+        font-weight: bold;
+    }
+
+    &.underline {
+        text-decoration: underline;
+    }
+
+    &.lineThrough {
+        text-decoration: line-through;
+
+        &.underline {
+            text-decoration: line-through underline;
+        }
+    }
+
+    &.italic {
+        font-style: italic;
+    }
+
+    &.error {
+        color: var(--danger-bg);
+        display: block;
+    }
+
+    &.sub {
+        color: var(--text-secondary);
+    }
+
+    &.center {
+        text-align: center;
+        width: 100%
+    }
+
+    &.ellipsis {
+        overflow: hidden;
+        max-width: 100%;
+        text-overflow: ellipsis;
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+    }
+}

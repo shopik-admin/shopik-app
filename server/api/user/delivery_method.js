@@ -1,0 +1,77 @@
+import { findClosestStore } from '#server/api/order/address/update.js'
+
+export default async function deliveryMethod(payload, { DL, utils, _user }) {
+    const { DELIVERY_METHOD } = DL.Order.constants
+    const { pickupStoreId } = payload
+    let pickupStore = null
+
+    const deliveryMethod = pickupStoreId ? DELIVERY_METHOD.PICKUP : DELIVERY_METHOD.DELIVERY
+    if (deliveryMethod === DELIVERY_METHOD.PICKUP) {
+        pickupStore = await DL.Store.readOne({
+            id: pickupStoreId,
+            active: true,
+            deliveryMethods: DELIVERY_METHOD.PICKUP
+        })
+        if (!pickupStore) throw { status: 400, message: 'invalid pickup store id' }
+    }
+
+    const order = await utils.data.getUserOrder({ DL, _user })
+    const methodChanged = order.deliveryMethod !== deliveryMethod
+    const pickupStoreChanged = deliveryMethod === DELIVERY_METHOD.PICKUP && order.storeId !== pickupStoreId
+    if (!methodChanged && !pickupStoreChanged) return {}
+
+    const orderChanges = {}
+    const userUpdate = {}
+    if (deliveryMethod === DELIVERY_METHOD.PICKUP) {
+        orderChanges.address = pickupStore.address
+        orderChanges.storeId = pickupStoreId
+        userUpdate.pickupStoreId = pickupStoreId
+    }
+    if (methodChanged) {
+        orderChanges.deliveryMethod = deliveryMethod
+        userUpdate.deliveryMethod = deliveryMethod
+        if (deliveryMethod === DELIVERY_METHOD.DELIVERY) {
+            const activeAddress = _user.addresses.find(a => a.active)
+            if (activeAddress) {
+                orderChanges.address = activeAddress
+                orderChanges.storeId = await findClosestStore(activeAddress, DL)
+            } else {
+                orderChanges.address = null
+                orderChanges.storeId = null
+            }
+        }
+    }
+
+    const orderUpdate = { $set: orderChanges }
+    if (order.storeId != orderChanges.storeId) {
+        if (order.window?.id) {
+            orderUpdate.$unset = { window: 0 }
+            await DL.OrderWindow.updateOne(
+                { id: order.window?.id, totalOrders: { $gt: 0 } },
+                { $inc: { totalOrders: -1 } }
+            )
+        }
+    }
+
+    const user = await DL.User.updateOne(
+        { id: _user.id },
+        {
+            $set: {
+                deliveryMethod,
+                pickupStoreId: deliveryMethod === DELIVERY_METHOD.PICKUP ? pickupStoreId : null
+            }
+        },
+        { select: DL.User.defaultSelect }
+    )
+
+    const updatedOrder = await DL.Order.updateOne(
+        { id: order.id },
+        { $set: orderUpdate },
+        { select: DL.Order.defaultSelect }
+    )
+
+    await DL.redis.del(`user_auth:${_user.id}`)
+    return { user, order: updatedOrder }
+}
+
+deliveryMethod.config = { auth: 'required' }

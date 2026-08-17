@@ -1,0 +1,28 @@
+import uid from '#common/functions/uid.js'
+import { updateOrderAddress } from '#server/api/order/address/update.js'
+
+export default async function add(payload, { DL, _user, external, utils }) {
+    payload.addressId = uid()
+    const geocoded = await external.geocode.address(payload)
+
+    const hasActiveAddresses = _user.addresses && _user.addresses.some(a => a.active)
+
+    geocoded.active = !hasActiveAddresses
+
+    const updatedUser = await DL.User.updateOne(
+        { id: _user.id },
+        { $push: { addresses: geocoded } },
+        { select: DL.User.defaultSelect }
+    )
+    if (!geocoded.active) return updatedUser
+
+    const order = await utils.data.getUserOrder({ DL, _user })
+    const { DELIVERY_METHOD } = DL.Order.constants
+    if (order.deliveryMethod === DELIVERY_METHOD.DELIVERY) {
+        await updateOrderAddress({ DL, address: geocoded, order })
+    }
+
+    return updatedUser
+}
+
+add.config = { auth: 'required', required: ['city', 'street', 'building'] }

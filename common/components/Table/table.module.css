@@ -1,0 +1,104 @@
+.table {
+    max-height: calc(100vh - 100px - var(--headerHeight));
+    max-height: calc(100dvh - 100px - var(--headerHeight));
+    overflow: auto;
+    position: relative;
+    padding: 0;
+
+    table {
+        border-collapse: collapse;
+        padding: 5px;
+        width: 100%;
+
+        th {
+            text-align: start;
+            cursor: pointer;
+            text-transform: capitalize;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            background-color: var(--bg-surface);
+            font-weight: 600;
+        }
+
+        tr {
+            border: none;
+            transition: .2s;
+            cursor: pointer;
+
+            &:not(:last-child),
+            &:first-child {
+                border-bottom: 1px solid var(--border-default);
+            }
+
+            th {
+                svg {
+                    color: var(--color1);
+                    position: relative;
+
+                    inset-inline-start: 3px;
+                    top: 1px;
+
+                    &.noSort {
+                        opacity: 0;
+                        transition: .2s;
+                    }
+                }
+            }
+
+            th:hover {
+                svg.noSort {
+                    opacity: .5;
+                }
+            }
+
+            &.selected {
+                background-color: var(--color1Semi);
+            }
+
+            &:hover {
+                background: var(--btnColor);
+            }
+
+            td,
+            th {
+                padding: 10px;
+                min-width: 85px;
+                white-space: pre;
+                overflow: auto;
+            }
+
+            td {
+                font-weight: 300;
+            }
+
+            td img {
+                max-width: 60px;
+            }
+        }
+
+        .rowCheckbox {
+            min-width: unset;
+            width: fit-content !important;
+        }
+    }
+
+    .stickyStart,
+    .stickyEnd {
+        position: sticky;
+    }
+
+    .stickyStart {
+        inset-inline-start: 10px;
+        font-weight: bold;
+    }
+
+    .stickyEnd {
+        inset-inline-end: 10px;
+    }
+
+    @media screen and (max-width:650px) {
+        max-height: calc(100vh - 200px - var(--safeBottom));
+        max-height: calc(100dvh - 200px - var(--safeBottom));
+    }
+}

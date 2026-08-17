@@ -1,0 +1,54 @@
+.login {
+    --loginCardWidth: 480px;
+    height: 100dvh;
+    overflow: hidden;
+
+    .subTitle {
+        font-size: 15px;
+        display: inline-block;
+        color: var(--secondary-text) !important;
+        margin-block: 15px 30px;
+    }
+
+    .card {
+        padding: 90px 48px 48px 48px;
+        width: var(--loginCardWidth);
+        max-width: 100vw;
+        margin: auto;
+        overflow: auto;
+        /*  max-height: calc(100dvh - 250px); */
+    }
+
+    .image {
+        width: 130px;
+        object-fit: cover;
+        margin-top: 20px;
+        transition: .6s;
+        position: relative;
+        top: 0;
+    }
+
+    .rememberMe {
+        transition: 1s;
+        opacity: 1;
+        width: 320px;
+        margin: auto;
+        margin-bottom: 20px;
+        margin-top: -5px;
+        text-transform: capitalize;
+    }
+
+    @media screen and (max-width:650px) {
+        .image {
+            display: block;
+        }
+
+        .card {
+            width: 100%;
+            height: 100dvh;
+            max-height: calc(100dvh - 100px);
+            border-bottom-left-radius: 0;
+            border-bottom-right-radius: 0;
+        }
+    }
+}
