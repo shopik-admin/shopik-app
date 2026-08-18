@@ -10,7 +10,7 @@ export default function App() {
         <TextProvider>
             {/* <Head /> */}
             <nav style={{ padding: '10px', gap: '10px', display: 'flex' }}>
-                <Link to="/"><Text>Home</Text></Link>
+                <Link to="/"><Text>Home - 1</Text></Link>
                 <Link to="/products"><Text>Products</Text></Link>
             </nav>
             <main>
