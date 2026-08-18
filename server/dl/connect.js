@@ -41,10 +41,31 @@ const hashCache = async (redis, Model, docs) => {
 }
 
 async function connectRedis() {
-    const redis = new Redis(process.env.REDIS_URL)
-    await redis.ping()
+    const redisUrl = process.env.REDIS_URL ||
+        (process.env.REDIS_HOST ? `redis://${process.env.REDIS_HOST}:${process.env.REDIS_PORT || 6379}` : 'redis://localhost:6379')
 
-    redis.on('error', err => log.error('Redis connection error:', err))
+    const redis = new Redis(redisUrl, {
+        connectTimeout: 2000,
+        maxRetriesPerRequest: 1,
+        enableOfflineQueue: false,
+        lazyConnect: true,
+        retryStrategy(times) {
+            if (times > 3) return null
+            return 1000
+        }
+    })
+
+    redis.on('error', err => log.warn('Redis notice:', err?.message || err))
+
+    try {
+        await Promise.race([
+            redis.connect(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Redis connect timeout (2s)')), 2000))
+        ])
+        log.success('Redis connection established!')
+    } catch (e) {
+        log.warn('Redis connection deferred, proceeding with direct database access:', e?.message || e)
+    }
 
     redis.init = Model => {
         const get = async (ids, select) => {
@@ -150,7 +171,11 @@ export default async function connect() {
     log.warn('MongoDB connecting...')
 
     try {
-        await mongoose.connect(process.env.DB)
+        const mongoUri = process.env.DB_URI || process.env.DB
+        if (!mongoUri) {
+            throw new Error('No MongoDB connection string provided in DB_URI or DB environment variable')
+        }
+        await mongoose.connect(mongoUri)
         log.success('MongoDB connection established!')
     } catch (error) {
         log.error('MongoDB connection failed!')
@@ -163,9 +188,8 @@ export default async function connect() {
 
     try {
         redis = await connectRedis()
-        log.success('Redis connection established!')
     } catch (error) {
-        log.error('Redis connection failed!')
+        log.warn('Redis connection skipped:', error?.message || error)
     }
 
     return {

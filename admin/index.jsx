@@ -2,9 +2,9 @@ import TextProvider from 'common/texts/TextProvider'
 import { ModalProvider } from './Layout/Modal'
 import { BrowserRouter } from 'react-router'
 import ReactDOM from 'react-dom/client'
-import User from 'Features/User'
+import User from 'features/User'
 import App from './App'
-import Lists from 'Features/Lists'
+import Lists from 'features/Lists'
 
 const sd = __SD__ || {}
 delete window.__SD__
