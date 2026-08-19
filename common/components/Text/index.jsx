@@ -34,6 +34,7 @@ const sizes = {
     xl: 'span',
     xxl: 'span',
     p: 'p',
+    h4: 'h4',
     h3: 'h3',
     h2: 'h2',
     h1: 'h1',
