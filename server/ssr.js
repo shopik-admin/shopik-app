@@ -1,5 +1,4 @@
 import { pathToFileURL } from 'url'
-import { createServer } from 'vite'
 import path from 'path'
 import fs from 'fs'
 
@@ -18,7 +17,7 @@ function injectTemplate(template, { head = '', html = '', data = {} }) {
 
 export default async function (app, bootData) {
     const { utils } = bootData
-    const isProd = Boolean(process.env.PRODUCTION)
+    const isProd = process.env.NODE_ENV === 'production' || process.env.PRODUCTION === 'true' || Boolean(process.env.PRODUCTION)
     let viteAdmin, viteClient
 
     // --- 1. הכנת ה-Templates וה-Renderers מראש (לפי הסביבה) ---
@@ -34,6 +33,7 @@ export default async function (app, bootData) {
         : null
 
     if (!isProd) {
+        const { createServer } = await import('vite')
         viteAdmin = await createServer({
             root: paths.admin.root,
             configFile: paths.admin.configFile,

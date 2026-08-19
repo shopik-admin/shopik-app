@@ -116,37 +116,45 @@ async function ensureSearchIndex(
     fields,
     type = 'autocomplete'
 ) {
-    const name = Model.getSearchIndexName()
+    try {
+        const name = Model.getSearchIndexName()
 
-    const definition = {
-        mappings: {
-            dynamic: false,
-            fields: Object.fromEntries(
-                Object.keys(fields).map(field => [
-                    field,
-                    { type }
-                ])
-            )
+        const definition = {
+            mappings: {
+                dynamic: false,
+                fields: Object.fromEntries(
+                    Object.keys(fields).map(field => [
+                        field,
+                        { type }
+                    ])
+                )
+            }
         }
-    }
 
-    const existing = (await Model.listSearchIndexes(name))[0]
+        const existingList = typeof Model.listSearchIndexes === 'function' 
+            ? await Model.listSearchIndexes(name).catch(() => []) 
+            : []
+        const existing = existingList[0]
 
-    if (!existing) {
-        await Model.createSearchIndex({
-            name,
-            definition
-        })
+        if (!existing) {
+            if (typeof Model.createSearchIndex === 'function') {
+                await Model.createSearchIndex({ name, definition }).catch(() => {})
+            }
+            return true
+        }
+
+        if (deepEqual(existing.latestDefinition, definition))
+            return false
+
+        if (typeof Model.updateSearchIndex === 'function') {
+            await Model.updateSearchIndex(name, definition).catch(() => {})
+        }
 
         return true
-    }
-
-    if (deepEqual(existing.latestDefinition, definition))
+    } catch (e) {
+        log.warn(`[SearchIndex] Skipped index for ${Model.modelName}:`, e?.message || e)
         return false
-
-    await Model.updateSearchIndex(name, definition)
-
-    return true
+    }
 }
 
 function deepEqual(a, b) {
@@ -336,25 +344,33 @@ export default async function createModels(redis) {
             const model = await createModelFromSchema(file)
             if (model) {
                 models[model.modelName] = model
-                if (model.cacheStrategy) {
-                    model.cache = await redis.init(model)
+                if (model.cacheStrategy && redis?.init) {
+                    try {
+                        model.cache = await redis.init(model)
+                    } catch (cacheInitErr) {
+                        log.warn(`Cache init failed for ${model.modelName}:`, cacheInitErr?.message || cacheInitErr)
+                    }
                 }
-                if (model.cacheStrategy === CACHE_STRATEGIES.HASHSET) {
-                    const [
-                        currentHashCount,
-                        currentDocsCount
-                    ] = await Promise.all([
-                        redis.hlen(model.cacheName),
-                        model.countDocuments()
-                    ])
+                if (model.cacheStrategy === CACHE_STRATEGIES.HASHSET && redis?.hlen && model.cache) {
+                    try {
+                        const [
+                            currentHashCount,
+                            currentDocsCount
+                        ] = await Promise.all([
+                            redis.hlen(model.cacheName).catch(() => 0),
+                            model.countDocuments().catch(() => 0)
+                        ])
 
-                    if (currentHashCount != currentDocsCount) {
-                        try {
-                            const docs = await model.find({}, { _id: 0 }).lean()
-                            await model.cache.add(docs)
-                        } catch (e) {
-                            log.error('Cache seeding error:', e)
+                        if (currentHashCount != currentDocsCount) {
+                            try {
+                                const docs = await model.find({}, { _id: 0 }).lean()
+                                await model.cache.add(docs)
+                            } catch (e) {
+                                log.error('Cache seeding error:', e)
+                            }
                         }
+                    } catch (seedErr) {
+                        log.warn('Cache check warning:', seedErr?.message || seedErr)
                     }
                 }
             }

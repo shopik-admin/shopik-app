@@ -22,7 +22,7 @@ app.use('/admin', serveStatic('build/admin', { index: false }))
 
 ssr(app, bootData)
 
-app.listen(PORT, () => bootData.utils.log.colors((c) => `
+app.listen(Number(PORT), '0.0.0.0', () => bootData.utils.log.colors((c) => `
 ${c.green}${c.bold}🚀 Server Running:${c.reset}
      ${c.cyan}Client:${c.reset} ${c.gray}http://localhost:${PORT}${c.reset}
      ${c.cyan}Admin:${c.reset}  ${c.gray}http://localhost:${PORT}/admin\n`

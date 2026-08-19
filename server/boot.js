@@ -10,7 +10,11 @@ const
     __dirname = path.dirname(__filename)
 
 export default async function boot() {
-    loadEnvFile()
+    try {
+        loadEnvFile()
+    } catch {
+        // In container/production, environment variables are passed directly
+    }
     const [DL, api, utils] = await Promise.all([
         createDL(__dirname),
         loadDir(path.join(__dirname, 'api')),

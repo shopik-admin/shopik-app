@@ -42,9 +42,17 @@ export default function (redis, Model) {
     }
 
     return async function read(filter = {}, select = { _id: 0 }, options = {}) {
-        if (Model.cacheStrategy != CACHE_STRATEGIES.HASHSET) return []
+        if (Model.cacheStrategy != CACHE_STRATEGIES.HASHSET) return null
 
-        const docsMap = await redis.hvals(Model.cacheName)
+        // If Redis is not connected, signal caller to fall back to MongoDB
+        if (!redis || redis.status !== 'ready') return null
+
+        let docsMap
+        try {
+            docsMap = await redis.hvals(Model.cacheName)
+        } catch {
+            return null
+        }
         let docs = parseArray(docsMap)
         const { search, skip = 0, limit = 30, sort } = options
 

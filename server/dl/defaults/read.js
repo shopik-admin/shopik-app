@@ -1,8 +1,11 @@
 import { CACHE_STRATEGIES } from '#common/constants.js'
 
 export default (Model) => async function read(filter = {}, select = { _id: 0 }, options = {}) {
-    if (Model.cacheStrategy === CACHE_STRATEGIES.HASHSET)
-        return Model.cache.read(...arguments)
+    if (Model.cacheStrategy === CACHE_STRATEGIES.HASHSET) {
+        const cached = await Model.cache.read(...arguments)
+        // null means Redis is unavailable — fall through to MongoDB
+        if (cached !== null) return cached
+    }
 
     const { search, skip = 0, limit = 30, sort } = options
     const processedFilter = Model.processFilter(filter, search)
