@@ -3,10 +3,11 @@ import { ModalProvider } from 'common/components/Modal'
 import TextProvider from 'common/texts/TextProvider'
 import { createContext, useContext } from 'react'
 import { Routes, Route } from 'react-router'
-import Flex from 'common/components/Flex'
 import Lists from 'common/features/Lists'
 import Header from 'layout/Header'
 import User from 'features/User'
+import Main from 'layout/Main'
+import Cart from 'layout/Cart'
 import pages from './pages'
 
 import 'common/styles/global.css'
@@ -22,15 +23,14 @@ export default function App({ data = {} }) {
                     <User sdUser={data.user}>
                         <ModalProvider>
                             <Header />
-                            <Flex justifyContent='space-between'>
-                                <main>
-                                    <Routes>
-                                        {pages.map(({
-                                            path, element: Elm
-                                        }) => <Route key={path} path={path} element={<Elm />} />)}
-                                    </Routes>
-                                </main>
-                            </Flex>
+                            <Main>
+                                <Routes>
+                                    {pages.map(({
+                                        path, element: Elm
+                                    }) => <Route key={path} path={path} element={<Elm />} />)}
+                                </Routes>
+                                <Cart />
+                            </Main>
                         </ModalProvider>
                     </User>
                 </OrderProvider>

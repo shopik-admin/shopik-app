@@ -1,0 +1,7 @@
+.main {
+    width: 100%;
+    padding-top: 20px;
+    min-height: calc(100vh - var(--header-height) - 50px);
+    max-width: min(var(--max-width), calc(100vw - 20px));
+    margin: auto;
+}

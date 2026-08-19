@@ -45,19 +45,21 @@ export function ProductButton({ product, size = 'm' }) {
 }
 
 export function ProductBadges({ product, size = 'm' }) {
+    if (!product.badges) return null
     return <Flex className={classNames(styles.badges, styles[size])}>
-        {!!product.badges && product.badges.map(badge => (
+        {product.badges.map(badge => (
             <Text key={badge}>{badge}</Text>
         ))}
     </Flex>
 }
 
-function ProductPrice({ product, size = 'm' }) {
+export function ProductPrice({ product, size = 'm' }) {
     try {
         const price = product.prices[0].price
+        const unitPriceText = getUnitPriceText(product)
         return <Flex gap={20} alignItems='center' className={classNames(styles.price, styles[size])}>
             <Text size='xxl' bold><Text size='s' bold>₪</Text>{price}</Text>
-            <Text size='s' mode='sub' className={styles.forgrams}>{getUnitPriceText(product)}</Text>
+            {unitPriceText && <Text size='s' mode='sub' className={styles.forgrams}>{unitPriceText}</Text>}
         </Flex>
 
     } catch (error) {

@@ -1,4 +1,6 @@
 .products {
+    container-type: inline-size;
+    width: 100%;
 
     .list {
         padding-top: 10px;
@@ -7,16 +9,22 @@
         gap: clamp(12px, 1.2vw, 20px);
         width: 100%;
         box-sizing: border-box;
+    }
 
-        @media (min-width: 700px) {
+    @container (min-width: 700px) {
+        .list {
             grid-template-columns: repeat(3, minmax(0, 1fr));
         }
+    }
 
-        @media (min-width: 1000px) {
+    @container (min-width: 1000px) {
+        .list {
             grid-template-columns: repeat(4, minmax(0, 1fr));
         }
+    }
 
-        @media (min-width: 1300px) {
+    @container (min-width: 1300px) {
+        .list {
             grid-template-columns: repeat(5, minmax(0, 1fr));
         }
     }

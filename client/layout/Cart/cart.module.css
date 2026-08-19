@@ -1,7 +1,219 @@
 .cart {
-    width: 250px;
-    background-color: var(--bg-brand-section);
-    border-radius: 100px;
+    width: var(--cart-width);
+    flex-shrink: 0;
+    max-height: calc(100vh - 20px - var(--header-height));
+
+    .header {
+        background-color: #F1F7F6;
+        box-shadow: 0 1px 3px 0 var(--Colors-Effects-Shadows-shadow-sm_01, rgba(0, 0, 0, 0.10)), 0 1px 2px -1px var(--Colors-Effects-Shadows-shadow-sm_02, rgba(0, 0, 0, 0.10));
+        padding-inline: 10px;
+        height: 56px;
+    }
+
+    .emptyCart {
+        svg {
+            width: 56px;
+            height: 56px;
+            color: var(--fg-brand-primary)
+        }
+    }
+
+    .footer {
+        background-color: #F1F7F6;
+        border-top-left-radius: var(--radius-3xl);
+        border-top-right-radius: var(--radius-3xl);
+        padding: 10px;
+
+        button {
+            width: 100%;
+
+            svg {
+                transform: scaleX(-1);
+            }
+        }
+    }
+}
+
+.miniCartButton {
+    background-color: var(--bg-brand-section, #0E3432);
+    color: var(--text-white, #FFFFFF);
+    border-radius: var(--radius-full, 9999px);
+    border: none;
+    outline: none;
+    cursor: pointer;
+    padding-inline: 18px;
+    padding-block: 10px;
     height: 56px;
-    padding: 10px 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    user-select: none;
+    transition: background-color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    position: relative;
+    box-sizing: border-box;
+}
+
+.miniCartButton:hover {
+    background-color: var(--bg-brand-section-subtle, #12423F);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+}
+
+.miniCartButton:active {
+    transform: scale(0.98);
+}
+
+/* Chevron Icon */
+.chevronIcon {
+    font-size: 20px;
+    color: var(--text-white, #FFFFFF);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    flex-shrink: 0;
+}
+
+.chevronOpen {
+    transform: rotate(180deg);
+}
+
+/* Desktop Text Group */
+.desktopContent {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 2px;
+    overflow: hidden;
+}
+
+.mainText {
+    color: var(--text-white, #FFFFFF);
+    font-weight: 600;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+.subText {
+    color: var(--border-secondary, #DDE4E2);
+    font-size: 11.5px;
+    font-weight: 400;
+    opacity: 0.85;
+    white-space: nowrap;
+}
+
+/* Cart Icon Wrapper & Badge */
+.cartIconSlot {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+
+    svg {
+        transform: scaleX(-1);
+    }
+}
+
+.cartIconWrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.cartIcon {
+    font-size: 26px;
+    color: var(--text-white, #FFFFFF);
+    transition: color 0.25s ease, transform 0.2s ease;
+}
+
+.cartIconOpen {
+    color: var(--color-brand-secondary, #E6FE50) !important;
+}
+
+/* Badge using CSS logical positioning (inset-inline-start works in both RTL & LTR) */
+.badge {
+    position: absolute;
+    top: -10px;
+    inset-inline-end: -10px;
+    background-color: #D695AA;
+    font-size: 10px;
+    font-weight: 700;
+    min-width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-inline: 3px;
+    line-height: 1;
+    z-index: 2;
+}
+
+/* Compact Price label for Tablet / Mobile */
+.compactPrice {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-white, #FFFFFF);
+    line-height: 1.1;
+    white-space: nowrap;
+}
+
+/* Responsive Viewports */
+
+/* Desktop view: min-width 1024px */
+@media (min-width: 1024px) {
+    .miniCartButton {
+        min-width: 250px;
+        height: 58px;
+        padding-inline: 20px;
+        padding-block: 10px;
+    }
+
+    .compactPrice {
+        display: none !important;
+    }
+}
+
+/* Tablet view: 640px to 1023px */
+@media (min-width: 640px) and (max-width: 1023px) {
+    .miniCartButton {
+        min-width: 130px;
+        height: 56px;
+        padding-inline: 14px;
+        padding-block: 6px;
+        flex-direction: row;
+    }
+
+    .desktopContent {
+        display: none !important;
+    }
+
+    .cartIconSlot {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        transform: scaleX(-1);
+    }
+}
+
+/* Mobile view: max-width 639px */
+@media (max-width: 639px) {
+    .miniCartButton {
+        min-width: 80px;
+        height: 54px;
+        padding-inline: 10px;
+        padding-block: 6px;
+        flex-direction: column;
+        justify-content: center;
+        gap: 2px;
+    }
+
+    .chevronIcon {
+        display: none !important;
+    }
+
+    .desktopContent {
+        display: none !important;
+    }
 }

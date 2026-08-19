@@ -25,7 +25,6 @@ textarea {
     text-align: start !important;
 }
 
-
 body {
     margin: 0;
     -webkit-font-smoothing: antialiased;
@@ -34,15 +33,6 @@ body {
     min-height: 100vh;
     min-height: 100dvh;
     background-color: var(--bg-page);
-}
-
-main {
-    width: 100%;
-    padding: 20px;
-    min-height: calc(100vh - var(--header-height) - 50px);
-    max-width: min(var(--max-width), calc(100vw - 40px));
-    margin: auto;
-    padding-inline: 20px;
 }
 
 h1,

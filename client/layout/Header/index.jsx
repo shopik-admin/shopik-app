@@ -6,6 +6,7 @@ import styles from './header.module.css'
 import MainMenu from 'layout/MainMenu'
 import Search from 'layout/Search'
 import Cart from 'layout/Cart'
+import MiniCart from 'layout/Cart/miniCart'
 
 export default function Header() {
     return <header className={styles.header}>
@@ -16,7 +17,7 @@ export default function Header() {
                 <UserView />
                 <DeliveryView />
             </Flex>
-            <Cart />
+            <MiniCart />
         </Flex>
         <MainMenu />
     </header>

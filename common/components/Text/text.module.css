@@ -15,6 +15,10 @@
         font-size: 22px;
     }
 
+    &.h4 {
+        font-size: 20px;
+    }
+
     &.xxl {
         font-size: 20px;
     }

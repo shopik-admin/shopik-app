@@ -1,7 +1,7 @@
 import classNames from 'common/functions/classNames'
 import styles from './icon.module.css'
 import { AiOutlineProduct } from 'react-icons/ai'
-import { BiExpandVertical, BiCollapseVertical, BiCart } from 'react-icons/bi'
+import { BiExpandVertical, BiCollapseVertical } from 'react-icons/bi'
 import { BsFileEarmarkExcel, BsPersonVcard, BsReceiptCutoff, BsCart3 } from 'react-icons/bs'
 import { FaSort, FaSortUp, FaSortDown } from 'react-icons/fa'
 import { GoPencil, GoDownload } from 'react-icons/go'
@@ -28,6 +28,9 @@ import { AiOutlineUser } from "react-icons/ai"
 import { HiOutlineShoppingBag } from "react-icons/hi2"
 import { BsTruck } from "react-icons/bs"
 import { LiaBarcodeSolid } from "react-icons/lia"
+import { FiShoppingCart } from "react-icons/fi"
+import { CgPlayListAdd } from "react-icons/cg"
+import { TbHeartPlus } from "react-icons/tb"
 
 const iconsList = {
     add: IoAddSharp,
@@ -83,7 +86,7 @@ const iconsList = {
     github: IoLogoGithub,
     play: IoPlay,
     pause: IoPause,
-    cart: BiCart,
+    cart: FiShoppingCart,
     sort: FaSort,
     sortUp: FaSortUp,
     sortDown: FaSortDown,
@@ -105,7 +108,9 @@ const iconsList = {
     bag: HiOutlineShoppingBag,
     truck: BsTruck,
     card: IoCardOutline,
-    barcode: LiaBarcodeSolid
+    barcode: LiaBarcodeSolid,
+    listPlus: CgPlayListAdd,
+    heartPlus: TbHeartPlus
 }
 
 /**
