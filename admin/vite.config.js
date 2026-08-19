@@ -11,7 +11,12 @@ const { version } = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'))
 const alias = {
   ...fs.readdirSync(currentDir, { withFileTypes: true })
     .filter(d => d.isDirectory())
-    .reduce((a, { name }) => ({ ...a, [name]: path.resolve(currentDir, name) }), {}),
+    .reduce((a, { name }) => ({
+      ...a,
+      [name]: path.resolve(currentDir, name),
+      [name[0].toUpperCase() + name.slice(1)]: path.resolve(currentDir, name),
+      [name[0].toLowerCase() + name.slice(1)]: path.resolve(currentDir, name),
+    }), {}),
   common: path.resolve(currentDir, '..', 'common'),
 }
 
