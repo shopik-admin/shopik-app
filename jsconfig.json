@@ -28,8 +28,8 @@
             "App/*": [
                 "admin/App/*"
             ],
-            "Features/*": [
-                "admin/Features/*"
+            "features/*": [
+                "features/*"
             ],
             "GenericPage/*": [
                 "admin/GenericPage/*"
