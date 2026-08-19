@@ -1,0 +1,649 @@
+.mainMenu {
+    background-color: var(--bg-brand-secondary-hover);
+
+    .mainListItem {
+        position: relative;
+        list-style: none;
+    }
+
+    .content {
+        padding: 10px;
+        width: var(--max-width);
+        margin: auto;
+    }
+
+    /* =================================
+       LEVEL 1
+       ================================= */
+
+    .mainItem {
+        cursor: pointer;
+        border: 0;
+        border-radius: 100px;
+
+        transition:
+            background-color .2s ease-in-out;
+
+        background-color: var(--bg-primary);
+        text-decoration: none;
+        color: var(--text-primary);
+
+        padding: 5px 20px;
+
+        white-space: nowrap;
+    }
+
+    .mainItem:hover {
+        background-color: var(--bg-brand-secondary);
+    }
+
+    .mainItem:active {
+        background-color: var(--bg-brand-primary-hover);
+    }
+
+
+    /* =================================
+       LEVEL 2
+       ================================= */
+
+    .level2Menu {
+        display: none;
+
+        position: absolute;
+
+        top: calc(100% + 8px);
+        right: 0;
+
+        width: 240px;
+        min-height: 460px;
+
+        box-sizing: border-box;
+
+        padding: 14px 0;
+
+        background-color: white;
+
+        border: 1px solid #e3ebea;
+
+        /*   box-shadow:
+            0 2px 8px rgba(0, 0, 0, .04),
+            0 8px 20px rgba(0, 0, 0, .04); */
+
+        z-index: 1000;
+
+        direction: rtl;
+
+        overflow: visible;
+
+        border-radius: 0 0 var(--radius-3xl) 0;
+
+        &:not(.level3visible) {
+            border-radius: 0 0 var(--radius-3xl) var(--radius-3xl);
+        }
+    }
+
+    .level2Menu.open {
+        display: flex;
+    }
+
+    .level2ListItem {
+        width: 100%;
+        list-style: none;
+    }
+
+    .level2Item {
+
+        width: calc(100% - 8px);
+        min-height: 40px;
+
+        box-sizing: border-box;
+
+        margin: 1px 4px;
+        padding: 5px 10px;
+
+        border: 0;
+        border-radius: 20px;
+
+        background-color: transparent;
+
+        color: var(--text-primary);
+        text-decoration: none;
+
+        cursor: pointer;
+
+        transition:
+            background-color .15s ease-in-out,
+            color .15s ease-in-out;
+    }
+
+    .level2Item:hover,
+    .level2Item.active {
+        background-color: #e9f1f0;
+    }
+
+    .iconWrap {
+        flex-shrink: 0;
+
+        width: 40px;
+        height: 40px;
+        font-size: 25px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        border-radius: 50%;
+
+        background-color: #edf4f3;
+        padding: 10px;
+    }
+
+    .level2Item> :first-child {
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        background-color: #edf4f3;
+    }
+
+    .level2Item> :nth-child(2) {
+        flex: 1;
+
+        min-width: 0;
+
+        overflow: hidden;
+
+        text-overflow: ellipsis;
+        white-space: nowrap;
+
+        font-size: 14px;
+    }
+
+    .level2Item> :last-child {
+        flex-shrink: 0;
+
+        margin-inline-start: auto;
+    }
+
+
+    /* =================================
+       LEVEL 3 + LEVEL 4
+       ================================= */
+
+    .level3Menu {
+        position: absolute;
+
+        top: 0;
+        right: 100%;
+
+        width: 240px;
+        height: 100%;
+
+        box-sizing: border-box;
+
+        padding: 18px 14px;
+
+        background-color: #f7fbfa;
+
+        border: 1px solid #e3ebea;
+
+        border-radius: 0 0 0 16px;
+
+        /*  box-shadow:
+            0 2px 8px rgba(0, 0, 0, .04),
+            0 8px 20px rgba(0, 0, 0, .04); */
+
+        z-index: 1100;
+
+        direction: rtl;
+
+        overflow-y: auto;
+        overflow-x: hidden;
+
+        display: flex;
+
+        flex-direction: column;
+
+        gap: 20px;
+
+        align-items: stretch;
+    }
+
+
+    /* =================================
+       LEVEL 3
+       ================================= */
+
+    .level3Group {
+        width: 100%;
+
+        flex: 0 0 auto;
+
+        list-style: none;
+
+        min-width: 0;
+    }
+
+    .level3Title {
+        display: block;
+
+        margin: 0 0 8px;
+
+        color: var(--text-primary);
+
+        font-size: 15px;
+        font-weight: 700;
+
+        line-height: 1.3;
+
+        white-space: nowrap;
+
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+
+    /* =================================
+       LEVEL 4
+       ================================= */
+
+    .level4Menu {
+        width: 100%;
+
+        padding: 0;
+        margin: 0;
+    }
+
+    .level4Item {
+        display: block;
+
+        width: 100%;
+
+        box-sizing: border-box;
+
+        padding: 4px 0;
+
+        color: var(--text-primary);
+
+        text-decoration: none;
+
+        font-size: 13px;
+        line-height: 1.4;
+
+        white-space: nowrap;
+
+        overflow: hidden;
+        text-overflow: ellipsis;
+
+        transition:
+            color .15s ease-in-out,
+            text-decoration .15s ease-in-out;
+    }
+
+    .level4Item:hover {
+        color: var(--text-brand-primary);
+        text-decoration: underline;
+    }
+
+
+    /* =================================
+       MOBILE CLOSE / BACK
+       ================================= */
+
+    .mobileClose {
+        display: none;
+    }
+
+    .mobileClose button {
+        border: 0;
+        background: transparent;
+
+        display: flex;
+        align-items: center;
+
+        gap: 8px;
+
+        width: 100%;
+
+        min-height: 44px;
+
+        padding: 10px 4px;
+
+        color: var(--text-primary);
+
+        cursor: pointer;
+    }
+
+
+    /* =================================
+       SCROLLBARS
+       ================================= */
+
+    .level2Menu::-webkit-scrollbar,
+    .level3Menu::-webkit-scrollbar {
+        width: 5px;
+    }
+
+    .level2Menu::-webkit-scrollbar-track,
+    .level3Menu::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .level2Menu::-webkit-scrollbar-thumb,
+    .level3Menu::-webkit-scrollbar-thumb {
+        background-color: #d5dfde;
+        border-radius: 10px;
+    }
+
+
+    /* =================================
+       MOBILE
+       ================================= */
+
+    @media (max-width: 768px) {
+
+        .mainMenu {
+            width: 100%;
+            max-width: 100%;
+
+            box-sizing: border-box;
+
+            padding: 8px;
+
+            overflow-x: auto;
+            overflow-y: visible;
+
+            flex-wrap: nowrap;
+
+            scrollbar-width: none;
+        }
+
+        .mainMenu::-webkit-scrollbar {
+            display: none;
+        }
+
+        .mainListItem {
+            flex-shrink: 0;
+        }
+
+        .mainItem {
+            min-height: 42px;
+
+            padding: 7px 14px;
+
+            gap: 9px;
+
+            font-size: 14px;
+        }
+
+
+        /* ===============================
+           LEVEL 2 MOBILE
+           =============================== */
+
+        .level2Menu {
+            position: fixed;
+
+            top: 58px;
+            right: 0;
+            left: 0;
+
+            width: 100vw;
+            height: calc(100dvh - 58px);
+
+            max-height: calc(100dvh - 58px);
+
+            box-sizing: border-box;
+
+            padding: 12px 10px 30px;
+
+            background-color: #f7fbfa;
+
+            border: 0;
+            border-top: 1px solid #e3ebea;
+
+            border-radius: 0;
+
+            box-shadow:
+                0 6px 20px rgba(0, 0, 0, .08);
+
+            overflow-y: auto;
+            overflow-x: hidden;
+
+            z-index: 2000;
+        }
+
+        .level2Item {
+            width: 100%;
+
+            min-height: 52px;
+
+            margin: 2px 0;
+
+            padding: 8px 12px;
+
+            border-radius: 12px;
+
+            gap: 12px;
+
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .level2Item> :first-child {
+            width: 36px;
+            height: 36px;
+        }
+
+        .level2Item> :nth-child(2) {
+            font-size: 15px;
+        }
+
+
+        /* ===============================
+           LEVEL 3 + 4 MOBILE
+           =============================== */
+
+        .level3Menu {
+            display: none;
+        }
+
+        .level3Menu.mobileLevel3Open {
+            position: fixed;
+
+            top: 58px;
+            right: 0;
+            left: 0;
+
+            width: 100vw;
+            height: calc(100dvh - 58px);
+
+            max-height: calc(100dvh - 58px);
+
+            box-sizing: border-box;
+
+            padding: 0 18px 30px;
+
+            background-color: #f7fbfa;
+
+            border: 0;
+            border-top: 1px solid #e3ebea;
+
+            border-radius: 0;
+
+            box-shadow:
+                0 6px 20px rgba(0, 0, 0, .08);
+
+            overflow-y: auto;
+            overflow-x: hidden;
+
+            display: flex;
+
+            flex-direction: column;
+
+            gap: 24px;
+
+            z-index: 2100;
+        }
+
+
+        /* ===============================
+           MOBILE BACK BUTTON
+           =============================== */
+
+        .mobileClose {
+            display: block;
+
+            position: sticky;
+
+            top: 0;
+
+            z-index: 5;
+
+            width: calc(100% + 36px);
+
+            margin: 0 -18px;
+
+            padding: 8px 18px;
+
+            box-sizing: border-box;
+
+            background-color: #f7fbfa;
+
+            border-bottom: 1px solid #e3ebea;
+        }
+
+        .mobileClose button {
+            justify-content: flex-start;
+
+            font-size: 15px;
+
+            -webkit-tap-highlight-color: transparent;
+        }
+
+
+        /* ===============================
+           LEVEL 3 MOBILE
+           =============================== */
+
+        .level3Group {
+            width: 100%;
+
+            padding-bottom: 12px;
+
+            border-bottom: 1px solid #e5eceb;
+        }
+
+        .level3Title {
+            margin-bottom: 10px;
+
+            font-size: 17px;
+
+            line-height: 1.4;
+        }
+
+
+        /* ===============================
+           LEVEL 4 MOBILE
+           =============================== */
+
+        .level4Menu {
+            width: 100%;
+
+            gap: 0;
+        }
+
+        .level4Item {
+            width: 100%;
+
+            min-height: 44px;
+
+            display: flex;
+
+            align-items: center;
+
+            box-sizing: border-box;
+
+            padding: 9px 4px;
+
+            border-radius: 8px;
+
+            font-size: 15px;
+
+            white-space: normal;
+
+            overflow: visible;
+
+            text-overflow: initial;
+        }
+
+        .level4Item:active {
+            background-color: #e9f1f0;
+        }
+    }
+
+
+    /* =================================
+       SMALL PHONES
+       ================================= */
+
+    @media (max-width: 480px) {
+
+        .mainMenu {
+            padding: 7px;
+        }
+
+        .mainItem {
+            min-height: 40px;
+
+            padding: 6px 12px;
+
+            gap: 7px;
+        }
+
+        .level2Menu,
+        .level3Menu.mobileLevel3Open {
+            top: var(--header-height);
+
+            height: calc(100dvh - 54px);
+
+            max-height: calc(100dvh - 54px);
+        }
+
+        .level2Item {
+            min-height: 50px;
+
+            padding-inline: 10px;
+        }
+
+        .level2Item> :first-child {
+            width: 34px;
+            height: 34px;
+        }
+
+        .level2Item> :nth-child(2) {
+            font-size: 14px;
+        }
+
+        .level3Menu.mobileLevel3Open {
+            padding: 0 14px 28px;
+        }
+
+        .mobileClose {
+            width: calc(100% + 28px);
+
+            margin-inline: -14px;
+
+            padding-inline: 14px;
+        }
+
+        .level3Title {
+            font-size: 16px;
+        }
+
+        .level4Item {
+            min-height: 46px;
+
+            font-size: 14px;
+        }
+    }
+}

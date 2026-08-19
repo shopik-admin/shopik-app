@@ -1,4 +1,4 @@
-import DataManager from 'Features/DataManager'
+import DataManager from 'features/DataManager'
 import styles from './coupons.module.css'
 
 export default function Coupons({ }) {

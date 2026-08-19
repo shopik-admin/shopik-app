@@ -40,6 +40,8 @@ export default async function edit(payload, { DL, _user, external, utils }) {
     if (!orderUpdateRequired) return { user }
 
     const updatedOrder = await updateOrderAddress({ DL, order, address: geocoded })
+    await DL.redis.del(`user_auth:${_user.id}`)
+
     return {
         user,
         order: updatedOrder

@@ -3,16 +3,16 @@
     height: 100%;
     min-height: 32rem;
     overflow: hidden;
-    background: var(--bg-surface);
-    border-radius: var(--radiusL);
+    background: var(--bg-primary);
+    border-radius: var(--radius-lg);
 }
 
 .roles {
     flex: 0 0 20rem;
     overflow: auto;
     padding: 1rem;
-    border-inline-end: 1px solid var(--border-default);
-    background: var(--bg-surface);
+    border-inline-end: 1px solid var(--border-primary);
+    background: var(--bg-primary);
 }
 
 .permissionList {
@@ -22,13 +22,13 @@
     flex: 1;
     overflow: auto;
     padding: 1.5rem;
-    background: var(--bg-surface);
+    background: var(--bg-primary);
 
     h3 {
         margin: 0 0 1.25rem;
         color: var(--text-primary);
         font-size: 1.125rem;
-        font-weight: 600;
+        font-weight: var(--font-weight-semibold);
     }
 }
 
@@ -38,9 +38,9 @@
     align-items: center;
     background: none;
     border: none;
-    color: var(--text-accent) !important;
+    color: var(--text-brand) !important;
     font-size: 0.95rem;
-    font-weight: 600;
+    font-weight: var(--font-weight-semibold);
     cursor: pointer;
     margin-bottom: 1rem;
     padding: 0;
@@ -82,16 +82,16 @@
     margin: 0 0 0 1.5rem;
     padding: 0;
     list-style: none;
-    border-inline-start: 2px solid var(--border-default);
+    border-inline-start: 2px solid var(--border-primary);
     padding-inline-start: 16px;
     margin-inline-start: 8px;
 }
 
 .actionList li {
     padding: .5rem .75rem;
-    border: 1px solid var(--border-default);
-    border-radius: var(--radiusM);
-    background: var(--bg-surface-raised);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    background: var(--bg-primary-alt);
     color: var(--text-secondary);
     font-size: .875rem;
     transition:
@@ -101,16 +101,16 @@
     user-select: none;
 
     &:hover {
-        border-color: var(--border-strong);
+        border-color: var(--border-brand);
         color: var(--text-primary);
     }
 }
 
 /* Active Permission State (Checked) */
 .actionList li.active {
-    border-color: var(--text-accent);
-    background: color-mix(in srgb, var(--text-accent) 14%, transparent);
-    font-weight: bold;
+    border-color: var(--text-brand);
+    background: color-mix(in srgb, var(--text-brand) 14%, transparent);
+    font-weight: var(--font-weight-bold);
     color: var(--text-primary);
 }
 
@@ -124,7 +124,7 @@
 }
 
 .checkboxInput {
-    accent-color: var(--brand-primary, #3b82f6);
+    accent-color: var(--text-brand);
     width: 1rem;
     height: 1rem;
 }
@@ -140,8 +140,8 @@
         inset-inline-start: 0;
         bottom: -25px;
         width: 100%;
-        background-color: var(--bg-surface);
-        border-top: 1px solid var(--border-default);
+        background-color: var(--bg-primary);
+        border-top: 1px solid var(--border-primary);
 
         button {
             width: 300px !important;

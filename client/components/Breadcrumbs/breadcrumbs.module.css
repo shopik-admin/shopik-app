@@ -1,0 +1,19 @@
+.breadcrumbs {
+    width: fit-content;
+
+    a {
+        color: var(--text-secondary);
+
+        &:after {
+            content: '/';
+            margin: 0 .25rem;
+            color: var(--secondary-color);
+        }
+
+        &:last-child:after {
+            content: '';
+        }
+    }
+
+
+}

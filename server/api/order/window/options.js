@@ -50,14 +50,18 @@ export default async function options(payload, { DL, _user, utils }) {
         w.disabled = isPast || isFull
         w.note = isPast ? 'past' : isFull ? 'full' : isAlmostFull ? 'almost full' : ''
 
+        const windowsDate = new Date(w.date)
         if (!grouped[w.date]) grouped[w.date] = {
-            day: w.dayOfWeek,
+            dayOfWeek: w.dayOfWeek,
+            dayOfMonth: windowsDate.getDate(),
+            month: windowsDate.getMonth(),
+            date: w.date,
             windows: []
         }
         grouped[w.date].windows.push(w)
     }
 
-    return grouped
+    return Object.values(grouped)
 }
 
 function formatDate(date) {

@@ -1,8 +1,9 @@
 .menu {
+
     .sectiontitle {
-        color: #636E72;
-        font-size: 11px;
-        font-weight: 700;
+        color: var(--text-tertiary);
+        font-size: var(--text-xs);
+        font-weight: var(--font-weight-bold);
         transition: .3s;
         text-transform: uppercase;
         margin-top: 20px;
@@ -10,30 +11,30 @@
 
     .menuItem {
         width: 100%;
-        color: var(--sidebar-text-muted);
+        color: var(--text-tertiary);
         padding: 10px;
         display: flex;
         align-items: center;
         gap: 10px;
         text-decoration: none;
-        font-weight: 400;
-        font-size: 14px;
-        border-radius: 10px;
+        font-weight: var(--font-weight-regular);
+        font-size: var(--text-sm);
+        border-radius: var(--radius-lg);
         margin-block: 8px;
         transition: .2s;
 
         &:hover {
-            background-color: #313131;
+            background-color: var(--bg-tertiary);
         }
 
         &.active {
-            font-weight: 600;
-            background-color: var(--sidebar-active-bg);
-            color: var(--sidebar-active-text)
+            font-weight: var(--font-weight-semibold);
+            background-color: var(--bg-brand-secondary);
+            color: var(--text-brand)
         }
 
         svg {
-            color: var(--sidebar-text) !important;
+            color: var(--text-primary) !important;
             font-size: 20px;
             flex-shrink: 0;
         }

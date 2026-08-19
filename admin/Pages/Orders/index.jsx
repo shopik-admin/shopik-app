@@ -1,4 +1,4 @@
-import DataManager from 'Features/DataManager'
+import DataManager from 'features/DataManager'
 import styles from './orders.module.css'
 
 export default function Orders({ }) {

@@ -1,9 +1,9 @@
 .card {
-    padding: 20px;
+    padding: 10px;
     background-color: var(--bg-surface);
-    border-radius: var(--radiusL);
+    border-radius: var(--radius-3xl);
     box-shadow: var(--shadowL);
-    border: 1px solid var(--border-default);
+    border: 1px solid var(--border-primary);
 
     .title {
         font-size: 24px;

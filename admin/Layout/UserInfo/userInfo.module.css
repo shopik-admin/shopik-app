@@ -2,10 +2,10 @@
     .avatar {
         cursor: pointer;
         font-weight: bold;
-        font-size: 12px;
+        font-size: var(--text-xs);
         width: 32px;
         height: 32px;
-        border: 1px solid var(--border-default);
-        border-radius: 50%;
+        border: 1px solid var(--border-primary);
+        border-radius: var(--radius-full);
     }
 }

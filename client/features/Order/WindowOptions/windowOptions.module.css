@@ -1,0 +1,46 @@
+.windowOptions {
+    .day {
+        width: 56px;
+        height: 56px;
+        background-color: var(--bg-brand-secondary);
+        border-radius: var(--radius-xl);
+        cursor: pointer;
+        transition: color .2s ease, background-color .2s ease;
+        user-select: none;
+
+        &:hover {
+            background-color: var(--bg-brand-secondary-hover);
+        }
+
+        &.active {
+            background-color: var(--bg-brand-primary);
+            color: var(--text-primary-on-brand);
+
+            &:hover {
+                background-color: var(--bg-brand-primary-hover);
+            }
+        }
+    }
+
+    .time {
+        padding: 14px 16px;
+        border: 1px solid #E6E6E6;
+        border-radius: var(--radius-3xl);
+        cursor: pointer;
+        transition: border-color .2s ease, box-shadow .2s ease, background-color .2s ease;
+        user-select: none;
+
+        &:hover {
+            border-color: var(--bg-brand-primary);
+        }
+
+        &.active {
+            border-color: var(--bg-brand-primary);
+            box-shadow: 0 0 0 1px var(--bg-brand-primary);
+        }
+    }
+
+    :global(.Loader_) {
+        margin: 0;
+    }
+}

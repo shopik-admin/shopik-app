@@ -10,12 +10,17 @@ const baseMenu = [
 ]
 
 export default async function getMenu({ DL }) {
+    // TODO: add storeId
+    const cached = await DL.redis.get('menu')
+    if (cached) {
+        return JSON.parse(cached)
+    }
     const categoriesIds = await DL.Product.Model.distinct('category.pathIds', {
         status: DL.Product.constants.STATUS.ACTIVE
     })
     const categories = await DL.Category.read(
-        { id: { $in: categoriesIds } },
-        { _id: 0, name: 1, parentId: 1, id: 1 },
+        { id: { $in: categoriesIds }, active: true },
+        { _id: 0, name: 1, parentId: 1, id: 1, slug: 1 },
         { sort: { name: 1 }, limit: 0 }
     )
     const categoriesByParent = categories.reduce((acc, category) => {
@@ -25,17 +30,18 @@ export default async function getMenu({ DL }) {
         return acc
     }, {})
 
-    function buildBranch(parentId, prefix = '/products', encodedPrefix = '/products') {
+    function buildBranch(parentId, prefix = '/products'/* , encodedPrefix = '/products' */) {
         return categoriesByParent[parentId]?.map(child => {
             const path = `${prefix}/${child.name}`.replace(/\s+/g, '-').toLowerCase()
-            const encodedPath = `${encodedPrefix}/${encodeURIComponent(child.name)}`.replace(/\s+/g, '-').toLowerCase()
+            //const encodedPath = `${encodedPrefix}/${encodeURIComponent(child.name)}`.replace(/\s+/g, '-').toLowerCase()
             const node = {
-                id: child.id,
+                /* id: child.id, */
                 name: child.name,
-                path,
-                encodedPath
+                /*   path, */
+                slug: child.slug,
+                //encodedPath
             }
-            const children = buildBranch(child.id, path, encodedPath)
+            const children = buildBranch(child.id, path, /* encodedPath */)
             if (children?.length > 0)
                 node.children = children
 
@@ -45,12 +51,14 @@ export default async function getMenu({ DL }) {
 
     const tree = buildBranch(null)
     const menu = [
-        ...baseMenu,
         {
             name: 'Products',
             path: '/products',
+            slug: 'products',
             children: tree
-        }
+        },
+        ...baseMenu,
     ]
+    await DL.redis.set('menu', JSON.stringify(menu), 'EX', 60 * 60)
     return menu
 }

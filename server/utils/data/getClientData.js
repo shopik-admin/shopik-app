@@ -13,7 +13,6 @@ export default async function getClientData(req, bootData) {
 
     if (user)
         promises.push(utils.data.getUserOrder({ ...bootData, _user: user }))
-
     const [
         settingsResult,
         menuResult,

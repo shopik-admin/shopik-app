@@ -1,0 +1,194 @@
+/* Design Tokens - Generated from Figma */
+
+:root {
+    --max-width: 1440px;
+
+    --header-height: 120px;
+    --admin-header-height: 64px;
+
+    --safeTop: env(safe-area-inset-top);
+    --safeBottom: env(safe-area-inset-bottom);
+
+
+    /* Font Families */
+    --font-family-display: 'Open Sans', sans-serif;
+    --font-family-body: 'Open Sans', sans-serif;
+
+    /* Font Weights */
+    --font-weight-regular: 400;
+    --font-weight-medium: 500;
+    --font-weight-semibold: 600;
+    --font-weight-bold: 700;
+
+    /* Font Sizes */
+    --text-xs: 12px;
+    --text-sm: 14px;
+    --text-md: 16px;
+    --text-lg: 18px;
+    --text-xl: 20px;
+    --display-xs: 24px;
+    --display-sm: 30px;
+    --display-md: 36px;
+    --display-lg: 48px;
+    --display-xl: 60px;
+    --display-2xl: 72px;
+
+    /* Line Heights */
+    --line-height-text-xs: 18px;
+    --line-height-text-sm: 20px;
+    --line-height-text-md: 24px;
+    --line-height-text-lg: 28px;
+    --line-height-text-xl: 30px;
+    --line-height-display-xs: 32px;
+    --line-height-display-sm: 38px;
+    --line-height-display-md: 44px;
+    --line-height-display-lg: 60px;
+    --line-height-display-xl: 72px;
+    --line-height-display-2xl: 90px;
+
+    /* Border Radius */
+    --radius-none: 0px;
+    --radius-xxs: 2px;
+    --radius-xs: 4px;
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 10px;
+    --radius-xl: 12px;
+    --radius-2xl: 16px;
+    --radius-3xl: 20px;
+    --radius-4xl: 24px;
+    --radius-full: 9999px;
+
+    /* === LIGHT MODE COLORS === */
+
+    /* Text Colors */
+    --text-primary: #242A28;
+    --text-primary-on-brand: #FFFFFF;
+    --text-secondary: #505B58;
+    --text-secondary-hover: #38413F;
+    --text-tertiary: #65716E;
+    --text-quaternary: #7D8986;
+    --text-white: #FFFFFF;
+    --text-placeholder: #7D8986;
+    --text-brand: #195855;
+    --text-brand-primary: #092624;
+    --text-brand-secondary: #12423F;
+    --text-error-primary: #F05050;
+    --text-warning-primary: #F0B928;
+    --text-success-primary: #28AA5F;
+    --color-brand-secondary: #E6FE50;
+
+    /* Border Colors */
+    --border-primary: #C5CFCC;
+    --border-secondary: #DDE4E2;
+    --border-tertiary: #EEF2F1;
+    --border-brand: #195855;
+    --border-error: #F05050;
+
+    /* Foreground Colors */
+    --fg-primary: #242A28;
+    --fg-secondary: #505B58;
+    --fg-tertiary: #65716E;
+    --fg-quaternary: #7D8986;
+    --fg-quinary: #A4B0AD;
+    --fg-senary: #C5CFCC;
+    --fg-white: #FFFFFF;
+    --fg-brand-primary: #164F4C;
+    --fg-brand-secondary: #195855;
+    --fg-error-primary: #D73737;
+    --fg-error-secondary: #F05050;
+    --fg-warning-primary: #D7A019;
+    --fg-success-primary: #19914B;
+
+    /* Background Colors */
+    --bg-primary: #FFFFFF;
+    --bg-primary-hover: #F7F9F8;
+    --bg-primary-alt: #FFFFFF;
+    --bg-secondary: #F7F9F8;
+    --bg-secondary-hover: #EEF2F1;
+    --bg-secondary-subtle: #F7F9F8;
+    --bg-tertiary: #EEF2F1;
+    --bg-quaternary: #DDE4E2;
+    --bg-active: #F7F9F8;
+    --bg-disabled: #EEF2F1;
+    --bg-disabled-subtle: #F7F9F8;
+    --bg-overlay: #242A28;
+    --bg-brand-primary: #195855;
+    --bg-brand-primary-hover: #164F4C;
+    --bg-brand-secondary: #E8F1F0;
+    --bg-brand-secondary-hover: #DCEBEA;
+    --bg-brand-section: #0E3432;
+    --bg-brand-section-subtle: #12423F;
+    --bg-error-primary: #F05050;
+    --bg-error-secondary: #FFF5F5;
+    --bg-warning-primary: #F0B928;
+    --bg-warning-secondary: #FFFCF0;
+    --bg-success-primary: #28AA5F;
+    --bg-success-secondary: #F0FDF5;
+}
+
+[data-theme="dark"] {
+    /* === DARK MODE COLORS === */
+
+    /* Text Colors */
+    --text-primary: #F7F9F8;
+    --text-primary-on-brand: #FFFFFF;
+    --text-secondary: #C5CFCC;
+    --text-secondary-hover: #DDE4E2;
+    --text-tertiary: #A4B0AD;
+    --text-quaternary: #7D8986;
+    --text-white: #FFFFFF;
+    --text-placeholder: #7D8986;
+    --text-brand-primary: #DCEBEA;
+    --text-brand-secondary: #8EBDB9;
+    --text-error-primary: #FA7878;
+    --text-warning-primary: #FAD25A;
+    --text-success-primary: #5AC88C;
+
+    /* Border Colors */
+    --border-primary: #505B58;
+    --border-secondary: #38413F;
+    --border-tertiary: #242A28;
+    --border-brand: #57938F;
+    --border-error: #FA7878;
+
+    /* Foreground Colors */
+    --fg-primary: #F7F9F8;
+    --fg-secondary: #C5CFCC;
+    --fg-tertiary: #A4B0AD;
+    --fg-quaternary: #7D8986;
+    --fg-quinary: #65716E;
+    --fg-senary: #505B58;
+    --fg-white: #FFFFFF;
+    --fg-brand-primary: #57938F;
+    --fg-brand-secondary: #8EBDB9;
+    --fg-error-primary: #FA7878;
+    --fg-error-secondary: #FFA5A5;
+    --fg-warning-primary: #FAD25A;
+    --fg-success-primary: #5AC88C;
+
+    /* Background Colors */
+    --bg-primary: #242A28;
+    --bg-primary-hover: #242A28;
+    --bg-primary-alt: #242A28;
+    --bg-secondary: #242A28;
+    --bg-secondary-hover: #38413F;
+    --bg-secondary-subtle: #242A28;
+    --bg-tertiary: #38413F;
+    --bg-quaternary: #505B58;
+    --bg-active: #38413F;
+    --bg-disabled: #38413F;
+    --bg-disabled-subtle: #242A28;
+    --bg-overlay: #242A28;
+    --bg-brand-primary: #195855;
+    --bg-brand-primary-hover: #57938F;
+    --bg-brand-secondary: #092624;
+    --bg-brand-section: #0E3432;
+    --bg-brand-section-subtle: #12423F;
+    --bg-error-primary: #F05050;
+    --bg-error-secondary: #B92323;
+    --bg-warning-primary: #F0B928;
+    --bg-warning-secondary: #808080;
+    --bg-success-primary: #28AA5F;
+    --bg-success-secondary: #808080;
+}

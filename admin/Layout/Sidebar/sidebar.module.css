@@ -1,6 +1,7 @@
 .sidebar {
     --drawerTransitionTime: .4s;
 
+
     &.open {
         --sidebarWidth: 240px;
     }
@@ -15,7 +16,7 @@
 
         svg {
             transition: .2s;
-            color: var(--sidebar-text);
+            color: var(--text-primary);
         }
     }
 
@@ -50,7 +51,7 @@
     }
 
     /* border-inline-end: 1px solid #e4eaed;
-    background-color: var(--bg-surface); */
+    background-color: var(--bg-primary); */
     height: 100vh;
     flex-shrink: 0;
     padding-inline-start: var(--sidebarWidth);
@@ -68,9 +69,10 @@
     }
 
     aside {
+        border-inline-end: 1px solid var(--border-primary);
         width: var(--sidebarWidth);
         inset-inline-start: 0;
-        background-color: var(--sidebar-bg);
+        background-color: var(--bg-primary);
         top: 0;
         position: fixed;
         padding: 16px;
@@ -83,7 +85,7 @@
             width: 208px;
             height: 100%;
             overflow: auto;
-            color: var(--sidebar-text);
+            color: var(--text-primary);
             transition: .3s;
         }
     }

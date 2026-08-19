@@ -4,9 +4,8 @@ import Sidebar from 'Layout/Sidebar'
 import Header from 'Layout/Header'
 import Main from 'Layout/Main'
 import usePages from './Pages'
-import 'styles/global.css'
-import 'styles/theme.css'
-import 'styles/font.css'
+
+import 'common/styles/global.css'
 
 function AdminLayout() {
     return <Sidebar >
@@ -24,6 +23,6 @@ export default function App() {
                 <Route key={page.key} path={page.path} Component={page.component} />
             ))}
         </Route>
-        <Route path='*' element={<Navigate to='/admin/' replace />} /> // TO DO if 404 go to home
+        <Route path='*' element={<Navigate to='/admin/' replace />} />
     </Routes>
 }

@@ -1,18 +1,43 @@
+import Breadcrumbs from 'components/Breadcrumbs'
+import Loader from '#common/components/Loader'
+import apiReq from '#common/functions/apiReq'
 import styles from './products.module.css'
+import Flex from '#common/components/Flex'
+import Text from '#common/components/Text'
+import ProductCard from './ProductCard'
 import { usePage } from 'layout/Page'
 
-export default function Products({ }) {
-    const pData = usePage()
-    console.log(pData)
-    return <div className={styles.products}>
-        Products1a
-    </div>
+export default function Products() {
+    const { loading, pageData, path } = usePage()
+
+    return <Flex col className={styles.products} direction='column' gap={10}>
+        <Breadcrumbs path={path} />
+        <Text size='h1' bold>{pageData?.data?.categoryName || pageData.title}</Text>
+        <div wrap gap={20} className={styles.list}>
+            {loading ? <Loader />
+                : pageData?.data?.products?.map(p => <ProductCard
+                    key={p.id}
+                    product={p}
+                >{p.name}</ProductCard>)}
+        </div>
+    </Flex>
 }
 
-Products.init = async function () {
-    console.log('products init')
+
+Products.init = async function (path) {
+    const res = await apiReq('product/get', { path })
+    const title = decodeURIComponent(path).split('/').pop()
+    if (res.products[0]) {
+        const product = res.products[0]
+        return {
+            title: title || product.name,
+            description: product.description,
+            data: res
+        }
+    }
     return {
-        title: Date.now() + 'hi',
-        data: { a: 1 }
+        title: decodeURI(title),
+        description: title,
+        data: res
     }
 }

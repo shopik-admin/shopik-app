@@ -1,0 +1,136 @@
+.container {
+    max-width: var(--max-width);
+    margin: 0 auto;
+    width: 100%;
+}
+
+.inPopover {
+    width: 100%;
+    margin: 0;
+}
+
+.layout {
+    width: 100%;
+}
+
+.sidebar {
+    width: 220px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-tertiary);
+    border-radius: var(--radius-2xl);
+    padding: 12px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+}
+
+.inPopover .sidebar {
+    width: 100%;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+    background: transparent;
+}
+
+.navList {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.navLink {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    text-decoration: none;
+    color: var(--text-secondary);
+    border-radius: var(--radius-xl);
+    transition: all 0.2s ease;
+    font-weight: var(--font-weight-medium, 500);
+    font-size: var(--text-sm, 14px);
+}
+
+.navLink:hover {
+    background-color: var(--bg-secondary-hover);
+}
+
+.navLink.active {
+    background-color: var(--bg-brand-primary);
+    color: var(--text-white) !important;
+    font-weight: var(--font-weight-semibold, 600);
+}
+
+.navLink.active .navIcon {
+    color: var(--text-white);
+}
+
+.navIcon {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    color: var(--fg-quaternary);
+    transition: color 0.2s ease;
+}
+
+.navLink:hover .navIcon {
+    color: var(--text-primary);
+}
+
+.logoutWrapper {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-tertiary);
+}
+
+.logoutButton {
+    width: 100% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 12px !important;
+    padding: 10px 14px !important;
+    border-radius: var(--radius-xl) !important;
+    font-size: var(--text-sm, 14px) !important;
+    font-weight: var(--font-weight-medium, 500) !important;
+    background-color: transparent !important;
+    color: var(--text-secondary) !important;
+    border: 1px solid var(--border-secondary) !important;
+    transition: all 0.2s ease !important;
+    cursor: pointer;
+}
+
+.logoutButton:hover {
+    background-color: var(--bg-error-secondary) !important;
+    color: var(--fg-error-primary) !important;
+    border-color: rgba(240, 80, 80, 0.3) !important;
+}
+
+.logoutButton svg {
+    font-size: 20px !important;
+    width: 20px !important;
+    height: 20px !important;
+}
+
+.content {
+    flex: 1;
+    min-width: 0;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-tertiary);
+    border-radius: var(--radius-2xl);
+    padding: 24px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+    max-width: 400px;
+}
+
+@media (max-width: 767px) {
+    .layout {
+        flex-direction: column;
+    }
+
+    .sidebar {
+        width: 100%;
+    }
+}

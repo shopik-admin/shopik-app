@@ -1,5 +1,5 @@
 import styles from './users.module.css'
-import DataManager from 'Features/DataManager'
+import DataManager from 'features/DataManager'
 
 export default function Users({ }) {
     return <div className={styles.products}>
@@ -16,6 +16,7 @@ export default function Users({ }) {
                 { key: 'email' },
                 { key: 'createdAt', type: 'date' },
                 { key: 'updatedAt', type: 'datetime' },
+                { key: 'lastLogin', type: 'datetime' },
                 { key: 'active', type: 'boolean' },
             ]}
             form={[

@@ -1,0 +1,8 @@
+.addressCard {
+    transition: all 0.2s ease-in-out;
+    background-color: white;
+}
+
+.addressCard:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}

@@ -15,7 +15,10 @@ export function getAddress(payload) {
 
 const nameFields = ['name.first', 'name.last']
 export function getName(payload) {
-    return extractFields(payload, nameFields)
+    const res = extractFields(payload, nameFields)
+    if (!res.first && !res.last)
+        return null
+    return res
 }
 
 const extractors = { getAddress, getName }

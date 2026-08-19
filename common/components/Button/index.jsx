@@ -1,14 +1,14 @@
 import usePermission from 'common/permissions/usePermision'
 import classNames from 'common/functions/classNames'
+import Loader from 'common/components/Loader'
+import Icon from 'common/components/Icon'
+import Text from 'common/components/Text'
 import styles from './button.module.css'
-import Icon from '../Icon'
-import Text from '../Text'
 import { useState } from 'react'
-import Loader from '../Loader'
 
 export default function Button({
     className, text = '', children = text, icon, mode, loading: externalLoading = false,
-    onClick, stopPropagation, preventDefault, permission, onError, ...props
+    onClick, stopPropagation, preventDefault, permission, onError, onPrimary, ...props
 }) {
     if (permission && !usePermission(permission)) return null
 
@@ -19,6 +19,7 @@ export default function Button({
             className,
             styles.button,
             [styles[mode], mode],
+            [styles.onPrimary, onPrimary],
         )}
         onClick={async e => {
             if (loading || !onClick) return

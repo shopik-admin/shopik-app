@@ -13,7 +13,8 @@ import {
     IoEaselOutline, IoDocumentTextOutline, IoSearchOutline, IoKeyOutline, IoCalendarOutline,
     IoRefreshSharp, IoChevronForwardOutline, IoTrashOutline, IoCloseOutline, IoCheckmarkOutline,
     IoShareOutline, IoChevronDown, IoLogoGithub, IoPlay, IoPause, IoChevronBack,
-    IoCheckmarkCircleOutline, IoEllipseOutline, IoStorefrontOutline
+    IoCheckmarkCircleOutline, IoEllipseOutline, IoStorefrontOutline, IoMapOutline, IoTimeOutline,
+    IoCardOutline
 } from 'react-icons/io5'
 import { LuClipboard, LuClipboardList, LuLoader, LuCalendarPlus } from 'react-icons/lu'
 import { MdChecklistRtl, MdOutlineEventRepeat, MdDomain, MdCloudSync } from 'react-icons/md'
@@ -23,12 +24,17 @@ import { TbReplace, TbDeviceMobileCheck, TbDeviceMobileUp } from 'react-icons/tb
 import { VscReferences } from 'react-icons/vsc'
 import { LuPanelRightClose, LuPanelRightOpen } from "react-icons/lu"
 import { MdOutlineLightMode, MdLightMode } from "react-icons/md"
+import { AiOutlineUser } from "react-icons/ai"
+import { HiOutlineShoppingBag } from "react-icons/hi2"
+import { BsTruck } from "react-icons/bs"
+import { LiaBarcodeSolid } from "react-icons/lia"
 
 const iconsList = {
     add: IoAddSharp,
     edit: GoPencil,
     trash: IoTrashOutline,
     left: IoChevronBack,
+    right: IoChevronForwardOutline,
     download: GoDownload,
     settings: IoSettingsOutline,
     menu: IoMenu,
@@ -39,6 +45,7 @@ const iconsList = {
     desktop: IoDesktopOutline,
     notifications: IoNotificationsOutline,
     exit: IoExitOutline,
+    logout: IoExitOutline,
     fallback: IoGridOutline,
     dashboard: IoEaselOutline,
     buildings: HiOutlineBuildingOffice2,
@@ -91,7 +98,14 @@ const iconsList = {
     unMini: LuPanelRightOpen,
     darkMode: MdOutlineLightMode,
     lightMode: MdLightMode,
-    sync: MdCloudSync
+    sync: MdCloudSync,
+    user: AiOutlineUser,
+    map: IoMapOutline,
+    time: IoTimeOutline,
+    bag: HiOutlineShoppingBag,
+    truck: BsTruck,
+    card: IoCardOutline,
+    barcode: LiaBarcodeSolid
 }
 
 /**

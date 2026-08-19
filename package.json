@@ -10,19 +10,19 @@
     "build": "npm run build:client && npm run build:admin && npm run build:server"
   },
   "dependencies": {
-    "cookie-parser": "^1.4.7",
-    "express": "^5.2.1",
-    "fast-xml-parser": "^4.5.7",
-    "ioredis": "^6.0.0",
-    "mongoose": "^9.8.0",
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8",
-    "react-icons": "^5.7.0",
-    "react-router": "^8.2.0"
+    "cookie-parser": "1.4.7",
+    "express": "5.2.1",
+    "fast-xml-parser": "^5.11.0",
+    "ioredis": "6.0.0",
+    "mongoose": "9.9.3",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "react-icons": "5.7.0",
+    "react-router": "8.3.0"
   },
   "devDependencies": {
-    "@vitejs/plugin-react": "^6.0.4",
-    "vite": "^8.1.5"
+    "@vitejs/plugin-react": "6.0.5",
+    "vite": "8.2.1"
   },
   "imports": {
     "#package.json": "./package.json",

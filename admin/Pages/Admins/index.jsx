@@ -1,4 +1,4 @@
-import DataManager from 'Features/DataManager'
+import DataManager from 'features/DataManager'
 import styles from './admins.module.css'
 
 export default function Admins({ }) {
@@ -17,6 +17,7 @@ export default function Admins({ }) {
                 { key: 'email' },
                 { key: 'createdAt', type: 'date' },
                 { key: 'updatedAt', type: 'datetime' },
+                { key: 'lastLogin', type: 'datetime' },
                 { key: 'active', type: 'boolean' },
             ]}
             form={[

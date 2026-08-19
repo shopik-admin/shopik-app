@@ -1,0 +1,20 @@
+.header {
+    height: var(--header-height);
+    top: 0;
+    background-color: var(--bg-brand-primary);
+    position: sticky;
+    transition: .3s;
+    width: 100vw;
+    z-index: 999;
+
+    .headerContent {
+        padding: 10px;
+        margin: auto;
+        max-width: var(--max-width);
+    }
+
+    @media screen and (min-width: 650px) {
+        inset-inline-start: var(--sidebarWidth);
+        width: calc(100vw - var(--sidebarWidth));
+    }
+}

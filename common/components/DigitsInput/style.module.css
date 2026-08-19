@@ -1,0 +1,18 @@
+.digitsInput {
+    max-width: 324px;
+    width: 100%;
+    direction: ltr;
+    margin: auto;
+
+    input {
+        text-align: center !important;
+        appearance: none;
+        font-weight: bold;
+        border-radius: var(--radius-md);
+        height: 48px;
+
+        &+span {
+            padding-top: 5px;
+        }
+    }
+}

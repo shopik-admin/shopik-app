@@ -1,8 +1,8 @@
 import { createContext, useContext, useEffect, useState } from 'react'
-import DataForm from 'Features/DataManager/DataForm'
+import DataForm from 'features/DataManager/DataForm'
+import { useModal } from 'common/components/Modal'
 import useApi from 'common/functions/useApi'
-import { useModal } from 'Layout/Modal'
-import apiReq from 'common/functions/apiReq.js'
+import apiReq from 'common/functions/apiReq'
 
 const DataContext = createContext()
 export const useData = () => useContext(DataContext)

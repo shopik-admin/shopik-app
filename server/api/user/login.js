@@ -20,12 +20,16 @@ export default async function login({ idNum, otpToken, otp }, { DL, utils, platf
         lastLogin: new Date,
         [`tokens.${platform}`]: token
     }
-    await DL.User.updateOne({ id: user.id }, update)
+    const updatedUser = await DL.User.updateOne({ id: user.id }, update, { select: DL.User.defaultSelect })
 
     await DL.redis.del(`user_auth:${user.id}`)
     await DL.Otp.deleteOne({ _id: storedOtp._id })
     setCookie(USER_TOKEN_COOKIE, token, USER_TOKEN_EXPIRY_MS)
-    return true
+
+    return {
+        user: updatedUser,
+        order: await utils.data.getUserOrder({ DL, _user: updatedUser })
+    }
 }
 
 login.config = {

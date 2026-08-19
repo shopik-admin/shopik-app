@@ -1,44 +1,34 @@
-import React from 'react'
-import ReactDOMServer from 'react-dom/server'
-import { createStaticHandler, createStaticRouter, StaticRouterProvider, matchPath } from 'react-router'
-import pages from 'pages'
-import { routes } from './routes'
+import { StaticRouter, matchPath } from 'react-router'
+import { renderToString } from 'react-dom/server'
+import Head from 'layout/Head'
+import pages from './pages'
+import App from './App'
 
-function createFetchRequest(urlStr) {
-  const url = new URL(urlStr, 'http://localhost')
-  return new Request(url.href, {
-    method: 'GET',
-  })
-}
+export async function render({ url, data }) {
+  const
+    page = pages.find(p => matchPath(p.path, url)) ?? pages[0]
+  data.initData = await page.element.init?.(url)
+  data.url = url
 
-export async function render(serverData) {
-  const { url } = serverData
-
-  const handler = createStaticHandler(routes)
-  const fetchReq = createFetchRequest(url)
-  const context = await handler.query(fetchReq)
-
-  if (context instanceof Response) {
-    throw context
-  }
-
-  const router = createStaticRouter(handler.dataRoutes, context)
-
-  const activePage = pages.find(page => matchPath({ path: page.path, end: true }, url))
-
-  const title = activePage?.title || 'דף הבית'
-  const description = activePage?.description || ''
-
-  const head = `
-    <title>${title}</title>
-    <meta name="description" content="${description}" />
-  `
-
-  const html = ReactDOMServer.renderToString(
-    <React.StrictMode>
-      <StaticRouterProvider router={router} context={context} />
-    </React.StrictMode>
+  const html = renderToString(
+    <StaticRouter location={url}>
+      <App data={data} />
+    </StaticRouter>
   )
 
-  return { html, head }
+  let head = renderToString(<Head
+    title={data.initData?.title || page?.title || ''}
+    description={data.initData?.description || page?.description || ''}
+  />)
+
+  const vars = Object.entries(data?.settings?.Theme || {})
+    .map(([key, value]) => `--${key}:${value};`)
+    .join('')
+
+  head += `<style>:root{${vars}}</style>`
+
+  return {
+    html,
+    head
+  }
 }

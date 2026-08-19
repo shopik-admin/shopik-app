@@ -1,6 +1,6 @@
 import Permissions from 'Pages/Permissions'
 import Dashboard from 'Pages/Dashboard'
-import { useUser } from 'Features/User'
+import { useUser } from 'features/User'
 import Settings from 'Pages/Settings'
 import Products from 'Pages/Products'
 import Admins from 'Pages/Admins'

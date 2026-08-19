@@ -1,6 +1,6 @@
  .loader {
      position: relative;
-     border: 2px solid var(--border-subtle);
+     border: 2px solid var(--border-primary);
      border-top-color: var(--text-primary);
      border-radius: 50%;
      width: 20px;

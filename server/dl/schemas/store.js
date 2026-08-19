@@ -49,17 +49,19 @@ const storeSchema = {
     deliveryMethods: {
         type: [String],
         default: [DELIVERY_METHOD.DELIVERY],
-        enum: Object.values(DELIVERY_METHOD)
+        enum: Object.values(DELIVERY_METHOD),
+        filter: true
     },
     tag: {
         type: String,
         required: true,
-        uppercase: true
+        uppercase: true,
+        filter: true
     },
     mapImage: String,
     mapUrl: {
         type: String,
-        required: true
+        //  required: true
     }
 }
 
@@ -67,6 +69,7 @@ export const constants = {
     DELIVERY_METHOD
 }
 export const meta = {
+    constants,
     cacheStrategy: CACHE_STRATEGIES.HASHSET,
     index: [
         { 'address.location': '2dsphere' }

@@ -1,21 +1,40 @@
+import OrderProvider from 'features/Order/OrderProvider'
+import { ModalProvider } from 'common/components/Modal'
 import TextProvider from 'common/texts/TextProvider'
-import Text from 'common/components/Text'
-import { Outlet } from 'react-router'
-import { Link } from 'react-router'
-import Head from 'layout/Head'
+import { createContext, useContext } from 'react'
+import { Routes, Route } from 'react-router'
+import Flex from 'common/components/Flex'
+import Lists from 'common/features/Lists'
+import Header from 'layout/Header'
+import User from 'features/User'
+import pages from './pages'
 
-export default function App() {
-    return <div className='App'>
-        client
+import 'common/styles/global.css'
+
+const AppDataContext = createContext()
+export const useAppData = () => useContext(AppDataContext)
+
+export default function App({ data = {} }) {
+    return <AppDataContext value={data}>
         <TextProvider>
-            {/* <Head /> */}
-            <nav style={{ padding: '10px', gap: '10px', display: 'flex' }}>
-                <Link to="/"><Text>Home</Text></Link>
-                <Link to="/products"><Text>Products</Text></Link>
-            </nav>
-            <main>
-                <Outlet />
-            </main>
+            <Lists sdLists={data.lists}>
+                <OrderProvider>
+                    <User sdUser={data.user}>
+                        <ModalProvider>
+                            <Header />
+                            <Flex justifyContent='space-between'>
+                                <main>
+                                    <Routes>
+                                        {pages.map(({
+                                            path, element: Elm
+                                        }) => <Route key={path} path={path} element={<Elm />} />)}
+                                    </Routes>
+                                </main>
+                            </Flex>
+                        </ModalProvider>
+                    </User>
+                </OrderProvider>
+            </Lists>
         </TextProvider>
-    </div>
+    </AppDataContext>
 }
