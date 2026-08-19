@@ -1,14 +1,14 @@
 import ReactDOM from 'react-dom/client'
 import styles from './login.module.css'
-import 'styles/global.css'
-import 'styles/theme.css'
-import 'styles/font.css'
+
+import 'common/styles/global.css'
 
 import TextProvider from 'common/texts/TextProvider.jsx'
-import DigitsInput from 'components/DigitsInput'
+import DigitsInput from 'common/components/DigitsInput'
 import ThemeToggle from 'components/ThemeToggle'
 import apiReq from 'common/functions/apiReq.js'
 import Input from 'common/components/Input'
+import Button from 'common/components/Button'
 import Form from 'common/components/Form'
 import Text from 'common/components/Text'
 import Card from 'common/components/Card'
@@ -64,10 +64,16 @@ export default function Login() {
                         info='idNum_input_description'
                         placeholder='idNum_placeholder'
                     /> :
-                    <>
+                    <Flex col gap={15}>
+                        <Flex justify='between' align='center'>
+                            <Button type='button' mode='text' icon='back' onClick={() => setIdNum(null)}>back</Button>
+                        </Flex>
                         <DigitsInput name='otp' onCodeComplete={otp => submit({ otp })} />
-                        {/* <Text mode='sub'>login_resendCode</Text> */}
-                    </>
+                        <Flex center gap={5}>
+                            <Text>did_not_receive_code</Text>
+                            <Button type='button' mode='text-brand' onClick={() => submit({ idNum: idNum.idNum })}>send_again</Button>
+                        </Flex>
+                    </Flex>
                 }
             </Form>
         </Card>

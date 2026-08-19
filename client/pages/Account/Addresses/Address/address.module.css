@@ -1,0 +1,35 @@
+.address {
+    position: relative;
+    cursor: pointer;
+
+
+    &.active {
+        border-color: var(--text-success-primary) !important;
+    }
+
+    button {
+        padding: 0;
+        display: block;
+        color: var(--text-brand) !important;
+        white-space: nowrap;
+
+    }
+
+    .actionButton {
+        position: absolute;
+        inset-inline-end: 10px;
+        bottom: 10px;
+        font-weight: 700;
+    }
+
+    .buttons {
+        width: 100%;
+
+        svg {
+            color: var(--text-secondary);
+            font-size: 16px !important;
+            width: 16px !important;
+            height: 16px !important;
+        }
+    }
+}

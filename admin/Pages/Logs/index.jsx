@@ -1,5 +1,5 @@
-import DataManager from 'Features/DataManager'
-import { useModal } from 'Layout/Modal'
+import { useModal } from 'common/components/Modal'
+import DataManager from 'features/DataManager'
 import styles from './logs.module.css'
 import Log from './Log'
 

@@ -41,6 +41,9 @@ export default function render({ type, value, ...props } = {}) {
             return _date(value, true)
         case 'ms':
             return `${_number(value, 2)} ms`
+        case 'address':
+            if (!value) return ''
+            return `${value.street || ''} ${value.building || ''}${value.apartment ? `, דירה ${value.apartment}` : ''}, ${value.city || ''}`.trim().replace(/^,|,$/g, '')
         case 'coin':
             return `${props.sign || '₪'}${_number(value, 2)}`
         case 'number':

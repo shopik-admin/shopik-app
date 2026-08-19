@@ -4,12 +4,12 @@ import router from './router.js'
 import boot from './boot.js'
 import ssr from './ssr.js'
 
-console.log(`\n⚡ Starting server database connections...\n`)
+console.log(`\n⚡ Starting server...\n`)
 
 const
     bootData = await boot(),
-    app = express(),
-    { PORT = 7777 } = process.env
+    { PORT = 7777, PRODUCTION } = process.env,
+    app = express()
 
 app.use(json())
 app.use(cookieParser())

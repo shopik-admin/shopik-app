@@ -1,5 +1,5 @@
-import DataManager from 'Features/DataManager'
-import apiReq from 'common/functions/apiReq.js'
+import DataManager from 'features/DataManager'
+import apiReq from 'common/functions/apiReq'
 import styles from './sales.module.css'
 
 export default function Sales({ }) {

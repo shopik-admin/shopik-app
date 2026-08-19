@@ -1,4 +1,4 @@
-import { useUser } from 'Features/User'
+import { useUser } from 'features/User'
 import styles from './userInfo.module.css'
 import Flex from '#common/components/Flex/index.jsx'
 

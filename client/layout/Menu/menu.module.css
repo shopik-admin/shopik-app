@@ -1,0 +1,7 @@
+.menu {
+    width: 200px;
+    flex-shrink: 0;
+    background-color: var(--header-bg);
+    border-inline-end: 1px solid var(--header-border);
+    padding: 20px;
+}

@@ -1,4 +1,4 @@
-import DataManager from 'Features/DataManager'
+import DataManager from 'features/DataManager'
 import styles from './stores.module.css'
 
 export default function Stores({ }) {
@@ -16,7 +16,6 @@ export default function Stores({ }) {
                 { key: 'email' },
                 { key: 'contactName' },
                 { key: 'address.city' },
-                { key: 'status', type: 'tr' },
                 { key: 'createdAt', type: 'date' },
                 { key: 'updatedAt', type: 'datetime' },
                 { key: 'active', type: 'boolean' },

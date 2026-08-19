@@ -1,0 +1,59 @@
+.wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.scrollContainer {
+    display: flex;
+    overflow-x: auto;
+    scroll-behavior: smooth;
+    gap: 16px;
+    width: 100%;
+    padding: 4px 0;
+    scrollbar-width: none;
+    /* Firefox */
+}
+
+.scrollContainer::-webkit-scrollbar {
+    display: none;
+    /* Safari and Chrome */
+}
+
+.item {
+    flex: 0 0 auto;
+}
+
+.arrow {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 10;
+    background-color: white;
+    border: 1px solid #ddd;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #333;
+    transition: background-color 0.2s, transform 0.2s;
+}
+
+.arrow:hover {
+    background-color: #f0f0f0;
+    transform: translateY(-50%) scale(1.05);
+}
+
+.leftArrow {
+    left: -15px;
+}
+
+.rightArrow {
+    right: -15px;
+}

@@ -1,0 +1,7 @@
+.cart {
+    width: 250px;
+    background-color: var(--bg-brand-section);
+    border-radius: 100px;
+    height: 56px;
+    padding: 10px 20px;
+}

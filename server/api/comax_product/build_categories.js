@@ -1,3 +1,7 @@
+function toSlug(text) {
+    return text.replaceAll(' ', '-').replaceAll('/', '-').toLowerCase()
+}
+
 export default async function buildCategories(payload, { DL }) {
     const comaxProducts = await DL.ComaxProduct.read(
         {
@@ -39,26 +43,39 @@ export default async function buildCategories(payload, { DL }) {
             continue
         }
 
+        const superDepartmentSlug = toSlug(p.superDepartment)
+        const departmentSlug = toSlug(p.department)
+        const groupSlug = toSlug(p.group)
+        const subGroupSlug = toSlug(p.subGroup)
+
         superDepartmentMap.set(p.superDepartmentCode, {
             name: p.superDepartment,
+            slug: superDepartmentSlug,
+            path: superDepartmentSlug,
             parentId: null,
             parentIds: []
         })
 
         departmentMap.set(p.departmentCode, {
             name: p.department,
+            slug: departmentSlug,
+            path: `${superDepartmentSlug}/${departmentSlug}`,
             parentId: p.superDepartmentCode,
             parentIds: [p.superDepartmentCode]
         })
 
         groupMap.set(p.groupCode, {
             name: p.group,
+            slug: groupSlug,
+            path: `${superDepartmentSlug}/${departmentSlug}/${groupSlug}`,
             parentId: p.departmentCode,
             parentIds: p.departmentCode ? [p.superDepartmentCode, p.departmentCode] : []
         })
 
         subGroupMap.set(p.subGroupCode, {
             name: p.subGroup,
+            slug: subGroupSlug,
+            path: `${superDepartmentSlug}/${departmentSlug}/${groupSlug}/${subGroupSlug}`,
             parentId: p.groupCode,
             parentIds: p.groupCode ? [p.superDepartmentCode, p.departmentCode, p.groupCode] : []
         })
@@ -70,6 +87,8 @@ export default async function buildCategories(payload, { DL }) {
         categories.push({
             id: code,
             name: superDept.name,
+            slug: superDept.slug,
+            path: superDept.path,
             parentId: null,
             parentIds: []
         })
@@ -79,6 +98,8 @@ export default async function buildCategories(payload, { DL }) {
         categories.push({
             id: code,
             name: dept.name,
+            slug: dept.slug,
+            path: dept.path,
             parentId: dept.parentId,
             parentIds: dept.parentIds
         })
@@ -88,6 +109,8 @@ export default async function buildCategories(payload, { DL }) {
         categories.push({
             id: code,
             name: group.name,
+            slug: group.slug,
+            path: group.path,
             parentId: group.parentId,
             parentIds: group.parentIds
         })
@@ -97,6 +120,8 @@ export default async function buildCategories(payload, { DL }) {
         categories.push({
             id: code,
             name: subGroup.name,
+            slug: subGroup.slug,
+            path: subGroup.path,
             parentId: subGroup.parentId,
             parentIds: subGroup.parentIds
         })

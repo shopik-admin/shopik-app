@@ -12,6 +12,7 @@ const alias = {
   ...fs.readdirSync(currentDir, { withFileTypes: true })
     .filter(d => d.isDirectory())
     .reduce((a, { name }) => ({ ...a, [name]: path.resolve(currentDir, name) }), {}),
+  'App': path.resolve(currentDir, 'App'),
   common: path.resolve(currentDir, '..', 'common'),
 }
 

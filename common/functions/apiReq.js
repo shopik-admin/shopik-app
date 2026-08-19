@@ -8,8 +8,7 @@ export default async function apiReq(path, data = {}, fields) {
     const headers = {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
-        'app-version': APP_VERSION,
-        platform: 'admin',
+        'app-version': APP_VERSION
     }
 
     if (data.files) {

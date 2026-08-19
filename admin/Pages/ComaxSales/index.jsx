@@ -1,5 +1,5 @@
-import DataManager from 'Features/DataManager'
-import apiReq from 'common/functions/apiReq.js'
+import DataManager from 'features/DataManager'
+import apiReq from 'common/functions/apiReq'
 
 export default function ComaxSales({ }) {
     const importSales = {

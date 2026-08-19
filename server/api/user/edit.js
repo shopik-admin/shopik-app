@@ -7,10 +7,6 @@ export default async function edit(payload, { DL, _user, external, utils }) {
 
     const update = diff(_user, payload)
 
-    for (const key of Object.keys(update)) {
-        if (!DL.User.Model.userEditableFields?.has(key)) delete update[key]
-    }
-
     const nothingToUpdate = Object.keys(update).length === 0
     if (nothingToUpdate) return { user: _user }
 
@@ -43,6 +39,8 @@ export default async function edit(payload, { DL, _user, external, utils }) {
 
     if (phoneChanged)
         return { user: savedUser, phone: payload.phone, token }
+
+    await DL.redis.del(`user_auth:${savedUser.id}`)
 
     return { user: savedUser }
 }

@@ -8,6 +8,8 @@ const categorySchema = {
         minlength: 2,
         trim: true
     },
+    slug: String,
+    path: String,
     parentId: String,
     parentIds: [String]
 }

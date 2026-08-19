@@ -2,5 +2,6 @@
     width: 100%;
     height: 100vh;
     padding: 20px;
-    padding-top: calc(20px + var(--headerHeight));
+    padding-top: calc(20px + var(--admin-header-height));
+    background-color: var(--bg-primary);
 }

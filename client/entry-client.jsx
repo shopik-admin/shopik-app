@@ -1,13 +1,13 @@
-import React from 'react'
-import ReactDOM from 'react-dom/client'
-import { createBrowserRouter, RouterProvider } from 'react-router'
-import { routes } from './routes'
+import { hydrateRoot } from 'react-dom/client'
+import { BrowserRouter } from 'react-router'
+import App from './App'
 
-const router = createBrowserRouter(routes)
+const sd = __SD__ || {}
+delete window.__SD__
 
-ReactDOM.hydrateRoot(
+hydrateRoot(
     document.getElementById('root'),
-    <React.StrictMode>
-        <RouterProvider router={router} />
-    </React.StrictMode>
+    <BrowserRouter>
+        <App data={sd} />
+    </BrowserRouter>
 )

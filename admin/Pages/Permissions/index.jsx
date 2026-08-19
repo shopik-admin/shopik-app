@@ -1,4 +1,5 @@
-import DataForm from 'Features/DataManager/DataForm'
+import DataForm from 'features/DataManager/DataForm'
+import { useModal } from 'common/components/Modal'
 import Checkbox from 'common/components/Checkbox'
 import styles from './permissions.module.css'
 import Button from 'common/components/Button'
@@ -9,7 +10,6 @@ import Form from 'common/components/Form'
 import Card from 'common/components/Card'
 import Flex from 'common/components/Flex'
 import Text from 'common/components/Text'
-import { useModal } from 'Layout/Modal'
 import Tree from 'components/Tree'
 
 function findFirst(nodes) {

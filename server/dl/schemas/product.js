@@ -196,7 +196,18 @@ const defaultSelect = {
 
 const defaultSelectOne = {
     ...defaultSelect,
-    'images.threeSixty': 1
+    'images.threeSixty': 1,
+    barcode: 1,
+    unit: 1,
+    kashrut: 1,
+    passoverKashrut: 1,
+    nutrients: 1,
+    storageType: 1,
+    shelflife: 1,
+    category: 1,
+    images: 1,
+    status: 1,
+    totalSalesUnits: 1
 }
 
 export const meta = {

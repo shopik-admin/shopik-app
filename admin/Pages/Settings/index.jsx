@@ -1,13 +1,13 @@
 import { useState, useMemo, useEffect } from 'react'
+import { useModal } from 'common/components/Modal'
+import Button from 'common/components/Button'
 import useApi from 'common/functions/useApi'
 import apiReq from 'common/functions/apiReq'
+import Input from 'common/components/Input'
+import styles from './settings.module.css'
 import Card from 'common/components/Card'
 import Flex from 'common/components/Flex'
-import Button from 'common/components/Button'
-import Input from 'common/components/Input'
-import { useModal } from '../../Layout/Modal/index.jsx'
 import Setting from './Setting.jsx'
-import styles from './settings.module.css'
 
 const FORM_TYPES = [
     'text', 'checkbox', 'switch', 'color', 'select',

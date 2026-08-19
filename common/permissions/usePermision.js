@@ -1,5 +1,4 @@
-import { useUser } from 'Features/User'
-
+import { useUser } from 'features/User'
 
 export default function usePermission(permission = '') {
     const { role = {}, isSuperAdmin } = useUser()

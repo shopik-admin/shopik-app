@@ -48,7 +48,7 @@ export default function Input(props) {
         requiredSign = required ? ' *' : ''
 
     function onInputChange(e) { setValue(e?.target ? e.target.value : e); onChange?.(e) }
-    function onBlur() { setVisited(true) }
+    function onBlur() { setTimeout(() => setVisited(true), 100) }
 
     return <label className={classNames(styles.input, className, [styles.invalid, invalidError], [styles.visited, visited], [styles.withIcon, icon])}>
         {(label && type != 'hidden') && <Text className={styles.label}>{TR(title) || TR(label) || label}{label.trim() && requiredSign}</Text>}
@@ -75,6 +75,8 @@ function getInputTag({ type }) {
             return props => <Checkbox {...props} label='' switchMode={type == 'switch'} />
         case 'select':
             return Select
+        case 'textarea':
+            return 'textarea'
         /* 
                case 'nselect':
                    return Select
@@ -87,8 +89,7 @@ function getInputTag({ type }) {
                case 'image':
                    return props => <FileInput {...props} accept={type == 'image' ? 'image' : ''} />
        
-               case 'textarea':
-                   return 'textarea' 
+             
                case 'info':
                    return props => <Text>{props.defaultValue}</Text>
        
@@ -112,7 +113,7 @@ function getInputTag({ type }) {
 
 function getInputInvalidError(value, props) {
     // -------------------- Required Field Check --------------------
-    if (typeof value === 'undefined' || value.length === 0) {
+    if ((typeof value === 'undefined' || value == null) || value.length === 0) {
         if (props.required)
             return 'שדה חובה' // "Field is required" in Hebrew 
         else
