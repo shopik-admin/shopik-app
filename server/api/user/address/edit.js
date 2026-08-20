@@ -44,7 +44,13 @@ export default async function edit(payload, { DL, _user, external, utils }) {
     const orderUpdateRequired = geocoded.active && order.deliveryMethod === DELIVERY_METHOD.DELIVERY
     if (!orderUpdateRequired) return { user }
 
-    const updatedOrder = await updateOrderAddress({ DL, order, address: geocoded })
+    const updatedOrder = await updateOrderAddress({
+            DL,
+            utils,
+            order,
+            address: geocoded,
+            actor: utils.data.timeline.userActor(_user)
+        })
     await DL.redis.del(`user_auth:${_user.id}`)
 
     return {

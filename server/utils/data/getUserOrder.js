@@ -1,5 +1,6 @@
 import { findClosestStore } from '#server/api/order/address/update.js'
 import handleSelect from '#server/dl/handleSelect.js'
+import { record, userActor } from './timeline.js'
 
 export default async function getUserOrder({ DL, _user }) {
     const cartOrder = await DL.Order.readOne(
@@ -34,6 +35,14 @@ export default async function getUserOrder({ DL, _user }) {
     }
     order.number = await DL.Order.getNumber()
     const newOrder = await DL.Order.create(order)
+
+    await record({
+        DL,
+        order: newOrder,
+        eventType: DL.Timeline.constants.EVENT_TYPES.ORDER_CREATED,
+        actor: userActor(_user),
+        context: { creationData: { deliveryMethod: newOrder.deliveryMethod } }
+    })
 
     return handleSelect(newOrder, DL.Order.defaultSelect)
 }

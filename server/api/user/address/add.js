@@ -25,7 +25,13 @@ export default async function add(payload, { DL, _user, external, utils }) {
     const order = await utils.data.getUserOrder({ DL, _user })
     const { DELIVERY_METHOD } = DL.Order.constants
     if (order.deliveryMethod === DELIVERY_METHOD.DELIVERY) {
-        await updateOrderAddress({ DL, address: geocoded, order })
+        await updateOrderAddress({
+            DL,
+            utils,
+            address: geocoded,
+            order,
+            actor: utils.data.timeline.userActor(_user)
+        })
     }
 
     return updatedUser
