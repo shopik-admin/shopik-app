@@ -1,4 +1,5 @@
 .menu {
+    padding-bottom: 50px;
 
     .sectiontitle {
         color: var(--text-tertiary);
