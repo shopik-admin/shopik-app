@@ -1,4 +1,12 @@
 export default function diff(oldObj, newObj) {
+    if (oldObj === newObj) return {}
+
+    // Primitives (and null) can't be recursed into: Object.keys(number) is empty,
+    // which silently swallowed numeric changes. Compare them directly instead.
+    if (typeof oldObj !== 'object' || oldObj === null || typeof newObj !== 'object' || newObj === null) {
+        return { value: true }
+    }
+
     const result = {}
 
     for (const key of Object.keys(newObj)) {
@@ -18,13 +26,9 @@ export default function diff(oldObj, newObj) {
             if (changed) {
                 result[key] = newVal
             }
-        } else if (typeof oldVal === 'object' && typeof newVal === 'object') {
+        } else {
             const nestedDiff = diff(oldVal, newVal)
             if (Object.keys(nestedDiff).length > 0) {
-                result[key] = newVal
-            }
-        } else {
-            if (newVal != oldVal) {
                 result[key] = newVal
             }
         }
