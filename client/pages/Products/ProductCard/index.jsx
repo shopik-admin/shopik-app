@@ -24,7 +24,7 @@ export default function ProductCard(props) {
 export function ProductImage({ product, size = 'm' }) {
     const { images } = product || {}
     const mainImage = images?.product?.find(i => i.main === true) || images?.[0] || null
-    const src = mainImage?.sizes.m || ''
+    const src = mainImage?.sizes[size] || ''
 
     return <Image
         className={classNames(styles.productImage, styles[size])}
