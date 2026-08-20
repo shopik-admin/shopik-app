@@ -5,6 +5,7 @@ import Text from 'common/components/Text'
 import Flex from 'common/components/Flex'
 import styles from './cart.module.css'
 import { createContext, useContext } from 'react'
+import ProductInline from './ProductInline'
 
 export const CartContext = createContext({})
 export const useCart = () => useContext(CartContext)
@@ -32,8 +33,8 @@ export default function Cart({ }) {
                 <Icon name='heartPlus' />
             </Flex>
             :
-            <Flex col className={styles.items} grow={1}>
-                {cart.map(item => <Text>{item.name} - {item.amount}</Text>)}
+            <Flex col gap={10} className={styles.items} >
+                {cart.map(item => <ProductInline product={item} />)}
             </Flex>}
 
         <Flex col className={styles.footer}>

@@ -31,6 +31,7 @@ import { LiaBarcodeSolid } from "react-icons/lia"
 import { FiShoppingCart } from "react-icons/fi"
 import { CgPlayListAdd } from "react-icons/cg"
 import { TbHeartPlus } from "react-icons/tb"
+import { SlNote } from "react-icons/sl";
 
 const iconsList = {
     add: IoAddSharp,
@@ -110,7 +111,8 @@ const iconsList = {
     card: IoCardOutline,
     barcode: LiaBarcodeSolid,
     listPlus: CgPlayListAdd,
-    heartPlus: TbHeartPlus
+    heartPlus: TbHeartPlus,
+    note: SlNote
 }
 
 /**

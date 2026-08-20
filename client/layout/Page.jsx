@@ -26,7 +26,7 @@ export function usePage(initialData) {
                 .then(pageData => {
                     pageData.prevPath = pathname
                     setData(pageData)
-                    document.title = pageData.title
+                    document.title = `Shopik | ${pageData.title}`
                     document.description = pageData.description
                 })
                 .finally(() => setLoading(false))

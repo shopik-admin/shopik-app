@@ -9,7 +9,7 @@
     --safeTop: env(safe-area-inset-top);
     --safeBottom: env(safe-area-inset-bottom);
 
-    --cart-width: 360px;
+    --cart-width: 380px;
 
     /* Font Families */
     --font-family-display: 'Open Sans', sans-serif;

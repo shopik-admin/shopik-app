@@ -1,13 +1,18 @@
 .cart {
     width: var(--cart-width);
     flex-shrink: 0;
-    max-height: calc(100vh - 20px - var(--header-height));
 
     .header {
         background-color: #F1F7F6;
         box-shadow: 0 1px 3px 0 var(--Colors-Effects-Shadows-shadow-sm_01, rgba(0, 0, 0, 0.10)), 0 1px 2px -1px var(--Colors-Effects-Shadows-shadow-sm_02, rgba(0, 0, 0, 0.10));
         padding-inline: 10px;
         height: 56px;
+    }
+
+    .items {
+        max-height: calc(100vh - 150px - var(--header-height));
+        overflow: auto;
+        padding-block: 20px;
     }
 
     .emptyCart {

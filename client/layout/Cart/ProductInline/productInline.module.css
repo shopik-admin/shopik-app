@@ -1,0 +1,35 @@
+.productInline {
+    position: relative;
+
+    .remove,
+    .note {
+        color: #B3B3B3;
+        padding: 0;
+        opacity: 1;
+        transition: .2s;
+
+        &:hover {
+            color: #aaaaaa;
+        }
+
+        &.active {
+            color: var(--text-brand)
+        }
+    }
+
+    .remove {
+        position: absolute;
+        inset-inline-end: 10px;
+        top: 10px;
+
+    }
+
+    &:not(:hover) {
+
+        .remove,
+        .note:not(.active) {
+            opacity: 0;
+        }
+    }
+
+}

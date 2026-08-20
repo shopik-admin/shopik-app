@@ -33,6 +33,7 @@ export function ProductInfo(props) {
     const { product, size = 'm' } = props
     return <Flex col className={classNames(styles.info, styles[size])}>
         <ProductPrice {...props} />
+        <Text size='xs'>אסם | 200 גרם</Text>
         <Text bold>{product.name}</Text>
     </Flex>
 }
@@ -52,7 +53,7 @@ export function ProductButton({ product, size = 'm', sales }) {
     }
 
     if (!amount) {
-        return <Flex className={classNames(styles.actions, styles[size])} >
+        return <Flex className={classNames(styles.productButton, styles[size])} >
             <Button
                 icon='add' preventDefault stopPropagation
                 onClick={() => updateAmount(1)}
@@ -60,7 +61,7 @@ export function ProductButton({ product, size = 'm', sales }) {
         </Flex >
     }
 
-    return <Flex className={classNames(styles.actions, styles[size], styles.stepper)}>
+    return <Flex className={classNames(styles.productButton, styles[size], styles.stepper)}>
         <Button preventDefault stopPropagation onClick={() => updateAmount(amount - 1)}>-</Button>
         <Text size='m' bold className={styles.amount}>{amount}</Text>
         <Button icon='add' preventDefault stopPropagation onClick={() => updateAmount(amount + 1)} />
@@ -78,7 +79,7 @@ export function ProductBadges({ product, size = 'm' }) {
 
 export function ProductPrice({ product, size = 'm' }) {
     try {
-        const price = product.prices[0].price
+        const price = product.price || product.prices[0].price
         const unitPriceText = getUnitPriceText(product)
         return <Flex gap={20} alignItems='center' className={classNames(styles.price, styles[size])}>
             <Text size='xxl' bold><Text size='s' bold>₪</Text>{price}</Text>
