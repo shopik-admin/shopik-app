@@ -5,6 +5,8 @@ import Flex from 'common/components/Flex'
 import Text from 'common/components/Text'
 import { Link } from 'react-router'
 import classNames from 'common/functions/classNames'
+import calcOrder from '#common/functions/calcOrder/cart.js'
+import { useOrder } from 'features/Order/OrderProvider'
 
 export default function ProductCard(props) {
     const { product, ...rest } = props
@@ -35,12 +37,33 @@ export function ProductInfo(props) {
     </Flex>
 }
 
-export function ProductButton({ product, size = 'm' }) {
-    return <Flex className={classNames(styles.actions, styles[size])}>
-        <Button
-            icon='add' preventDefault stopPropagation
-            onClick={console.log}
-        >add_to_cart</Button>
+export function ProductButton({ product, size = 'm', sales }) {
+    const { order, setOrder } = useOrder()
+    const amount = order?.cart?.find(item => item.id === product.id)?.amount || 0
+
+    const updateAmount = (newAmount) => {
+        const updatedOrder = calcOrder({
+            order: order || {},
+            product,
+            amount: newAmount,
+            sales: sales || {}
+        })
+        setOrder(updatedOrder)
+    }
+
+    if (!amount) {
+        return <Flex className={classNames(styles.actions, styles[size])} >
+            <Button
+                icon='add' preventDefault stopPropagation
+                onClick={() => updateAmount(1)}
+            >add_to_cart</Button>
+        </Flex >
+    }
+
+    return <Flex className={classNames(styles.actions, styles[size], styles.stepper)}>
+        <Button preventDefault stopPropagation onClick={() => updateAmount(amount - 1)}>-</Button>
+        <Text size='m' bold className={styles.amount}>{amount}</Text>
+        <Button icon='add' preventDefault stopPropagation onClick={() => updateAmount(amount + 1)} />
     </Flex>
 }
 

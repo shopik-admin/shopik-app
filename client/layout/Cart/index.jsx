@@ -11,7 +11,8 @@ export const useCart = () => useContext(CartContext)
 
 export default function Cart({ }) {
     const
-        { cart = [] } = useOrder(),
+        { order = {} } = useOrder(),
+        cart = order?.cart || [],
         emptyCart = !cart.length
 
     return <Flex col className={styles.cart}>
@@ -31,11 +32,12 @@ export default function Cart({ }) {
                 <Icon name='heartPlus' />
             </Flex>
             :
-            <Flex className={styles.items} grow={1}>
-                items
+            <Flex col className={styles.items} grow={1}>
+                {cart.map(item => <Text>{item.name} - {item.amount}</Text>)}
             </Flex>}
 
-        <Flex className={styles.footer}>
+        <Flex col className={styles.footer}>
+            <Text>{order?.sum}</Text>
             <Button icon='cart'>to_pay</Button>
         </Flex>
     </Flex >

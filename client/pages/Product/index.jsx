@@ -12,7 +12,7 @@ import classNames from '#common/functions/classNames'
 import styles from './product.module.css'
 import Breadcrumbs from 'components/Breadcrumbs'
 import { usePage } from 'layout/Page'
-import { getUnitPriceText } from 'pages/Products/ProductCard'
+import { getUnitPriceText, ProductButton } from 'pages/Products/ProductCard'
 
 export default function Product() {
     const [selectedImageIndex, setSelectedImageIndex] = useState(0)
@@ -111,11 +111,7 @@ export default function Product() {
                         </Flex>
                     )}
 
-                    <Flex className={styles.actions} gap={10} marginTop='auto'>
-                        <Button icon='add' size='l' className={styles.addToCart}>
-                            הוסף לסל
-                        </Button>
-                    </Flex>
+                    <ProductButton product={product} />
                 </Flex>
             </Flex>
         </Flex>
