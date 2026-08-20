@@ -31,7 +31,7 @@ export default function Product() {
     const images = productImages.length
         ? productImages.map(img => img.sizes.l || img.sizes.xl)
         : ['', '', '', '', '', '']
-    const mainImage = images[selectedImageIndex] || images[0]
+    const mainImage = productImages.find(img => img?.main)?.sizes?.xl || images[0]
 
     const price = product?.prices?.[0]?.price
     const unit = product?.unit || {}
