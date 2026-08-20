@@ -21,7 +21,7 @@ app.use(urlencoded({ extended: true }))
 router(app, bootData)
 
 try {
-    startImageWorker({ DL: bootData.DL })
+    await startImageWorker({ DL: bootData.DL })
     startNightlySync(bootData)
 } catch (e) {
     log.warn('Jobs not started:', e?.message || e)

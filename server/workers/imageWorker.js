@@ -7,7 +7,19 @@ import log from '#server/utils/log.js'
 const QUEUE_NAME = 'image-processing'
 const hashUrl = url => createHash('sha1').update(url).digest('hex')
 
-export default function startImageWorker({ DL }) {
+export default async function startImageWorker({ DL }) {
+    const connection = getConnection()
+
+    try {
+        await Promise.race([
+            connection.ping(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Redis unreachable (timeout)')), 2000))
+        ])
+    } catch (e) {
+        log.warn('[ImageWorker] Redis unavailable, worker not started:', e?.message || e)
+        return null
+    }
+
     const worker = new Worker(
         QUEUE_NAME,
         async job => {
@@ -50,6 +62,10 @@ export default function startImageWorker({ DL }) {
             concurrency: 4
         }
     )
+
+    worker.on('error', err => {
+        log.warn('[ImageWorker] Redis notice:', err?.message || err)
+    })
 
     worker.on('failed', (job, err) => {
         log.error(`[ImageWorker] Failed ${job?.id} (${job?.data?.productId}):`, err?.message || err)

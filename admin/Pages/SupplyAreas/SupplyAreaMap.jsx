@@ -207,9 +207,9 @@ function MapController({
         poly.redraw()
         const edit = poly.editing
         const rings = poly.getLatLngs()
-        ;(edit?._verticesHandlers || []).forEach((handler, ringIdx) => {
+        edit?._verticesHandlers?.forEach((handler, ringIdx) => {
             const ring = rings[ringIdx]
-            ;(handler._markers || []).forEach((marker, j) => {
+            handler._markers?.forEach((marker, j) => {
                 const latlng = ring?.[j]
                 if (latlng) marker.setLatLng(latlng)
             })
