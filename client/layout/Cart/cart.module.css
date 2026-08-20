@@ -9,13 +9,18 @@
         height: 56px;
     }
 
+    .items,
+    .emptyCart {
+        height: calc(100vh - 235px - var(--header-height));
+    }
+
     .items {
-        max-height: calc(100vh - 150px - var(--header-height));
         overflow: auto;
         padding-block: 20px;
     }
 
     .emptyCart {
+
         svg {
             width: 56px;
             height: 56px;
@@ -28,6 +33,11 @@
         border-top-left-radius: var(--radius-3xl);
         border-top-right-radius: var(--radius-3xl);
         padding: 10px;
+
+        .summary {
+            padding: 10px 15px;
+            padding-bottom: 20px;
+        }
 
         button {
             width: 100%;

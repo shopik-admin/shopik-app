@@ -31,9 +31,9 @@ export function ProductImage({ product, size = 'm' }) {
 
 export function ProductInfo(props) {
     const { product, size = 'm' } = props
-    return <Flex col className={classNames(styles.info, styles[size])}>
+    return <Flex gap={4} col className={classNames(styles.info, styles[size])}>
         <ProductPrice {...props} />
-        <Text size='xs'>אסם | 200 גרם</Text>
+        <Text size='xs' mode='sub'>אסם | 200 גרם</Text>
         <Text bold>{product.name}</Text>
     </Flex>
 }
