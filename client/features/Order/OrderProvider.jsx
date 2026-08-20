@@ -4,14 +4,32 @@ import { useAppData } from 'App'
 const OrderContext = createContext()
 export const useOrder = () => useContext(OrderContext)
 
-export default function OrderProvider({ children }) {
-    const
-        { order: initialOrder = {} } = useAppData(),
-        [order, setOrder] = useState(initialOrder)
+const readStoredCart = () => {
+    try {
+        if (typeof localStorage === 'undefined') return undefined
+        const raw = localStorage.cart
+        if (!raw) return undefined
+        const cart = JSON.parse(raw)
+        return Array.isArray(cart) ? cart : undefined
+    } catch {
+        return undefined
+    }
+}
 
-    /* useEffect(() => {
-        localStorage.cart = JSON.stringify(order?.cart)
-    }, [order]) */
+export default function OrderProvider({ children }) {
+    const { order: serverOrder } = useAppData()
+    const hasServerOrder = !!serverOrder
+    const [order, setOrder] = useState(hasServerOrder ? serverOrder : {})
+
+    useEffect(() => {
+        if (hasServerOrder) return
+        const cart = readStoredCart()
+        if (cart) setOrder({ cart })
+    }, [hasServerOrder])
+
+    useEffect(() => {
+        if (order?.cart) localStorage.cart = JSON.stringify(order.cart)
+    }, [order])
 
     return <OrderContext value={{ order, setOrder }}>
         {children}
