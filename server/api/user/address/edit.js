@@ -1,4 +1,5 @@
 import { updateOrderAddress } from '#server/api/order/address/update.js'
+import { findByLocation } from '#server/external/supplyArea.js'
 
 const sameLocationFields = [
     'city',
@@ -21,6 +22,10 @@ export default async function edit(payload, { DL, _user, external, utils }) {
 
     const geocoded = await external.geocode.address(payload)
     geocoded.active = existingAddr.active
+
+    const area = await findByLocation(DL, geocoded.location)
+    geocoded.areaId = area?.id ?? null
+    geocoded.hasService = !!area
 
     const sameLocation = isSameLocation(geocoded, existingAddr)
 

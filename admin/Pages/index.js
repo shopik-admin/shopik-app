@@ -13,6 +13,7 @@ import Sales from 'Pages/Sales'
 import Coupons from 'Pages/Coupons'
 import ComaxProducts from 'Pages/ComaxProducts'
 import ComaxSales from 'Pages/ComaxSales'
+import SupplyAreas from 'Pages/SupplyAreas'
 
 const pages = [
     { key: 'dashboard', name: 'Dashboard', path: '/admin/', section: 'main', icon: 'desktop', component: Dashboard,/*  permission: 'dashboard:read' */ },
@@ -31,6 +32,7 @@ const pages = [
     { key: 'comax-sales', name: 'Comax Sales', path: '/admin/comax-sales', section: 'comax', icon: 'sale', component: ComaxSales, permission: 'comax_sale:read' },
 
     { key: 'logs', name: 'Logs', path: '/admin/logs', section: 'system', icon: 'log', component: Logs, permission: 'log:read' },
+    { key: 'supply-areas', name: 'Supply Areas', path: '/admin/supply-areas', section: 'management', icon: 'map', component: SupplyAreas, permission: 'supply_area:read' },
     { key: 'permissions', name: 'permissions', path: '/admin/permissions', section: 'system', icon: 'key', component: Permissions, permission: 'permission:read' },
     { key: 'settings', name: 'Settings', path: '/admin/settings', section: 'system', icon: 'settings', component: Settings, permission: 'setting:read' },
 ]

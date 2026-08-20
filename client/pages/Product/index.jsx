@@ -27,7 +27,10 @@ export default function Product() {
     const { loading, pageData } = usePage(initialData)
     const { data } = pageData
     const { product, sale } = data
-    const images = ['', '', '', '', '', '']// product?.images?.product || []
+    const productImages = (product?.images?.product || []).filter(img => img?.sizes)
+    const images = productImages.length
+        ? productImages.map(img => img.sizes.l || img.sizes.xl)
+        : ['', '', '', '', '', '']
     const mainImage = images[selectedImageIndex] || images[0]
 
     const price = product?.prices?.[0]?.price

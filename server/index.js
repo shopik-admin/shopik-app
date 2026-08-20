@@ -3,6 +3,9 @@ import cookieParser from 'cookie-parser'
 import router from './router.js'
 import boot from './boot.js'
 import ssr from './ssr.js'
+import startImageWorker from '#server/workers/imageWorker.js'
+import startNightlySync from '#server/cron/nightlySync.js'
+import log from '#server/utils/log.js'
 
 console.log(`\n⚡ Starting server...\n`)
 
@@ -16,6 +19,13 @@ app.use(cookieParser())
 app.use(urlencoded({ extended: true }))
 
 router(app, bootData)
+
+try {
+    startImageWorker({ DL: bootData.DL })
+    startNightlySync(bootData)
+} catch (e) {
+    log.warn('Jobs not started:', e?.message || e)
+}
 
 app.use('/', serveStatic('build/client', { index: false }))
 app.use('/admin', serveStatic('build/admin', { index: false }))

@@ -1,4 +1,6 @@
 import buildCategories from './build_categories.js'
+import enqueueChangedImages from '#server/services/image/enqueue.js'
+import log from '#server/utils/log.js'
 
 function buildProduct(comax, DL) {
     const category = {}
@@ -85,6 +87,13 @@ export default async function syncComax(payload, { DL }) {
     )
 
     console.log(`[Comax Sync] Created ${result.upsertedCount}, updated ${result.modifiedCount}`)
+
+    try {
+        const enqueued = await enqueueChangedImages(DL)
+        log.info(`[Comax Sync] Image queue: ${enqueued.enqueued} jobs`)
+    } catch (e) {
+        log.warn('[Comax Sync] Image enqueue skipped:', e?.message || e)
+    }
 
     return {
         synced: comaxProducts.length,
