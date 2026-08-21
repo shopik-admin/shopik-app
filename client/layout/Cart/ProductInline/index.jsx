@@ -10,15 +10,13 @@ import calcOrder from '#common/functions/calcOrder/cart.js'
 
 export default function ProductInline(props) {
     const { product } = props
-    const { order, setOrder } = useOrder()
+    const { order = {}, setOrder } = useOrder()
     const [noteOpen, setNoteOpen] = useState()
 
-    function handleRemove(e) {
-        e?.stopPropagation?.()
-        e?.preventDefault?.()
+    function handleRemove() {
         if (product) {
             const updatedOrder = calcOrder({
-                order: order || {},
+                order,
                 product,
                 amount: 0
             })
