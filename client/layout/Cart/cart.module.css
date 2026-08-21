@@ -1,6 +1,12 @@
 .cart {
     width: var(--cart-width);
     flex-shrink: 0;
+    position: fixed;
+    inset-inline-end: calc(-1 * var(--cart-width) - 8px);
+    top: calc(var(--header-height) - 42px);
+    z-index: 9999;
+    background-color: var(--bg-primary);
+    transition: inset-inline-end .3s ease;
 
     .header {
         background-color: #F1F7F6;
@@ -11,7 +17,7 @@
 
     .items,
     .emptyCart {
-        height: calc(100vh - 235px - var(--header-height));
+        height: calc(100vh - 170px - var(--header-height));
     }
 
     .items {
@@ -47,6 +53,10 @@
             }
         }
     }
+}
+
+.cart.open {
+    inset-inline-end: max(0px, (100vw - var(--max-width)) / 2);
 }
 
 .miniCartButton {

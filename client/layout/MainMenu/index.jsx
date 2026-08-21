@@ -6,9 +6,11 @@ import Icon from 'common/components/Icon'
 import Text from 'common/components/Text'
 import { NavLink } from 'react-router'
 import { useAppData } from 'App'
+import { useCart } from 'layout/Cart/CartProvider'
 
 export default function MainMenu({ }) {
     const { menu } = useAppData() || {}
+    const { cartOpen } = useCart()
     const [openMenu, setOpenMenu] = useState(null)
     const menuRef = useRef(null)
 
@@ -28,7 +30,7 @@ export default function MainMenu({ }) {
 
     const close = () => setOpenMenu(null)
 
-    return <nav className={styles.mainMenu}>
+    return <nav className={classNames(styles.mainMenu, [styles.shifted, cartOpen])}>
         <Flex ref={menuRef}
             alignItems='center'
             gap={15}

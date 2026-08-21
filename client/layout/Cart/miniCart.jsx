@@ -5,6 +5,7 @@ import Text from 'common/components/Text'
 import Icon from 'common/components/Icon'
 import { useText } from 'common/texts/TextProvider'
 import classNames from 'common/functions/classNames'
+import { useCart } from './CartProvider'
 import styles from './cart.module.css'
 
 /**
@@ -30,14 +31,21 @@ export default function MiniCart({
     className
 }) {
     const [internalIsOpen, setInternalIsOpen] = useState(false)
-    const isOpen = controlledIsOpen !== undefined ? controlledIsOpen : internalIsOpen
+    const { cartOpen: ctxCartOpen, toggleCart: ctxToggleCart } = useCart?.() || {}
+    const isOpen = controlledIsOpen !== undefined
+        ? controlledIsOpen
+        : (ctxCartOpen !== undefined ? ctxCartOpen : internalIsOpen)
     const { TR } = useText?.() || {}
 
     const handleToggle = (e) => {
         if (onToggle) {
             onToggle(e)
         } else if (controlledIsOpen === undefined) {
-            setInternalIsOpen((prev) => !prev)
+            if (ctxToggleCart) {
+                ctxToggleCart()
+            } else {
+                setInternalIsOpen((prev) => !prev)
+            }
         }
     }
 
@@ -61,7 +69,7 @@ export default function MiniCart({
         <div className={styles.cartIconWrapper}>
             <Icon
                 name="cart"
-                className={classNames(styles.cartIcon, { [styles.cartIconOpen]: isOpen })}
+                className={classNames(styles.cartIcon, [styles.cartIconOpen, isOpen])}
             />
             {!isCartEmpty && <span className={styles.badge}>{itemCount}</span>}
         </div>
@@ -96,7 +104,7 @@ export default function MiniCart({
             {/* Chevron Arrow (Desktop & Tablet: End side) */}
             <Icon
                 name="down"
-                className={classNames(styles.chevronIcon, { [styles.chevronOpen]: isOpen })}
+                className={classNames(styles.chevronIcon, [styles.chevronOpen, isOpen])}
             />
         </Button>
     )

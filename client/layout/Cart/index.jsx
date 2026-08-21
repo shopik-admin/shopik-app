@@ -1,16 +1,14 @@
 import { useOrder } from 'features/Order/OrderProvider'
+import { useCart } from './CartProvider'
 import Button from 'common/components/Button'
 import Icon from 'common/components/Icon'
 import Text from 'common/components/Text'
 import Flex from 'common/components/Flex'
+import classNames from 'common/functions/classNames'
 import styles from './cart.module.css'
-import { createContext, useContext, useEffect } from 'react'
 import ProductInline from './ProductInline'
 import render from '#common/functions/render.js'
 import { useNavigate } from 'react-router'
-
-export const CartContext = createContext({})
-export const useCart = () => useContext(CartContext)
 
 export default function Cart({ }) {
     const
@@ -19,11 +17,16 @@ export default function Cart({ }) {
         emptyCart = !cart.length,
         navigate = useNavigate()
 
+    const { cartOpen, setCartOpen } = useCart()
+
     function goToCheckout() {
-        navigate('/checkout')
+        if (!emptyCart) {
+            navigate('/checkout')
+            setCartOpen(false)
+        }
     }
 
-    return <Flex col className={styles.cart}>
+    return <Flex col className={classNames(styles.cart, [styles.open, cartOpen])}>
         <Flex className={styles.header} alignItems='center' justifyContent='space-between'>
             <Text size='xxl' bold>cart_title</Text>
             <Flex className={styles.actions} center gap={15}>

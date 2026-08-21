@@ -1,20 +1,37 @@
 .header {
-    height: var(--header-height);
-    top: 0;
-    background-color: var(--bg-brand-primary);
+    box-sizing: border-box;
     position: sticky;
-    transition: .3s;
-    width: 100vw;
+    top: 0;
     z-index: 999;
+    width: 100%;
+    min-height: var(--header-height);
+    background-color: var(--bg-brand-primary);
+    transition: background-color .3s ease, padding .3s ease;
+
+    /* Safe Area Insets (iOS Notch, Dynamic Island, Status Bar, Landscape mode) */
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-inline-start: env(safe-area-inset-left, 0px);
+    padding-inline-end: env(safe-area-inset-right, 0px);
 
     .headerContent {
-        padding: 10px;
-        margin: auto;
+        box-sizing: border-box;
+        padding: 10px 16px;
+        margin: 0 auto;
+        width: 100%;
         max-width: var(--max-width);
     }
 
-    @media screen and (min-width: 650px) {
-        inset-inline-start: var(--sidebarWidth);
-        width: calc(100vw - var(--sidebarWidth));
+    @media screen and (max-width: 768px) {
+        .headerContent {
+            padding: 8px 12px;
+            gap: 12px !important;
+        }
+    }
+
+    @media screen and (max-width: 480px) {
+        .headerContent {
+            padding: 6px 8px;
+            gap: 8px !important;
+        }
     }
 }

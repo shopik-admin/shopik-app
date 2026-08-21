@@ -4,4 +4,15 @@
     min-height: calc(100vh - var(--header-height) - 50px);
     max-width: min(var(--max-width), calc(100vw - 20px));
     margin: auto;
+    transition: padding-inline-end .3s ease;
+}
+
+.main.shifted {
+    padding-inline-end: calc(20px + var(--cart-width));
+}
+
+@media (max-width: 1023px) {
+    .main.shifted {
+        padding-inline-end: 0;
+    }
 }

@@ -10,6 +10,17 @@
         padding: 10px;
         width: var(--max-width);
         margin: auto;
+        transition: padding-inline-end .3s ease;
+    }
+
+    .shifted .content {
+        padding-inline-end: calc(10px + var(--cart-width));
+    }
+
+    @media (max-width: 1023px) {
+        .shifted .content {
+            padding-inline-end: 10px;
+        }
     }
 
     /* =================================
