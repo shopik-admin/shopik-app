@@ -35,18 +35,21 @@ export default function MainMenu({ }) {
             alignItems='center'
             gap={15}
             className={styles.content}>
-            {menu?.map((item, i) => (
-                <MenuItem
-                    key={item.path || i}
-                    {...item}
-                    main
-                    open={openMenu === (item.slug || item.path)}
-                    onOpen={() => setOpenMenu(
-                        openMenu === (item.slug || item.path) ? null : (item.slug || item.path)
-                    )}
-                    onClose={close}
-                />
-            ))}
+            {menu?.map((item, i) => {
+                const itemKey = item.slug || item.path || `main-item-${i}`
+                return (
+                    <MenuItem
+                        key={itemKey}
+                        {...item}
+                        main
+                        open={openMenu === itemKey}
+                        onOpen={() => setOpenMenu(
+                            openMenu === itemKey ? null : itemKey
+                        )}
+                        onClose={close}
+                    />
+                )
+            })}
         </Flex>
     </nav>
 }
@@ -74,7 +77,7 @@ function MenuItem({
                     to={hasChildren ? undefined : to}
                     type={hasChildren ? 'button' : undefined}
                     onClick={hasChildren ? onOpen : onClose}
-                    end={!hasChildren}
+                    end={hasChildren ? undefined : true}
                     alignItems='center'
                     gap={15}
                 >
@@ -87,7 +90,7 @@ function MenuItem({
                     <Level2Menu
                         items={children}
                         open={open}
-                        basePath={path}
+                        basePath={path || slug || ''}
                         onClose={onClose}
                     />
                 )}
@@ -100,13 +103,17 @@ function MenuItem({
 
 function Level2Menu({ items, open, basePath, onClose }) {
     const [hoveredItem, setHoveredItem] = useState(null)
+    const [activeItem, setActiveItem] = useState(null)
 
-    // Reset hover state when the dropdown menu closes
+    // Reset hover and active states when the dropdown menu closes
     useEffect(() => {
         if (!open) {
             setHoveredItem(null)
+            setActiveItem(null)
         }
     }, [open])
+
+    const currentActiveItem = activeItem || hoveredItem
 
     return (
         <Flex
@@ -116,38 +123,50 @@ function Level2Menu({ items, open, basePath, onClose }) {
             gap={4}
             className={classNames(
                 styles.level2Menu,
-                [styles.level3visible, hoveredItem],
+                [styles.level3visible, currentActiveItem],
                 [styles.open, open]
             )}
             onMouseLeave={() => setHoveredItem(null)}
         >
-            {items.map(item => {
+            {items.map((item, index) => {
                 const hasChildren = Boolean(
                     item.children && item.children.length > 0
                 )
                 const itemPath = item.slug
                     ? `${basePath}/${item.slug}`
-                    : item.path
+                    : (item.path || `${basePath}-l2-${index}`)
+
+                const isItemActive = currentActiveItem === itemPath
+
+                const handleItemClick = (e) => {
+                    if (hasChildren) {
+                        e.preventDefault()
+                        setActiveItem(isItemActive ? null : itemPath)
+                    } else {
+                        onClose?.()
+                    }
+                }
 
                 return (
                     <li
                         key={itemPath}
                         className={styles.level2ListItem}
                         onMouseEnter={() => {
-                            setHoveredItem(
-                                hasChildren ? itemPath : null
-                            )
+                            if (hasChildren) {
+                                setHoveredItem(itemPath)
+                            }
                         }}
                     >
                         <Flex
                             className={classNames(
                                 styles.level2Item,
-                                [styles.active, hoveredItem === itemPath]
+                                [styles.active, isItemActive]
                             )}
-                            tag={hasChildren ? 'div' : NavLink}
+                            tag={hasChildren ? 'button' : NavLink}
                             to={hasChildren ? undefined : itemPath}
-                            onClick={hasChildren ? undefined : onClose}
-                            end={!hasChildren}
+                            type={hasChildren ? 'button' : undefined}
+                            onClick={handleItemClick}
+                            end={hasChildren ? undefined : true}
                             alignItems='center'
                             gap={12}
                         >
@@ -162,19 +181,25 @@ function Level2Menu({ items, open, basePath, onClose }) {
                                 {item.name}
                             </Text>
 
-                            {hasChildren && hoveredItem === itemPath && (
-                                <Icon key="icon-left" name='left' />
-                            )}
-                            {hasChildren && open && hoveredItem === itemPath && (
-                                <Level3Menu
-                                    key="level-3-menu"
-                                    items={item.children}
-                                    visible={open && hoveredItem === itemPath}
-                                    basePath={itemPath}
-                                    onClose={onClose}
-                                />
+                            {hasChildren && (
+                                <Icon name='left' />
                             )}
                         </Flex>
+
+                        {hasChildren && open && (
+                            <Level3Menu
+                                key={`level-3-${itemPath}`}
+                                items={item.children}
+                                visible={isItemActive}
+                                parentName={item.name}
+                                basePath={itemPath}
+                                onClose={onClose}
+                                onBack={() => {
+                                    setActiveItem(null)
+                                    setHoveredItem(null)
+                                }}
+                            />
+                        )}
                     </li>
                 )
             })}
@@ -182,18 +207,28 @@ function Level2Menu({ items, open, basePath, onClose }) {
     )
 }
 
-function Level3Menu({ items, visible, basePath, onClose }) {
+function Level3Menu({ items, visible, parentName, basePath, onClose, onBack }) {
     return (
         <Flex
             tag='ul'
-            className={styles.level3Menu}
+            className={classNames(
+                styles.level3Menu,
+                [styles.mobileLevel3Open, visible]
+            )}
             gap={20}
             style={{ display: visible ? 'flex' : 'none' }}
         >
-            {items.map(item => {
+            <li className={styles.mobileClose}>
+                <button type='button' onClick={onBack}>
+                    <Icon name='right' />
+                    <Text bold size='l'>{parentName || 'חזרה'}</Text>
+                </button>
+            </li>
+
+            {items.map((item, index) => {
                 const itemPath = item.slug
                     ? `${basePath}/${item.slug}`
-                    : item.path
+                    : (item.path || `${basePath}-l3-${index}`)
 
                 return (
                     <li
@@ -216,10 +251,10 @@ function Level3Menu({ items, visible, basePath, onClose }) {
                                 gap={4}
                                 className={styles.level4Menu}
                             >
-                                {item.children.map(child => {
+                                {item.children.map((child, childIdx) => {
                                     const childPath = child.slug
                                         ? `${itemPath}/${child.slug}`
-                                        : child.path
+                                        : (child.path || `${itemPath}-l4-${childIdx}`)
 
                                     return (
                                         <li key={childPath}>
