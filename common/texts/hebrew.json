@@ -243,6 +243,20 @@
         "clear_cart": "נקה סל",
         "cart_title": "עגלת קניות",
         "empty_cart_title": "העגלה ריקה",
-        "empty_cart_subtitle": "אז מה יהיה המוצר הראשון שלך היום?"
+        "empty_cart_subtitle": "אז מה יהיה המוצר הראשון שלך היום?",
+        "products_especially_for_you": "מוצרים במיוחד בשבילך",
+        "no_recommended_products": "אין מוצרים מומלצים כעת",
+        "my_cart_title": "העגלה שלי",
+        "items_suffix": "פריטים",
+        "order_summary_title": "סיכום הזמנה",
+        "coupons_especially_for_you": "קופונים במיוחד בשבילך",
+        "edit_coupon": "ערוך קופון",
+        "subtotal_text": "סכום ביניים",
+        "handling_and_delivery": "דמי טיפול ומשלוח",
+        "total_saved_in_purchase": "סה\"כ חסכת בקניה זו",
+        "total_to_pay": "סה\"כ לתשלום",
+        "to_payment_btn": "לתשלום",
+        "edit_address": "ערוך כתובת",
+        "edit_delivery_time": "ערוך מועד אספקה"
     }
 }
