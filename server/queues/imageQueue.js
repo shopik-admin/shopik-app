@@ -36,8 +36,7 @@ export async function enqueueImageJobs(jobs) {
             name: 'process-image',
             data: {
                 productId: job.productId,
-                sourceUrl: job.sourceUrl,
-                force: !!job.force
+                sourceUrl: job.sourceUrl
             },
             opts: {
                 jobId: `p-${job.productId}`,
