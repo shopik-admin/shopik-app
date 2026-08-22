@@ -3,7 +3,7 @@ import { enqueueImageJobs } from '#server/queues/imageQueue.js'
 
 export default async function enqueueChangedImages(DL) {
     const comaxProducts = await DL.ComaxProduct.Model.find(
-        { picUrl: { $exists: true, $ne: null, $ne: '' } },
+        { picUrl: { $exists: true, $nin: [null, ''] } },
         { _id: 0, barcode: 1, picUrl: 1 }
     ).lean()
 

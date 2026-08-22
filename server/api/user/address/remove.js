@@ -4,7 +4,7 @@ export default async function remove(payload, { DL, _user }) {
         { $pull: { addresses: { addressId: payload.addressId } } },
         { select: DL.User.defaultSelect }
     )
-    await DL.redis.del(`user_auth:${_user.id}`)
+    await DL.redis?.del(`user_auth:${_user.id}`)
     return updatedUser
 }
 

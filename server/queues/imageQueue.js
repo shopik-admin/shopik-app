@@ -9,8 +9,14 @@ let connection
 export function getConnection() {
     if (!connection) {
         connection = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
+            connectTimeout: 2000,
             maxRetriesPerRequest: null,
-            enableOfflineQueue: false
+            enableOfflineQueue: true,
+            lazyConnect: true,
+            retryStrategy(times) {
+                if (times > 3) return null
+                return 1000
+            }
         })
     }
     return connection

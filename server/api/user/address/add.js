@@ -19,7 +19,7 @@ export default async function add(payload, { DL, _user, external, utils }) {
         { $push: { addresses: geocoded } },
         { select: DL.User.defaultSelect }
     )
-    await DL.redis.del(`user_auth:${_user.id}`)
+    await DL.redis?.del(`user_auth:${_user.id}`)
     if (!geocoded.active) return updatedUser
 
     const order = await utils.data.getUserOrder({ DL, _user })

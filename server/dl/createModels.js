@@ -300,20 +300,21 @@ async function createModelFromSchema(schemaPath) {
         Model.filterFields = filterFields
 
     Model.processFilter = (filter, search) => {
-        Object.keys(filter).forEach(key => {
+        const processed = { ...filter }
+        Object.keys(processed).forEach(key => {
             if (!Model.filterFields?.has(key))
-                delete filter[key]
+                delete processed[key]
         })
 
         if (search?.length && Model.filterFields) {
             for (const field of Model.filterFields) {
                 if (get(schema, `${field}.type`) === String) {
-                    if (!filter.$or) filter.$or = []
-                    filter.$or.push({ [field]: new RegExp(search) })
+                    if (!processed.$or) processed.$or = []
+                    processed.$or.push({ [field]: new RegExp(search) })
                 }
             }
         }
-        return filter
+        return processed
     }
 
     if (userEditableFields.size)

@@ -90,7 +90,7 @@ export default function router(app, bootData) {
                     _admin = await utils.auth.getAdmin(req, bootData)
                     actorId = _admin.id
                     actorType = DL.Log.constants.ACTOR.ADMIN
-                    actorName = `${_admin.name.first} ${_admin.name.last}`
+                    actorName = `${_admin.name?.first ?? ''} ${_admin.name?.last ?? ''}`
                 } catch (e) {
                     if (adminRequired) throw e
                 }
@@ -108,7 +108,7 @@ export default function router(app, bootData) {
             }
 
             let _user
-            if (!isAdmin && auth != 'none') { // figute out which requires more definitions default required / lax
+            if (!isAdmin && auth != 'none') { // figure out which requires more definitions default required / lax
                 try {
                     _user = await utils.auth.getUser(req, bootData)
                     actorId = _user.id
@@ -151,7 +151,7 @@ export default function router(app, bootData) {
                 let lockKey = `lock:${route}`
                 if (typeof apiFunction?.config?.preventMultiple === 'function')
                     lockKey += apiFunction?.config?.preventMultiple(body, info)
-                const lockAcquired = await DL.redis.set(lockKey, requestId, 'NX', 'EX', 30)
+                const lockAcquired = await DL.redis?.set(lockKey, requestId, 'NX', 'EX', 30)
                 if (!lockAcquired) {
                     throw { status: 429, message: 'Too Many Requests' }
                 }
@@ -197,7 +197,7 @@ export default function router(app, bootData) {
                 let lockKey = `lock:${route}`
                 if (typeof apiFunction?.config?.preventMultiple === 'function')
                     lockKey += apiFunction?.config?.preventMultiple(body, info)
-                await DL.redis.del(lockKey)
+                await DL.redis?.del(lockKey)
             }
             if (requestLog) {
                 if (actorId) {
@@ -207,7 +207,7 @@ export default function router(app, bootData) {
                         name: actorName
                     })
                 }
-                await requestLogPromise
+                try { await requestLogPromise } catch {}
             }
         }
     })
