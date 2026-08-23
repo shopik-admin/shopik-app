@@ -1,14 +1,21 @@
 import diff from '#common/functions/diff.js'
 import { calcOrder } from '#common/functions/calcOrder/cart.js'
+import filterClientOrder from '#server/utils/data/filterClientOrder.js'
+import { getOrCreateGuestCart } from '#server/utils/data/getGuestCart.js'
 
-export default async function product(payload, { DL, _user, utils }) {
-    const { id: productId, amount, unitKey } = payload
+export default async function product(payload, { DL, _user, utils, cookies, setCookie }) {
+    const { id: productId, amount, unitKey, domainId } = payload
 
     if (typeof amount !== 'number' || amount < 0) {
         throw { status: 400, message: 'Amount must be >= 0' }
     }
 
-    let cartOrder = await utils.data.getUserOrder({ DL, _user })
+    let cartOrder
+    if (_user?.id) {
+        cartOrder = await utils.data.getUserOrder({ DL, _user })
+    } else {
+        cartOrder = await getOrCreateGuestCart({ cookies, DL, setCookie, domainId })
+    }
     if (!cartOrder.cart) cartOrder.cart = []
 
     const originalOrder = structuredClone(cartOrder)
@@ -54,44 +61,18 @@ export default async function product(payload, { DL, _user, utils }) {
     let finalOrder = cartOrder
 
     if (!nothingToUpdate) {
-        const savedOrder = await DL.Order.updateOne(
-            { id: cartOrder.id },
-            { $set: updateData }
-        )
+        const update = { $set: updateData }
+        const savedOrder = _user?.id
+            ? await DL.Order.updateOne({ id: cartOrder.id }, update)
+            : await DL.GuestCart.updateOne({ id: cartOrder.id }, update)
         if (savedOrder) finalOrder = savedOrder
     }
 
     return { order: filterClientOrder(finalOrder) }
 }
 
-function filterClientOrder(order) {
-    if (!order) return null
-
-    const filtered = {}
-    for (const key of Object.keys(order)) {
-        if (key.startsWith('admin') || key === 'adminNotes' || key === 'internalStatus') continue
-        filtered[key] = order[key]
-    }
-
-    if (filtered.cart && Array.isArray(filtered.cart)) {
-        filtered.cart = filtered.cart.map(item => {
-            const clientItem = {}
-            const allowedFields = ['id', 'barcode', 'name', 'amount', 'finalAmount', 'price', 'totalSum', 'regularSum', 'saleSum', 'saleIds', 'missing', 'replacedBy', 'unit']
-            for (const key of Object.keys(item)) {
-                if (key.startsWith('admin') || key.startsWith('internal')) continue
-                if (allowedFields.includes(key)) {
-                    clientItem[key] = item[key]
-                }
-            }
-            return clientItem
-        })
-    }
-
-    return filtered
-}
-
 product.config = {
-    auth: 'required',
+    auth: 'lax',
     requiredFields: ['id', 'amount'],
     permission: null
 }

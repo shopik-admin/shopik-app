@@ -1,4 +1,5 @@
 import diff from '#common/functions/diff.js'
+import filterClientOrder from '#server/utils/data/filterClientOrder.js'
 
 export default async function add(payload, { DL, _user, utils }) {
     const couponCode = (payload.couponCode || '').trim().toLowerCase()
@@ -122,32 +123,6 @@ function calcOrderDiscount(coupon, orderSum) {
         return percentDiscount
     }
     return 0
-}
-
-function filterClientOrder(order) {
-    if (!order) return null
-
-    const filtered = {}
-    for (const key of Object.keys(order)) {
-        if (key.startsWith('admin') || key === 'adminNotes' || key === 'internalStatus') continue
-        filtered[key] = order[key]
-    }
-
-    if (filtered.cart && Array.isArray(filtered.cart)) {
-        filtered.cart = filtered.cart.map(item => {
-            const clientItem = {}
-            const allowedFields = ['id', 'barcode', 'name', 'amount', 'finalAmount', 'price', 'totalSum', 'regularSum', 'saleSum', 'saleIds', 'missing', 'replacedBy', 'unit']
-            for (const key of Object.keys(item)) {
-                if (key.startsWith('admin') || key.startsWith('internal')) continue
-                if (allowedFields.includes(key)) {
-                    clientItem[key] = item[key]
-                }
-            }
-            return clientItem
-        })
-    }
-
-    return filtered
 }
 
 add.config = {

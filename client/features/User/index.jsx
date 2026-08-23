@@ -16,8 +16,10 @@ export default function User({ children, sdUser = {} }) {
     }
 
     function onLogin({ user, order }) {
-        if (user?.id)
+        if (user?.id) {
             setUser(user)
+            localStorage.removeItem('cart')
+        }
         if (order)
             setOrder(order)
     }

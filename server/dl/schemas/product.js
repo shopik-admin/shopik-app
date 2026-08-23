@@ -194,18 +194,19 @@ const defaultSelect = {
     saleIds: 1
 }
 
+const {
+    'images.product': _imgProduct,
+    'images.mainIndex': _imgMainIndex,
+    ...defaultSelectBase
+} = defaultSelect
+
 const defaultSelectOne = {
-    ...defaultSelect,
-    'images.threeSixty': 1,
+    ...defaultSelectBase,
+    images: 1,
     barcode: 1,
-    unit: 1,
-    kashrut: 1,
-    passoverKashrut: 1,
-    nutrients: 1,
     storageType: 1,
     shelflife: 1,
     category: 1,
-    images: 1,
     status: 1,
     totalSalesUnits: 1
 }

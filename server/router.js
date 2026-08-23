@@ -140,6 +140,7 @@ export default function router(app, bootData) {
                 platform,
                 ip,
                 headers,
+                cookies: req.cookies,
                 files,
                 setCookie,
                 clearCookie,

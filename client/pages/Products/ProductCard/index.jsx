@@ -6,7 +6,9 @@ import Text from 'common/components/Text'
 import { Link } from 'react-router'
 import classNames from 'common/functions/classNames'
 import calcOrder from '#common/functions/calcOrder/cart.js'
+import apiReq from '#common/functions/apiReq.js'
 import { useOrder } from 'features/Order/OrderProvider'
+import { useRef } from 'react'
 
 export default function ProductCard(props) {
     const { product, ...rest } = props
@@ -40,16 +42,29 @@ export function ProductInfo(props) {
 
 export function ProductButton({ product, size = 'm', sales }) {
     const { order, setOrder } = useOrder()
+    const latestRequest = useRef(0)
     const amount = order?.cart?.find(item => item.id === product.id)?.amount || 0
 
     const updateAmount = (newAmount) => {
-        const updatedOrder = calcOrder({
+        const currentRequest = ++latestRequest.current
+
+        const optimisticOrder = calcOrder({
             order: order || {},
             product,
             amount: newAmount,
             sales: sales || {}
         })
-        setOrder(updatedOrder)
+        setOrder(optimisticOrder)
+
+        apiReq('order/cart/product', {
+            id: product.id,
+            amount: newAmount,
+            domainId: order?.domainId
+        })
+            .then(({ order }) => {
+                if (currentRequest === latestRequest.current && order) setOrder(order)
+            })
+            .catch(() => { })
     }
 
     if (!amount) {
@@ -62,9 +77,9 @@ export function ProductButton({ product, size = 'm', sales }) {
     }
 
     return <Flex className={classNames(styles.productButton, styles[size], styles.stepper)}>
-        <Button preventDefault stopPropagation onClick={() => updateAmount(amount - 1)}>-</Button>
-        <Text size='m' bold className={styles.amount}>{amount}</Text>
         <Button icon='add' preventDefault stopPropagation onClick={() => updateAmount(amount + 1)} />
+        <Text size='m' bold className={styles.amount}>{amount}</Text>
+        <Button preventDefault stopPropagation onClick={() => updateAmount(amount - 1)}>-</Button>
     </Flex>
 }
 
