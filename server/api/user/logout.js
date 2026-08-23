@@ -5,7 +5,7 @@ export default async function logout(payload, { DL, _user, platform, clearCookie
         $set: { lastLogout: new Date() },
         $unset: { [`tokens.${platform}`]: '' }
     })
-    await DL.redis.del(`user_auth:${_user.id}`)
+    await DL.redis?.del(`user_auth:${_user.id}`)
     clearCookie(USER_TOKEN_COOKIE)
     return true
 }

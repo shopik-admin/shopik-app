@@ -1,4 +1,5 @@
 import { updateOrderAddress } from '#server/api/order/address/update.js'
+import { findByLocation } from '#server/external/supplyArea.js'
 
 const sameLocationFields = [
     'city',
@@ -21,6 +22,11 @@ export default async function edit(payload, { DL, _user, external, utils }) {
 
     const geocoded = await external.geocode.address(payload)
     geocoded.active = existingAddr.active
+    if (!geocoded.location) geocoded.location = existingAddr.location
+
+    const area = await findByLocation(DL, geocoded.location)
+    geocoded.areaId = area?.id ?? null
+    geocoded.hasService = !!area
 
     const sameLocation = isSameLocation(geocoded, existingAddr)
 
@@ -30,7 +36,7 @@ export default async function edit(payload, { DL, _user, external, utils }) {
         { select: DL.User.defaultSelect }
     )
 
-    await DL.redis.del(`user_auth:${_user.id}`)
+    await DL.redis?.del(`user_auth:${_user.id}`)
     if (sameLocation) return { user }
 
     const order = await utils.data.getUserOrder({ DL, _user })
@@ -40,7 +46,6 @@ export default async function edit(payload, { DL, _user, external, utils }) {
     if (!orderUpdateRequired) return { user }
 
     const updatedOrder = await updateOrderAddress({ DL, order, address: geocoded })
-    await DL.redis.del(`user_auth:${_user.id}`)
 
     return {
         user,

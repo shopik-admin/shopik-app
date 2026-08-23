@@ -157,9 +157,13 @@ const productSchema = {
         pathIds: { type: [String], index: true, filter: true }
     },
     images: {
-        product: [String],
-        threeSixty: [String],
-        mainIndex: Number
+        product: [{
+            main: Boolean,
+            sourceUrl: String,
+            hash: String,
+            sizes: { xl: String, l: String, m: String, s: String }
+        }],
+        threeSixty: [String]
     },
     status: {
         type: String,
@@ -181,7 +185,6 @@ const defaultSelect = {
     name: 1,
     description: 1,
     'images.product': 1,
-    'images.mainIndex': 1,
     noteGroupTags: 1,
     prices: 1,
     passoverKashrut: 1,

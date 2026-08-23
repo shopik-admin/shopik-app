@@ -37,5 +37,5 @@ export default async function create(payload, { DL, _admin }) {
 
 create.config = {
     permissions: ['role:create'],
-    required: ['name', 'parentId']
+    required: ['name']
 }

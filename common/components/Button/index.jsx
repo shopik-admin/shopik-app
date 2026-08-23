@@ -10,9 +10,10 @@ export default function Button({
     className, text = '', children = text, icon, mode, loading: externalLoading = false,
     onClick, stopPropagation, preventDefault, permission, onError, onPrimary, ...props
 }) {
-    if (permission && !usePermission(permission)) return null
-
+    const hasPermission = usePermission(permission || '')
     const [loading, setLoading] = useState(false)
+
+    if (permission && !hasPermission) return null
 
     return <button
         className={classNames(

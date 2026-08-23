@@ -452,14 +452,9 @@ const methods = Order => ({
     getNumber: async function () {
         const nextNumber = await Counter.findOneAndUpdate(
             { name: counterName },
-            { $inc: { value: 1 } },
-            { returnDocument: 'after' }
+            { $inc: { value: 1 }, $setOnInsert: { value: 10000000 } },
+            { upsert: true, returnDocument: 'after' }
         ).lean()
-        if (!nextNumber) {
-            const firstNumber = 10000000
-            await Counter.create({ name: counterName, value: firstNumber })
-            return firstNumber
-        }
         return nextNumber?.value
     }
 })

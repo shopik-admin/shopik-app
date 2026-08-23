@@ -78,7 +78,7 @@
     aspect-ratio: 1;
     border-radius: var(--radius-3xl);
     overflow: hidden;
-    background: #f5f5f5;
+    border: 1px solid var(--border-primary);
     position: relative;
 }
 

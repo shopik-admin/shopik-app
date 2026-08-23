@@ -14,8 +14,8 @@ const roleSchema = {
         trim: true,
         unique: true
     },
-    parentId: String,
-    parentIds: [String],
+    parentId: { type: String, filter: true },
+    parentIds: { type: [String], filter: true },
     permissions: {
         type: [String],
         validate: {

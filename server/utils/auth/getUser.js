@@ -8,7 +8,7 @@ export default async function getUser(req, { DL, utils }) {
     const { id } = utils.auth.verifyToken(token)
     const cacheId = `user_auth:${id}`
     let user
-    const cached = await DL.redis.get(cacheId)
+    const cached = await DL.redis?.get(cacheId)
     if (cached)
         user = safeJsonParse(cached)
     else {
@@ -16,7 +16,7 @@ export default async function getUser(req, { DL, utils }) {
             { id },
             { ...DL.User.defaultSelect, tokens: 1 }
         ).lean()
-        await DL.redis.set(`user_auth:${id}`, JSON.stringify(user), 'EX', 60 * 60 * 24)
+        await DL.redis?.set(`user_auth:${id}`, JSON.stringify(user), 'EX', 60 * 60 * 24)
     }
     if (!user)
         throw { status: 401, message: 'Unauthorized' }
