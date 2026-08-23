@@ -11,7 +11,7 @@ const baseMenu = [
 
 export default async function getMenu({ DL }) {
     // TODO: add storeId
-    const cached = await DL.redis.get('menu')
+    const cached = await DL.redis?.get('menu')
     if (cached) {
         return JSON.parse(cached)
     }
@@ -59,6 +59,6 @@ export default async function getMenu({ DL }) {
         },
         ...baseMenu,
     ]
-    await DL.redis.set('menu', JSON.stringify(menu), 'EX', 60 * 60)
+    await DL.redis?.set('menu', JSON.stringify(menu), 'EX', 60 * 60)
     return menu
 }

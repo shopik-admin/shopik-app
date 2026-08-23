@@ -29,7 +29,7 @@ export default async function verify_phone({ otpToken, otp }, { DL, utils, platf
         { select: DL.User.defaultSelect }
     )
 
-    await DL.redis.del(`user_auth:${user.id}`)
+    await DL.redis?.del(`user_auth:${user.id}`)
     setCookie(USER_TOKEN_COOKIE, token, USER_TOKEN_EXPIRY_MS)
     await DL.Otp.deleteOne({ _id: storedOtp._id })
 

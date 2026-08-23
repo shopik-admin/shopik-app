@@ -2,6 +2,7 @@ export default Model => async function deleteOne(filter = {}) {
     const cacheStrategy = Model.cacheStrategy
 
     let id = filter.id
+    if (Array.isArray(id)) id = undefined
 
     if (cacheStrategy && !id) {
         id = (await Model.distinct('id', filter))[0]

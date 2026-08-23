@@ -148,8 +148,9 @@ const unitOptionSchema = {
     amount: Number // weight in baseUnit, e.g. 10 (kg)
 }
 
-const cartSchema = [{
+export const cartSchema = [{
     id: String,
+    name: String,
     barcode: String,
     amount: Number,
     finalAmount: Number,
@@ -452,13 +453,12 @@ const methods = Order => ({
         const nextNumber = await Counter.findOneAndUpdate(
             { name: counterName },
             { $inc: { value: 1 } },
-            { returnDocument: 'after' }
+            {
+                upsert: true,
+                setDefaultsOnInsert: true,
+                returnDocument: 'after'
+            }
         ).lean()
-        if (!nextNumber) {
-            const firstNumber = 10000000
-            await Counter.create({ name: counterName, value: firstNumber })
-            return firstNumber
-        }
         return nextNumber?.value
     }
 })

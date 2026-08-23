@@ -32,8 +32,17 @@ export default async function getUserOrder({ DL, _user }) {
             }
         }
     }
-    order.number = await DL.Order.getNumber()
-    const newOrder = await DL.Order.create(order)
 
-    return handleSelect(newOrder, DL.Order.defaultSelect)
+    try {
+        order.number = await DL.Order.getNumber()
+        const newOrder = await DL.Order.create(order)
+        return handleSelect(newOrder, DL.Order.defaultSelect)
+    } catch (err) {
+        const existing = await DL.Order.readOne(
+            { userId: _user.id, status: 'cart', active: true },
+            DL.Order.defaultSelect
+        )
+        if (existing) return existing
+        throw { status: 500, message: 'Failed to create cart order' }
+    }
 }

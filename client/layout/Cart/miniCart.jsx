@@ -12,26 +12,20 @@ import styles from './cart.module.css'
 export default function MiniCart({
     isOpen: controlledIsOpen,
     onToggle,
-    total: propTotal,
-    itemCount: propItemCount,
-    freeShippingThreshold = 500,
+    freeShippingThreshold = 506.3,
     className
 }) {
     const [internalIsOpen, setInternalIsOpen] = useState(false)
     const { cartOpen: ctxCartOpen, toggleCart: ctxToggleCart } = useCart?.() || {}
-    const { order = {} } = useOrder?.() || {}
 
-    const cart = order?.cart || []
-    const computedCount = cart.reduce((acc, item) => acc + (item.amount || item.units || 1), 0)
-    const computedTotal = order?.sum ?? order?.subtotal ?? cart.reduce((acc, item) => acc + ((item.price || 0) * (item.amount || 1)), 0)
-
-    const itemCount = propItemCount !== undefined ? propItemCount : computedCount
-    const total = propTotal !== undefined ? propTotal : computedTotal
 
     const isOpen = controlledIsOpen !== undefined
         ? controlledIsOpen
         : (ctxCartOpen !== undefined ? ctxCartOpen : internalIsOpen)
     const { TR } = useText?.() || {}
+    const { order } = useOrder()
+    const total = order?.sum
+    const itemCount = order?.cart?.length
 
     const handleToggle = (e) => {
         if (onToggle) {

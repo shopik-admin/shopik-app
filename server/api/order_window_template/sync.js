@@ -155,9 +155,9 @@ export default async function sync(payload, { DL }) {
                                 totalOrders: 0,
                                 leadHours: leadHours,
                                 timezone: template.timezone,
-                                startTimestamp: getWindowTS({ date, hour: tw.start }),
-                                endTimestamp: getWindowTS({ date, hour: tw.end }),
-                                leadTimestamp: getWindowTS({ date, hour: tw.start - leadHours })
+                                startTimestamp: getWindowTS({ date, hour: tw.start, timezone }),
+                                endTimestamp: getWindowTS({ date, hour: tw.end, timezone }),
+                                leadTimestamp: getWindowTS({ date, hour: tw.start - leadHours, timezone })
                             }
                         }
                     })

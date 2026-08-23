@@ -41,8 +41,7 @@ const hashCache = async (redis, Model, docs) => {
 }
 
 async function connectRedis() {
-    const redisUrl = process.env.REDIS_URL ||
-        (process.env.REDIS_HOST ? `redis://${process.env.REDIS_HOST}:${process.env.REDIS_PORT || 6379}` : 'redis://localhost:6379')
+    const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379'
 
     const redis = new Redis(redisUrl, {
         connectTimeout: 2000,

@@ -5,7 +5,9 @@ const
             if (!listeners[event]) {
                 listeners[event] = []
             }
-            listeners[event].push(callback)
+            if (!listeners[event].includes(callback)) {
+                listeners[event].push(callback)
+            }
         },
 
         off(event, callback) {

@@ -18,8 +18,10 @@ export default async function update(payload, { DL, validators, utils }) {
     if (nothingToUpdate)
         return admin
 
-    if (update.roleId)
+    if (update.roleId) {
         await validators.roleId(update.roleId, arguments[1])
+        await DL.redis?.del(`admin_auth:${id}`)
+    }
 
     const updated = await DL.Admin.updateOne({ id }, update)
     return updated

@@ -14,7 +14,7 @@ export default async function update(payload, { DL, _admin }) {
     const invalidatingFields = ['phone', 'blocked']
     for (const field of invalidatingFields) {
         if (update[field]) {
-            await DL.redis.del(`user_auth:${id}`)
+            await DL.redis?.del(`user_auth:${id}`)
             update.tokens = {}
             break
         }
