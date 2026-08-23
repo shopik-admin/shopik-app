@@ -275,6 +275,40 @@
     position: relative;
 }
 
+.tilePicker {
+    position: absolute;
+    top: .6rem;
+    right: .6rem;
+    z-index: 1000;
+    display: flex;
+    overflow: hidden;
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm);
+    background: var(--bg-primary);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, .25);
+}
+
+.tileBtn {
+    padding: .3rem .65rem;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: .75rem;
+    font-weight: var(--font-weight-medium);
+    white-space: nowrap;
+    cursor: pointer;
+
+    &:hover {
+        color: var(--text-primary);
+    }
+}
+
+.tileBtnActive,
+.tileBtnActive:hover {
+    background: var(--bg-brand-primary);
+    color: var(--text-primary-on-brand);
+}
+
 .areaForm {
     display: flex;
     flex-direction: column;
