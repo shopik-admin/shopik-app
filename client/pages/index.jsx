@@ -2,6 +2,7 @@ import Products from './Products'
 import Account from './Account'
 import Home from './Home'
 import Product from './Product'
+import Checkout from './Checkout'
 
 export default [
     {
@@ -27,5 +28,11 @@ export default [
         element: Product,
         title: 'מוצר',
         description: 'דף מוצר'
+    },
+    {
+        path: 'checkout',
+        element: Checkout,
+        title: 'קופה',
+        description: 'מעבר לתשלום'
     }
 ]

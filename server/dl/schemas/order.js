@@ -148,8 +148,9 @@ const unitOptionSchema = {
     amount: Number // weight in baseUnit, e.g. 10 (kg)
 }
 
-const cartSchema = [{
+export const cartSchema = [{
     id: String,
+    name: String,
     barcode: String,
     amount: Number,
     finalAmount: Number,

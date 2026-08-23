@@ -17,7 +17,7 @@ export async function render({ url, data }) {
   )
 
   let head = renderToString(<Head
-    title={data.initData?.title || page?.title || ''}
+    title={`Shopik | ${data.initData?.title || page?.title || ''}`}
     description={data.initData?.description || page?.description || ''}
   />)
 

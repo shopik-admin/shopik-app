@@ -5,9 +5,13 @@ import Flex from 'common/components/Flex'
 import Text from 'common/components/Text'
 import { Link } from 'react-router'
 import classNames from 'common/functions/classNames'
+import calcOrder from '#common/functions/calcOrder/cart.js'
+import apiReq from '#common/functions/apiReq.js'
+import { useOrder } from 'features/Order/OrderProvider'
+import { useRef } from 'react'
 
 export default function ProductCard(props) {
-    const { product, ...rest } = props
+    const { product } = props
     return <Flex
         tag={Link}
         to={`/product/${product.id}`}
@@ -32,19 +36,55 @@ export function ProductImage({ product, size = 'm' }) {
 }
 
 export function ProductInfo(props) {
-    const { product, size = 'm' } = props
-    return <Flex col className={classNames(styles.info, styles[size])}>
+    const { product, sales, size = 'm' } = props
+    return <Flex gap={4} col className={classNames(styles.info, styles[size])}>
         <ProductPrice {...props} />
+        <Text size='xs' mode='sub'>אסם | 200 גרם</Text>
         <Text bold>{product.name}</Text>
+        {/* {Object.values(sales)?.map(s => s.name)} */}
     </Flex>
 }
 
-export function ProductButton({ product, size = 'm' }) {
-    return <Flex className={classNames(styles.actions, styles[size])}>
-        <Button
-            icon='add' preventDefault stopPropagation
-            onClick={console.log}
-        >add_to_cart</Button>
+export function ProductButton({ product, size = 'm', sales = {} }) {
+    const { order, setOrder } = useOrder()
+    const latestRequest = useRef(0)
+    const amount = order?.cart?.find(item => item.id === product.id)?.amount || 0
+
+    const updateAmount = (newAmount) => {
+        const currentRequest = ++latestRequest.current
+        console.log({ sales, product, newAmount })
+        const optimisticOrder = calcOrder({
+            order: order || {},
+            product,
+            amount: newAmount,
+            sales: { ...order?.sales, ...sales }
+        })
+        setOrder(optimisticOrder)
+
+        apiReq('order/cart/product', {
+            id: product.id,
+            amount: newAmount,
+            domainId: order?.domainId
+        })
+            .then(({ order }) => {
+                if (currentRequest === latestRequest.current && order) setOrder(order)
+            })
+            .catch(() => { })
+    }
+
+    if (!amount) {
+        return <Flex className={classNames(styles.productButton, styles[size])} >
+            <Button
+                icon='add' preventDefault stopPropagation
+                onClick={() => updateAmount(1)}
+            >add_to_cart</Button>
+        </Flex >
+    }
+
+    return <Flex className={classNames(styles.productButton, styles[size], styles.stepper)}>
+        <Button icon='add' preventDefault stopPropagation onClick={() => updateAmount(amount + 1)} />
+        <Text size='m' bold className={styles.amount}>{amount}</Text>
+        <Button preventDefault stopPropagation onClick={() => updateAmount(amount - 1)}>-</Button>
     </Flex>
 }
 
@@ -59,7 +99,7 @@ export function ProductBadges({ product, size = 'm' }) {
 
 export function ProductPrice({ product, size = 'm' }) {
     try {
-        const price = product.prices[0].price
+        const price = product.price || product.prices[0].price
         const unitPriceText = getUnitPriceText(product)
         return <Flex gap={20} alignItems='center' className={classNames(styles.price, styles[size])}>
             <Text size='xxl' bold><Text size='s' bold>₪</Text>{price}</Text>

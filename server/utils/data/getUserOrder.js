@@ -37,7 +37,7 @@ export default async function getUserOrder({ DL, _user }) {
         order.number = await DL.Order.getNumber()
         const newOrder = await DL.Order.create(order)
         return handleSelect(newOrder, DL.Order.defaultSelect)
-    } catch {
+    } catch (err) {
         const existing = await DL.Order.readOne(
             { userId: _user.id, status: 'cart', active: true },
             DL.Order.defaultSelect

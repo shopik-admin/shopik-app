@@ -6,6 +6,7 @@ import Icon from 'common/components/Icon'
 import { useText } from 'common/texts/TextProvider'
 import classNames from 'common/functions/classNames'
 import styles from './cart.module.css'
+import { useOrder } from 'features/Order/OrderProvider'
 
 /**
  * MiniCart Component
@@ -24,14 +25,15 @@ import styles from './cart.module.css'
 export default function MiniCart({
     isOpen: controlledIsOpen,
     onToggle,
-    total = 250.3,
-    itemCount = 33,
     freeShippingThreshold = 506.3,
     className
 }) {
     const [internalIsOpen, setInternalIsOpen] = useState(false)
     const isOpen = controlledIsOpen !== undefined ? controlledIsOpen : internalIsOpen
     const { TR } = useText?.() || {}
+    const { order } = useOrder()
+    const total = order?.sum
+    const itemCount = order?.cart?.length
 
     const handleToggle = (e) => {
         if (onToggle) {
