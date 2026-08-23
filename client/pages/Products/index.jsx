@@ -18,7 +18,7 @@ export default function Products() {
                 : pageData?.data?.products?.map(p => <ProductCard
                     key={p.id}
                     product={p}
-                    sales={pageData?.data?.sales}
+                    sales={p.saleIds.reduce((acc, sId) => ({ [sId]: pageData?.data?.sales[sId], ...acc }), {})}
                 >{p.name}</ProductCard>)}
         </div>
     </Flex>

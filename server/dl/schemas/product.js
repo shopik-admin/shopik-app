@@ -182,6 +182,7 @@ const productSchema = {
 const defaultSelect = {
     _id: 0,
     id: 1,
+    barcode: 1,
     name: 1,
     description: 1,
     'images.product': 1,
@@ -206,7 +207,6 @@ const {
 const defaultSelectOne = {
     ...defaultSelectBase,
     images: 1,
-    barcode: 1,
     storageType: 1,
     shelflife: 1,
     category: 1,

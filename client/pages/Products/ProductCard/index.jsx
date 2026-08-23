@@ -11,7 +11,7 @@ import { useOrder } from 'features/Order/OrderProvider'
 import { useRef } from 'react'
 
 export default function ProductCard(props) {
-    const { product, ...rest } = props
+    const { product } = props
     return <Flex
         tag={Link}
         to={`/product/${product.id}`}
@@ -36,27 +36,28 @@ export function ProductImage({ product, size = 'm' }) {
 }
 
 export function ProductInfo(props) {
-    const { product, size = 'm' } = props
+    const { product, sales, size = 'm' } = props
     return <Flex gap={4} col className={classNames(styles.info, styles[size])}>
         <ProductPrice {...props} />
         <Text size='xs' mode='sub'>אסם | 200 גרם</Text>
         <Text bold>{product.name}</Text>
+        {/* {Object.values(sales)?.map(s => s.name)} */}
     </Flex>
 }
 
-export function ProductButton({ product, size = 'm', sales }) {
+export function ProductButton({ product, size = 'm', sales = {} }) {
     const { order, setOrder } = useOrder()
     const latestRequest = useRef(0)
     const amount = order?.cart?.find(item => item.id === product.id)?.amount || 0
 
     const updateAmount = (newAmount) => {
         const currentRequest = ++latestRequest.current
-
+        console.log({ sales, product, newAmount })
         const optimisticOrder = calcOrder({
             order: order || {},
             product,
             amount: newAmount,
-            sales: sales || {}
+            sales: { ...order?.sales, ...sales }
         })
         setOrder(optimisticOrder)
 
