@@ -8,9 +8,13 @@ const supplyAreaSchema = {
     name: {
         type: String,
         required: true,
-        trim: true
+        trim: true,
+        filter: true
     },
-    description: String,
+    description: {
+        type: String,
+        filter: true
+    },
     location: {
         type: {
             type: String,
@@ -26,7 +30,8 @@ const supplyAreaSchema = {
     stores: [{
         storeId: {
             type: String,
-            required: true
+            required: true,
+            filter: true
         }
     }]
 }

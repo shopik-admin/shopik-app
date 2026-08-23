@@ -1,9 +1,7 @@
 const isClient = typeof window !== 'undefined'
 
 export default async function apiReq(path, data = {}, fields) {
-    //const info = { platform: isClient ? (window.APP_PLATFORM || 'web') : 'server' }
-
-    let body = data//{ data: data, fields, info }
+    let body = data
 
     const headers = {
         'Content-Type': 'application/json',
@@ -32,15 +30,15 @@ export default async function apiReq(path, data = {}, fields) {
                 headers,
                 credentials: 'same-origin'
             }),
-            result = await res.json().catch(() => ({ status: res.status }))
+            result = await res.json().catch(() => ({ status: res.status, message: `HTTP ${res.status}` }))
 
         if (!res.ok || result.status !== 200) throw result
         return result.data
     } catch (err) {
-        if (err.status === 401 && isClient) {
+        if (err.status === 401 && isClient && !window.__reloading) {
+            window.__reloading = true
             location.reload()
         }
-        else
-            throw err.message || err
+        throw err?.message || err
     }
 }

@@ -22,9 +22,13 @@ export default function ProductCard(props) {
 }
 
 export function ProductImage({ product, size = 'm' }) {
+    const { images } = product || {}
+    const mainImage = images?.product?.find(i => i.main === true) || images?.[0] || null
+    const src = mainImage?.sizes[size] || ''
+
     return <Image
         className={classNames(styles.productImage, styles[size])}
-        src='https://www.sweetshop.co.il/wp-content/uploads/2022/02/6901353_7290000068787_L_1_Enlarge.jpeg' />
+        src={src} alt={product.name} />
 }
 
 export function ProductInfo(props) {
