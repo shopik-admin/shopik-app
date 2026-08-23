@@ -451,8 +451,12 @@ const methods = Order => ({
     getNumber: async function () {
         const nextNumber = await Counter.findOneAndUpdate(
             { name: counterName },
-            { $inc: { value: 1 }, $setOnInsert: { value: 10000000 } },
-            { upsert: true, returnDocument: 'after' }
+            { $inc: { value: 1 } },
+            {
+                upsert: true,
+                setDefaultsOnInsert: true,
+                returnDocument: 'after'
+            }
         ).lean()
         return nextNumber?.value
     }
