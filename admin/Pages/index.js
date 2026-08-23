@@ -38,10 +38,10 @@ const pages = [
 ]
 
 export default function usePages() {
-    const { isSuperAdmin, permissions } = useUser()
+    const { isSuperAdmin, role } = useUser()
 
     if (isSuperAdmin)
         return pages
 
-    return pages.filter(p => permissions.includes(p.permission))
+    return pages.filter(p => role.permissions.includes(p.permission))
 } 

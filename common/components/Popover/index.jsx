@@ -24,6 +24,7 @@ export default function Popover({ id, className, button, children, btnClassName,
         if (disabled) return
         e?.stopPropagation()
         e?.preventDefault()
+        if (ref.current.open) return
         ref.current.showModal()
         const
             btnRect = btnRef.current.getBoundingClientRect(),
@@ -62,6 +63,7 @@ export default function Popover({ id, className, button, children, btnClassName,
 
     function close() {
         const dialog = ref.current
+        if (!dialog.open) return
         dialog.classList.remove(styles.visible)
         dialog.addEventListener('transitionend', dialog.close, { once: true })
     }

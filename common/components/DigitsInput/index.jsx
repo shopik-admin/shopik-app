@@ -3,19 +3,19 @@ import Input from 'common/components/Input'
 import Flex from 'common/components/Flex'
 import styles from './style.module.css'
 
-let sent = ''
 export default function DigitsInput({
     digitsNum = 6,
     name,
     onCodeComplete,
 }) {
     const inputsRef = useRef([])
+    const sentRef = useRef('')
     const [value, setValue] = useState(Array(digitsNum).fill(''))
 
     useEffect(() => {
         const code = value.join('')
-        if (code.length === digitsNum && typeof onCodeComplete === 'function' && sent != code) {
-            sent = code
+        if (code.length === digitsNum && typeof onCodeComplete === 'function' && sentRef.current !== code) {
+            sentRef.current = code
             onCodeComplete(code)
         }
     }, [value, digitsNum, onCodeComplete])
