@@ -1,5 +1,6 @@
 .domainSelector {
-    color: var(--text-tertiary);
+    color: var(--text-primary-on-brand);
+    opacity: 0.72;
     font-size: var(--text-sm);
     margin-bottom: 40px;
     width: 200px;

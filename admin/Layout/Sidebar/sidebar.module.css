@@ -1,7 +1,6 @@
 .sidebar {
     --drawerTransitionTime: .4s;
 
-
     &.open {
         --sidebarWidth: 240px;
     }
@@ -11,12 +10,16 @@
         position: absolute;
         bottom: 0;
         inset-inline-start: 0;
-        color: var(--text-tertiary);
+        color: var(--text-primary-on-brand);
         padding: 20px;
 
         svg {
             transition: .2s;
-            color: var(--text-primary);
+            color: var(--text-primary-on-brand);
+        }
+
+        small {
+            opacity: 0.72;
         }
     }
 
@@ -69,10 +72,10 @@
     }
 
     aside {
-        border-inline-end: 1px solid var(--border-primary);
+        border-inline-end: 1px solid var(--bg-brand-primary-hover);
         width: var(--sidebarWidth);
         inset-inline-start: 0;
-        background-color: var(--bg-primary);
+        background-color: var(--bg-brand-primary);
         top: 0;
         position: fixed;
         padding: 16px;
@@ -85,7 +88,7 @@
             width: 208px;
             height: 100%;
             overflow: auto;
-            color: var(--text-primary);
+            color: var(--text-primary-on-brand);
             transition: .3s;
         }
     }

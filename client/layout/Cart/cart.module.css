@@ -232,6 +232,8 @@
         flex-direction: column;
         justify-content: center;
         gap: 2px;
+        background-color: transparent;
+        box-shadow: none;
     }
 
     .chevronIcon {
