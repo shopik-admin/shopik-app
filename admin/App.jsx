@@ -18,11 +18,11 @@ function AdminLayout() {
 export default function App() {
     const pages = usePages()
     return <Routes>
-        <Route path='/admin' element={<AdminLayout />}>
+        <Route element={<AdminLayout />}>
             {pages.map((page) => (
                 <Route key={page.key} path={page.path} Component={page.component} />
             ))}
         </Route>
-        <Route path='*' element={<Navigate to='/admin/' replace />} />
+        <Route path='*' element={<Navigate to='/' replace />} />
     </Routes>
 }

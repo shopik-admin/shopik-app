@@ -23,7 +23,7 @@ const alias = {
 export default defineConfig({
   root: currentDir,
   cacheDir: '../node_modules/.vite-admin',
-  base: '/admin/',
+  base: '/',
   resolve: { alias },
   plugins: [react()],
   define: { APP_VERSION: JSON.stringify(version) },

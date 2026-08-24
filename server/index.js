@@ -27,8 +27,16 @@ try {
     log.warn('Jobs not started:', e?.message || e)
 }
 
-app.use('/', serveStatic('build/client', { index: false }))
-app.use('/admin', serveStatic('build/admin', { index: false }))
+const serveClient = serveStatic('build/client', { index: false })
+const serveAdmin = serveStatic('build/admin', { index: false })
+
+app.use((req, res, next) => {
+    const host = req.headers.host || ''
+    if (host.startsWith('admin.')) {
+        return serveAdmin(req, res, next)
+    }
+    return serveClient(req, res, next)
+})
 
 ssr(app, bootData)
 
@@ -37,5 +45,5 @@ ${c.green}${c.bold}🚀 Server Running:${c.reset}
    ${PRODUCTION ? 'Production' : 'Development'} mode
 
      ${c.cyan}Client:${c.reset} ${c.gray}http://localhost:${PORT}${c.reset}
-     ${c.cyan}Admin:${c.reset}  ${c.gray}http://localhost:${PORT}/admin\n`
+     ${c.cyan}Admin:${c.reset}  ${c.gray}http://admin.localhost:${PORT}${c.reset}\n`
 ))

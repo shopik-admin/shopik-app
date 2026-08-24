@@ -47,8 +47,13 @@ export default async function (app, bootData) {
             appType: 'custom'
         })
 
-        app.use('/admin', viteAdmin.middlewares)
-        app.use(viteClient.middlewares)
+        app.use((req, res, next) => {
+            const host = req.headers.host || ''
+            if (host.startsWith('admin.')) {
+                return viteAdmin.middlewares(req, res, next)
+            }
+            return viteClient.middlewares(req, res, next)
+        })
     }
 
     // --- 2. פונקציות עזר קוהרנטיות לקבלת ה-Template ---
@@ -72,10 +77,22 @@ export default async function (app, bootData) {
 
     // --- 3. ROUTES (ללא תנאי PRODUCTION בתוכם!) ---
 
+    // REDIRECT /admin to admin subdomain
+    app.get('*splat', (req, res, next) => {
+        const host = req.headers.host || ''
+        const isAdmin = host.startsWith('admin.')
+        if (!isAdmin && (req.path === '/admin' || req.path.startsWith('/admin/'))) {
+            const newPath = req.originalUrl.replace(/^\/admin/, '') || '/'
+            const proto = req.headers['x-forwarded-proto'] || req.protocol || 'http'
+            return res.redirect(`${proto}://admin.${host}${newPath}`)
+        }
+        next()
+    })
+
     // ADMIN ROUTE
     app.get('*splat', async (req, res, next) => {
         const host = req.headers.host || ''
-        const isAdmin = req.originalUrl.startsWith('/admin') || host.startsWith('admin.')
+        const isAdmin = host.startsWith('admin.')
         if (!isAdmin) return next()
 
         try {
