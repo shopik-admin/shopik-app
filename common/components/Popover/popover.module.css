@@ -19,6 +19,15 @@
         background-color: transparent;
     }
 
+    &.overlay::backdrop {
+        background-color: transparent;
+        transition: background-color .3s ease;
+    }
+
+    &.overlay.visible::backdrop {
+        background-color: #00000040;
+    }
+
 }
 
 .btn {

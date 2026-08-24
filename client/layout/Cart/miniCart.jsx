@@ -48,11 +48,12 @@ export default function MiniCart({
     const remaining = Math.round(Math.max(0, freeShippingThreshold - total))
 
     // DRY Translations from hebrew.json
-    const toPayText = TR?.('to_pay') || 'לתשלום:'
-    const currencySymbol = TR?.('currency_symbol') || '₪'
+    const toPayText = TR?.('to_pay')
+    const currencySymbol = TR?.('currency_symbol')
     const subtext = isCartEmpty
-        ? (TR?.('cart_empty_subtext') || 'זה הזמן להוסיף את המוצר הראשון')
-        : (TR?.('free_shipping_subtext') || 'עוד {remaining} ש״ח למשלוח חינם').replace('{remaining}', remaining)
+        ? (TR?.('cart_empty_subtext')) :
+        remaining ?
+            (TR?.('free_shipping_subtext')).replace('{remaining}', remaining) : 'free_shipping'
 
     // Shared Cart Icon with Badge element
     const cartIconElement = (

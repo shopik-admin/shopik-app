@@ -4,7 +4,7 @@ import events from 'common/features/events'
 import styles from './popover.module.css'
 import { useEffect, useRef } from 'react'
 
-export default function Popover({ id, className, button, children, btnClassName, disabled, leftOffset = 0, topOffset = 0, icon, ...props }) {
+export default function Popover({ id, className, button, children, btnClassName, disabled, leftOffset = 0, topOffset = 0, icon, overlay, ...props }) {
     const ref = useRef()
     const btnRef = useRef()
 
@@ -65,7 +65,13 @@ export default function Popover({ id, className, button, children, btnClassName,
         const dialog = ref.current
         if (!dialog.open) return
         dialog.classList.remove(styles.visible)
-        dialog.addEventListener('transitionend', dialog.close, { once: true })
+        const onCloseEnd = e => {
+            if (e.target !== dialog || e.pseudoElement) return
+            if (e.propertyName !== 'transform') return
+            dialog.removeEventListener('transitionend', onCloseEnd)
+            dialog.close()
+        }
+        dialog.addEventListener('transitionend', onCloseEnd)
     }
 
     function closeBD(e) {
@@ -89,7 +95,7 @@ export default function Popover({ id, className, button, children, btnClassName,
         <dialog
             ref={ref}
             onClick={closeBD}
-            className={classNames(className, styles.popover)}>
+            className={classNames(className, styles.popover, [styles.overlay, overlay])}>
             {typeof children == 'function' ? children({ close }) : children}
         </dialog>
         <div onClick={open} ref={btnRef} className={classNames(btnClassName, styles.btn)}>

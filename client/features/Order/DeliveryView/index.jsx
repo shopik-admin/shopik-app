@@ -34,7 +34,7 @@ export default function DeliveryView({ }) {
         buttonTitle = window?.id ? `${TR(`day-${windowDate.getDay()}-short`)} | ${window.start} - ${window.end}` : text,
         buttonSubTitle = window?.id ? `${activeAddress?.street} ${activeAddress?.building}, ${activeAddress?.city}` : 'delivery_subTitle'
 
-    return <Popover id='delivery' button={<Flex alignItems='center' gap={10} className={styles.button}>
+    return <Popover id='delivery' overlay button={<Flex alignItems='center' gap={10} className={styles.button}>
         <Icon name={icon} className={styles.icon} />
         <Flex alignItems='center' justifyContent='space-between' grow={1}>
             <Flex col gap={3}>
