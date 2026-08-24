@@ -1,5 +1,6 @@
 import express, { json, urlencoded, static as serveStatic } from 'express'
 import cookieParser from 'cookie-parser'
+import path from 'path'
 import router from './router.js'
 import boot from './boot.js'
 import ssr from './ssr.js'
@@ -27,8 +28,15 @@ try {
     log.warn('Jobs not started:', e?.message || e)
 }
 
-const serveClient = serveStatic('build/client', { index: false })
-const serveAdmin = serveStatic('build/admin', { index: false })
+const staticHeaders = (res, filePath) => res.setHeader(
+    'Cache-Control',
+    filePath.includes(`${path.sep}assets${path.sep}`)
+        ? 'public, max-age=31536000, immutable'
+        : 'public, max-age=0, must-revalidate'
+)
+
+const serveClient = serveStatic('build/client', { index: false, setHeaders: staticHeaders })
+const serveAdmin = serveStatic('build/admin', { index: false, setHeaders: staticHeaders })
 
 app.use((req, res, next) => {
     const host = req.headers.host || ''
