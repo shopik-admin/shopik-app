@@ -52,6 +52,7 @@ export default function WindowOptions() {
                 key={`${day.dayOfMonth}-${day.month}`}
                 className={classNames(styles.day, [styles.active, activeDay?.dayOfMonth === day.dayOfMonth])}
                 onClick={() => setActiveDay(day)}
+                data-active={day === activeDay || undefined}
                 gap={5} col center
             >
                 <Text bold>{`day-${day.dayOfWeek}-short`}</Text>

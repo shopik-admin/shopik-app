@@ -68,6 +68,7 @@ export default function Product() {
                                     height={120}
                                     className={classNames(styles.thumbnail, idx === selectedImageIndex && styles.active)}
                                     onClick={() => setSelectedImageIndex(idx)}
+                                    data-active={idx === selectedImageIndex || undefined}
                                 />
                             ))}
                         />
