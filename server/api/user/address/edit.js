@@ -52,7 +52,6 @@ export default async function edit(payload, { DL, _user, external, utils }) {
         address: geocoded,
         actor: utils.data.timeline.userActor(_user)
     })
-    await DL.redis.del(`user_auth:${_user.id}`)
 
     return {
         user,
