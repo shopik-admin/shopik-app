@@ -7,8 +7,9 @@ import Title from '#common/components/Title'
 import WindowOptions from '../WindowOptions'
 import Flex from 'common/components/Flex'
 import Tabs from 'common/components/Tabs'
+import events from 'common/features/events'
 import { useUser } from 'features/User'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useAppData } from 'App'
 import Icon from '#common/components/Icon/index.jsx'
 import Text from '#common/components/Text/index.jsx'
@@ -24,6 +25,7 @@ const deliveryMethods = {
 export default function DeliveryView({ }) {
     const
         [deliveryMethod, setDeliveryMethod] = useState(deliveryMethods.delivery.text),
+        [popoverOpened, setPopoverOpened] = useState(false),
         { icon, text } = deliveryMethods[deliveryMethod],
         { order = {} } = useOrder(),
         { addresses = [] } = useUser(),
@@ -34,7 +36,16 @@ export default function DeliveryView({ }) {
         buttonTitle = window?.id ? `${TR(`day-${windowDate.getDay()}-short`)} | ${window.start} - ${window.end}` : text,
         buttonSubTitle = window?.id ? `${activeAddress?.street} ${activeAddress?.building}, ${activeAddress?.city}` : 'delivery_subTitle'
 
-    return <Popover id='delivery' overlay button={<Flex alignItems='center' gap={10} className={styles.button}>
+    function openPopover() {
+        setPopoverOpened(true)
+    }
+
+    useEffect(() => {
+        events.on('delivery-popover', openPopover)
+        return () => events.off('delivery-popover', openPopover)
+    }, [])
+
+    return <Popover id='delivery' overlay button={<Flex alignItems='center' gap={10} className={styles.button} onClick={openPopover}>
         <Icon name={icon} className={styles.icon} />
         <Flex alignItems='center' justifyContent='space-between' grow={1}>
             <Flex col gap={3}>
@@ -44,19 +55,19 @@ export default function DeliveryView({ }) {
             <Icon name='down' className={styles.chevron} />
         </Flex>
     </Flex>}>
-        <Flex col gap={25} className={styles.deliveryView}>
+        {() => <Flex col gap={25} className={styles.deliveryView}>
             <Tabs
                 active={deliveryMethod}
                 onChange={setDeliveryMethod}
                 options={Object.values(deliveryMethods)}
             />
             {deliveryMethod == deliveryMethods.delivery.text ?
-                <Delivery /> : <Pickup />}
-        </Flex>
+                <Delivery open={popoverOpened} /> : <Pickup />}
+        </Flex>}
     </Popover>
 }
 
-function Delivery() {
+function Delivery({ open }) {
     const { addresses = [] } = useUser()
     const activeAddress = addresses.find(({ active }) => active)
 
@@ -64,7 +75,7 @@ function Delivery() {
         return <AddressForm />
 
     if (activeAddress || addresses.length == 1)
-        return <WindowOptions />
+        return open ? <WindowOptions /> : null
 
     return <AddressSelector />
 }

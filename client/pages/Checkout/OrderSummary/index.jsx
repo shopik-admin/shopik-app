@@ -126,7 +126,7 @@ export default function OrderSummary({ onPayment }) {
                         }
                     >
                         <div className={styles.collapseContent}>
-                            <WindowOptions />
+                            {windowOpen && <WindowOptions />}
                         </div>
                     </Collapse>
 
