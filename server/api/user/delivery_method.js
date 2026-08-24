@@ -72,7 +72,7 @@ export default async function deliveryMethod(payload, { DL, utils, _user }) {
 
     const updatedOrder = await DL.Order.updateOne(
         { id: order.id },
-        { $set: orderUpdate },
+        orderUpdate,
         { select: DL.Order.defaultSelect }
     )
 
@@ -106,7 +106,7 @@ export default async function deliveryMethod(payload, { DL, utils, _user }) {
         changes: { oldData, newData }
     })
 
-    await DL.redis.del(`user_auth:${_user.id}`)
+    await DL.redis?.del(`user_auth:${_user.id}`)
 
     return { user, order: updatedOrder }
 }

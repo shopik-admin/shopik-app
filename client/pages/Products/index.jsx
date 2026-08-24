@@ -13,11 +13,12 @@ export default function Products() {
     return <Flex col className={styles.products} direction='column' gap={10}>
         <Breadcrumbs path={path} />
         <Text size='h1' bold>{pageData?.data?.categoryName || pageData.title}</Text>
-        <div wrap gap={20} className={styles.list}>
+        <div className={styles.list}>
             {loading ? <Loader />
                 : pageData?.data?.products?.map(p => <ProductCard
                     key={p.id}
                     product={p}
+                    sales={p.saleIds.reduce((acc, sId) => ({ [sId]: pageData?.data?.sales[sId], ...acc }), {})}
                 >{p.name}</ProductCard>)}
         </div>
     </Flex>

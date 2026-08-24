@@ -2,6 +2,17 @@ import uid from '#common/functions/uid.js'
 import pkg from '#package.json' with { type: 'json' }
 const appVersion = pkg?.version || 'unknown'
 
+function truncateLogData(data, maxBytes = 60000) {
+    if (data == null) return data
+    try {
+        const str = JSON.stringify(data)
+        if (Buffer.byteLength(str, 'utf8') <= maxBytes) return data
+        return str.slice(0, Math.floor(maxBytes * 0.9)) + '...[truncated]'
+    } catch {
+        return undefined
+    }
+}
+
 const constants = {
     STATUS: {
         PENDING: 'pending',
@@ -115,12 +126,12 @@ const methods = Log => {
             }
             if (actorData)
                 update.actor = actorData
-            await Log.updateOne({ id: log.id }, update)
+            try { await Log.updateOne({ id: log.id }, update) } catch {}
         }
         async function success(responseData) {
             const update = {
                 status: constants.STATUS.SUCCESS,
-                ['data.response']: responseData
+                ['data.response']: truncateLogData(responseData)
             }
 
             return end(update)
@@ -128,7 +139,7 @@ const methods = Log => {
         async function error(responseData) {
             const update = {
                 status: constants.STATUS.ERROR,
-                ['data.response']: responseData
+                ['data.response']: truncateLogData(responseData)
             }
             return end(update)
         }

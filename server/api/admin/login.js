@@ -27,7 +27,7 @@ export default async function login({ idNum, otpToken, otp }, { DL, utils, platf
         name: 1
     }).lean()
 
-    await DL.redis.set(`admin_auth:${admin.id}`, JSON.stringify(updatedAdmin), 'EX', 60 * 60 * 24)
+    await DL.redis?.set(`admin_auth:${admin.id}`, JSON.stringify(updatedAdmin), 'EX', 60 * 60 * 24)
     await DL.Otp.deleteOne({ _id: storedOtp._id })
     setCookie(ADMIN_TOKEN_COOKIE, token, ADMIN_TOKEN_EXPIRY_MS)
     return true

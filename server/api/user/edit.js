@@ -35,12 +35,10 @@ export default async function edit(payload, { DL, _user, external, utils }) {
     if (!savedUser)
         savedUser = _user
 
-    await DL.redis.del(`user_auth:${_user.id}`)
+    await DL.redis?.del(`user_auth:${_user.id}`)
 
     if (phoneChanged)
         return { user: savedUser, phone: payload.phone, token }
-
-    await DL.redis.del(`user_auth:${savedUser.id}`)
 
     return { user: savedUser }
 }

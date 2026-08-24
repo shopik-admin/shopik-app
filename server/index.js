@@ -6,6 +6,7 @@ import ssr from './ssr.js'
 import startImageWorker from '#server/workers/imageWorker.js'
 import startNightlySync from '#server/cron/nightlySync.js'
 import log from '#server/utils/log.js'
+import compression from 'compression'
 
 console.log(`\n⚡ Starting server...\n`)
 
@@ -17,6 +18,8 @@ const
 app.use(json())
 app.use(cookieParser())
 app.use(urlencoded({ extended: true }))
+
+app.use(compression())
 
 router(app, bootData)
 
@@ -34,6 +37,8 @@ ssr(app, bootData)
 
 app.listen(Number(PORT), '0.0.0.0', () => bootData.utils.log.colors((c) => `
 ${c.green}${c.bold}🚀 Server Running:${c.reset}
+   ${PRODUCTION ? 'Production' : 'Development'} mode
+
      ${c.cyan}Client:${c.reset} ${c.gray}http://localhost:${PORT}${c.reset}
      ${c.cyan}Admin:${c.reset}  ${c.gray}http://localhost:${PORT}/admin\n`
 ))

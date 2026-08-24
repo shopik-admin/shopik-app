@@ -3,9 +3,35 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import 'leaflet-draw/dist/leaflet.draw.css'
+import styles from './supplyAreas.module.css'
 
 const ISRAEL_CENTER = [31.7683, 35.2137]
 const SNAP_THRESHOLD_PX = 20
+const TILESET_STORAGE_KEY = 'supplyMapTileset'
+
+// All basemaps are free to use (attribution required)
+const TILESETS = {
+    light: {
+        label: 'Minimal',
+        url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    },
+    dark: {
+        label: 'Dark',
+        url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    },
+    osm: {
+        label: 'Standard',
+        url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    },
+    satellite: {
+        label: 'Satellite',
+        url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+        attribution: 'Tiles &copy; Esri',
+    },
+}
 
 const polygonStyle = (selected, served) => {
     if (selected) return { color: '#2563eb', weight: 2.5, fillColor: '#3b82f6', fillOpacity: 0.35 }
@@ -326,6 +352,31 @@ function MapController({
 }
 
 export default function SupplyAreaMap({ areas = [], stores = [], activeStoreIds = [], servedAreaIds = [], focusPoint, testPoint, testLabel, ...mapControllerProps }) {
+    // Tileset: explicit user pick persists; otherwise follows the admin dark/light theme
+    const [tilesetId, setTilesetId] = useState(() => {
+        const stored = localStorage.getItem(TILESET_STORAGE_KEY)
+        if (stored && TILESETS[stored]) return stored
+        return document.documentElement.getAttribute('data-theme')
+    })
+    const [customTileset, setCustomTileset] = useState(() => !!localStorage.getItem(TILESET_STORAGE_KEY))
+
+    useEffect(() => {
+        if (customTileset) return
+        const observer = new MutationObserver(() => {
+            setTilesetId(document.documentElement.getAttribute('data-theme'))
+        })
+        observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+        return () => observer.disconnect()
+    }, [customTileset])
+
+    const pickTileset = (id) => {
+        localStorage.setItem(TILESET_STORAGE_KEY, id)
+        setCustomTileset(true)
+        setTilesetId(id)
+    }
+
+    const tileset = TILESETS[tilesetId] || TILESETS.osm
+
     const storePins = stores.filter(store => {
         const c = store.address?.location?.coordinates
         return Array.isArray(c) && c.length === 2
@@ -340,8 +391,9 @@ export default function SupplyAreaMap({ areas = [], stores = [], activeStoreIds 
                 scrollWheelZoom
             >
                 <TileLayer
-                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    key={tilesetId}
+                    url={tileset.url}
+                    attribution={tileset.attribution}
                 />
                 <MapController areas={areas} servedAreaIds={servedAreaIds} {...mapControllerProps} />
                 {storePins.map(store => {
@@ -376,6 +428,19 @@ export default function SupplyAreaMap({ areas = [], stores = [], activeStoreIds 
                 )}
                 <FlyToPoint point={focusPoint} />
             </MapContainer>
+            <div className={styles.tilePicker}>
+                {Object.entries(TILESETS).map(([id, ts]) => (
+                    <button
+                        key={id}
+                        type="button"
+                        title={`Basemap: ${ts.label}`}
+                        className={id === tilesetId ? `${styles.tileBtn} ${styles.tileBtnActive}` : styles.tileBtn}
+                        onClick={() => pickTileset(id)}
+                    >
+                        {ts.label}
+                    </button>
+                ))}
+            </div>
         </div>
     )
 }

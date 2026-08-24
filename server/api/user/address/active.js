@@ -34,7 +34,7 @@ export default async function active(payload, { DL, _user, utils }) {
             updatePipeline: true
         }
     ).lean()
-    await DL.redis.del(`user_auth:${_user.id}`)
+    await DL.redis?.del(`user_auth:${_user.id}`)
 
     const activeAddress = user.addresses.find(a => a.active === true)
     const { DELIVERY_METHOD } = DL.Order.constants
@@ -50,7 +50,7 @@ export default async function active(payload, { DL, _user, utils }) {
         return { user, order: updatedOrder }
     }
 
-    return { user, order }
+    return { user }
 }
 
 active.config = { auth: 'required', required: ['addressId'] }

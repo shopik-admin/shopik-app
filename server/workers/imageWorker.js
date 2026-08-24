@@ -23,34 +23,19 @@ export default async function startImageWorker({ DL }) {
     const worker = new Worker(
         QUEUE_NAME,
         async job => {
-            const { productId, sourceUrl, force } = job.data
+            const { productId, sourceUrl } = job.data
             if (!productId || !sourceUrl)
                 throw new Error(`Invalid job data: ${JSON.stringify(job.data)}`)
 
-            const product = await DL.Product.Model.findOne(
-                { id: productId },
-                { _id: 0, images: 1 }
-            ).lean()
-
-            if (!product)
-                throw new Error(`Product not found: ${productId}`)
-
-            const existing = product.images?.product || []
-            const mainImage = existing.find(img => img?.main)
-            if (!force && mainImage?.sourceUrl === sourceUrl && mainImage?.hash) {
-                log.info(`[ImageWorker] Skip unchanged: ${productId}`)
-                return
-            }
-
+            const start = performance.now()
             const sizes = await processImage({ productId, sourceUrl })
+            console.log(`Resize took ${performance.now() - start}ms`)
 
-            const others = existing.filter(img => img && typeof img === 'object' && !img.main)
             await DL.Product.update(
                 { id: productId },
                 {
                     'images.product': [
-                        { main: true, sourceUrl, hash: hashUrl(sourceUrl), sizes },
-                        ...others
+                        { main: true, sourceUrl, hash: hashUrl(sourceUrl), sizes }
                     ]
                 }
             )

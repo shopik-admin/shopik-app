@@ -1,6 +1,7 @@
 {
   "name": "store",
   "version": "0.0.0",
+  "author": "AYG",
   "type": "module",
   "scripts": {
     "start": "node server",
@@ -19,6 +20,7 @@
     "@turf/intersect": "^7.4.0",
     "@turf/rewind": "^7.4.0",
     "bullmq": "^6.1.2",
+    "compression": "^1.8.1",
     "cookie-parser": "1.4.7",
     "express": "5.2.1",
     "fast-xml-parser": "^5.11.0",
