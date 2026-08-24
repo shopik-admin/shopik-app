@@ -8,8 +8,9 @@
 
     .content {
         padding: 10px;
-        width: var(--max-width);
+        max-width: var(--max-width);
         margin: auto;
+        list-style: none;
         transition: padding-inline-end .3s ease;
     }
 

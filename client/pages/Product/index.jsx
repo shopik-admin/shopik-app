@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { useParams, useLocation } from 'react-router'
+import { useState } from 'react'
+import { useParams } from 'react-router'
 import apiReq from '#common/functions/apiReq.js'
 import Loader from '#common/components/Loader'
 import Flex from '#common/components/Flex'
@@ -16,17 +16,10 @@ import { getUnitPriceText, ProductButton } from 'pages/Products/ProductCard'
 
 export default function Product() {
     const [selectedImageIndex, setSelectedImageIndex] = useState(0)
-    const { state } = useLocation()
     const { productId } = useParams()
-    const stateProduct = state?.product?.id === productId ? state.product : null
-    const initialData = stateProduct && {
-        title: stateProduct.name,
-        description: stateProduct.description || stateProduct.name,
-        data: { product: stateProduct }
-    }
-    const { loading, pageData } = usePage(initialData)
+    const { loading, pageData } = usePage()
     const { data } = pageData
-    const { product, sale } = data
+    const { product, sale, categoryPath } = data
     const productImages = (product?.images?.product || []).filter(img => img?.sizes)
     const images = productImages.length
         ? productImages.map(img => img.sizes.l || img.sizes.xl)
@@ -49,7 +42,7 @@ export default function Product() {
 
     return (
         <Flex gap={20} col className={styles.container}>
-            <Breadcrumbs path={`products/${product.name}`} />
+            <Breadcrumbs path={categoryPath ? `products/${categoryPath}` : 'products'} />
             <Flex gap={40} wrap className={styles.body}>
 
                 <Flex className={styles.gallery} col gap={10} alignItems='center' flexGrow={1}>
@@ -133,6 +126,6 @@ Product.init = async function (path) {
     return {
         title: product.name,
         description: product.description || product.name,
-        data: { product, sales: res.sales }
+        data: { product, sales: res.sales, categoryPath: res.categoryPath }
     }
 }

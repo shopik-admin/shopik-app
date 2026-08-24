@@ -1,10 +1,11 @@
 import classNames from 'common/functions/classNames'
+import toSlug from 'common/functions/toSlug.js'
 import { useEffect, useRef, useState } from 'react'
 import styles from './mainMenu.module.css'
 import Flex from 'common/components/Flex'
 import Icon from 'common/components/Icon'
 import Text from 'common/components/Text'
-import { NavLink } from 'react-router'
+import { NavLink, useLocation } from 'react-router'
 import { useAppData } from 'App'
 import { useCart } from 'layout/Cart/CartProvider'
 
@@ -13,6 +14,11 @@ export default function MainMenu({ }) {
     const { cartOpen } = useCart()
     const [openMenu, setOpenMenu] = useState(null)
     const menuRef = useRef(null)
+    const location = useLocation()
+
+    useEffect(() => {
+        setOpenMenu(null)
+    }, [location.pathname])
 
     useEffect(() => {
         const handlePointerDown = event => {
@@ -32,11 +38,12 @@ export default function MainMenu({ }) {
 
     return <nav className={classNames(styles.mainMenu, [styles.shifted, cartOpen])}>
         <Flex ref={menuRef}
+            tag='ul'
             alignItems='center'
             gap={15}
             className={styles.content}>
             {menu?.map((item, i) => {
-                const itemKey = item.slug || item.path || `main-item-${i}`
+                const itemKey = item.path || toSlug(item.name) || `main-item-${i}`
                 return (
                     <MenuItem
                         key={itemKey}
@@ -57,7 +64,6 @@ export default function MainMenu({ }) {
 function MenuItem({
     name,
     path,
-    slug,
     icon,
     children,
     main,
@@ -90,7 +96,7 @@ function MenuItem({
                     <Level2Menu
                         items={children}
                         open={open}
-                        basePath={path || slug || ''}
+                        basePath={path || (name ? toSlug(name) : '')}
                         onClose={onClose}
                     />
                 )}
@@ -132,9 +138,8 @@ function Level2Menu({ items, open, basePath, onClose }) {
                 const hasChildren = Boolean(
                     item.children && item.children.length > 0
                 )
-                const itemPath = item.slug
-                    ? `${basePath}/${item.slug}`
-                    : (item.path || `${basePath}-l2-${index}`)
+                const itemPath = item.path || `${basePath}/${toSlug(item.name)}`
+                const itemKey = `${itemPath}-${index}`
 
                 const isItemActive = currentActiveItem === itemPath
 
@@ -149,7 +154,7 @@ function Level2Menu({ items, open, basePath, onClose }) {
 
                 return (
                     <li
-                        key={itemPath}
+                        key={itemKey}
                         className={styles.level2ListItem}
                         onMouseEnter={() => {
                             if (hasChildren) {
@@ -221,14 +226,12 @@ function Level3Menu({ items, visible, parentName, basePath, onClose, onBack }) {
             <li className={styles.mobileClose}>
                 <button type='button' onClick={onBack}>
                     <Icon name='right' />
-                    <Text bold size='l'>{parentName || 'חזרה'}</Text>
+                    <Text bold size='l'>{parentName || 'back'}</Text>
                 </button>
             </li>
 
             {items.map((item, index) => {
-                const itemPath = item.slug
-                    ? `${basePath}/${item.slug}`
-                    : (item.path || `${basePath}-l3-${index}`)
+                const itemPath = item.path || `${basePath}/${toSlug(item.name)}`
 
                 return (
                     <li
@@ -252,12 +255,10 @@ function Level3Menu({ items, visible, parentName, basePath, onClose, onBack }) {
                                 className={styles.level4Menu}
                             >
                                 {item.children.map((child, childIdx) => {
-                                    const childPath = child.slug
-                                        ? `${itemPath}/${child.slug}`
-                                        : (child.path || `${itemPath}-l4-${childIdx}`)
+                                    const childPath = child.path || `${itemPath}/${toSlug(child.name)}`
 
                                     return (
-                                        <li key={childPath}>
+                                        <li key={`${childPath}-${childIdx}`}>
                                             <NavLink
                                                 to={childPath}
                                                 onClick={onClose}

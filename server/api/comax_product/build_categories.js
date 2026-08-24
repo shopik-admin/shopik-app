@@ -1,6 +1,4 @@
-function toSlug(text) {
-    return text.replaceAll(' ', '-').replaceAll('/', '-').toLowerCase()
-}
+import toSlug from '#common/functions/toSlug.js'
 
 export default async function buildCategories(payload, { DL }) {
     const comaxProducts = await DL.ComaxProduct.read(

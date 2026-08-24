@@ -11,7 +11,7 @@ export default function Products() {
     const { loading, pageData, path } = usePage()
 
     return <Flex col className={styles.products} direction='column' gap={10}>
-        <Breadcrumbs path={path} />
+        <Breadcrumbs path={path} hideLast />
         <Text size='h1' bold>{pageData?.data?.categoryName || pageData.title}</Text>
         <div className={styles.list}>
             {loading ? <Loader />
