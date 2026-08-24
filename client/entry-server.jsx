@@ -6,7 +6,8 @@ import App from './App'
 
 export async function render({ url, data }) {
   const
-    page = pages.find(p => matchPath(p.path, url)) ?? pages[0]
+    pathname = url.split('?')[0],
+    page = pages.find(p => matchPath(p.path, pathname)) ?? pages[0]
   data.initData = await page.element.init?.(url)
   data.url = url
 

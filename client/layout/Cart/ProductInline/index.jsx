@@ -8,7 +8,7 @@ import classNames from '#common/functions/classNames.js'
 import { useOrder } from 'features/Order/OrderProvider'
 import calcOrder from '#common/functions/calcOrder/cart.js'
 
-export default function ProductInline(props) {
+export default function ProductInline({ remove = true, note = true, ...props }) {
     const { product } = props
     const { order = {}, setOrder } = useOrder()
     const [noteOpen, setNoteOpen] = useState()
@@ -27,13 +27,13 @@ export default function ProductInline(props) {
     return <Flex tag={Card} gap={10} className={styles.productInline}>
         <ProductImage {...props} size='s' />
         <Flex col gap={5} justifyContent='space-around' grow={1}>
-            <Button icon='trash' mode='text' stopPropagation preventDefault onClick={handleRemove} className={styles.remove} />
+            {remove && <Button icon='trash' mode='text' stopPropagation preventDefault onClick={handleRemove} className={styles.remove} />}
             <ProductInfo {...props} size='s' />
             <Flex alignItems='center' justifyContent='space-between'>
-                <Button
+                {note && <Button
                     onClick={() => setNoteOpen(n => !n)}
                     icon='note' mode='text' stopPropagation preventDefault
-                    className={classNames(styles.note, [styles.active, noteOpen])} />
+                    className={classNames(styles.note, [styles.active, noteOpen])} />}
                 <ProductButton {...props} size='s' />
             </Flex>
         </Flex>
