@@ -7,6 +7,7 @@ import ssr from './ssr.js'
 import startImageWorker from '#server/workers/imageWorker.js'
 import startNightlySync from '#server/cron/nightlySync.js'
 import log from '#server/utils/log.js'
+import compression from 'compression'
 
 console.log(`\n⚡ Starting server...\n`)
 
@@ -18,6 +19,8 @@ const
 app.use(json())
 app.use(cookieParser())
 app.use(urlencoded({ extended: true }))
+
+app.use(compression())
 
 router(app, bootData)
 

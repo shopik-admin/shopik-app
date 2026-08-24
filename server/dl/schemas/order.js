@@ -57,12 +57,12 @@ const OWNER_STATUS = {
 }
 
 const ORDER_STATUS = {
-    PENDING: 'pending',
     CART: 'cart',
     PAID: 'paid',
     PAID_EDIT: 'paid-edit',
-    pick: 'pick',
-    READY: 'ready',
+    PICKING: 'picking',
+    PICKED: 'picked',
+    PACKED: 'packed',
     SHIPPED: 'shipped',
     DONE: 'done',
     CANCELED: 'canceled',
