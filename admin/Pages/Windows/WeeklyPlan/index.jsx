@@ -230,7 +230,7 @@ export default function WeeklyPlan({ onDirtyChange }) {
                     value={choice}
                     onChange={e => setChoice(e.target.value)}
                 >
-                    <option value="master">windows_master_option</option>
+                    <option value="master">{TR('windows_master_option')}</option>
                     {(stores || []).map(s => (
                         <option key={s.id} value={s.id}>
                             {s.name}{templates.some(t => t.storeId === s.id) ? '' : TR('windows_no_template_suffix')}
