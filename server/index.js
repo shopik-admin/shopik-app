@@ -16,6 +16,11 @@ const
     { PORT = 7777, PRODUCTION } = process.env,
     app = express()
 
+app.use((req, res, next) => {
+    if (/\.php$/i.test(req.path)) return res.redirect(301, req.originalUrl)
+    next()
+})
+
 app.use(json())
 app.use(cookieParser())
 app.use(urlencoded({ extended: true }))

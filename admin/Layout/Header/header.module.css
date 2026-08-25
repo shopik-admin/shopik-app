@@ -4,7 +4,7 @@
     border-bottom: 1px solid var(--border-tertiary);
     background-color: var(--bg-primary);
     position: fixed;
-    padding: 12px 24px;
+    padding: calc(12px + var(--safeTop, 0px)) 24px 12px;
     transition: inset-inline-start .3s, width .3s;
     width: 100%;
     z-index: 999;

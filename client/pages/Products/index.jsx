@@ -6,6 +6,7 @@ import styles from './products.module.css'
 import Flex from '#common/components/Flex'
 import Text from '#common/components/Text'
 import ProductCard from './ProductCard'
+import NotFound from 'pages/NotFound'
 import { usePage } from 'layout/Page'
 
 const LIMIT = 30
@@ -18,6 +19,8 @@ export default function Products() {
     const [loadingMore, setLoadingMore] = useState(false)
     const latestRequest = useRef(0)
     const sentinelRef = useRef(null)
+
+    if (pageData?.notFound) return <NotFound />
 
     const products = [...(data?.products || []), ...extra.flatMap(e => e.products)]
     const sales = extra.reduce((acc, e) => ({ ...acc, ...e.sales }), data?.sales || {})
@@ -74,6 +77,12 @@ export default function Products() {
 
 Products.init = async function (path) {
     const res = await apiReq('product/get', { path, limit: LIMIT })
+    // a category path that doesn't resolve to a category -> 404 (server falls
+    // back to all products when the category filter doesn't match)
+    const categoryRequested = path.replace(/^\/?products\/?/, '').length > 0
+    if (categoryRequested && !res.categoryName) {
+        return { notFound: true, title: '404' }
+    }
     const title = decodeURIComponent(path).split('/').pop()
     if (res.products[0]) {
         const product = res.products[0]

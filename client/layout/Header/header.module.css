@@ -21,7 +21,7 @@
     align-items: center;
     column-gap: 12px;
     row-gap: 8px;
-    padding: 10px 16px 0 16px;
+    padding: calc(10px + env(safe-area-inset-top, 0px)) 16px 0 16px;
 
     .menuBtn {
         grid-area: menuBtn;
@@ -119,7 +119,7 @@
             "menuBtn logo search cart"
             "userDelivery userDelivery userDelivery userDelivery"
             "menuWrap menuWrap menuWrap menuWrap";
-        padding: 8px 12px 0 12px;
+        padding: calc(8px + env(safe-area-inset-top, 0px)) 12px 0 12px;
         column-gap: 8px;
         row-gap: 0;
 
@@ -230,7 +230,7 @@
     }
 
     @media screen and (max-width: 480px) {
-        padding: 6px 8px 0 8px;
+        padding: calc(6px + env(safe-area-inset-top, 0px)) 8px 0 8px;
         column-gap: 6px;
 
         .menuWrap {

@@ -5,10 +5,11 @@ import pages from './pages'
 import App from './App'
 
 export async function render({ url, data }) {
-  const
-    pathname = url.split('?')[0],
-    page = pages.find(p => matchPath(p.path, pathname)) ?? pages[0]
-  data.initData = await page.element.init?.(url)
+  const pathname = url.split('?')[0]
+  const page = pages.find(p => matchPath(p.path, pathname))
+  let notFound = !page
+  data.initData = notFound ? { notFound: true } : await page.element.init?.(url)
+  if (data.initData?.notFound) notFound = true
   data.url = url
 
   const html = renderToString(
@@ -18,8 +19,9 @@ export async function render({ url, data }) {
   )
 
   let head = renderToString(<Head
-    title={`Shopik | ${data.initData?.title || page?.title || ''}`}
-    description={data.initData?.description || page?.description || ''}
+    title={`Shopik | ${notFound ? 'עמוד לא נמצא' : data.initData?.title || page?.title || ''}`}
+    description={notFound ? '' : data.initData?.description || page?.description || ''}
+    noindex={notFound}
   />)
 
   const vars = Object.entries(data?.settings?.Theme || {})
@@ -30,6 +32,7 @@ export async function render({ url, data }) {
 
   return {
     html,
-    head
+    head,
+    status: notFound ? 404 : 200
   }
 }

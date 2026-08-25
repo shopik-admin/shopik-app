@@ -11,6 +11,7 @@ import Icon from '#common/components/Icon'
 import classNames from '#common/functions/classNames'
 import styles from './product.module.css'
 import Breadcrumbs from 'components/Breadcrumbs'
+import NotFound from 'pages/NotFound'
 import { usePage } from 'layout/Page'
 import { getUnitPriceText, ProductButton } from 'pages/Products/ProductCard'
 
@@ -37,6 +38,7 @@ export default function Product() {
     }
 
     if (!product) {
+        if (pageData?.notFound) return <NotFound />
         return <Flex className={styles.container}><Text>מוצר לא נמצא</Text></Flex>
     }
 
@@ -121,7 +123,7 @@ Product.init = async function (path) {
     const product = res.products?.[0]
 
     if (!product) {
-        throw new Error('Product not found')
+        return { notFound: true, title: '404' }
     }
 
     return {
