@@ -42,7 +42,7 @@
    ============================================================ */
 
 body .Table_ {
-    max-height: calc(100dvh - var(--admin-header-height) - 100px);
+    max-height: calc(100dvh - var(--admin-header-height) - 115px);
     background-color: var(--bg-primary);
     border: 1px solid var(--border-tertiary);
     border-radius: var(--radius-xl);

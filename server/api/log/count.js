@@ -1,7 +1,8 @@
 export default async function count({ filter, search }, { DL }) {
-    return DL.ComaxSale.count(filter, search)
+    return DL.Log.count(filter, search)
 }
 
 count.config = {
-    permissions: ['comax_sale:read']
+    log: false,
+    permissions: 'log:read'
 }

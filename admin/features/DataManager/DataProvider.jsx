@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import DataForm from 'features/DataManager/DataForm'
 import { useModal } from 'common/components/Modal'
 import useApi from 'common/functions/useApi'
@@ -9,14 +9,27 @@ export const useData = () => useContext(DataContext)
 
 export default function DataProvider({ children, apiRoute = '', form, limit = 30, defaultSort }) {
     const
-        //{ data: count } = useApi(`${apiRoute}/count`),
+        [count, setCount] = useState(),
+        countReqId = useRef(0),
         [sort, setSort] = useState(defaultSort),
         [search, setSearch] = useState(''),
         { data, loading, error, callReq } = useApi(`${apiRoute}/read`, { limit, search, sort }, { hold: true }),
         { openModal, closeModal } = useModal()
 
+    function fetchCount() {
+        const reqId = ++countReqId.current
+        apiReq(`${apiRoute}/count`, { search })
+            .then(c => {
+                if (reqId === countReqId.current)
+                    setCount(c)
+            })
+            .catch(() => { })
+    }
+
     useEffect(() => {
         callReq({ sort, search, limit })
+        const to = setTimeout(fetchCount, 300)
+        return () => clearTimeout(to)
     }, [sort, search])
 
     function createUpdate(defaults) {
@@ -26,6 +39,7 @@ export default function DataProvider({ children, apiRoute = '', form, limit = 30
             defaults={defaults}
             onDone={() => {
                 callReq()
+                fetchCount()
                 closeModal()
             }}
         />, { title: `${defaults ? 'edit' : 'add'} ${apiRoute}` })
@@ -33,13 +47,16 @@ export default function DataProvider({ children, apiRoute = '', form, limit = 30
 
     async function updateData(values) {
         return apiReq(`${apiRoute}/update`, values)
-            .then(() => callReq())
+            .then(() => {
+                callReq()
+                fetchCount()
+            })
     }
 
     return <DataContext value={{
         apiRoute,
         data, loading, error,
-        /* count, */ callReq,
+        count, callReq,
         sort, setSort,
         search, setSearch,
         createUpdate, form, updateData
