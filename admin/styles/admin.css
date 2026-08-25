@@ -1,0 +1,270 @@
+/* ============================================================
+   Admin-only theme layer.
+   Imported by admin/App.jsx (and Login) — never by the client.
+   Targets the flat CSS-module class names produced by
+   admin/vite.config.js (generateScopedName), e.g. Table_, Button_,
+   Input_, Select_, Checkbox_*, Card_ — so shared common components
+   are used as-is, but look themed inside the admin only.
+
+   Component overrides are prefixed with `body` so they win on
+   specificity regardless of css chunk load order.
+   ============================================================ */
+
+:root {
+    --bg-page: #F4F6F5;
+    --overlay: rgba(36, 42, 40, 0.5);
+    --text-accent: var(--text-brand);
+    --focus-ring: 0 0 0 3px rgba(25, 88, 85, 0.12);
+    --shadow-sm: 0 1px 2px rgba(36, 42, 40, 0.04), 0 1px 3px rgba(36, 42, 40, 0.06);
+    --shadow-md: 0 2px 4px rgba(36, 42, 40, 0.04), 0 4px 12px rgba(36, 42, 40, 0.06);
+    --shadow-lg: 0 4px 8px rgba(36, 42, 40, 0.04), 0 12px 28px rgba(36, 42, 40, 0.10);
+}
+
+[data-theme="dark"] {
+    --bg-page: #1A1F1D;
+    --overlay: rgba(0, 0, 0, 0.6);
+    --text-accent: var(--text-brand-secondary);
+
+    /* The shared dark palette sets --bg-secondary equal to --bg-primary and
+       --border-tertiary equal to the surface color, which makes surfaces,
+       dividers and hover states invisible. Lift them for admin only. */
+    --bg-secondary: #2C3331;
+    --border-tertiary: #333B39;
+
+    --focus-ring: 0 0 0 3px rgba(87, 147, 143, 0.25);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.20), 0 1px 3px rgba(0, 0, 0, 0.25);
+    --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.20), 0 4px 12px rgba(0, 0, 0, 0.25);
+    --shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.25), 0 12px 28px rgba(0, 0, 0, 0.35);
+}
+
+/* ============================================================
+   Table (common/components/Table)
+   ============================================================ */
+
+body .Table_ {
+    max-height: calc(100dvh - var(--admin-header-height) - 115px);
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-tertiary);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-sm);
+
+    @media screen and (max-width: 650px) {
+        max-height: calc(100dvh - var(--admin-header-height) - 48px);
+        border-radius: var(--radius-lg);
+    }
+}
+
+body .Table_ table th {
+    text-transform: uppercase;
+    font-size: var(--text-xs);
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: 0.4px;
+    color: var(--text-tertiary);
+    background-color: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-tertiary);
+}
+
+body .Table_ table tr th svg {
+    color: var(--text-brand);
+}
+
+body .Table_ table tr td,
+body .Table_ table tr th {
+    padding: 12px 16px;
+}
+
+body .Table_ table tr td {
+    font-weight: var(--font-weight-regular);
+    font-size: var(--text-sm);
+    color: var(--text-primary);
+}
+
+body .Table_ table tr td img {
+    border-radius: var(--radius-sm);
+}
+
+body .Table_ table tr:not(:last-child),
+body .Table_ table tr:first-child {
+    border-bottom: 1px solid var(--border-tertiary);
+}
+
+body .Table_ table tr:hover {
+    background: var(--bg-secondary);
+}
+
+body .Table_ table tr.Table_selected {
+    background-color: var(--bg-brand-secondary);
+}
+
+/* ============================================================
+   Button (common/components/Button)
+   ============================================================ */
+
+body .Button_ {
+    border: none;
+    border-radius: var(--radius-lg);
+    padding: 10px 16px;
+    transition: background-color .2s, box-shadow .2s, transform .1s;
+}
+
+body .Button_:not(.Button_text):not(.Button_text-brand):not(.Button_outline):not(.Button_vertical):hover:not(:disabled) {
+    background-color: var(--bg-brand-primary-hover);
+    box-shadow: var(--shadow-sm);
+}
+
+body .Button_:not(.Button_text):not(.Button_text-brand):not(.Button_outline):not(.Button_vertical):active:not(:disabled) {
+    transform: translateY(1px);
+}
+
+body .Button_.Button_outline {
+    border: 1px solid var(--border-primary);
+}
+
+body .Button_.Button_outline:hover:not(:disabled) {
+    background-color: var(--bg-secondary);
+    box-shadow: none;
+}
+
+/* body .Button_.Button_text:hover:not(:disabled) {
+    background-color: var(--bg-secondary);
+} */
+
+/* ============================================================
+   Input (common/components/Input)
+   ============================================================ */
+
+body .Input_ input,
+body .Input_ textarea {
+    border: 1px solid var(--border-secondary);
+    border-radius: var(--radius-lg);
+}
+
+body .Input_ input:hover,
+body .Input_ textarea:hover {
+    border-color: var(--border-primary);
+}
+
+body .Input_ input:focus,
+body .Input_ textarea:focus {
+    border-color: var(--border-brand);
+    box-shadow: var(--focus-ring);
+}
+
+body .Input_ .Input_label {
+    font-weight: var(--font-weight-medium);
+    font-size: 13px;
+}
+
+body .Input_.Input_invalid.Input_visited input:focus {
+    box-shadow: 0 0 0 3px rgba(240, 80, 80, 0.12);
+}
+
+/* ============================================================
+   Select (common/components/Select)
+   ============================================================ */
+
+body .Select_ select {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-secondary);
+    border-radius: var(--radius-lg);
+    transition: border-color .2s, box-shadow .2s;
+}
+
+body .Select_ select:hover {
+    border-color: var(--border-primary);
+}
+
+body .Select_ select:focus {
+    border-color: var(--border-brand);
+    box-shadow: var(--focus-ring);
+}
+
+body .Select_ select option {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+/* ============================================================
+   Checkbox (common/components/Checkbox)
+   ============================================================ */
+
+body label.Checkbox_cb.Checkbox_checkbox .Checkbox_checkboxCircle {
+    border-color: var(--border-primary);
+}
+
+body label.Checkbox_cb.Checkbox_checkbox:hover .Checkbox_checkboxCircle {
+    border-color: var(--border-brand);
+}
+
+body label.Checkbox_cb.Checkbox_checkbox.Checkbox_checked .Checkbox_checkboxCircle {
+    border-color: var(--bg-brand-primary);
+    background-color: var(--bg-brand-primary);
+}
+
+body label.Checkbox_cb.Checkbox_checkbox.Checkbox_checked .Checkbox_checkMark {
+    color: var(--text-white);
+}
+
+body label.Checkbox_cb.Checkbox_switch .Checkbox_checkboxCircle {
+    background: var(--bg-quaternary);
+}
+
+body label.Checkbox_cb.Checkbox_switch.Checkbox_checked .Checkbox_checkboxCircle {
+    background: var(--bg-success-primary);
+}
+
+body label.Checkbox_cb.Checkbox_tag {
+    border-radius: var(--radius-full);
+    background-color: var(--bg-tertiary);
+}
+
+body label.Checkbox_cb.Checkbox_tag:hover {
+    background-color: var(--bg-quaternary);
+}
+
+body label.Checkbox_cb.Checkbox_tag.Checkbox_checked {
+    background-color: var(--bg-brand-primary);
+    color: var(--text-white);
+}
+
+/* ============================================================
+   Card (common/components/Card)
+   ============================================================ */
+
+body .Card_ {
+    padding: 20px;
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-tertiary);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-sm);
+}
+
+body .Card_ .Card_title {
+    color: var(--text-primary);
+}
+
+body .Card_ .Card_close {
+    color: var(--text-tertiary);
+}
+
+/* ============================================================
+   Popover (common/components/Popover)
+   ============================================================ */
+
+body .Popover_ {
+    border: 1px solid var(--border-tertiary);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+}
+
+/* ============================================================
+   Modal (common/components/Modal — plain global css)
+   ============================================================ */
+
+@media (min-width: 650px) {
+    body .modal {
+        border-radius: var(--radius-2xl);
+        box-shadow: var(--shadow-lg);
+    }
+}

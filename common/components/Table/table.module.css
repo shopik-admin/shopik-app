@@ -1,6 +1,6 @@
 .table {
-    max-height: calc(100vh - 100px - var(--header-height));
-    max-height: calc(100dvh - 100px - var(--header-height));
+    max-height: calc(100vh - 140px - var(--header-height));
+    max-height: calc(100dvh - 140px - var(--header-height));
     overflow: auto;
     position: relative;
     padding: 0;
@@ -98,7 +98,7 @@
     }
 
     @media screen and (max-width:650px) {
-        max-height: calc(100vh - 200px - var(--safeBottom));
-        max-height: calc(100dvh - 200px - var(--safeBottom));
+        max-height: calc(100vh - 240px - var(--safeBottom));
+        max-height: calc(100dvh - 240px - var(--safeBottom));
     }
 }

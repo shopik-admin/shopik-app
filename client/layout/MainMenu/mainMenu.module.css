@@ -1,5 +1,4 @@
 .mainMenu {
-    background-color: var(--bg-brand-secondary-hover);
 
     .mainListItem {
         position: relative;
@@ -8,8 +7,20 @@
 
     .content {
         padding: 10px;
-        width: var(--max-width);
+        max-width: var(--max-width);
         margin: auto;
+        list-style: none;
+        transition: padding-inline-end .3s ease;
+    }
+
+    .shifted .content {
+        padding-inline-end: calc(10px + var(--cart-width));
+    }
+
+    @media (max-width: 1023px) {
+        .shifted .content {
+            padding-inline-end: 10px;
+        }
     }
 
     /* =================================
@@ -384,18 +395,18 @@
         .level2Menu {
             position: fixed;
 
-            top: 58px;
+            top: calc(var(--header-height, 100px) + env(safe-area-inset-top, 0px));
             right: 0;
             left: 0;
 
-            width: 100vw;
-            height: calc(100dvh - 58px);
-
-            max-height: calc(100dvh - 58px);
+            width: 100%;
+            max-width: 100vw;
+            height: calc(100dvh - var(--header-height, 100px) - env(safe-area-inset-top, 0px));
+            max-height: calc(100dvh - var(--header-height, 100px) - env(safe-area-inset-top, 0px));
 
             box-sizing: border-box;
 
-            padding: 12px 10px 30px;
+            padding: 12px 10px calc(30px + env(safe-area-inset-bottom, 0px));
 
             background-color: #f7fbfa;
 
@@ -404,8 +415,7 @@
 
             border-radius: 0;
 
-            box-shadow:
-                0 6px 20px rgba(0, 0, 0, .08);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, .08);
 
             overflow-y: auto;
             overflow-x: hidden;
@@ -450,18 +460,18 @@
         .level3Menu.mobileLevel3Open {
             position: fixed;
 
-            top: 58px;
+            top: calc(var(--header-height, 100px) + env(safe-area-inset-top, 0px));
             right: 0;
             left: 0;
 
-            width: 100vw;
-            height: calc(100dvh - 58px);
-
-            max-height: calc(100dvh - 58px);
+            width: 100%;
+            max-width: 100vw;
+            height: calc(100dvh - var(--header-height, 100px) - env(safe-area-inset-top, 0px));
+            max-height: calc(100dvh - var(--header-height, 100px) - env(safe-area-inset-top, 0px));
 
             box-sizing: border-box;
 
-            padding: 0 18px 30px;
+            padding: 0 18px calc(30px + env(safe-area-inset-bottom, 0px));
 
             background-color: #f7fbfa;
 
@@ -470,8 +480,7 @@
 
             border-radius: 0;
 
-            box-shadow:
-                0 6px 20px rgba(0, 0, 0, .08);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, .08);
 
             overflow-y: auto;
             overflow-x: hidden;
@@ -600,15 +609,6 @@
             gap: 7px;
         }
 
-        .level2Menu,
-        .level3Menu.mobileLevel3Open {
-            top: var(--header-height);
-
-            height: calc(100dvh - 54px);
-
-            max-height: calc(100dvh - 54px);
-        }
-
         .level2Item {
             min-height: 50px;
 
@@ -625,7 +625,7 @@
         }
 
         .level3Menu.mobileLevel3Open {
-            padding: 0 14px 28px;
+            padding: 0 14px calc(28px + env(safe-area-inset-bottom, 0px));
         }
 
         .mobileClose {

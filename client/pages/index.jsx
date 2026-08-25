@@ -3,6 +3,7 @@ import Account from './Account'
 import Home from './Home'
 import Product from './Product'
 import Checkout from './Checkout'
+import Search from './Search'
 
 export default [
     {
@@ -16,6 +17,12 @@ export default [
         element: Products,
         title: 'מוצרים',
         description: 'קטלוג מוצרים'
+    },
+    {
+        path: '/search',
+        element: Search,
+        title: 'חיפוש',
+        description: 'חיפוש מוצרים'
     },
     {
         path: '/account/*',

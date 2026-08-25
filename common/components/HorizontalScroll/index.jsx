@@ -71,6 +71,7 @@ export default function HorizontalScroll({ items = [], children = items, classNa
         if (hoverScrollRef.current) {
             cancelAnimationFrame(hoverScrollRef.current)
             hoverScrollRef.current = null
+            scrollContainerRef.current?.style.removeProperty('scroll-behavior')
         }
     }, [])
 
@@ -79,20 +80,39 @@ export default function HorizontalScroll({ items = [], children = items, classNa
         const el = scrollContainerRef.current
         if (!el) return
 
-        const pixelsPerSecond = direction === 'left' ? -220 : 220
+        el.style.scrollBehavior = 'auto'
+
+        const maxSpeed = direction === 'left' ? -450 : 450
+        const rampDuration = 0.35
+        const isRtl = getComputedStyle(el).direction === 'rtl'
+        let elapsed = 0
         let lastTime = performance.now()
 
         const step = (currentTime) => {
             const container = scrollContainerRef.current
             if (!container) return
 
-            const delta = (currentTime - lastTime) / 1000
+            const delta = Math.min((currentTime - lastTime) / 1000, 0.05)
             lastTime = currentTime
+            elapsed += delta
 
-            const safeDelta = Math.min(delta, 0.05)
-            container.scrollLeft += pixelsPerSecond * safeDelta
+            const ramp = Math.min(elapsed / rampDuration, 1)
+            const speed = maxSpeed * (0.2 + 0.8 * ramp * ramp)
 
+            const maxScrollable = container.scrollWidth - container.clientWidth
+            const absScroll = Math.abs(container.scrollLeft)
+            const headingToStart = speed < 0 !== isRtl
+            const atLimit = maxScrollable <= 0 ||
+                (headingToStart ? absScroll < 0.5 : maxScrollable - absScroll < 0.5)
+
+            if (atLimit) {
+                stopHoverScroll()
+                return
+            }
+
+            container.scrollLeft += speed * delta
             checkScrollPosition()
+
             hoverScrollRef.current = requestAnimationFrame(step)
         }
 
@@ -104,6 +124,35 @@ export default function HorizontalScroll({ items = [], children = items, classNa
             stopHoverScroll()
         }
     }, [stopHoverScroll])
+
+    const scrollToActive = useCallback(() => {
+        const el = scrollContainerRef.current
+        const active = el?.querySelector('[data-active]')
+        active?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' })
+    }, [])
+
+    useEffect(() => {
+        const el = scrollContainerRef.current
+        if (!el || typeof MutationObserver === 'undefined') return
+
+        let rafId
+
+        const scheduleScroll = () => {
+            cancelAnimationFrame(rafId)
+            rafId = requestAnimationFrame(scrollToActive)
+        }
+
+        const observer = new MutationObserver(scheduleScroll)
+        observer.observe(el, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-active'] })
+
+        const initialRafId = requestAnimationFrame(() => requestAnimationFrame(scrollToActive))
+
+        return () => {
+            observer.disconnect()
+            cancelAnimationFrame(rafId)
+            cancelAnimationFrame(initialRafId)
+        }
+    }, [contentList, scrollToActive])
 
     const scroll = (direction) => {
         stopHoverScroll()

@@ -1,3 +1,4 @@
-.dataManager{
-
+.dataManager {
+    display: flex;
+    flex-direction: column;
 }

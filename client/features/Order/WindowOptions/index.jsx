@@ -1,15 +1,15 @@
-import Flex from '#common/components/Flex/index.jsx'
-import HorizontalScroll from '#common/components/HorizontalScroll/index.jsx'
-import Text from '#common/components/Text/index.jsx'
-import classNames from '#common/functions/classNames.js'
-import { useEffect, useState } from 'react'
-import styles from './windowOptions.module.css'
+import HorizontalScroll from 'common/components/HorizontalScroll'
 import Address from 'pages/Account/Addresses/Address'
-import { useUser } from 'features/User'
-import useApi from '#common/functions/useApi.js'
-import Loader from '#common/components/Loader/index.jsx'
-import apiReq from '#common/functions/apiReq.js'
+import classNames from 'common/functions/classNames'
+import styles from './windowOptions.module.css'
+import Loader from 'common/components/Loader'
+import useApi from 'common/functions/useApi'
+import apiReq from 'common/functions/apiReq'
+import { useEffect, useState } from 'react'
 import { useOrder } from '../OrderProvider'
+import Text from 'common/components/Text'
+import Flex from 'common/components/Flex'
+import { useUser } from 'features/User'
 
 
 export default function WindowOptions() {
@@ -52,6 +52,7 @@ export default function WindowOptions() {
                 key={`${day.dayOfMonth}-${day.month}`}
                 className={classNames(styles.day, [styles.active, activeDay?.dayOfMonth === day.dayOfMonth])}
                 onClick={() => setActiveDay(day)}
+                data-active={day === activeDay || undefined}
                 gap={5} col center
             >
                 <Text bold>{`day-${day.dayOfWeek}-short`}</Text>

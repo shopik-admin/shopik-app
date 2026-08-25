@@ -1,3 +1,5 @@
+import toSlug from '#common/functions/toSlug.js'
+
 const baseMenu = [
     {
         name: 'Home',
@@ -20,7 +22,7 @@ export default async function getMenu({ DL }) {
     })
     const categories = await DL.Category.read(
         { id: { $in: categoriesIds }, active: true },
-        { _id: 0, name: 1, parentId: 1, id: 1, slug: 1 },
+        { _id: 0, name: 1, parentId: 1, id: 1 },
         { sort: { name: 1 }, limit: 0 }
     )
     const categoriesByParent = categories.reduce((acc, category) => {
@@ -30,18 +32,12 @@ export default async function getMenu({ DL }) {
         return acc
     }, {})
 
-    function buildBranch(parentId, prefix = '/products'/* , encodedPrefix = '/products' */) {
+    function buildBranch(parentId, prefix = '/products') {
         return categoriesByParent[parentId]?.map(child => {
-            const path = `${prefix}/${child.name}`.replace(/\s+/g, '-').toLowerCase()
-            //const encodedPath = `${encodedPrefix}/${encodeURIComponent(child.name)}`.replace(/\s+/g, '-').toLowerCase()
             const node = {
-                /* id: child.id, */
-                name: child.name,
-                /*   path, */
-                slug: child.slug,
-                //encodedPath
+                name: child.name
             }
-            const children = buildBranch(child.id, path, /* encodedPath */)
+            const children = buildBranch(child.id, `${prefix}/${toSlug(child.name)}`)
             if (children?.length > 0)
                 node.children = children
 
@@ -54,7 +50,6 @@ export default async function getMenu({ DL }) {
         {
             name: 'Products',
             path: '/products',
-            slug: 'products',
             children: tree
         },
         ...baseMenu,

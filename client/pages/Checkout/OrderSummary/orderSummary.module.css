@@ -1,0 +1,170 @@
+.orderSummaryWrapper {
+    width: 400px;
+    max-width: 100%;
+}
+
+.title {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.summaryCard {
+    background-color: var(--bg-primary, #ffffff);
+    border: 1px solid var(--border-secondary, #dde4e2);
+    border-radius: 20px;
+    padding: 20px 18px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
+}
+
+/* Custom Collapse inside Order Summary */
+.summaryCollapse {
+    border: none;
+    border-bottom: 1px solid var(--border-tertiary, #eef2f1);
+    border-radius: 0;
+    padding: 8px 0;
+    background-color: transparent;
+}
+
+.summaryCollapse:last-of-type {
+    border-bottom: none;
+}
+
+.iconCircle {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background-color: var(--bg-secondary, #f7f9f8);
+    border: 1px solid var(--border-tertiary, #eef2f1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.rowIcon {
+    font-size: 18px;
+    color: #195855;
+}
+
+.rowText {
+    color: var(--text-primary, #242a28);
+    font-size: 14px;
+}
+
+.editBtn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #94a3b8;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    padding: 4px;
+    transition: color 0.2s ease;
+}
+
+.editBtn:hover {
+    color: #195855;
+}
+
+.collapseContent {
+    padding-top: 4px;
+}
+
+.couponInputRow {
+    padding: 4px 0 8px;
+}
+
+.editCouponBtn {
+    background: none;
+    border: none;
+    color: #195855;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    text-decoration: underline;
+    padding: 0;
+}
+
+.couponPill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid #d1d5db;
+    border-radius: 9999px;
+    padding: 6px 16px;
+    background-color: #ffffff;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.couponPillIcon {
+    font-size: 16px;
+    color: #4b5563;
+}
+
+.couponCode {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    color: #374151;
+}
+
+.divider {
+    height: 1px;
+    background-color: var(--border-secondary, #dde4e2);
+    margin: 4px 0;
+}
+
+.breakdown {
+    padding: 4px 0;
+}
+
+.savingsRow {
+    margin-top: 2px;
+}
+
+.savingsText {
+    color: #28aa5f !important;
+    font-weight: 700;
+}
+
+.totalRow {
+    padding-top: 4px;
+}
+
+.totalAmount {
+    font-size: 22px;
+    color: var(--text-primary);
+}
+
+.payBtn {
+    width: 100%;
+    background-color: #195855;
+    color: #ffffff;
+    border: none;
+    border-radius: 12px;
+    padding: 12px 20px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+    margin-top: 6px;
+}
+
+.payBtn:hover {
+    background-color: #12423f;
+}
+
+.payBtn:active {
+    transform: scale(0.99);
+}
+
+.payIcon {
+    font-size: 20px;
+}

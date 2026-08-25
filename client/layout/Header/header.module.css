@@ -1,20 +1,249 @@
 .header {
-    height: var(--header-height);
-    top: 0;
-    background-color: var(--bg-brand-primary);
+    box-sizing: border-box;
     position: sticky;
-    transition: .3s;
-    width: 100vw;
+    top: 0;
     z-index: 999;
+    width: 100%;
+    background-color: var(--bg-brand-primary);
+    transition: background-color .3s ease, padding .3s ease;
 
-    .headerContent {
-        padding: 10px;
-        margin: auto;
-        max-width: var(--max-width);
+    /* Safe Area Insets (iOS Notch, Dynamic Island, Status Bar, Landscape mode) */
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-inline-start: env(safe-area-inset-left, 0px);
+    padding-inline-end: env(safe-area-inset-right, 0px);
+
+    /* DRY: single grid source for both desktop/mobile - no duplicated row wrappers */
+    display: grid;
+    grid-template-columns: auto 1fr auto auto;
+    grid-template-areas:
+        "logo search userDelivery cart"
+        "menuWrap menuWrap menuWrap menuWrap";
+    align-items: center;
+    column-gap: 12px;
+    row-gap: 8px;
+    padding: 10px 16px 0 16px;
+
+    .menuBtn {
+        grid-area: menuBtn;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        border: 0;
+        background: transparent;
+        color: var(--text-primary-on-brand, #fff);
+        font-size: 26px;
+        cursor: pointer;
+        border-radius: 8px;
     }
 
-    @media screen and (min-width: 650px) {
-        inset-inline-start: var(--sidebarWidth);
-        width: calc(100vw - var(--sidebarWidth));
+    .logoWrap {
+        grid-area: logo;
+        display: flex;
+        align-items: center;
+    }
+
+    .searchWrap {
+        grid-area: search;
+        min-width: 0;
+        /* Search flex-grow retained */
+    }
+
+    .userDelivery {
+        grid-area: userDelivery;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        /* desktop: sits in row1, mobile: moves to row2 via grid redefinition */
+    }
+
+    .cartWrap {
+        grid-area: cart;
+        display: flex;
+        align-items: center;
+    }
+
+    .menuWrap {
+        grid-area: menuWrap;
+        background-color: var(--bg-brand-secondary-hover);
+        margin: 0 -16px;
+        padding: 0 16px;
+        /* inner MainMenu already has max-width + padding */
+    }
+
+    .backdrop {
+        position: fixed;
+        inset: 0;
+        top: calc(var(--header-height, 120px) + env(safe-area-inset-top, 0px));
+        background: rgba(0, 0, 0, 0.32);
+        border: 0;
+        padding: 0;
+        z-index: 998;
+        display: none;
+    }
+
+    /* Desktop grid: userDelivery in first row, menuBtn hidden */
+    @media screen and (min-width: 769px) {
+        grid-template-columns: auto 1fr auto auto;
+        grid-template-areas:
+            "logo search userDelivery cart"
+            "menuWrap menuWrap menuWrap menuWrap";
+        /* center first row like original headerContent max-width */
+        padding-left: max(16px, calc((100% - var(--max-width)) / 2 + 16px));
+        padding-right: max(16px, calc((100% - var(--max-width)) / 2 + 16px));
+
+        .menuBtn {
+            display: none !important;
+        }
+
+        .menuWrap {
+            /* full-bleed background despite centered header padding */
+            margin-left: calc(50% - 50vw);
+            margin-right: calc(50% - 50vw);
+            width: 100vw;
+            padding-left: max(16px, calc((100vw - var(--max-width)) / 2 + 16px));
+            padding-right: max(16px, calc((100vw - var(--max-width)) / 2 + 16px));
+            box-sizing: border-box;
+        }
+
+        .backdrop {
+            display: none !important;
+        }
+    }
+
+    /* Mobile: row1 = menuBtn miniLogo search cart, row2 = UserView|DeliveryView, menu = drawer */
+    @media screen and (max-width: 768px) {
+        grid-template-columns: auto auto 1fr auto;
+        grid-template-areas:
+            "menuBtn logo search cart"
+            "userDelivery userDelivery userDelivery userDelivery"
+            "menuWrap menuWrap menuWrap menuWrap";
+        padding: 8px 12px 0 12px;
+        column-gap: 8px;
+        row-gap: 0;
+
+        .menuBtn {
+            display: flex;
+        }
+
+        .userDelivery {
+            /* row2 - var(--bg-brand-secondary-hover) as requested - full-bleed to header edges */
+            background-color: var(--bg-brand-secondary-hover);
+            margin-left: calc(50% - 50vw);
+            margin-right: calc(50% - 50vw);
+            width: 100vw;
+            padding: 8px max(12px, calc((100vw - var(--max-width)) / 2 + 12px));
+            box-sizing: border-box;
+            gap: 8px;
+            /* ensure row2 touches header edges, not ending early */
+            margin-top: 8px;
+
+            /* Make both popover buttons share row equally - single source override */
+            & > * {
+                flex: 1 1 50%;
+                min-width: 0;
+            }
+
+            :global(.Popover) {
+                flex: 1 1 50%;
+                min-width: 0;
+                display: flex;
+            }
+
+            :global(.Popover_btn) {
+                flex: 1;
+                min-width: 0;
+                display: flex;
+            }
+
+            /* DRY: override for readability on light secondary-hover bg (white on #DCEBEA is unreadable) */
+            :global([class*="button"]) {
+                min-width: 0 !important;
+                flex: 1;
+                padding: 6px 8px !important;
+                gap: 6px !important;
+                border-radius: 12px !important;
+                color: var(--text-primary) !important;
+                /* was --text-primary-on-brand (white) for primary bg - now dark for secondary-hover */
+            }
+
+            :global([class*="button"]:hover) {
+                background-color: var(--bg-brand-secondary) !important;
+            }
+
+            :global([class*="icon"]) {
+                font-size: 18px !important;
+                color: var(--text-brand-primary) !important;
+            }
+
+            :global([class*="chevron"]) {
+                font-size: 12px !important;
+                color: var(--text-secondary) !important;
+            }
+        }
+
+        /* menuWrap becomes drawer overlay - hidden by default, shown when .menuWrapOpen */
+        .menuWrap {
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            left: 0;
+            background-color: var(--bg-primary, #fff);
+            margin: 0;
+            padding: 12px 12px calc(20px + env(safe-area-inset-bottom, 0px));
+            overflow-y: auto;
+            z-index: 999;
+            border-top: 1px solid #e3ebea;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, .08);
+            max-height: calc(100dvh - 100% - env(safe-area-inset-top, 0px));
+        }
+
+        .menuWrapOpen {
+            display: block;
+
+            /* DRY: MainMenu inside drawer stacks vertically instead of horizontal scroll */
+            :global([class*="content"]) {
+                flex-direction: column !important;
+                align-items: stretch !important;
+                overflow-x: visible !important;
+                gap: 8px !important;
+            }
+
+            :global([class*="mainListItem"]) {
+                width: 100%;
+            }
+
+            :global([class*="mainItem"]) {
+                width: 100%;
+                justify-content: flex-start;
+            }
+        }
+
+        .backdrop {
+            display: block;
+            position: fixed;
+            inset: 0;
+            /* header stays above backdrop due to z-index:999 */
+        }
+    }
+
+    @media screen and (max-width: 480px) {
+        padding: 6px 8px 0 8px;
+        column-gap: 6px;
+
+        .menuWrap {
+            margin: 0 -8px;
+            padding-inline: 8px;
+        }
+
+        .userDelivery {
+            gap: 6px;
+            margin-left: calc(50% - 50vw);
+            margin-right: calc(50% - 50vw);
+            width: 100vw;
+            padding: 6px max(8px, calc((100vw - var(--max-width)) / 2 + 8px));
+        }
     }
 }

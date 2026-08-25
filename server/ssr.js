@@ -15,6 +15,13 @@ function injectTemplate(template, { head = '', html = '', data = {} }) {
         .replace('<!--server-data-->', `<script>window.__SD__=${safeJson}</script>`)
 }
 
+function inlineCss(html, buildDir) {
+    return html.replace(
+        /<link\s+rel="stylesheet"[^>]*href="\/(assets\/[^"]+\.css)"[^>]*>/g,
+        (_, href) => `<style>${fs.readFileSync(path.resolve(buildDir, href), 'utf-8')}</style>`
+    )
+}
+
 export default async function (app, bootData) {
     const { utils } = bootData
     const isProd = process.env.NODE_ENV === 'production' || process.env.PRODUCTION === 'true' || Boolean(process.env.PRODUCTION)
@@ -24,7 +31,7 @@ export default async function (app, bootData) {
     const templates = isProd ? {
         adminIndex: fs.readFileSync(path.resolve(paths.admin.build, 'index.html'), 'utf-8'),
         adminLogin: fs.readFileSync(path.resolve(paths.admin.build, 'Login/login.html'), 'utf-8'),
-        clientIndex: fs.readFileSync(path.resolve(paths.client.build, 'index.html'), 'utf-8'),
+        clientIndex: inlineCss(fs.readFileSync(path.resolve(paths.client.build, 'index.html'), 'utf-8'), paths.client.build),
     } : null
 
     // יבוא ה-RenderFn של ה-Client מראש ב-Production
@@ -47,8 +54,13 @@ export default async function (app, bootData) {
             appType: 'custom'
         })
 
-        app.use('/admin', viteAdmin.middlewares)
-        app.use(viteClient.middlewares)
+        app.use((req, res, next) => {
+            const host = req.headers.host || ''
+            if (host.startsWith('admin.')) {
+                return viteAdmin.middlewares(req, res, next)
+            }
+            return viteClient.middlewares(req, res, next)
+        })
     }
 
     // --- 2. פונקציות עזר קוהרנטיות לקבלת ה-Template ---
@@ -72,16 +84,34 @@ export default async function (app, bootData) {
 
     // --- 3. ROUTES (ללא תנאי PRODUCTION בתוכם!) ---
 
+    // MISSING STATIC FILES -> 404
+    app.get('*splat', (req, res, next) => {
+        if (path.extname(req.path)) return res.status(404).end()
+        next()
+    })
+
+    // REDIRECT /admin to admin subdomain
+    app.get('*splat', (req, res, next) => {
+        const host = req.headers.host || ''
+        const isAdmin = host.startsWith('admin.')
+        if (!isAdmin && (req.path === '/admin' || req.path.startsWith('/admin/'))) {
+            const newPath = req.originalUrl.replace(/^\/admin/, '') || '/'
+            const proto = req.headers['x-forwarded-proto'] || req.protocol || 'http'
+            return res.redirect(`${proto}://admin.${host}${newPath}`)
+        }
+        next()
+    })
+
     // ADMIN ROUTE
     app.get('*splat', async (req, res, next) => {
         const host = req.headers.host || ''
-        const isAdmin = req.originalUrl.startsWith('/admin') || host.startsWith('admin.')
+        const isAdmin = host.startsWith('admin.')
         if (!isAdmin) return next()
 
         try {
             const data = await utils.data.getAdminData(req, bootData)
             const template = await getAdminTemplate(req, Boolean(data?.user?.id))
-            return res.status(200).type('html').end(injectTemplate(template, { data }))
+            return res.status(200).set('Cache-Control', 'no-store').type('html').end(injectTemplate(template, { data }))
         } catch (error) {
             console.error('Admin SSR Error:', error)
             return res.status(500).send('Internal Server Error')
@@ -95,7 +125,7 @@ export default async function (app, bootData) {
             const { template, renderFn } = await getClientContext(req)
             const { html = '', head = '' } = await renderFn({ url: req.originalUrl, data })
 
-            return res.status(200).type('html').end(injectTemplate(template, { head, html, data }))
+            return res.status(200).set('Cache-Control', 'no-cache').type('html').end(injectTemplate(template, { head, html, data }))
         } catch (error) {
             console.error('Client SSR Error:', error)
             return res.status(500).send('Internal Server Error')

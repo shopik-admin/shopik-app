@@ -22,7 +22,7 @@ export default function UserView({ }) {
         [tab, setTab] = useState('login')
 
 
-    return <Popover id='login' button={<Flex alignItems='center' gap={10} className={styles.button}>
+    return <Popover id='login' overlay button={<Flex alignItems='center' gap={10} className={styles.button}>
         <Icon name='user' className={styles.icon} />
         <Flex alignItems='center' justifyContent='space-between' grow={1}>
             <Flex col gap={3}>

@@ -8,6 +8,7 @@ import Header from 'layout/Header'
 import User from 'features/User'
 import Main from 'layout/Main'
 import Cart from 'layout/Cart'
+import CartProvider from 'layout/Cart/CartProvider'
 import pages from './pages'
 
 import 'common/styles/global.css'
@@ -22,16 +23,18 @@ export default function App({ data = {} }) {
                 <OrderProvider>
                     <User sdUser={data.user}>
                         <ModalProvider>
-                            <Header />
-                            <Main>
+                            <CartProvider>
+                                <Header />
+                                <Main>
                                 <Routes>
                                     {pages.map(({
                                         path, element: Elm
                                     }) => <Route key={path} path={path} element={<Elm />} />)}
-                                </Routes>
-                                <Cart />
-                            </Main>
-                        </ModalProvider>
+                                    </Routes>
+                                    <Cart />
+                                </Main>
+                            </CartProvider>
+                            </ModalProvider>
                     </User>
                 </OrderProvider>
             </Lists>

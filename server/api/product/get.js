@@ -2,12 +2,17 @@ export default async function get(payload, { DL, _user }) {
     const { filter = {}, path, id, barcode } = payload
     let products = []
     let categoryName
+    let categoryPath
     if (barcode) {
         const product = await DL.Product.readOne({ barcode }, DL.Product.defaultSelectOne)
         products = [product]
     } else if (id) {
         const product = await DL.Product.readById(id, DL.Product.defaultSelectOne)
         products = [product]
+        if (product?.category?.id) {
+            const category = await DL.Category.readOne({ id: product.category.id }, { _id: 0, path: 1 })
+            categoryPath = category?.path
+        }
     } else {
         if (path) {
             const pathParts = path.split('/').filter(p => p && p != 'products').map(p => decodeURIComponent(p))
@@ -47,7 +52,7 @@ export default async function get(payload, { DL, _user }) {
         }
     }
 
-    return { products, sales, categoryName }
+    return { products, sales, categoryName, categoryPath }
 }
 
 get.config = {

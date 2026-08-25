@@ -1,6 +1,31 @@
 .logo {
+    display: flex;
+    align-items: center;
+
     img {
         height: 35px;
         max-width: 140px;
+        object-fit: contain;
+        object-position: left center;
+        display: block;
+    }
+
+    @media screen and (max-width: 768px) {
+        img {
+            height: 28px;
+            width: 32px;
+            max-width: 32px;
+            object-fit: cover;
+            object-position: left center;
+            /* DRY: single Logo component, CSS switches to mini icon (S+dashes) without duplicating component */
+        }
+    }
+
+    @media screen and (max-width: 480px) {
+        img {
+            height: 26px;
+            width: 30px;
+            max-width: 30px;
+        }
     }
 }

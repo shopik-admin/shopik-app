@@ -1,3 +1,43 @@
-.checkout{
+.checkoutPage {
+    width: 100%;
+    max-width: var(--max-width, 1200px);
+    margin: 0 auto;
+    padding: 24px 16px 40px;
+    direction: rtl;
+}
 
+.container {
+    align-items: flex-start;
+}
+
+.mainContent {
+    min-width: 0;
+}
+
+.recommendedContent {
+    padding: 16px;
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+.cartList {
+    padding-top: 8px;
+}
+
+.sidebar {
+    position: sticky;
+    top: 24px;
+    flex-shrink: 0;
+}
+
+@media (max-width: 900px) {
+    .container {
+        flex-direction: column-reverse;
+    }
+
+    .sidebar,
+    .orderSummaryWrapper {
+        width: 100%;
+        max-width: 100%;
+    }
 }

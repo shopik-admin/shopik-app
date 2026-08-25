@@ -1,11 +1,11 @@
 .header {
     height: var(--admin-header-height);
     top: 0;
-    border-bottom: 1px solid var(--border-primary);
+    border-bottom: 1px solid var(--border-tertiary);
     background-color: var(--bg-primary);
     position: fixed;
-    padding: 12px 22px;
-    transition: .3s;
+    padding: 12px 24px;
+    transition: inset-inline-start .3s, width .3s;
     width: 100%;
     z-index: 999;
 

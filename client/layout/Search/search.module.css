@@ -1,8 +1,37 @@
 .search {
     flex-grow: 1;
+    position: relative;
 
     input {
         border-radius: 100px;
         height: 56px;
     }
+}
+
+.results {
+    position: absolute;
+    top: calc(100% + 8px);
+    inset-inline: 0;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: min(60vh, 480px);
+    overflow-y: auto;
+    padding: 10px;
+    background-color: var(--bg-primary, #fff);
+    border: 1px solid var(--border-secondary, #eee);
+    border-radius: 16px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.result {
+    display: block;
+    color: inherit;
+    text-decoration: none;
+}
+
+.state {
+    padding: 16px;
+    text-align: center;
 }

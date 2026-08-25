@@ -5,23 +5,10 @@ import Text from 'common/components/Text'
 import Icon from 'common/components/Icon'
 import { useText } from 'common/texts/TextProvider'
 import classNames from 'common/functions/classNames'
-import styles from './cart.module.css'
+import { useCart } from './CartProvider'
 import { useOrder } from 'features/Order/OrderProvider'
+import styles from './cart.module.css'
 
-/**
- * MiniCart Component
- * 
- * Supports RTL / LTR layouts via CSS logical properties and common components.
- * Consumes translations from `common/texts/hebrew.json` via `useText`.
- * 
- * @param {Object} props
- * @param {boolean} [props.isOpen] - Open/close state (controlled)
- * @param {Function} [props.onToggle] - Callback function when mini cart is clicked
- * @param {number} [props.total=250.3] - Total cart amount
- * @param {number} [props.itemCount=33] - Total item count in cart
- * @param {number} [props.freeShippingThreshold=506.3] - Free shipping target amount
- * @param {string} [props.className] - Additional CSS class names
- */
 export default function MiniCart({
     isOpen: controlledIsOpen,
     onToggle,
@@ -29,7 +16,12 @@ export default function MiniCart({
     className
 }) {
     const [internalIsOpen, setInternalIsOpen] = useState(false)
-    const isOpen = controlledIsOpen !== undefined ? controlledIsOpen : internalIsOpen
+    const { cartOpen: ctxCartOpen, toggleCart: ctxToggleCart } = useCart?.() || {}
+
+
+    const isOpen = controlledIsOpen !== undefined
+        ? controlledIsOpen
+        : (ctxCartOpen !== undefined ? ctxCartOpen : internalIsOpen)
     const { TR } = useText?.() || {}
     const { order } = useOrder()
     const total = order?.sum
@@ -39,7 +31,11 @@ export default function MiniCart({
         if (onToggle) {
             onToggle(e)
         } else if (controlledIsOpen === undefined) {
-            setInternalIsOpen((prev) => !prev)
+            if (ctxToggleCart) {
+                ctxToggleCart()
+            } else {
+                setInternalIsOpen((prev) => !prev)
+            }
         }
     }
 
@@ -52,18 +48,19 @@ export default function MiniCart({
     const remaining = Math.round(Math.max(0, freeShippingThreshold - total))
 
     // DRY Translations from hebrew.json
-    const toPayText = TR?.('to_pay') || 'לתשלום'
-    const currencySymbol = TR?.('currency_symbol') || '₪'
+    const toPayText = TR?.('to_pay')
+    const currencySymbol = TR?.('currency_symbol')
     const subtext = isCartEmpty
-        ? (TR?.('cart_empty_subtext') || 'זה הזמן להוסיף את המוצר הראשון')
-        : (TR?.('free_shipping_subtext') || 'עוד {remaining} ש״ח למשלוח חינם').replace('{remaining}', remaining)
+        ? (TR?.('cart_empty_subtext')) :
+        remaining ?
+            (TR?.('free_shipping_subtext')).replace('{remaining}', remaining) : 'free_shipping'
 
-    // DRY shared Cart Icon with Badge element
+    // Shared Cart Icon with Badge element
     const cartIconElement = (
         <div className={styles.cartIconWrapper}>
             <Icon
                 name="cart"
-                className={classNames(styles.cartIcon, { [styles.cartIconOpen]: isOpen })}
+                className={classNames(styles.cartIcon, [styles.cartIconOpen, isOpen])}
             />
             {!isCartEmpty && <span className={styles.badge}>{itemCount}</span>}
         </div>
@@ -75,30 +72,30 @@ export default function MiniCart({
             onClick={handleToggle}
             aria-label="mini cart"
         >
-            {/* Cart Icon + Badge (Desktop: Start side, Tablet/Mobile: Stacked) */}
+            {/* Cart Icon + Badge */}
             <div className={styles.cartIconSlot}>
                 {cartIconElement}
             </div>
 
-            {/* Desktop View Text Content (Center) */}
+            {/* Desktop View Text Content */}
             <Flex col className={styles.desktopContent} gap={2} alignItems="start">
                 <Text size='s' className={styles.mainText}>
-                    {toPayText}: {formattedTotal} {currencySymbol}
+                    {toPayText} {formattedTotal} {currencySymbol}
                 </Text>
                 <Text size='xs' className={styles.subText}>
                     {subtext}
                 </Text>
             </Flex>
 
-            {/* Tablet & Mobile Price Label (Center / Bottom) */}
+            {/* Tablet & Mobile Price Label */}
             <Text className={styles.compactPrice}>
                 {formattedTotal} {currencySymbol}
             </Text>
 
-            {/* Chevron Arrow (Desktop & Tablet: End side) */}
+            {/* Chevron Arrow */}
             <Icon
                 name="down"
-                className={classNames(styles.chevronIcon, { [styles.chevronOpen]: isOpen })}
+                className={classNames(styles.chevronIcon, [styles.chevronOpen, isOpen])}
             />
         </Button>
     )

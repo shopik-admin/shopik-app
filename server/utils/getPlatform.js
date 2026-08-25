@@ -20,7 +20,8 @@ export default function getPlatform(req = {}) {
 
     const host = (headers.host || '').toLowerCase()
     const referer = (headers.referer || '').toLowerCase()
-    const prefix = req.originalUrl.includes('/admin') || host.includes('admin') || referer.includes('/admin') ? 'admin' : 'web'
+    const isAdmin = host.startsWith('admin.') || host.includes('admin') || referer.includes('admin.') || (req.originalUrl || '').startsWith('/admin')
+    const prefix = isAdmin ? 'admin' : 'web'
 
     return isWebView
         ? `${prefix}_app`
