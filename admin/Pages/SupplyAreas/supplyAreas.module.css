@@ -25,10 +25,10 @@
 .errorBanner {
     margin: .75rem 1.25rem 0;
     padding: .6rem .9rem;
-    border: 1px solid var(--text-danger, #dc2626);
+    border: 1px solid var(--fg-error-primary);
     border-radius: var(--radius-md);
-    background: color-mix(in srgb, #dc2626 10%, transparent);
-    color: var(--text-danger, #dc2626);
+    background: color-mix(in srgb, var(--fg-error-primary) 10%, transparent);
+    color: var(--fg-error-primary);
     font-size: .875rem;
 }
 
@@ -116,6 +116,96 @@
     color: var(--text-tertiary);
     font-size: .85rem;
     text-align: center;
+}
+
+.groupHint {
+    border-color: var(--bg-success-primary);
+    background: color-mix(in srgb, var(--bg-success-primary) 10%, transparent);
+}
+
+.groupListItem .storeListTag {
+    margin-inline-start: auto;
+}
+
+.groupDot {
+    flex-shrink: 0;
+    width: .55rem;
+    height: .55rem;
+    border-radius: 50%;
+    background: var(--accent-group-light);
+}
+
+.expander {
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    width: 1.25rem;
+    height: 1.25rem;
+    padding: 0;
+    border: none;
+    border-radius: var(--radius-xs);
+    background: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    line-height: 0;
+
+    &:hover {
+        background: var(--bg-secondary-hover);
+        color: var(--text-primary);
+    }
+}
+
+.expanderOpen svg {
+    transform: rotate(180deg);
+}
+
+.groupChildren {
+    display: flex;
+    flex-direction: column;
+    gap: .4rem;
+    margin-top: .4rem;
+    padding-inline-start: 1rem;
+}
+
+.groupCount {
+    flex-shrink: 0;
+    min-width: 1.3rem;
+    margin-inline-start: auto;
+    padding: .05rem .35rem;
+    border-radius: var(--radius-sm);
+    background: color-mix(in srgb, var(--accent-group-light) 20%, transparent);
+    color: var(--text-secondary);
+    font-size: .7rem;
+    text-align: center;
+}
+
+.addGroupRow {
+    justify-content: flex-start;
+    border-style: dashed;
+    color: var(--text-secondary);
+    font-size: .85rem;
+
+    &:hover {
+        color: var(--text-brand);
+    }
+}
+
+.addGroupLabel {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.groupStoreField {
+    display: flex;
+    flex-direction: column;
+}
+
+.groupStoreLabel {
+    font-weight: 400;
+    font-size: 14px;
+    padding-bottom: 8px;
+    color: var(--text-secondary);
 }
 
 .editor {
@@ -233,7 +323,7 @@
     cursor: pointer;
 
     &:hover {
-        color: var(--text-danger, #dc2626);
+        color: var(--fg-error-primary);
     }
 }
 
@@ -261,10 +351,10 @@
 
 .testResultError {
     padding: .45rem .6rem;
-    border: 1px solid var(--text-danger, #dc2626);
+    border: 1px solid var(--fg-error-primary);
     border-radius: var(--radius-md);
-    background: color-mix(in srgb, #dc2626 10%, transparent);
-    color: var(--text-danger, #dc2626);
+    background: color-mix(in srgb, var(--fg-error-primary) 10%, transparent);
+    color: var(--fg-error-primary);
     font-size: .85rem;
 }
 
@@ -317,10 +407,10 @@
 
 .formError {
     padding: .5rem .75rem;
-    border: 1px solid var(--text-danger, #dc2626);
+    border: 1px solid var(--fg-error-primary);
     border-radius: var(--radius-md);
-    background: color-mix(in srgb, #dc2626 10%, transparent);
-    color: var(--text-danger, #dc2626);
+    background: color-mix(in srgb, var(--fg-error-primary) 10%, transparent);
+    color: var(--fg-error-primary);
     font-size: .85rem;
 }
 

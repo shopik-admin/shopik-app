@@ -1,3 +1,6 @@
+import { overlapsWindow } from '#common/functions/specialDay.js'
+import { findUserGroupIds, reserveGuard, releaseWindowReservation } from '#server/utils/data/windowGroups.js'
+
 export default async function choose(payload, { DL, _user, utils }) {
     const { DELIVERY_METHOD } = DL.Order.constants
     const { windowId } = payload
@@ -26,10 +29,45 @@ export default async function choose(payload, { DL, _user, utils }) {
     if (windowDoc.leadTimestamp < Date.now())
         throw { status: 400, message: 'window has passed' }
 
+    // Server-side guard for disabled windows / special-day closures
+    if (windowDoc.active === false || windowDoc.disabled === true)
+        throw { status: 400, message: 'window is unavailable' }
+
+    const activeSpecials = await DL.SpecialDay.Model.find({
+        active: true,
+        date: windowDoc.date,
+        $or: [{ storeId: windowDoc.storeId }, { storeId: null }]
+    })
+        .select({ _id: 0, start: 1, end: 1 })
+        .lean()
+    if (activeSpecials.some(sd => overlapsWindow(sd, windowDoc)))
+        throw { status: 400, message: 'window is unavailable' }
+
+    // Group-restricted windows are bookable by members of those groups only
+    // (delivery orders; the address area decides membership).
+    let reservedGroupId = null
+    if ((windowDoc.areaGroups || []).length && deliveryMethod === DELIVERY_METHOD.DELIVERY) {
+        const userGroupIds = await findUserGroupIds(DL, windowDoc.storeId, order.address?.areaId)
+        reservedGroupId = (windowDoc.areaGroups.find(g => userGroupIds.includes(g.groupId)) || {}).groupId || null
+        if (!reservedGroupId)
+            throw { status: 400, message: 'window is unavailable' }
+        // A zeroed bucket means the window is closed for this group
+        if (windowDoc.areaGroups.find(g => g.groupId === reservedGroupId).capacity === 0)
+            throw { status: 400, message: 'window is unavailable' }
+    }
+
     const updatedWindow = await DL.OrderWindow.Model.findOneAndUpdate(
-        { id: windowId, totalOrders: { $lt: windowDoc.maxCapacity } },
-        { $inc: { totalOrders: 1 } },
-        { returnDocument: 'after' }
+        reserveGuard(windowId, reservedGroupId),
+        {
+            $inc: {
+                totalOrders: 1,
+                ...(reservedGroupId ? { 'areaGroups.$[g].count': 1 } : {})
+            }
+        },
+        {
+            returnDocument: 'after',
+            ...(reservedGroupId ? { arrayFilters: [{ 'g.groupId': reservedGroupId }] } : {})
+        }
     ).lean()
 
     if (!updatedWindow) throw { status: 409, message: 'window is at capacity' }
@@ -37,6 +75,7 @@ export default async function choose(payload, { DL, _user, utils }) {
     const orderUpdate = {
         window: {
             ...windowDoc,
+            reservedGroupId,
             reservedAt: new Date()
         }
     }
@@ -65,10 +104,7 @@ export default async function choose(payload, { DL, _user, utils }) {
         throw err
     } finally {
         if (previousWindowId) {
-            await DL.OrderWindow.updateOne(
-                { id: previousWindowId, totalOrders: { $gt: 0 } },
-                { $inc: { totalOrders: -1 } }
-            )
+            await releaseWindowReservation(DL, previousWindowId, order.window?.reservedGroupId)
         }
     }
 }

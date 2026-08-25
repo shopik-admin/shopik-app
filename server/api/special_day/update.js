@@ -1,0 +1,36 @@
+import diff from '#common/functions/diff.js'
+import { validateSpecialDayShape, assertNoConflicts } from '#server/utils/data/specialDayGuard.js'
+
+export default async function update(payload, { DL }) {
+    const { id } = payload
+
+    const existing = await DL.SpecialDay.Model.findOne({ id }, { _id: 0 }).lean()
+    if (!existing) throw { status: 404, message: 'special day not found' }
+
+    const candidate = {
+        name: payload.name !== undefined ? payload.name : existing.name,
+        date: payload.date !== undefined ? payload.date : existing.date,
+        storeId: payload.storeId !== undefined ? (payload.storeId || undefined) : existing.storeId,
+        start: payload.start !== undefined ? (payload.start ?? null) : (existing.start ?? null),
+        end: payload.end !== undefined ? (payload.end ?? null) : (existing.end ?? null)
+    }
+
+    validateSpecialDayShape(candidate)
+
+    if (candidate.storeId && candidate.storeId !== existing.storeId) {
+        const store = await DL.Store.Model.findOne({ id: candidate.storeId }, { _id: 0, id: 1 }).lean()
+        if (!store) throw { status: 400, message: 'store not found' }
+    }
+
+    await assertNoConflicts(DL, candidate, id)
+
+    const updateData = diff(existing, candidate)
+    if (!Object.keys(updateData).length) return existing
+
+    return DL.SpecialDay.updateOne({ id }, updateData)
+}
+
+update.config = {
+    required: ['id'],
+    permissions: ['order_window_template:update']
+}

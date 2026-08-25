@@ -45,7 +45,20 @@ const windowTemplateSchema = {
             required: true,
             min: [1, 'maxCapacity must be at least 1'],
             max: [100, 'maxCapacity must be at most 100']
-        }
+        },
+        areaGroups: [{
+            _id: false,
+            groupId: {
+                type: String,
+                required: true
+            },
+            capacity: {
+                type: Number,
+                required: true,
+                min: [0, 'group capacity must be at least 0'],
+                max: [100, 'group capacity must be at most 100']
+            }
+        }]
     }]
 }
 

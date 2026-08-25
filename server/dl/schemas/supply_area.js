@@ -1,13 +1,11 @@
 const supplyAreaSchema = {
     key: {
         type: String,
-        required: true,
-        unique: true,
         trim: true
     },
     name: {
         type: String,
-        required: true,
+        default: '',
         trim: true,
         filter: true
     },

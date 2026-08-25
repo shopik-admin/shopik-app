@@ -1,5 +1,7 @@
 import executeInBatches from '#common/functions/executeInBatches.js'
 import getWindowTS from '#common/functions/getWindowTS.js'
+import { buildSpecialMap, overlapsWindow } from '#common/functions/specialDay.js'
+import { groupsSignature } from '#server/utils/data/windowGroups.js'
 
 const SYNC_DAYS_AHEAD = 30
 
@@ -67,6 +69,21 @@ export default async function sync(payload, { DL }) {
     const startDateStr = formatDate(today)
     const endDateStr = formatDate(endDate)
 
+    // Future-only guard: template saves pass fromDate (tomorrow) so today's
+    // generated windows are never rewritten by an edit. Cron-style full sync
+    // keeps the default of today.
+    const fromDateStr = payload.fromDate && /^\d{4}-\d{2}-\d{2}$/.test(payload.fromDate)
+        ? payload.fromDate
+        : startDateStr
+
+    // Preload active special days once for the whole range; generation skips
+    // windows covered by them (read-time enforcement keeps existing rows intact).
+    const specialDays = await DL.SpecialDay.Model.find({
+        active: true,
+        date: { $gte: startDateStr, $lte: endDateStr }
+    }).select({ _id: 0, date: 1, storeId: 1, start: 1, end: 1 }).lean()
+    const specialMap = buildSpecialMap(specialDays)
+
     // 2. Bulk fetch all existing order windows for all stores within the date range
     const existingWindows = await DL.OrderWindow.read({
         storeId: { $in: validStoreIds },
@@ -83,8 +100,10 @@ export default async function sync(payload, { DL }) {
     const datesInfo = []
     for (let d = new Date(today); d <= endDate; d.setDate(d.getDate() + 1)) {
         const current = new Date(d)
+        const date = formatDate(current)
+        if (date < fromDateStr) continue
         datesInfo.push({
-            date: formatDate(current),
+            date,
             dayOfWeek: current.getDay()
         })
     }
@@ -104,11 +123,27 @@ export default async function sync(payload, { DL }) {
         const stats = storeStats.get(storeId)
         const { timezone } = template
 
+        // Only group ids that actually exist for this store may restrict a
+        // window — stale template references (deleted groups) are dropped so a
+        // restricted window can never become invisible to everyone.
+        let validGroupIds
+        try {
+            validGroupIds = new Set(await DL.AreaGroup.Model.find(
+                { storeId, active: true },
+                { _id: 0, id: 1 }
+            ).lean().then(groups => groups.map(g => g.id)))
+        } catch {
+            validGroupIds = new Set()
+        }
+        const templateGroupsFor = tw =>
+            (tw.areaGroups || []).filter(g => g && validGroupIds.has(g.groupId))
+
         for (const { date, dayOfWeek } of datesInfo) {
             const templateWindows = template.windows.filter(w => w.dayOfWeek === dayOfWeek)
             if (!templateWindows.length) continue
 
             const templateStarts = new Set(templateWindows.map(w => w.start))
+            const daySpecials = specialMap.get(date)
 
             // Check template windows against existing windows
             for (const tw of templateWindows) {
@@ -117,11 +152,18 @@ export default async function sync(payload, { DL }) {
                 const leadHours = tw.leadHours ?? template.leadHours
 
                 if (existing) {
+                    // Manual capacity overrides survive re-sync; only a deleted
+                    // template window (deactivation flow below) can remove them.
+                    if (existing.manualCapacity) continue
+
+                    const incomingGroups = templateGroupsFor(tw)
                     const needsUpdate = (
+                        !existing.active ||
                         existing.end !== tw.end ||
                         existing.maxCapacity !== tw.maxCapacity ||
                         existing.leadHours !== leadHours ||
-                        existing.timezone !== template.timezone
+                        existing.timezone !== template.timezone ||
+                        groupsSignature(existing.areaGroups) !== groupsSignature(incomingGroups)
                     )
 
                     if (needsUpdate) {
@@ -130,12 +172,18 @@ export default async function sync(payload, { DL }) {
                                 filter: { id: existing.id },
                                 update: {
                                     $set: {
+                                        active: true,
                                         end: tw.end,
                                         leadHours,
                                         endTimestamp: getWindowTS({ date, hour: tw.end, timezone }),
                                         leadTimestamp: getWindowTS({ date, hour: tw.start - leadHours, timezone }),
                                         maxCapacity: tw.maxCapacity,
-                                        timezone: template.timezone
+                                        timezone: template.timezone,
+                                        areaGroups: incomingGroups.map(({ groupId, capacity }) => ({
+                                            groupId,
+                                            capacity,
+                                            count: (existing.areaGroups || []).find(g => g?.groupId === groupId)?.count ?? 0
+                                        }))
                                     }
                                 }
                             }
@@ -143,6 +191,14 @@ export default async function sync(payload, { DL }) {
                         stats.updated++
                     }
                 } else {
+                    // Special-day aware generation: don't create future windows
+                    // fully/partially covered by an active closure.
+                    const covered = daySpecials?.some(sd =>
+                        (!sd.storeId || sd.storeId === storeId) &&
+                        overlapsWindow(sd, tw)
+                    )
+                    if (covered) continue
+
                     bulkOperations.push({
                         insertOne: {
                             document: {
@@ -153,11 +209,16 @@ export default async function sync(payload, { DL }) {
                                 end: tw.end,
                                 maxCapacity: tw.maxCapacity,
                                 totalOrders: 0,
+                                areaGroups: templateGroupsFor(tw).map(({ groupId, capacity }) => ({
+                                    groupId, capacity, count: 0
+                                })),
                                 leadHours: leadHours,
                                 timezone: template.timezone,
                                 startTimestamp: getWindowTS({ date, hour: tw.start, timezone }),
                                 endTimestamp: getWindowTS({ date, hour: tw.end, timezone }),
-                                leadTimestamp: getWindowTS({ date, hour: tw.start - leadHours, timezone })
+                                leadTimestamp: getWindowTS({ date, hour: tw.start - leadHours, timezone }),
+                                manualCapacity: false,
+                                disabled: false
                             }
                         }
                     })
@@ -168,7 +229,7 @@ export default async function sync(payload, { DL }) {
             // Deactivate windows missing from template with 0 orders
             for (const [key, existing] of existingMap.entries()) {
                 if (existing.storeId === storeId && existing.date === date) {
-                    if (!templateStarts.has(existing.start) && existing.totalOrders === 0) {
+                    if (existing.active && !templateStarts.has(existing.start) && existing.totalOrders === 0) {
                         bulkOperations.push({
                             updateOne: {
                                 filter: { id: existing.id },

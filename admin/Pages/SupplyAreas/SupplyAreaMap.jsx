@@ -3,6 +3,8 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import 'leaflet-draw/dist/leaflet.draw.css'
+import Text from 'common/components/Text'
+import { useText } from 'common/texts/TextProvider'
 import styles from './supplyAreas.module.css'
 
 const ISRAEL_CENTER = [31.7683, 35.2137]
@@ -12,29 +14,31 @@ const TILESET_STORAGE_KEY = 'supplyMapTileset'
 // All basemaps are free to use (attribution required)
 const TILESETS = {
     light: {
-        label: 'Minimal',
+        label: 'supply_map_minimal',
         url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
     },
     dark: {
-        label: 'Dark',
+        label: 'supply_map_dark',
         url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
     },
     osm: {
-        label: 'Standard',
+        label: 'supply_map_standard',
         url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     },
     satellite: {
-        label: 'Satellite',
+        label: 'supply_map_satellite',
         url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
         attribution: 'Tiles &copy; Esri',
     },
 }
 
-const polygonStyle = (selected, served) => {
+const polygonStyle = ({ selected, draftMember, groupMember, served }) => {
     if (selected) return { color: '#2563eb', weight: 2.5, fillColor: '#3b82f6', fillOpacity: 0.35 }
+    if (draftMember) return { color: '#16a34a', weight: 2.5, fillColor: '#22c55e', fillOpacity: 0.45 }
+    if (groupMember) return { color: '#7c3aed', weight: 2, fillColor: '#8b5cf6', fillOpacity: 0.4 }
     if (served) return { color: '#f97316', weight: 2, fillColor: '#fb923c', fillOpacity: 0.4 }
     return { color: '#64748b', weight: 1.5, fillColor: '#94a3b8', fillOpacity: 0.15 }
 }
@@ -73,7 +77,7 @@ function FlyToPoint({ point, zoom = 16 }) {
 }
 
 // Custom Save/Cancel control shown while a single area is being edited
-function createEditActionsControl(map, onSave, onCancel) {
+function createEditActionsControl(map, labels, onSave, onCancel) {
     const control = new L.Control({ position: 'bottomright' })
     control.onAdd = () => {
         const container = L.DomUtil.create('div', 'leaflet-control')
@@ -81,15 +85,15 @@ function createEditActionsControl(map, onSave, onCancel) {
 
         const save = L.DomUtil.create('a', '', container)
         save.href = '#'
-        save.title = 'Save changes'
-        save.innerHTML = '&#10003; Save'
+        save.title = labels.save
+        save.innerHTML = `&#10003; ${labels.save}`
         save.style.cssText = 'display:block;padding:6px 14px;background:#16a34a;color:#fff;font-weight:600;font-size:13px;text-align:center;'
         save.onclick = (ev) => { L.DomEvent.stop(ev); onSave() }
 
         const cancel = L.DomUtil.create('a', '', container)
         cancel.href = '#'
-        cancel.title = 'Cancel changes'
-        cancel.innerHTML = '&#10005; Cancel'
+        cancel.title = labels.cancel
+        cancel.innerHTML = `&#10005; ${labels.cancel}`
         cancel.style.cssText = 'display:block;padding:6px 14px;background:#fff;color:#475569;font-weight:600;font-size:13px;text-align:center;border-top:1px solid #e2e8f0;'
         cancel.onclick = (ev) => { L.DomEvent.stop(ev); onCancel() }
 
@@ -128,12 +132,18 @@ function MapController({
     areas,
     selectedId,
     servedAreaIds,
+    groupAreaIds,
+    draftAreaIds,
+    toggleMode,
     drawing,
     onSelect,
+    onToggleArea,
     onCreated,
-    onEdited
+    onEdited,
+    onBackgroundClick
 }) {
     const map = useMap()
+    const { TR } = useText()
     const drawReady = useDrawReady()
     const groupRef = useRef(null)
     const layersRef = useRef(new Map())
@@ -142,8 +152,18 @@ function MapController({
     const editLayerRef = useRef(null)
     const editOriginalRef = useRef(null)
     const editControlRef = useRef(null)
-    const cbRef = useRef({ onSelect, onCreated, onEdited, drawing })
-    cbRef.current = { onSelect, onCreated, onEdited, drawing }
+    const cbRef = useRef({ onSelect, onToggleArea, onCreated, onEdited, onBackgroundClick, selectedId, drawing, toggleMode })
+    cbRef.current = { onSelect, onToggleArea, onCreated, onEdited, onBackgroundClick, selectedId, drawing, toggleMode }
+
+    // Clicking empty map (not a polygon) deselects the active area
+    useEffect(() => {
+        function onBgClick() {
+            if (cbRef.current.drawing || cbRef.current.toggleMode) return
+            cbRef.current.onBackgroundClick?.()
+        }
+        map.on('click', onBgClick)
+        return () => map.off('click', onBgClick)
+    }, [map])
 
     // Render all area polygons
     useEffect(() => {
@@ -157,10 +177,22 @@ function MapController({
             const rings = (area.location?.coordinates || []).map(ring =>
                 ring.map(([lng, lat]) => [lat, lng])
             )
-            const layer = L.polygon(rings, { style: polygonStyle(false) })
+            const layer = L.polygon(rings, { style: polygonStyle({}) })
             layer.supplyAreaId = area.id
-            layer.on('click', () => {
-                cbRef.current.onSelect?.(area.id)
+            layer.on('click', (e) => {
+                // debugger
+                L.DomEvent.stopPropagation(e.originalEvent)
+                if (cbRef.current.toggleMode) {
+                    cbRef.current.onToggleArea?.(area.id)
+                    return
+                }
+                const isSelected = editLayerRef.current === layer
+                cbRef.current.onSelect?.(isSelected ? null : area.id)
+                if (isSelected) {
+                    revertEdit()
+                    stopEdit()
+                    return
+                }
                 if (cbRef.current.drawing) return
                 startEdit(layer)
             })
@@ -171,12 +203,52 @@ function MapController({
         return () => group.clearLayers()
     }, [map, areas])
 
-    // Highlight the selected area and areas served by the focused store
+    // Highlight the selected area, group members and areas served by the focused store
     useEffect(() => {
         layersRef.current.forEach((layer, id) => {
-            layer.setStyle(polygonStyle(id === selectedId, servedAreaIds.includes(id)))
+            layer.setStyle(polygonStyle({
+                selected: id === selectedId,
+                draftMember: draftAreaIds.includes(id),
+                groupMember: groupAreaIds.includes(id),
+                served: servedAreaIds.includes(id)
+            }))
         })
-    }, [selectedId, servedAreaIds])
+    }, [selectedId, servedAreaIds, groupAreaIds, draftAreaIds])
+
+    const removeEditControl = useCallback(() => {
+        if (editControlRef.current) {
+            map.removeControl(editControlRef.current)
+            editControlRef.current = null
+        }
+    }, [map])
+
+    // Discard unsaved vertex moves and restore the original shape
+    const revertEdit = useCallback(() => {
+        const cur = editLayerRef.current
+        if (cur && editOriginalRef.current) {
+            cur.getLatLngs().forEach((ring, i) => ring.forEach((point, j) => {
+                const orig = editOriginalRef.current?.[i]?.[j]
+                if (orig) {
+                    point.lat = orig.lat
+                    point.lng = orig.lng
+                }
+            }))
+            cur.redraw()
+        }
+    }, [])
+
+    // Edit only the clicked area: enable L.Edit.Poly on that layer and show Save/Cancel
+    const stopEdit = useCallback(() => {
+        const layer = editLayerRef.current
+        if (layer?.editing) layer.editing.disable()
+        editLayerRef.current = null
+        editOriginalRef.current = null
+        removeEditControl()
+    }, [removeEditControl])
+    // Leave any active vertex-editing session when entering group selection mode
+    useEffect(() => {
+        if (toggleMode) stopEdit()
+    }, [toggleMode, stopEdit])
 
     // Refresh snapping targets (existing area vertices)
     useEffect(() => {
@@ -242,21 +314,7 @@ function MapController({
         })
     }, [snapInPlace])
 
-    const removeEditControl = useCallback(() => {
-        if (editControlRef.current) {
-            map.removeControl(editControlRef.current)
-            editControlRef.current = null
-        }
-    }, [map])
 
-    // Edit only the clicked area: enable L.Edit.Poly on that layer and show Save/Cancel
-    const stopEdit = useCallback(() => {
-        const layer = editLayerRef.current
-        if (layer?.editing) layer.editing.disable()
-        editLayerRef.current = null
-        editOriginalRef.current = null
-        removeEditControl()
-    }, [removeEditControl])
 
     const startEdit = useCallback((layer) => {
         if (editLayerRef.current === layer) return
@@ -268,7 +326,10 @@ function MapController({
         layer.editing.enable()
         editLayerRef.current = layer
 
-        editControlRef.current = createEditActionsControl(map, () => {
+        editControlRef.current = createEditActionsControl(map, {
+            save: TR('supply_save_changes'),
+            cancel: TR('cancel')
+        }, () => {
             const cur = editLayerRef.current
             const geometry = cur?.toGeoJSON?.().geometry
             stopEdit()
@@ -351,7 +412,8 @@ function MapController({
     return null
 }
 
-export default function SupplyAreaMap({ areas = [], stores = [], activeStoreIds = [], servedAreaIds = [], focusPoint, testPoint, testLabel, ...mapControllerProps }) {
+export default function SupplyAreaMap({ areas = [], stores = [], activeStoreIds = [], servedAreaIds = [], groupAreaIds = [], draftAreaIds = [], focusPoint, testPoint, testLabel, ...mapControllerProps }) {
+    const { TR } = useText()
     // Tileset: explicit user pick persists; otherwise follows the admin dark/light theme
     const [tilesetId, setTilesetId] = useState(() => {
         const stored = localStorage.getItem(TILESET_STORAGE_KEY)
@@ -395,7 +457,7 @@ export default function SupplyAreaMap({ areas = [], stores = [], activeStoreIds 
                     url={tileset.url}
                     attribution={tileset.attribution}
                 />
-                <MapController areas={areas} servedAreaIds={servedAreaIds} {...mapControllerProps} />
+                <MapController areas={areas} servedAreaIds={servedAreaIds} groupAreaIds={groupAreaIds} draftAreaIds={draftAreaIds} {...mapControllerProps} />
                 {storePins.map(store => {
                     const [lng, lat] = store.address.location.coordinates
                     const active = activeStoreIds.includes(store.id)
@@ -433,11 +495,11 @@ export default function SupplyAreaMap({ areas = [], stores = [], activeStoreIds 
                     <button
                         key={id}
                         type="button"
-                        title={`Basemap: ${ts.label}`}
+                        title={`${TR('supply_basemap')}: ${TR(ts.label)}`}
                         className={id === tilesetId ? `${styles.tileBtn} ${styles.tileBtnActive}` : styles.tileBtn}
                         onClick={() => pickTileset(id)}
                     >
-                        {ts.label}
+                        <Text size="none">{ts.label}</Text>
                     </button>
                 ))}
             </div>

@@ -1,9 +1,12 @@
 import { useLists } from 'common/features/Lists'
+import classNames from 'common/functions/classNames'
 import styles from './tabs.module.css'
 import Button from '../Button'
 import Flex from '../Flex'
 
 export default function Tabs({
+    className,
+    style,
     options = [],
     active,
     defaultValue,
@@ -38,9 +41,9 @@ export default function Tabs({
 
     return (
         <Flex
-            className={styles.tabs}
-            style={{ '--active-index': activeIndex !== -1 ? activeIndex : 0 }}
             {...props}
+            className={classNames(styles.tabs, className)}
+            style={{ '--active-index': activeIndex !== -1 ? activeIndex : 0, ...style }}
         >
             {/* Moving indicator */}
             <div

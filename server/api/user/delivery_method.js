@@ -1,4 +1,5 @@
 import { findClosestStore } from '#server/api/order/address/update.js'
+import { releaseWindowReservation } from '#server/utils/data/windowGroups.js'
 
 async function storeNameById(DL, storeId) {
     if (!storeId) return null
@@ -52,10 +53,7 @@ export default async function deliveryMethod(payload, { DL, utils, _user }) {
     if (order.storeId != orderChanges.storeId) {
         if (order.window?.id) {
             orderUpdate.$unset = { window: 0 }
-            await DL.OrderWindow.updateOne(
-                { id: order.window?.id, totalOrders: { $gt: 0 } },
-                { $inc: { totalOrders: -1 } }
-            )
+            await releaseWindowReservation(DL, order.window.id, order.window.reservedGroupId)
         }
     }
 
