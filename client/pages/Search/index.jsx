@@ -9,31 +9,48 @@ import { usePage } from 'layout/Page'
 import { useText } from '#common/texts/TextProvider'
 import styles from 'pages/Products/products.module.css'
 
+const LIMIT = 30
+
 export default function Search() {
     const { TR } = useText()
     const [searchParams] = useSearchParams()
     const q = (searchParams.get('q') || '').trim()
     const { pageData } = usePage()
     const latestRequest = useRef(0)
+    const moreReqId = useRef(0)
     const seeded = useRef(pageData?.q === q && Array.isArray(pageData?.results))
     const [results, setResults] = useState(() => (seeded.current ? pageData.results : undefined))
+    const [extra, setExtra] = useState([])
+    const [hasMore, setHasMore] = useState(false)
     const [loading, setLoading] = useState(false)
+    const [loadingMore, setLoadingMore] = useState(false)
+    const sentinelRef = useRef(null)
+
+    const allResults = results ? [...results, ...extra] : undefined
 
     useEffect(() => {
         if (seeded.current) {
             seeded.current = false
+            setHasMore((pageData?.results?.length || 0) === LIMIT)
             return
         }
         if (q.length < 2) {
             setResults(undefined)
+            setExtra([])
+            setHasMore(false)
             return
         }
 
+        ++moreReqId.current
         const currentRequest = ++latestRequest.current
         setLoading(true)
-        apiReq('product/search', { value: q, limit: 30 })
+        apiReq('product/search', { value: q, limit: LIMIT })
             .then(products => {
-                if (currentRequest === latestRequest.current) setResults(products)
+                if (currentRequest === latestRequest.current) {
+                    setResults(products)
+                    setExtra([])
+                    setHasMore(products.length === LIMIT)
+                }
             })
             .catch(() => {
                 if (currentRequest === latestRequest.current) setResults([])
@@ -43,6 +60,32 @@ export default function Search() {
             })
     }, [q])
 
+    async function loadMore() {
+        if (loadingMore || !hasMore || !results) return
+        const reqId = ++moreReqId.current
+        setLoadingMore(true)
+        try {
+            const products = await apiReq('product/search', { value: q, limit: LIMIT, skip: results.length + extra.length })
+            if (reqId !== moreReqId.current) return
+            setExtra(prev => [...prev, ...products])
+            setHasMore(products.length === LIMIT)
+        } catch {
+            if (reqId === moreReqId.current) setHasMore(false)
+        } finally {
+            if (reqId === moreReqId.current) setLoadingMore(false)
+        }
+    }
+
+    useEffect(() => {
+        const el = sentinelRef.current
+        if (!el || !hasMore) return
+        const io = new IntersectionObserver(entries => {
+            if (entries[0].isIntersecting) loadMore()
+        }, { rootMargin: '400px' })
+        io.observe(el)
+        return () => io.disconnect()
+    }, [hasMore, loadingMore, q])
+
     useEffect(() => {
         document.title = `Shopik | ${q ? `${TR('search_results_title')}: ${q}` : TR('search')}`
     }, [q, loading])
@@ -50,10 +93,12 @@ export default function Search() {
     return <Flex col className={styles.products} direction='column' gap={10}>
         <Text size='h1' bold>{q ? `${TR('search_results_title')}: ${q}` : TR('search')}</Text>
         <div className={styles.list}>
-            {loading ? <Loader /> : results?.length
-                ? results.map(p => <ProductCard key={p.id} product={p} />)
+            {loading ? <Loader /> : allResults?.length
+                ? allResults.map(p => <ProductCard key={p.id} product={p} />)
                 : (results ? <Text mode='sub'>{TR('no_search_results')}</Text> : null)}
         </div>
+        {!loading && hasMore && <div ref={sentinelRef} className={styles.sentinel} />}
+        {loadingMore && <Loader />}
     </Flex>
 }
 
@@ -61,7 +106,7 @@ Search.init = async function (url) {
     const q = new URL(url, 'http://localhost').searchParams.get('q')?.trim() || ''
     let results = []
     if (q.length >= 2) {
-        results = await apiReq('product/search', { value: q, limit: 30 }).catch(() => [])
+        results = await apiReq('product/search', { value: q, limit: LIMIT }).catch(() => [])
     }
     return {
         title: q,

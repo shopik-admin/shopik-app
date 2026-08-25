@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react'
 import Breadcrumbs from 'components/Breadcrumbs'
 import Loader from '#common/components/Loader'
 import apiReq from '#common/functions/apiReq'
@@ -7,26 +8,72 @@ import Text from '#common/components/Text'
 import ProductCard from './ProductCard'
 import { usePage } from 'layout/Page'
 
+const LIMIT = 30
+
 export default function Products() {
     const { loading, pageData, path } = usePage()
+    const data = pageData?.data
+    const [extra, setExtra] = useState([])
+    const [hasMore, setHasMore] = useState(false)
+    const [loadingMore, setLoadingMore] = useState(false)
+    const latestRequest = useRef(0)
+    const sentinelRef = useRef(null)
+
+    const products = [...(data?.products || []), ...extra.flatMap(e => e.products)]
+    const sales = extra.reduce((acc, e) => ({ ...acc, ...e.sales }), data?.sales || {})
+
+    useEffect(() => {
+        ++latestRequest.current
+        setExtra([])
+        setHasMore((data?.products?.length || 0) === LIMIT)
+        setLoadingMore(false)
+    }, [path])
+
+    async function loadMore() {
+        if (loadingMore || !hasMore) return
+        const reqId = ++latestRequest.current
+        setLoadingMore(true)
+        try {
+            const res = await apiReq('product/get', { path, skip: products.length, limit: LIMIT })
+            if (reqId !== latestRequest.current) return
+            setExtra(prev => [...prev, res])
+            setHasMore(res.products.length === LIMIT)
+        } catch {
+            if (reqId === latestRequest.current) setHasMore(false)
+        } finally {
+            if (reqId === latestRequest.current) setLoadingMore(false)
+        }
+    }
+
+    useEffect(() => {
+        const el = sentinelRef.current
+        if (!el || !hasMore || loading) return
+        const io = new IntersectionObserver(entries => {
+            if (entries[0].isIntersecting) loadMore()
+        }, { rootMargin: '400px' })
+        io.observe(el)
+        return () => io.disconnect()
+    }, [hasMore, loadingMore, loading, path])
 
     return <Flex col className={styles.products} direction='column' gap={10}>
         <Breadcrumbs path={path} hideLast />
-        <Text size='h1' bold>{pageData?.data?.categoryName || pageData.title}</Text>
+        <Text size='h1' bold>{data?.categoryName || pageData?.title}</Text>
         <div className={styles.list}>
             {loading ? <Loader />
-                : pageData?.data?.products?.map(p => <ProductCard
+                : products.map(p => <ProductCard
                     key={p.id}
                     product={p}
-                    sales={p.saleIds.reduce((acc, sId) => ({ [sId]: pageData?.data?.sales[sId], ...acc }), {})}
+                    sales={p.saleIds.reduce((acc, sId) => ({ [sId]: sales[sId], ...acc }), {})}
                 >{p.name}</ProductCard>)}
         </div>
+        {!loading && hasMore && <div ref={sentinelRef} className={styles.sentinel} />}
+        {loadingMore && <Loader />}
     </Flex>
 }
 
 
 Products.init = async function (path) {
-    const res = await apiReq('product/get', { path })
+    const res = await apiReq('product/get', { path, limit: LIMIT })
     const title = decodeURIComponent(path).split('/').pop()
     if (res.products[0]) {
         const product = res.products[0]
