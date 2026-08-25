@@ -21,27 +21,6 @@ const USER_APPROVAL = {
     KOSHER_APPROVED: 'kosher-approved'
 }
 
-const TIME_LINE = {
-    ORDER_STATUS_UPDATE: 'order_status',
-    ORDER_WINDOW: 'order_window',
-    ORDER_COUPON: 'order_coupon',
-    ORDER_DETAILS: 'order_details',
-    ORDER_DELIVERY: 'order_delivery',
-    ORDER_PRODUCT: 'order_product',
-    REFUND: 'refund',
-    CHANGE: 'change',
-    PAYMENT: 'payment',
-    RESTORE: 'restore',
-    INVOICE_OPEN: 'invoice_open',
-    INVOICE_CLOSE: 'invoice_close',
-    INVOICE_SEND: 'invoice_send',
-    CASH_REGISTER: 'cash_register',
-    ORDER_NOTIFY: 'order_notify',
-    ORDER_ADDRESS: 'order_address',
-    EXTERNAL_COUPON: 'external_coupon',
-    SMS_MESSAGE: 'sms_message'
-}
-
 const OWNER_STATUS = {
     ACTIVE: 'active',
     READY: 'ready',
@@ -79,7 +58,6 @@ const PICKUP_STATUS = {
 const constants = {
     CASH_REGISTER_STATUS,
     USER_APPROVAL,
-    TIME_LINE,
     OWNER_STATUS,
     ORDER_STATUS,
     PICKUP_STATUS,

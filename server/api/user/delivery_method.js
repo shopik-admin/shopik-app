@@ -1,5 +1,11 @@
 import { findClosestStore } from '#server/api/order/address/update.js'
 
+async function storeNameById(DL, storeId) {
+    if (!storeId) return null
+    const store = await DL.Store.readById(storeId, { _id: 0, name: 1 })
+    return store?.name || null
+}
+
 export default async function deliveryMethod(payload, { DL, utils, _user }) {
     const { DELIVERY_METHOD } = DL.Order.constants
     const { pickupStoreId } = payload
@@ -69,6 +75,36 @@ export default async function deliveryMethod(payload, { DL, utils, _user }) {
         orderUpdate,
         { select: DL.Order.defaultSelect }
     )
+
+    const oldData = {}
+    const newData = {}
+    if (methodChanged) {
+        oldData.deliveryMethod = order.deliveryMethod
+        newData.deliveryMethod = deliveryMethod
+    }
+    if (orderChanges.address !== undefined) {
+        oldData.address = order.address
+        newData.address = orderChanges.address
+    }
+    if (orderChanges.storeId !== undefined) {
+        oldData.storeId = order.storeId
+        newData.storeId = orderChanges.storeId
+        oldData.storeName = order.storeName || await storeNameById(DL, order.storeId)
+        newData.storeName = orderChanges.storeId ? await storeNameById(DL, orderChanges.storeId) : null
+    }
+    if (orderUpdate.$unset?.window) {
+        oldData.window = order.window
+        newData.window = null
+    }
+
+    const { record, userActor } = utils.data.timeline
+    await record({
+        DL,
+        order,
+        eventType: DL.Timeline.constants.EVENT_TYPES.ORDER_DELIVERY,
+        actor: userActor(_user),
+        changes: { oldData, newData }
+    })
 
     await DL.redis?.del(`user_auth:${_user.id}`)
 

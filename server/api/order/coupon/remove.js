@@ -33,6 +33,18 @@ export default async function remove(payload, { DL, _user, utils }) {
             { $set: updateData }
         )
         if (savedOrder) finalOrder = savedOrder
+
+        const oldData = {}
+        for (const key of Object.keys(updateData)) oldData[key] = cartOrder[key]
+
+        const { record, userActor } = utils.data.timeline
+        await record({
+            DL,
+            order: cartOrder,
+            eventType: DL.Timeline.constants.EVENT_TYPES.ORDER_COUPON,
+            actor: userActor(_user),
+            changes: { oldData, newData: updateData }
+        })
     }
 
     return filterClientOrder(finalOrder)

@@ -40,7 +40,13 @@ export default async function active(payload, { DL, _user, utils }) {
     const { DELIVERY_METHOD } = DL.Order.constants
     if (user.deliveryMethod === DELIVERY_METHOD.DELIVERY) {
         const order = await utils.data.getUserOrder({ DL, _user })
-        const updatedOrder = await updateOrderAddress({ DL, order, address: activeAddress })
+        const updatedOrder = await updateOrderAddress({
+            DL,
+            utils,
+            order,
+            address: activeAddress,
+            actor: utils.data.timeline.userActor(_user)
+        })
         return { user, order: updatedOrder }
     }
 
