@@ -268,3 +268,10 @@ body .Popover_ {
         box-shadow: var(--shadow-lg);
     }
 }
+
+/* Mobile bottom-sheet: clear the home indicator */
+@media (max-width: 649.98px) {
+    body .modal {
+        padding-bottom: calc(16px + var(--safeBottom, 0px));
+    }
+}

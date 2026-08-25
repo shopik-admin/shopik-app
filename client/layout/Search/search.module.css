@@ -23,6 +23,15 @@
     border: 1px solid var(--border-secondary, #eee);
     border-radius: 16px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+
+    /* mobile: the input shares the header row with menu/logo/cart —
+       break the dropdown out to almost full viewport width */
+    @media screen and (max-width: 768px) {
+        inset-inline: auto;
+        left: 50%;
+        transform: translateX(-50%);
+        width: calc(100vw - 16px);
+    }
 }
 
 .result {

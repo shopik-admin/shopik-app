@@ -38,7 +38,7 @@
         background-color: #F1F7F6;
         border-top-left-radius: var(--radius-3xl);
         border-top-right-radius: var(--radius-3xl);
-        padding: 10px;
+        padding: 10px 10px calc(10px + env(safe-area-inset-bottom, 0px));
 
         .summary {
             padding: 10px 15px;

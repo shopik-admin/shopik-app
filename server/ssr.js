@@ -90,18 +90,6 @@ export default async function (app, bootData) {
         next()
     })
 
-    // REDIRECT /admin to admin subdomain
-    app.get('*splat', (req, res, next) => {
-        const host = req.headers.host || ''
-        const isAdmin = host.startsWith('admin.')
-        if (!isAdmin && (req.path === '/admin' || req.path.startsWith('/admin/'))) {
-            const newPath = req.originalUrl.replace(/^\/admin/, '') || '/'
-            const proto = req.headers['x-forwarded-proto'] || req.protocol || 'http'
-            return res.redirect(`${proto}://admin.${host}${newPath}`)
-        }
-        next()
-    })
-
     // ADMIN ROUTE
     app.get('*splat', async (req, res, next) => {
         const host = req.headers.host || ''
@@ -123,9 +111,9 @@ export default async function (app, bootData) {
         try {
             const data = await utils.data.getClientData(req, bootData)
             const { template, renderFn } = await getClientContext(req)
-            const { html = '', head = '' } = await renderFn({ url: req.originalUrl, data })
+            const { html = '', head = '', status = 200 } = await renderFn({ url: req.originalUrl, data })
 
-            return res.status(200).set('Cache-Control', 'no-cache').type('html').end(injectTemplate(template, { head, html, data }))
+            return res.status(status).set('Cache-Control', 'no-cache').type('html').end(injectTemplate(template, { head, html, data }))
         } catch (error) {
             console.error('Client SSR Error:', error)
             return res.status(500).send('Internal Server Error')

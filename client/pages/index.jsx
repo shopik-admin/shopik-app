@@ -4,6 +4,7 @@ import Home from './Home'
 import Product from './Product'
 import Checkout from './Checkout'
 import Search from './Search'
+import NotFound from './NotFound'
 
 export default [
     {
@@ -41,5 +42,10 @@ export default [
         element: Checkout,
         title: 'קופה',
         description: 'מעבר לתשלום'
+    },
+    {
+        path: '*',
+        element: NotFound,
+        title: '404'
     }
 ]
