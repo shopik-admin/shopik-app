@@ -7,6 +7,9 @@ const CCODE_MESSAGES = {
     777: 'Reversal success'
 }
 
+// Hyp Brand param (numeric index) → card company name
+const CARD_COMPANIES = ['PL', 'MasterCard', 'Visa', 'Maestro', '', 'Isracard']
+
 function getConfig() {
     const masof = process.env.HYP_MASOF
     const key = process.env.HYP_KEY
@@ -37,11 +40,13 @@ async function hypFetch(url, { timeoutMs = 15000 } = {}) {
     }
 }
 
-function buildSignQuery({ masof, key, passp, amount, orderNumber, orderId, customer, sendInvoiceEmail }) {
+function buildSignQuery({ masof, key, passp, amount, orderNumber, orderId, customer, sendInvoiceEmail, tmp }) {
     const params = new URLSearchParams()
     params.set('action', 'APISign')
     params.set('What', 'SIGN')
     params.set('Sign', 'True')
+    params.set('UTF8', 'True')
+    params.set('UTF8out', 'True')
     params.set('Masof', masof)
     params.set('KEY', key)
     params.set('PassP', passp)
@@ -50,12 +55,17 @@ function buildSignQuery({ masof, key, passp, amount, orderNumber, orderId, custo
     params.set('J5', 'True')
     params.set('MoreData', 'True')
     params.set('Coin', '1')
+    params.set('tmp', tmp)
+    params.set('Tash', 1)
     if (orderId) params.set('Info', String(orderId))
-    if (customer?.name?.first || customer?.name?.last) {
-        const fullName = `${customer.name?.first || ''} ${customer.name?.last || ''}`.trim()
-        if (fullName) params.set('ClientName', fullName)
+    if (customer?.name?.first) params.set('ClientName', customer.name.first)
+    if (customer?.name?.last) params.set('ClientLName', customer.name.last)
+    if (customer?.phone) {
+        const digits = String(customer.phone).replace(/\D/g, '')
+        params.set('phone', digits)
+        params.set('Cell', digits)
     }
-    if (customer?.phone) params.set('Cell', String(customer.phone).replace(/\D/g, ''))
+    if (customer?.idNum) params.set('UserId', customer.idNum)
     if (customer?.email) {
         params.set('email', customer.email)
         if (sendInvoiceEmail) params.set('SendHesh', 'True')
@@ -64,14 +74,15 @@ function buildSignQuery({ masof, key, passp, amount, orderNumber, orderId, custo
 }
 
 export default function hypFactory({ DL }) {
-    async function createPaymentUrl({ order, amount }) {
+    async function createPaymentUrl({ order, amount, customer }) {
         const { masof, key, passp, baseUrl } = getConfig()
         const query = buildSignQuery({
             masof, key, passp,
             amount,
             orderNumber: order.number,
             orderId: order.id,
-            customer: { name: order.name, phone: order.phone, email: order.email },
+            customer: customer || { name: order.name, phone: order.phone, email: order.email },
+            tmp: 6,
             sendInvoiceEmail: Boolean(order.email)
         })
         const text = await hypFetch(`${baseUrl}?${query}`)
@@ -207,6 +218,12 @@ export default function hypFactory({ DL }) {
         return CCODE_MESSAGES[code] || `Hyp error ${code}`
     }
 
+    function cardBrandName(brand) {
+        const idx = Number(brand)
+        if (Number.isNaN(idx)) return undefined
+        return CARD_COMPANIES[idx] || undefined
+    }
+
     return {
         getConfig,
         parseHypResponse,
@@ -218,6 +235,7 @@ export default function hypFactory({ DL }) {
         refund,
         cancel,
         invoiceLink,
-        ccodeMessage
+        ccodeMessage,
+        cardBrandName
     }
 }

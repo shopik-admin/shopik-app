@@ -2,6 +2,7 @@ import classNames from 'common/functions/classNames'
 import styles from './address.module.css'
 import mapImage from './map.png'
 import Button from 'common/components/Button'
+import ConfirmButton from 'common/components/ConfirmButton'
 import Image from 'common/components/Image'
 import Card from 'common/components/Card'
 import Flex from 'common/components/Flex'
@@ -24,7 +25,12 @@ export default function Address({ store, address = {}, action = {}, onEdit, onRe
         <Flex col justifyContent='space-between' grow={1}>
             {!store && <Flex gap={10} justifyContent='end' className={styles.buttons}>
                 <Button icon='edit' mode='text' onClick={() => onEdit(address)} stopPropagation preventDefault />
-                <Button icon='trash' mode='text' onClick={() => onRemove(address)} stopPropagation preventDefault />
+                <ConfirmButton
+                    icon='trash' mode='text'
+                    q='remove_address_confirm'
+                    stopPropagation preventDefault
+                    onOk={() => onRemove(address)}
+                />
             </Flex>}
             <Button {...action} mode='text' text={active ? 'active' : ''} className={styles.actionButton} />
         </Flex>

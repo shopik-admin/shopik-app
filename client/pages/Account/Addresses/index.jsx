@@ -1,4 +1,3 @@
-import { useModal } from 'common/components/Modal'
 import Button from 'common/components/Button'
 import apiReq from 'common/functions/apiReq'
 import styles from './addresses.module.css'
@@ -27,15 +26,15 @@ export function AddressForm({ initialData, onDone }) {
         const endpoint = isEdit ? 'user/address/edit' : 'user/address/add'
 
         apiReq(endpoint, data)
-            .then(({ user, order }) => {
-                onLogin(user)
-                if (order) {
-                    setOrder(order)
+            .then(res => {
+                onLogin(res?.user ? res : { user: res })
+                if (res?.order) {
+                    setOrder(res.order)
                 }
-                onDone()
+                onDone?.()
             })
             .catch(error => {
-                setFormState({ error, loading: false })
+                setFormState({ error: error?.message || String(error), loading: false })
             })
     }
 
@@ -75,17 +74,16 @@ export default function Addresses({ action }) {
     async function setActive({ addressId }) {
         try {
             const res = await apiReq('user/address/active', { addressId })
-            user.onLogin(res)
+            user.onLogin(res?.user ? res : { user: res })
         } catch (err) {
             console.error(err)
         }
     }
 
     async function handleRemove(address) {
-        if (!confirm('האם אתה בטוח שברצונך למחוק כתובת זו?')) return
         try {
             const res = await apiReq('user/address/remove', { addressId: address.addressId })
-            user.onLogin(res)
+            user.onLogin(res?.user ? res : { user: res })
         } catch (err) {
             console.error(err)
         }

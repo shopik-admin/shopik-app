@@ -47,6 +47,11 @@ const paymentTransactionSchema = {
     signature: String,
     cardToken: String,
     cardExpiry: String,
+    last4digits: {
+        type: String,
+        filter: true
+    },
+    cardCompany: String,
     items: [{
         _id: false,
         productId: String,

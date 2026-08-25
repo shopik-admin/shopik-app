@@ -3,6 +3,7 @@ import Flex from 'common/components/Flex'
 import Text from 'common/components/Text'
 import Card from 'common/components/Card'
 import Collapse from 'common/components/Collapse'
+import Loader from 'common/components/Loader'
 import render from '#common/functions/render.js'
 import styles from './orderSummary.module.css'
 import { useUser } from 'features/User'
@@ -18,7 +19,7 @@ import {
     IoCardOutline
 } from 'react-icons/io5'
 
-export default function OrderSummary({ onPayment }) {
+export default function OrderSummary({ onPayment, paying, showPayBtn = true }) {
     const { order = {} } = useOrder()
     const { addresses = [] } = useUser()
     const { TR } = useText() || {}
@@ -203,14 +204,23 @@ export default function OrderSummary({ onPayment }) {
                     </Flex>
 
                     {/* CTA Pay Button */}
-                    <button
-                        type='button'
-                        className={styles.payBtn}
-                        onClick={onPayment}
-                    >
-                        <IoCardOutline className={styles.payIcon} />
-                        <Text size='l' bold className={styles.payBtnText}>to_payment_btn</Text>
-                    </button>
+                    {showPayBtn && (
+                        <button
+                            type='button'
+                            className={styles.payBtn}
+                            onClick={onPayment}
+                            disabled={paying}
+                        >
+                            {paying ? (
+                                <Loader size={16} />
+                            ) : (
+                                <>
+                                    <IoCardOutline className={styles.payIcon} />
+                                    <Text size='l' bold className={styles.payBtnText}>to_payment_btn</Text>
+                                </>
+                            )}
+                        </button>
+                    )}
                 </Flex>
             </Card>
         </Flex>

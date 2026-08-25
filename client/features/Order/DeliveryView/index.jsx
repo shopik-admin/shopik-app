@@ -77,17 +77,25 @@ function Delivery({ open }) {
     if (activeAddress || addresses.length == 1)
         return open ? <WindowOptions /> : null
 
-    return <AddressSelector />
+    return <Addresses />
 }
 
 function Addresses() {
-    const { addresses = [], addressEdit } = useUser()
+    const { addresses = [], onLogin } = useUser()
+
+    async function select(address) {
+        try {
+            const res = await apiReq('user/address/active', { addressId: address.addressId })
+            onLogin(res)
+        } catch (err) {
+            console.error(err)
+        }
+    }
 
     return <Flex col gap={15}>
-        {/* <Title subtitle='select-address-subtitle'>select-address-title</Title> */}
         {addresses.map(address => <Address key={address.addressId} address={address} action={{
             text: 'select',
-            onClick: () => addressEdit({ active: true, addressId: address.addressId })
+            onClick: () => select(address)
         }} />)}
         <Button onClick={() => { }}>add-address</Button>
     </Flex>

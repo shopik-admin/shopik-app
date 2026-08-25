@@ -270,6 +270,23 @@
         "total_to_pay": "סה\"כ לתשלום",
         "to_payment_btn": "לתשלום",
         "edit_address": "ערוך כתובת",
-        "edit_delivery_time": "ערוך מועד אספקה"
+        "edit_delivery_time": "ערוך מועד אספקה",
+        "payment_failed_generic": "אירעה שגיאה ביצירת התשלום, נסו שוב",
+        "addresses": "כתובות",
+        "addresses-subtitle": "נהלו את כתובות האספקה שלכם",
+        "no addresses yet": "עוד אין כתובות שמורות",
+        "add address": "הוספת כתובת",
+        "add-address": "הוסף כתובת",
+        "add-address-title": "כתובת חדשה",
+        "add-address-subtitle": "הזינו את פרטי הכתובת החדשה",
+        "edit-address-title": "עריכת כתובת",
+        "edit-address-subtitle": "עדכנו את פרטי הכתובת",
+        "select-address-title": "בחירת כתובת",
+        "select-address-subtitle": "לאן לספק את ההזמנה?",
+        "select-store-title": "בחירת נקודת איסוף",
+        "select-store-subtitle": "מאיפה נעדיף לאסוף?",
+        "remove_address_confirm": "למחוק כתובת זו?",
+        "export_csv_tooltip": "ייצוא כל הנתונים לקובץ CSV",
+        "refresh_tooltip": "רענון נתונים"
     }
 }

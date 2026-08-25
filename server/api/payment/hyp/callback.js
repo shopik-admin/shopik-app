@@ -168,6 +168,8 @@ export default async function callback(payload, info) {
     const cardToken = tokenData.Token
     const cardExpiry = tokenData.Tokef
     const authorizedAmount = amountRaw ? Number(amountRaw) : order.finalSumWithShippingAndHandling ?? order.finalSum
+    const last4digits = q.L4digit ? String(q.L4digit) : undefined
+    const cardCompany = hyp.cardBrandName(q.Brand)
 
     try {
         await DL.PaymentTransaction.create({
@@ -178,7 +180,7 @@ export default async function callback(payload, info) {
             amount: Number(authorizedAmount),
             terminalId: process.env.HYP_MASOF || undefined,
             providerTxnId: String(providerTxnId), providerCode, authCode: q.ACode, providerUid: q.UID, providerPayerId: q.UserId, signature: q.Sign,
-            cardToken, cardExpiry, providerData: { ...q, tokenResponse: tokenData }
+            cardToken, cardExpiry, last4digits, cardCompany, providerData: { ...q, tokenResponse: tokenData }
         })
     } catch {}
 
@@ -192,6 +194,7 @@ export default async function callback(payload, info) {
                 providerUid: q.UID ? String(q.UID) : undefined,
                 providerPayerId: q.UserId ? String(q.UserId) : undefined,
                 cardToken, cardExpiry,
+                last4digits, cardCompany,
                 terminalId: process.env.HYP_MASOF || undefined,
                 authorizedAmount: Number(authorizedAmount)
             },
@@ -205,7 +208,7 @@ export default async function callback(payload, info) {
             DL, order,
             eventType: DL.Timeline.constants.EVENT_TYPES.PAYMENT,
             actor: null,
-            context: { step: 'payment_authorized', provider: 'hyp', providerTxnId: String(providerTxnId), authCode: q.ACode, providerUid: q.UID, amount: Number(authorizedAmount), orderNumber },
+            context: { step: 'payment_authorized', provider: 'hyp', providerTxnId: String(providerTxnId), authCode: q.ACode, providerUid: q.UID, amount: Number(authorizedAmount), last4digits, cardCompany, orderNumber },
             outcome: { success: true },
             metadata: { source: 'payment/hyp/callback', referenceOrderNumber: order.number }
         })

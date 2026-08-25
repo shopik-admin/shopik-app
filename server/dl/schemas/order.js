@@ -284,6 +284,8 @@ const orderSchema = {
         providerPayerId: String,
         cardToken: String,
         cardExpiry: String,
+        last4digits: String,
+        cardCompany: String,
         terminalId: String,
         authorizedAmount: Number,
         capturedAt: Date,

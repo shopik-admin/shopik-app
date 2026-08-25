@@ -7,12 +7,11 @@
         border-color: var(--text-success-primary) !important;
     }
 
-    button {
+    :global(.Button_text) {
         padding: 0;
         display: block;
         color: var(--text-brand) !important;
         white-space: nowrap;
-
     }
 
     .actionButton {

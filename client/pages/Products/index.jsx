@@ -20,8 +20,6 @@ export default function Products() {
     const latestRequest = useRef(0)
     const sentinelRef = useRef(null)
 
-    if (pageData?.notFound) return <NotFound />
-
     const products = [...(data?.products || []), ...extra.flatMap(e => e.products)]
     const sales = extra.reduce((acc, e) => ({ ...acc, ...e.sales }), data?.sales || {})
 
@@ -57,6 +55,8 @@ export default function Products() {
         io.observe(el)
         return () => io.disconnect()
     }, [hasMore, loadingMore, loading, path])
+
+    if (pageData?.notFound) return <NotFound />
 
     return <Flex col className={styles.products} direction='column' gap={10}>
         <Breadcrumbs path={path} hideLast />

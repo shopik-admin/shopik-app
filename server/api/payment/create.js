@@ -16,7 +16,16 @@ export default async function create(payload, info) {
 
     let paymentUrl
     try {
-        paymentUrl = await hyp.createPaymentUrl({ order, amount: Number(amount) })
+        paymentUrl = await hyp.createPaymentUrl({
+            order,
+            amount: Number(amount),
+            customer: {
+                name: _user.name,
+                phone: _user.phone,
+                email: _user.email,
+                idNum: _user.idNum
+            }
+        })
     } catch (e) {
         throw { status: e.status || 502, message: e.message || 'Failed to create payment url' }
     }
@@ -39,7 +48,7 @@ export default async function create(payload, info) {
 
     try {
         await DL.Order.updateOne({ id: order.id }, { $inc: { paymentAttempts: 1 } })
-    } catch {}
+    } catch { }
 
     try {
         const { record, userActor } = utils.data.timeline
@@ -52,7 +61,7 @@ export default async function create(payload, info) {
             outcome: { success: true },
             metadata: { source: 'payment/create', referenceOrderNumber: order.number }
         })
-    } catch {}
+    } catch { }
 
     return { paymentUrl, transactionId: txn.id }
 }
