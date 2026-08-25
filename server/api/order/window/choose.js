@@ -47,6 +47,19 @@ export default async function choose(payload, { DL, _user, utils }) {
             { $set: orderUpdate },
             { select: DL.Order.defaultSelect }
         )
+
+        const { record, userActor } = utils.data.timeline
+        await record({
+            DL,
+            order,
+            eventType: DL.Timeline.constants.EVENT_TYPES.ORDER_WINDOW,
+            actor: userActor(_user),
+            changes: {
+                oldData: { window: order.window },
+                newData: { window: orderUpdate.window }
+            }
+        })
+
         return updatedOrder
     } catch (err) {
         throw err

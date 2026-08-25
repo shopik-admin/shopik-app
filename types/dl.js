@@ -75,7 +75,6 @@
  * @typedef {Object} OrderConstants
  * @property {Record<string,string>} CASH_REGISTER_STATUS
  * @property {Record<string,string>} USER_APPROVAL
- * @property {Record<string,string>} TIME_LINE
  * @property {Record<string,string>} OWNER_STATUS
  * @property {Record<string,string>} ORDER_STATUS
  * @property {Record<string,string>} PICKUP_STATUS
@@ -87,6 +86,17 @@
  * @typedef {DLModel<any> & {
  *   constants: OrderConstants
  * }} DL.Order
+ */
+
+/**
+ * @typedef {Object} TimelineConstants
+ * @property {Record<string,string>} EVENT_TYPES
+ */
+
+/**
+ * @typedef {DLModel<any> & {
+ *   constants: TimelineConstants
+ * }} DL.Timeline
  */
 
 /**
@@ -165,6 +175,7 @@
  * @property {DL.Product} Product
  * @property {DL.Store} Store
  * @property {DL.Order} Order
+ * @property {DL.Timeline} Timeline
  * @property {DL.Sale} Sale
  * @property {DL.Coupon} Coupon
  * @property {DL.Domain} Domain

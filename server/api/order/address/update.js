@@ -13,7 +13,7 @@ export async function findClosestStore(address, DL) {
     return store?.id ?? null
 }
 
-export async function updateOrderAddress({ DL, address, order, select = DL.Order.defaultSelect }) {
+export async function updateOrderAddress({ DL, utils, address, order, select = DL.Order.defaultSelect, actor }) {
     const update = { address }
     const { DELIVERY_METHOD } = DL.Order.constants
     if (order.deliveryMethod === DELIVERY_METHOD.DELIVERY) {
@@ -24,13 +24,44 @@ export async function updateOrderAddress({ DL, address, order, select = DL.Order
     }
 
     const updatedOrder = await DL.Order.updateOne({ id: order.id }, update, { select })
+
+    const storeChanged = update.storeId && update.storeId !== order.storeId
+    const oldData = { address: order.address }
+    const newData = { address: update.address }
+    if (storeChanged) {
+        oldData.storeId = order.storeId
+        newData.storeId = update.storeId
+        oldData.storeName = order.storeName || null
+        if (!oldData.storeName && order.storeId) {
+            const oldStore = await DL.Store.readById(order.storeId, { _id: 0, name: 1 })
+            oldData.storeName = oldStore?.name || null
+        }
+        const newStore = await DL.Store.readById(update.storeId, { _id: 0, name: 1 })
+        newData.storeName = newStore?.name || null
+    }
+
+    utils.data.timeline.record({
+        DL,
+        order,
+        eventType: DL.Timeline.constants.EVENT_TYPES.ORDER_ADDRESS,
+        actor,
+        changes: { oldData, newData }
+    })
+
     return updatedOrder
 }
 
-export default async function update(payload, { DL }) {
+export default async function update(payload, { DL, _admin, utils }) {
     const { address, id } = payload
     const order = await DL.Order.readById(id)
-    return updateOrderAddress({ DL, address, order, select: { _id: 0 } })
+    return updateOrderAddress({
+        DL,
+        utils,
+        address,
+        order,
+        actor: utils.data.timeline.adminActor(_admin),
+        select: { _id: 0 }
+    })
 }
 
 update.config = {
