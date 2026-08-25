@@ -2,6 +2,7 @@ import ReactDOM from 'react-dom/client'
 import styles from './login.module.css'
 
 import 'common/styles/global.css'
+import '../styles/admin.css'
 
 import TextProvider from 'common/texts/TextProvider.jsx'
 import DigitsInput from 'common/components/DigitsInput'

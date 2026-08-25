@@ -1,130 +1,112 @@
 import classNames from 'common/functions/classNames'
 import styles from './icon.module.css'
-import { AiOutlineProduct } from 'react-icons/ai'
-import { BiExpandVertical, BiCollapseVertical } from 'react-icons/bi'
-import { BsFileEarmarkExcel, BsPersonVcard, BsReceiptCutoff, BsCart3 } from 'react-icons/bs'
-import { FaSort, FaSortUp, FaSortDown } from 'react-icons/fa'
-import { GoPencil, GoDownload } from 'react-icons/go'
-import { HiOutlineBuildingOffice, HiOutlineBuildingOffice2 } from 'react-icons/hi2'
-import { ImCopy } from 'react-icons/im'
 import {
-    IoAddSharp, IoSettingsOutline, IoMenu, IoPersonOutline, IoDesktopOutline,
-    IoEllipsisHorizontalSharp, IoNotificationsOutline, IoExitOutline, IoGridOutline,
-    IoEaselOutline, IoDocumentTextOutline, IoSearchOutline, IoKeyOutline, IoCalendarOutline,
-    IoRefreshSharp, IoChevronForwardOutline, IoTrashOutline, IoCloseOutline, IoCheckmarkOutline,
-    IoShareOutline, IoChevronDown, IoLogoGithub, IoPlay, IoPause, IoChevronBack,
-    IoCheckmarkCircleOutline, IoEllipseOutline, IoStorefrontOutline, IoMapOutline, IoTimeOutline,
-    IoCardOutline
-} from 'react-icons/io5'
-import { LuClipboard, LuClipboardList, LuLoader, LuCalendarPlus } from 'react-icons/lu'
-import { MdChecklistRtl, MdOutlineEventRepeat, MdDomain, MdCloudSync } from 'react-icons/md'
-import { PiSealQuestion, PiUsers, PiCodeLight } from 'react-icons/pi'
-import { RiCustomerService2Fill, RiRefund2Fill, RiDiscountPercentLine, RiCoupon3Line } from 'react-icons/ri'
-import { TbReplace, TbDeviceMobileCheck, TbDeviceMobileUp } from 'react-icons/tb'
-import { VscReferences } from 'react-icons/vsc'
-import { LuPanelRightClose, LuPanelRightOpen } from "react-icons/lu"
-import { MdOutlineLightMode, MdLightMode } from "react-icons/md"
-import { AiOutlineUser } from "react-icons/ai"
-import { HiOutlineShoppingBag } from "react-icons/hi2"
-import { BsTruck } from "react-icons/bs"
-import { LiaBarcodeSolid } from "react-icons/lia"
-import { FiShoppingCart } from "react-icons/fi"
-import { CgPlayListAdd } from "react-icons/cg"
-import { TbHeartPlus } from "react-icons/tb"
-import { SlNote } from "react-icons/sl";
+    LuPlus, LuPencil, LuTrash2, LuChevronLeft, LuChevronRight, LuChevronUp, LuChevronDown,
+    LuDownload, LuSettings, LuMenu, LuSearch, LuEllipsis, LuUser, LuContact, LuMonitor,
+    LuBell, LuLogOut, LuLayoutGrid, LuLayoutDashboard, LuBuilding, LuBuilding2, LuReplace,
+    LuListChecks, LuHeadset, LuCircleHelp, LuClipboard, LuClipboardList, LuFileText, LuUsers,
+    LuTable, LuKeyRound, LuCalendar, LuSheet, LuRefreshCw, LuX, LuCheck, LuCircleCheck, LuCalendarClock,
+    LuSmartphone, LuMonitorSmartphone, LuUndo2, LuReceipt, LuUnfoldVertical, LuFoldVertical,
+    LuLoader, LuCopy, LuShare, LuCircle, LuGithub, LuPlay, LuPause, LuShoppingCart,
+    LuShoppingBag, LuArrowUpDown, LuCode, LuPackage, LuStore, LuGlobe, LuPercent, LuTicket,
+    LuSun, LuMoon, LuCloudUpload, LuMap, LuClock, LuTruck, LuCreditCard, LuBarcode,
+    LuListPlus, LuNotebookPen, LuPanelRightClose, LuPanelRightOpen, LuCalendarPlus
+} from 'react-icons/lu'
+import { BsFileEarmarkExcel } from 'react-icons/bs'
+import { TbHeartPlus } from 'react-icons/tb'
 
 const iconsList = {
-    add: IoAddSharp,
-    edit: GoPencil,
-    trash: IoTrashOutline,
-    left: IoChevronBack,
-    right: IoChevronForwardOutline,
-    download: GoDownload,
-    settings: IoSettingsOutline,
-    menu: IoMenu,
-    search: IoSearchOutline,
-    options: IoEllipsisHorizontalSharp,
-    person: IoPersonOutline,
-    persons: BsPersonVcard,
-    desktop: IoDesktopOutline,
-    notifications: IoNotificationsOutline,
-    exit: IoExitOutline,
-    logout: IoExitOutline,
-    fallback: IoGridOutline,
-    dashboard: IoEaselOutline,
-    buildings: HiOutlineBuildingOffice2,
-    building: HiOutlineBuildingOffice,
-    replace: TbReplace,
-    placement: MdChecklistRtl,
-    tasks: RiCustomerService2Fill,
-    question: PiSealQuestion,
+    add: LuPlus,
+    edit: LuPencil,
+    trash: LuTrash2,
+    left: LuChevronLeft,
+    right: LuChevronRight,
+    download: LuDownload,
+    settings: LuSettings,
+    menu: LuMenu,
+    search: LuSearch,
+    options: LuEllipsis,
+    person: LuUser,
+    persons: LuContact,
+    desktop: LuMonitor,
+    notifications: LuBell,
+    exit: LuLogOut,
+    logout: LuLogOut,
+    fallback: LuLayoutGrid,
+    dashboard: LuLayoutDashboard,
+    buildings: LuBuilding2,
+    building: LuBuilding,
+    replace: LuReplace,
+    placement: LuListChecks,
+    tasks: LuHeadset,
+    question: LuCircleHelp,
     clipboard: LuClipboard,
     clipboardList: LuClipboardList,
-    reports: IoDocumentTextOutline,
-    users: PiUsers,
-    table: VscReferences,
-    key: IoKeyOutline,
-    calendar: IoCalendarOutline,
+    reports: LuFileText,
+    users: LuUsers,
+    table: LuTable,
+    key: LuKeyRound,
+    calendar: LuCalendar,
     csv: BsFileEarmarkExcel,
-    refresh: IoRefreshSharp,
-    x: IoCloseOutline,
-    v: IoCheckmarkOutline,
-    payRepeat: MdOutlineEventRepeat,
-    back: IoChevronForwardOutline,
-    asign: TbDeviceMobileCheck,
-    release: TbDeviceMobileUp,
-    refund: RiRefund2Fill,
-    receipt: BsReceiptCutoff,
-    expand: BiExpandVertical,
-    collapse: BiCollapseVertical,
+    refresh: LuRefreshCw,
+    x: LuX,
+    v: LuCheck,
+    payRepeat: LuCalendarClock,
+    back: LuChevronRight,
+    asign: LuSmartphone,
+    release: LuMonitorSmartphone,
+    refund: LuUndo2,
+    receipt: LuReceipt,
+    expand: LuUnfoldVertical,
+    collapse: LuFoldVertical,
     load: LuLoader,
-    copy: ImCopy,
-    share: IoShareOutline,
-    down: IoChevronDown,
+    copy: LuCopy,
+    share: LuShare,
+    down: LuChevronDown,
     calendarAdd: LuCalendarPlus,
-    check: IoCheckmarkCircleOutline,
-    checkEmpty: IoEllipseOutline,
-    github: IoLogoGithub,
-    play: IoPlay,
-    pause: IoPause,
-    cart: FiShoppingCart,
-    sort: FaSort,
-    sortUp: FaSortUp,
-    sortDown: FaSortDown,
-    log: PiCodeLight,
-    products: AiOutlineProduct,
-    orders: BsCart3,
-    stores: IoStorefrontOutline,
-    domains: MdDomain,
-    sale: RiDiscountPercentLine,
-    coupon: RiCoupon3Line,
+    check: LuCircleCheck,
+    checkEmpty: LuCircle,
+    github: LuGithub,
+    play: LuPlay,
+    pause: LuPause,
+    cart: LuShoppingCart,
+    sort: LuArrowUpDown,
+    sortUp: LuChevronUp,
+    sortDown: LuChevronDown,
+    log: LuCode,
+    products: LuPackage,
+    orders: LuShoppingBag,
+    stores: LuStore,
+    domains: LuGlobe,
+    sale: LuPercent,
+    coupon: LuTicket,
     toMini: LuPanelRightClose,
     unMini: LuPanelRightOpen,
-    darkMode: MdOutlineLightMode,
-    lightMode: MdLightMode,
-    sync: MdCloudSync,
-    user: AiOutlineUser,
-    map: IoMapOutline,
-    time: IoTimeOutline,
-    bag: HiOutlineShoppingBag,
-    truck: BsTruck,
-    card: IoCardOutline,
-    barcode: LiaBarcodeSolid,
-    listPlus: CgPlayListAdd,
+    darkMode: LuMoon,
+    lightMode: LuSun,
+    sync: LuCloudUpload,
+    user: LuUser,
+    map: LuMap,
+    time: LuClock,
+    bag: LuShoppingBag,
+    truck: LuTruck,
+    card: LuCreditCard,
+    barcode: LuBarcode,
+    listPlus: LuListPlus,
     heartPlus: TbHeartPlus,
-    note: SlNote
+    note: LuNotebookPen
 }
 
 /**
  * All supported icon names extracted directly from the keys of iconsList.
- * 
+ *
  * @typedef {keyof typeof iconsList} IconNames
  */
 
 /**
  * Icon component.
  *
- * Renders an SVG icon from `react-icons` based on the provided name.
+ * Renders an SVG icon from `react-icons/lu` (Lucide) based on the provided name.
  * Additional props are forwarded to the underlying SVG element.
  *
  * @param {Object} props

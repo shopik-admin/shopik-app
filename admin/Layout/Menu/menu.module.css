@@ -3,51 +3,59 @@
 
     .sectiontitle {
         color: var(--text-primary-on-brand);
-        opacity: 0.65;
-        font-size: var(--text-xs);
+        opacity: 0.55;
+        font-size: 11px;
         font-weight: var(--font-weight-bold);
+        letter-spacing: 0.8px;
         transition: .3s;
         text-transform: uppercase;
-        margin-top: 20px;
+        margin-top: 24px;
+        margin-bottom: 4px;
+        padding-inline: 10px;
     }
 
     .menuItem {
         width: 100%;
         color: var(--text-primary-on-brand);
-        padding: 10px;
+        opacity: 0.85;
+        padding: 10px 12px;
         display: flex;
         align-items: center;
         gap: 10px;
         text-decoration: none;
-        font-weight: var(--font-weight-regular);
+        font-weight: var(--font-weight-medium);
         font-size: var(--text-sm);
-        border-radius: var(--radius-lg);
-        margin-block: 8px;
-        transition: .2s;
-
-        &:hover {
-            background-color: var(--bg-brand-primary-hover);
-            color: var(--text-primary-on-brand);
-        }
-
-        &.active {
-            font-weight: var(--font-weight-semibold);
-            background-color: var(--text-brand-secondary);
-            color: var(--bg-primary);
-        }
+        border-radius: var(--radius-md);
+        margin-block: 2px;
+        transition: background-color .2s, opacity .2s, color .2s;
 
         svg {
             color: var(--text-primary-on-brand) !important;
             font-size: 20px;
             flex-shrink: 0;
+            opacity: 0.9;
         }
 
-        &.active svg {
-            color: var(--bg-primary) !important;
+        &:hover {
+            background-color: rgba(255, 255, 255, 0.08);
+            opacity: 1;
+        }
+
+        &.active {
+            background-color: var(--bg-brand-section);
+            font-weight: var(--font-weight-semibold);
+            opacity: 1;
+
+            svg {
+                opacity: 1;
+            }
         }
 
         .name {
             transition: .3s;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
     }
 
@@ -57,8 +65,11 @@
         }
 
         .menuItem {
+            justify-content: center;
+
             .name {
                 opacity: 0;
+                width: 0;
             }
         }
     }

@@ -1,1 +1,7 @@
-.dataSearch {}
+.search {
+    width: 320px;
+
+    @media screen and (max-width: 650px) {
+        width: 100%;
+    }
+}

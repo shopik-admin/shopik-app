@@ -1,11 +1,32 @@
 .userInfo {
     .avatar {
+        position: relative;
         cursor: pointer;
-        font-weight: bold;
+        font-weight: var(--font-weight-bold);
         font-size: var(--text-xs);
-        width: 32px;
-        height: 32px;
-        border: 1px solid var(--border-primary);
+        width: 36px;
+        height: 36px;
         border-radius: var(--radius-full);
+        color: var(--text-white);
+        background-color: var(--bg-brand-primary);
+        box-shadow: var(--shadow-sm);
+        transition: box-shadow .2s, transform .2s;
+
+        &::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            inset-inline-end: 0;
+            width: 9px;
+            height: 9px;
+            border-radius: var(--radius-full);
+            background-color: var(--bg-success-primary);
+            border: 2px solid var(--bg-primary);
+        }
+
+        &:hover {
+            box-shadow: var(--shadow-md);
+            transform: translateY(-1px);
+        }
     }
 }

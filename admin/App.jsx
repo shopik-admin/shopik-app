@@ -6,6 +6,7 @@ import Main from 'Layout/Main'
 import usePages from './Pages'
 
 import 'common/styles/global.css'
+import './styles/admin.css'
 
 function AdminLayout() {
     return <Sidebar >
