@@ -63,7 +63,7 @@ function buildSignQuery({ masof, key, passp, amount, orderNumber, orderId, custo
     return params.toString()
 }
 
-export default function hypFactory() {
+export default function hypFactory({ DL }) {
     async function createPaymentUrl({ order, amount }) {
         const { masof, key, passp, baseUrl } = getConfig()
         const query = buildSignQuery({
