@@ -134,7 +134,6 @@ function FilterPill({ descriptor, filter, setFilter, TR, storeMap }) {
         </button>}
     >
         {({ close }) => <div className={styles.popoverContent}>
-            <div className={styles.popoverTitle}>{label}</div>
             <FilterControl descriptor={descriptor} filter={filter} setFilter={setFilter} TR={TR} storeMap={storeMap} close={close} />
         </div>}
     </Popover>
@@ -184,33 +183,13 @@ function FilterControl({ descriptor, filter, setFilter, TR, storeMap }) {
         const gte = value?.$gte || ''
         const lte = value?.$lte || ''
         return <Flex gap={8} col>
-            <DateDDMMYYYYInput value={gte} placeholder='dd/mm/yyyy' onChange={v => {
-                setFilter(prev => {
-                    const cur = prev[key] || {}
-                    const next = { ...prev, [key]: { ...cur, $gte: v || undefined } }
-                    if (!next[key].$gte) delete next[key].$gte
-                    if (!next[key].$lte) delete next[key].$lte
-                    if (!next[key].$gte && !next[key].$lte) { const n = { ...prev }; delete n[key]; return n }
-                    if (!next[key].$gte) delete next[key].$gte
-                    if (!next[key].$lte) delete next[key].$lte
-                    return next
-                })
+            <DateRangeCalendar value={value} TR={TR} onChange={nextRange => {
+                if (!nextRange || (!nextRange.$gte && !nextRange.$lte)) {
+                    const n = { ...filter }; delete n[key]; setFilter(n)
+                } else {
+                    setFilter(prev => ({ ...prev, [key]: nextRange }))
+                }
             }} />
-            <DateDDMMYYYYInput value={lte} placeholder='dd/mm/yyyy' onChange={v => {
-                setFilter(prev => {
-                    const cur = prev[key] || {}
-                    const next = { ...prev, [key]: { ...cur, $lte: v || undefined } }
-                    if (!next[key].$gte) delete next[key].$gte
-                    if (!next[key].$lte) delete next[key].$lte
-                    if (!next[key].$gte && !next[key].$lte) { const n = { ...prev }; delete n[key]; return n }
-                    if (!next[key].$gte) delete next[key].$gte
-                    if (!next[key].$lte) delete next[key].$lte
-                    return next
-                })
-            }} />
-            {(gte || lte) && <button className={styles.clearBtn} onClick={() => {
-                const next = { ...filter }; delete next[key]; setFilter(next)
-            }}>{TR('reset')}</button>}
         </Flex>
     }
 
@@ -264,55 +243,70 @@ function FilterControl({ descriptor, filter, setFilter, TR, storeMap }) {
     return <div style={{ fontSize: 13, opacity: .6 }}>{TR('search')} — {key}</div>
 }
 
-function isoToDisplay(iso) {
-    if (!iso || typeof iso !== 'string') return ''
-    const p = iso.split('-')
-    if (p.length !== 3) return iso
-    return `${p[2]}/${p[1]}/${p[0]}`
-}
-function displayToIso(str) {
-    if (!str) return null
-    const p = str.split('/')
-    if (p.length !== 3) return null
-    const [d, m, y] = p
-    if (!/^\d{1,2}$/.test(d) || !/^\d{1,2}$/.test(m) || !/^\d{4}$/.test(y)) return null
-    const dd = d.padStart(2, '0'), mm = m.padStart(2, '0')
-    const iso = `${y}-${mm}-${dd}`
-    const dt = new Date(iso)
-    if (Number.isNaN(dt.getTime())) return null
-    return iso
-}
-function DateDDMMYYYYInput({ value, onChange, placeholder }) {
-    const [text, setText] = useState(isoToDisplay(value))
-    const inputRef = useRef(null)
-    // keep local text in sync when external value changes
-    useEffect(() => { setText(isoToDisplay(value)) }, [value])
-    return <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-        <input
-            type='text'
-            inputMode='numeric'
-            dir='ltr'
-            placeholder={placeholder}
-            value={text}
-            onChange={e => {
-                const v = e.target.value
-                setText(v)
-                if (v === '') onChange('')
-                else {
-                    const iso = displayToIso(v)
-                    if (iso) onChange(iso)
-                }
-            }}
-            onBlur={e => {
-                const iso = displayToIso(e.target.value)
-                if (e.target.value !== '' && !iso) setText(isoToDisplay(value))
-            }}
-            style={{ flex: 1, padding: '6px 8px', border: '1px solid #ddd', borderRadius: 8, direction: 'ltr' }}
-        />
-        <button type='button' onClick={() => inputRef.current?.showPicker?.()} style={{ border: '1px solid #ddd', borderRadius: 8, padding: 6, background: '#fff', cursor: 'pointer' }} aria-label='calendar'>
-            <Icon name='calendar' />
-        </button>
-        <input ref={el => { inputRef.current = el }} type='date' value={value || ''} onChange={e => { const iso = e.target.value; setText(isoToDisplay(iso)); onChange(iso) }} style={{ position: 'absolute', opacity: 0, width: 0, height: 0, pointerEvents: 'none' }} tabIndex={-1} aria-hidden />
+function isoToIsoDay(iso) { return iso } // helper kept for readability
+function DateRangeCalendar({ value, TR, onChange }) {
+    const gte = value?.$gte || null
+    const lte = value?.$lte || null
+    const initial = gte ? new Date(gte) : new Date()
+    const [view, setView] = useState(new Date(initial.getFullYear(), initial.getMonth(), 1))
+    useEffect(() => {
+        if (gte) setView(new Date(new Date(gte).getFullYear(), new Date(gte).getMonth(), 1))
+    }, [gte])
+    const y = view.getFullYear(), m = view.getMonth()
+    const monthName = TR(`month-${m}`) || TR(`month-${m}-short`) || `${m + 1}`
+    const daysInMonth = new Date(y, m + 1, 0).getDate()
+    const firstDay = new Date(y, m, 1).getDay() // 0 Sun
+    const cells = []
+    for (let i = 0; i < firstDay; i++) cells.push(null)
+    for (let d = 1; d <= daysInMonth; d++) cells.push(d)
+    function toIso(day) {
+        const mm = String(m + 1).padStart(2, '0'), dd = String(day).padStart(2, '0')
+        return `${y}-${mm}-${dd}`
+    }
+    function isSelected(day) {
+        if (!day) return false
+        const iso = toIso(day)
+        return iso === gte || iso === lte
+    }
+    function isInRange(day) {
+        if (!day || !gte || !lte) return false
+        const iso = toIso(day)
+        return iso > gte && iso < lte
+    }
+    function onDayClick(day) {
+        if (!day) return
+        const iso = toIso(day)
+        if (!gte || (gte && lte)) {
+            // first click or reset after complete range
+            onChange({ $gte: iso })
+        } else if (gte && !lte) {
+            if (iso === gte) onChange(null)
+            else if (iso > gte) onChange({ $gte: gte, $lte: iso })
+            else onChange({ $gte: iso, $lte: gte })
+        }
+    }
+    const weekDays = [0, 1, 2, 3, 4, 5, 6].map(i => TR(`day-${i}-short`) || ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'שבת'][i])
+    return <div className={styles.calendar}>
+        <div className={styles.calendarHeader}>
+            <button type='button' className={styles.calendarNav} onClick={() => setView(new Date(y, m - 1, 1))}><Icon name='right' /></button>
+            <span>{monthName} {y}</span>
+            <button type='button' className={styles.calendarNav} onClick={() => setView(new Date(y, m + 1, 1))}><Icon name='left' /></button>
+        </div>
+        <div className={styles.calendarGrid}>
+            {weekDays.map(d => <div key={d} className={styles.calendarWeekDay}>{d}</div>)}
+            {cells.map((day, idx) => {
+                if (day == null) return <div key={`e-${idx}`} />
+                const sel = isSelected(day)
+                const range = isInRange(day)
+                return <button key={day} type='button' onClick={() => onDayClick(day)} className={`${styles.calendarDay} ${sel ? styles.calendarDaySelected : ''} ${range ? styles.calendarDayRange : ''}`}>{day}</button>
+            })}
+        </div>
+        <Flex justifyContent='center' style={{ marginTop: '8px' }}>
+            {(gte || lte) && <div className={styles.calendarFooter} dir='ltr'>{gte ? gte.split('-').reverse().join('/') : '—'} - {lte ? lte.split('-').reverse().join('/') : '—'}</div>}
+            {(gte || lte) && <button className={styles.clearBtn} onClick={() => {
+                onChange(null)
+            }}>{TR('reset')}</button>}
+        </Flex>
     </div>
 }
 

@@ -263,18 +263,15 @@ const orderSchema = {
     },
     replaceProducts: {
         type: Boolean,
-        default: false,
-        filter: true
+        default: false
     },
     replaceProductsNoCall: {
         type: Boolean,
-        default: false,
-        filter: true
+        default: false
     },
     leaveOrderAtDoor: {
         type: Boolean,
-        default: false,
-        filter: true
+        default: false
     },
     paid: {
         type: Boolean,
@@ -311,14 +308,6 @@ const orderSchema = {
         userArrived: { type: Number, default: 0 },
         notifyUserSms: { type: Number, default: 0 }
     },
-    tag: { type: String, filter: true },
-    tagHistory: [{
-        _id: false,
-        oldTag: String,
-        newTag: String,
-        source: String,
-        createdAt: { type: Date, default: Date.now }
-    }],
     deliveryDetails: {
         clientETA: Date,
         clientArrivalState: {

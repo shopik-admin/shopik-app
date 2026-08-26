@@ -209,6 +209,75 @@
     white-space: nowrap;
 }
 
+.calendar {
+    width: 280px;
+    direction: rtl;
+}
+
+.calendarHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.calendarNav {
+    border: 1px solid #e6e6e6;
+    background: #fff;
+    border-radius: 8px;
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.calendarGrid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+}
+
+.calendarWeekDay {
+    text-align: center;
+    font-size: 12px;
+    opacity: .6;
+    padding: 4px 0;
+}
+
+.calendarDay {
+    border: none;
+    background: #fff;
+    border-radius: 8px;
+    height: 32px;
+    cursor: pointer;
+    padding: 0 12px;
+    user-select: none;
+}
+
+.calendarDay:hover {
+    background: #f2f2f2;
+}
+
+.calendarDaySelected {
+    background: #0f3d3a !important;
+    color: #fff;
+}
+
+.calendarDayRange {
+    background: #eef4f3;
+}
+
+.calendarFooter {
+    margin-top: 8px;
+    text-align: center;
+    font-size: 12px;
+    opacity: .7;
+    direction: ltr;
+}
+
 @media (max-width: 650px) {
     .topRow {
         flex-direction: column;
