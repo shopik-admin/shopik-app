@@ -12,6 +12,7 @@
     z-index: 1;
     flex: 1 1 0;
     height: 44px;
+    white-space: nowrap;
     color: var(--text-quaternary) !important;
     transition: color .2s;
 

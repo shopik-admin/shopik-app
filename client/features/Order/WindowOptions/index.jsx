@@ -33,6 +33,7 @@ export default function WindowOptions() {
     const activeAddress = addresses?.find(a => a.active)
 
     const onChoose = async (window) => {
+        console.log(window)
         if (window.chosen || window.disabled || windowLoading) return
         try {
             setWindowLoading(window.id)
@@ -70,7 +71,7 @@ export default function WindowOptions() {
                 return (
                     <Flex
                         key={window.id}
-                        className={classNames(styles.time, [styles.active, isSelected])}
+                        className={classNames(styles.time, [styles.active, isSelected], [styles.disabled, window.disabled])}
                         onClick={() => onChoose(window)}
                         gap={10} justifyContent="space-between" alignItems="center"
                     >

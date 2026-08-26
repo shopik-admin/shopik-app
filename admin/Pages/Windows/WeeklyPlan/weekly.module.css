@@ -1,0 +1,363 @@
+.toolbar {
+    gap: 10px;
+    align-items: end;
+    flex-wrap: wrap;
+}
+
+.selectWrap {
+    min-width: 220px;
+}
+
+.select {
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm);
+    padding: 7px 10px;
+    font: inherit;
+    font-size: var(--text-sm);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    width: 100%;
+}
+
+.banner {
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    font-size: var(--text-sm);
+}
+
+.errorBanner {
+    background: var(--bg-error-secondary);
+    color: var(--fg-error-primary);
+}
+
+.successBanner {
+    background: var(--bg-brand-primary);
+    color: var(--fg-white);
+}
+
+.hint {
+    font-size: var(--text-xs);
+    color: var(--text-secondary);
+}
+
+.canvasArea {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.rulerStrip {
+    position: absolute;
+    top: var(--header-h, 32px);
+    inset-inline-start: 0;
+    width: 52px;
+    bottom: 12px;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 3;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-tertiary);
+    border-radius: var(--radius-xs);
+}
+
+.rulerLabel {
+    position: absolute;
+    inset-inline-start: 6px;
+    font-size: var(--text-xs);
+    color: var(--text-tertiary);
+    line-height: 1;
+    transform: translateY(-50%);
+}
+
+.canvasWrap {
+    overflow-y: auto;
+    overflow-x: hidden;
+    max-height: calc(100vh - 320px);
+    min-height: 320px;
+    margin-inline-start: 52px;
+    border: 1px solid var(--border-tertiary);
+    border-radius: var(--radius-md);
+    background: var(--bg-primary);
+}
+
+.canvas {
+    display: flex;
+    position: relative;
+}
+
+.dayColumn {
+    flex: 1 1 0;
+    min-width: 0;
+    position: relative;
+    border-inline-end: 1px solid var(--border-secondary);
+
+    &:last-child {
+        border-inline-end: none;
+    }
+}
+
+.dayHeader {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--bg-secondary);
+    text-align: center;
+    font-size: var(--text-xs);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-secondary);
+    padding: 8px 4px;
+    border-bottom: 1px solid var(--border-tertiary);
+}
+
+.addBtn {
+    margin-inline-start: 6px;
+    border: none;
+    background: none;
+    color: var(--fg-brand-primary);
+    cursor: pointer;
+    line-height: 0;
+    vertical-align: middle;
+    padding: 0;
+}
+
+.dayBody {
+    position: relative;
+    cursor: copy;
+    background-image: repeating-linear-gradient(to bottom,
+            var(--border-secondary) 0 1px,
+            transparent 1px var(--hour-px, 64px));
+}
+
+.disabled .dayBody,
+.disabled .dayHeader {
+    opacity: .45;
+    pointer-events: none;
+    cursor: default;
+    background: repeating-linear-gradient(45deg,
+            var(--bg-disabled-subtle) 0,
+            var(--bg-disabled-subtle) 8px,
+            transparent 8px,
+            transparent 16px);
+}
+
+.over {
+    outline: 2px dashed var(--fg-brand-primary);
+    outline-offset: -2px;
+}
+
+.card {
+    position: absolute;
+    inset-inline: 4px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-brand-secondary);
+    border: 1px solid var(--fg-brand-primary);
+    overflow: visible;
+    z-index: 1;
+
+    &:hover {
+        z-index: 4;
+    }
+}
+
+.card.conflict {
+    border-color: var(--fg-error-primary);
+    background: var(--bg-error-secondary);
+}
+
+.card.dragging {
+    z-index: 6;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .25);
+    cursor: grabbing;
+}
+
+/* The card being edited stays on top (with its popover) until closed */
+.card.editing {
+    z-index: 7;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .2);
+}
+
+.cardInner {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    border-radius: inherit;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px 4px;
+    text-align: center;
+    font-size: var(--text-xs);
+    color: var(--text-primary);
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+}
+
+.compact .cardInner {
+    font-size: 11px;
+}
+
+.cardInnerStacked {
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+}
+
+.handleTop,
+.handleBottom {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 7px;
+    cursor: ns-resize;
+    z-index: 2;
+}
+
+.handleTop {
+    top: -3px;
+}
+
+.handleBottom {
+    bottom: -3px;
+}
+
+.handleTop:hover,
+.handleBottom:hover {
+    background: color-mix(in srgb, var(--bg-brand-primary) 35%, transparent);
+    border-radius: var(--radius-full);
+}
+
+.quickDelete {
+    position: absolute;
+    top: 8px;
+    inset-inline-end: 8px;
+    z-index: 3;
+    width: 22px;
+    height: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 0;
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-xs);
+    background: var(--bg-primary);
+    color: var(--fg-error-primary);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity .15s ease;
+}
+
+.card:hover .quickDelete {
+    opacity: 1;
+}
+
+.quickDelete:hover {
+    background: var(--bg-error-secondary);
+    border-color: var(--fg-error-primary);
+}
+
+.editCard {
+    position: absolute;
+    top: 100%;
+    inset-inline-start: 0;
+    margin-top: 4px;
+    z-index: 8;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .18);
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 230px;
+    cursor: default;
+}
+
+.editRow {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    font-size: var(--text-xs);
+    color: var(--text-secondary);
+}
+
+.editSelect,
+.editInput {
+    flex: 1;
+    min-width: 0;
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-xs);
+    padding: 4px 6px;
+    font: inherit;
+    font-size: var(--text-xs);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+.deleteBtn {
+    border: 1px solid var(--border-error);
+    color: var(--fg-error-primary);
+    background: none;
+    border-radius: var(--radius-xs);
+    padding: 4px 8px;
+    font: inherit;
+    font-size: var(--text-xs);
+    cursor: pointer;
+}
+
+.editGroups {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 6px;
+    border: 1px dashed var(--border-primary);
+    border-radius: var(--radius-xs);
+}
+
+.editGroupsTitle {
+    font-size: var(--text-xs);
+    color: var(--accent-group);
+    font-weight: 600;
+}
+
+.groupName {
+    max-width: 96px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cardGroups {
+    display: flex;
+    flex-direction: column;
+    gap: 2px 8px;
+    margin-top: 3px;
+}
+
+.cardGroup {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: var(--text-xs);
+    color: var(--accent-group);
+    max-width: 100%;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.groupDot {
+    flex-shrink: 0;
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--accent-group-light);
+}
+
+.footerNote {
+    font-size: var(--text-xs);
+    color: var(--text-quaternary);
+}

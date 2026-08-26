@@ -126,6 +126,10 @@
     --bg-warning-secondary: #FFFCF0;
     --bg-success-primary: #28AA5F;
     --bg-success-secondary: #F0FDF5;
+
+    /* Accent Colors (area groups) */
+    --accent-group: #7C3AED;
+    --accent-group-light: #8B5CF6;
 }
 
 [data-theme="dark"] {
@@ -192,4 +196,8 @@
     --bg-warning-secondary: #808080;
     --bg-success-primary: #28AA5F;
     --bg-success-secondary: #808080;
+
+    /* Accent Colors (area groups) */
+    --accent-group: #A78BFA;
+    --accent-group-light: #8B5CF6;
 }

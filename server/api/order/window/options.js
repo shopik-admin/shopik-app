@@ -1,4 +1,6 @@
 import getWindowTS from '#common/functions/getWindowTS.js'
+import { buildSpecialMap, specialDaysFor, overlapsWindow } from '#common/functions/specialDay.js'
+import { findUserGroupIds } from '#server/utils/data/windowGroups.js'
 const GET_DAYS_AHEAD = 10
 
 export default async function options(payload, { DL, _user, utils }) {
@@ -15,6 +17,12 @@ export default async function options(payload, { DL, _user, utils }) {
     const dateFrom = formatDate(today)
     const dateTo = formatDate(endDate)
 
+    // Group-restricted windows apply to delivery orders only: the shopper's
+    // address area decides which restricted windows they may see.
+    const userGroupIds = cartOrder.deliveryMethod === DL.Order.constants.DELIVERY_METHOD.DELIVERY
+        ? await findUserGroupIds(DL, storeId, cartOrder.address?.areaId)
+        : []
+
     const windows = await DL.OrderWindow.Model.find({
         storeId,
         date: { $gte: dateFrom, $lte: dateTo },
@@ -29,6 +37,8 @@ export default async function options(payload, { DL, _user, utils }) {
             leadTimestamp: 1,
             totalOrders: 1,
             maxCapacity: 1,
+            areaGroups: 1,
+            disabled: 1,
             id: 1
         })
         .sort({ date: 1, start: 1 })
@@ -36,19 +46,45 @@ export default async function options(payload, { DL, _user, utils }) {
 
     if (!windows?.length) return windows
 
+    // Special-day closures are enforced at read time (no mutation of generated rows)
+    const specialDays = await DL.SpecialDay.Model.find({
+        active: true,
+        date: { $gte: dateFrom, $lte: dateTo }
+    })
+        .select({ _id: 0, date: 1, storeIds: 1, start: 1, end: 1, name: 1 })
+        .lean()
+    // filter by scope in-memory via specialDaysFor (global storeIds handling)
+    const specialMap = buildSpecialMap(specialDays)
+
     const now = Date.now()
     const grouped = {}
 
     for (const w of windows) {
+        const configuredGroups = w.areaGroups || []
+        // Windows carrying a group config are reserved for members of those
+        // groups; everyone else must not see them at all. A zeroed bucket
+        // closes the window for its group entirely.
+        const groupEntry = configuredGroups.length && userGroupIds.length
+            ? configuredGroups.find(c => userGroupIds.includes(c.groupId))
+            : null
+        // if (configuredGroups.length && !groupEntry) continue
+        if (groupEntry && groupEntry.capacity === 0) continue
+
         const isPast = w.leadTimestamp < now
-        const isFull = w.totalOrders >= w.maxCapacity
-        const isAlmostFull = w.totalOrders >= (w.maxCapacity - 2)
+        const isFull = w.totalOrders >= w.maxCapacity ||
+            (groupEntry ? groupEntry.count >= groupEntry.capacity : false)
+        const isAlmostFull = !isFull && w.totalOrders >= (w.maxCapacity - 2)
+        const isSpecial = specialDaysFor(specialMap, w.date, storeId)
+            .find(sd => overlapsWindow(sd, w))
+        const isClosed = Boolean(w.disabled)
         delete w.leadTimestamp
         delete w.totalOrders
         delete w.maxCapacity
+        delete w.areaGroups
         w.chosen = window?.id === w.id
-        w.disabled = isPast || isFull
-        w.note = isPast ? 'past' : isFull ? 'full' : isAlmostFull ? 'almost full' : ''
+        // disabled combines the operational closure flag with computed states
+        w.disabled = isClosed || isPast || isFull || isSpecial
+        w.note = isPast ? 'past' : isFull ? 'full' : isSpecial ? isSpecial.name : isClosed ? 'closed' : isAlmostFull ? 'almost full' : ''
 
         const windowsDate = new Date(w.date)
         if (!grouped[w.date]) grouped[w.date] = {

@@ -65,8 +65,4 @@ const comaxProductSchema = {
     lastImportedAt: Date
 }
 
-export const meta = {
-    cacheStrategy: CACHE_STRATEGIES.VERSION
-}
-
 export default comaxProductSchema

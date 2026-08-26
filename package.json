@@ -16,6 +16,7 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@google-cloud/storage": "^8.0.1",
+    "@hebcal/core": "^6.9.2",
     "@turf/area": "^7.4.0",
     "@turf/intersect": "^7.4.0",
     "@turf/rewind": "^7.4.0",

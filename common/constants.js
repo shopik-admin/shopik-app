@@ -15,3 +15,12 @@ export const CACHE_STRATEGIES = {
     VERSION: 'version',
     HASHSET: 'hashset'
 }
+
+export const WINDOWS_PAGE = {
+    FOCUS_START_HOUR: 6,
+    FOCUS_END_HOUR: 22,
+    HOUR_PX: 64,
+    MAX_CAPACITY: 100
+}
+
+export const SPECIAL_DAY_EREV_START = 13

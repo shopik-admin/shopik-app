@@ -452,7 +452,8 @@ const defaultSelect = {
     orderPickupToken: 1,
     deliveryMethod: 1,
     storeId: 1,
-    window: 1
+    window: 1,
+    address: 1
 }
 
 const index = [

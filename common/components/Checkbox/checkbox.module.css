@@ -18,7 +18,7 @@ label.cb {
 
     &.checkbox {
         .checkboxCircle {
-            border: 2px solid var(--border-strong);
+            border: 2px solid var(--text-primary);
             border-radius: 5px;
             width: 18px;
             height: 18px;
@@ -38,13 +38,12 @@ label.cb {
 
         &.checked {
             .checkboxCircle {
-                /*  border-color: var(--border-default); */
                 border-color: var(--text-primary);
                 background-color: var(--text-primary);
             }
 
             .checkMark {
-                color: var(--bg-surface);
+                color: var(--bg-primary);
             }
         }
     }

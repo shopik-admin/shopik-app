@@ -38,6 +38,12 @@
             border-color: var(--bg-brand-primary);
             box-shadow: 0 0 0 1px var(--bg-brand-primary);
         }
+
+        &.disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+
+        }
     }
 
     :global(.Loader_) {
