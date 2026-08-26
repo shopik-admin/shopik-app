@@ -9,7 +9,7 @@ import { overlapsSpecialDay } from '#common/functions/specialDay.js'
 // Chol HaMoed, Purim, fasts, memorial/modern days don't carry the CHAG flag.
 // Erev Yom Tov events (candle-lighting erevs) become half-day closures.
 export async function seedHolidays(DL) {
-    const monthsAhead = Number(process.env.HOLIDAY_SEED_MONTHS_AHEAD) || 6
+    const monthsAhead = Number(process.env.HOLIDAY_SEED_MONTHS_AHEAD) || 12
     const now = new Date()
     const end = new Date(now)
     end.setMonth(end.getMonth() + monthsAhead)
