@@ -140,7 +140,7 @@
             margin-top: 8px;
 
             /* Make both popover buttons share row equally - single source override */
-            & > * {
+            &>* {
                 flex: 1 1 50%;
                 min-width: 0;
             }

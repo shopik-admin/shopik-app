@@ -14,7 +14,14 @@
     align-items: center;
     justify-content: space-between;
     gap: 16px;
-    /* flex-wrap: wrap; */
+    flex-wrap: wrap;
+    direction: ltr;
+}
+
+.leftGroup {
+    display: flex;
+    align-items: center;
+    flex: 0 1 auto;
     direction: ltr;
 }
 
@@ -38,7 +45,6 @@
     flex-wrap: wrap;
     justify-content: flex-end;
     direction: rtl;
-    flex: 1;
 }
 
 .separator {
@@ -50,12 +56,13 @@
 .pill {
     display: inline-flex;
     align-items: center;
+    height: 36px;
     gap: 6px;
     padding: 7px 14px;
     border-radius: 999px;
     border: 1px solid #e6e6e6;
     background: #fff;
-    font-size: 13px;
+    font-size: var(--text-md);
     cursor: pointer;
     white-space: nowrap;
     color: #3a3a3a;
@@ -67,7 +74,7 @@
 }
 
 .pill.overflowPill {
-    background: #0f3d3a;
+    background: var(--bg-brand-primary);
     color: #fff;
     border-color: #0f3d3a;
 }
@@ -99,7 +106,7 @@
 }
 
 .chevron {
-    font-size: 12px;
+    font-size: var(--text-xl);
     opacity: 0.7;
 }
 
@@ -175,10 +182,10 @@
     align-items: center;
     gap: 6px;
     padding: 4px 10px;
-    border-radius: 999px;
-    background: #f1f1f1;
-    border: 1px solid #e8e8e8;
-    font-size: 12px;
+    border-radius: var(--radius-full);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-secondary);
+    font-size: var(--text-sm);
 }
 
 .chipX {
@@ -195,10 +202,10 @@
 .clearAll {
     background: none;
     border: none;
-    font-size: 12px;
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-semibold);
     cursor: pointer;
     color: var(--primary, #0f3d3a);
-    text-decoration: underline;
     white-space: nowrap;
 }
 

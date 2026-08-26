@@ -6,16 +6,13 @@ import Popover from 'common/components/Popover'
 import Icon from 'common/components/Icon'
 import Flex from 'common/components/Flex'
 import DataSearch from '../DataSearch'
+import DataActions from '../DataActions'
 import styles from './filterBar.module.css'
 
 // ponytail: single component handles descriptors + store lookup + chips; reuse Popover/Button
 
 const LABEL_OVERRIDES = {
-    storeId: 'store_address_title',
-    'window.date': 'window.date',
-    status: 'status',
-    deliveryMethod: 'deliveryMethod',
-    tag: 'tag'
+    storeId: 'store_address_title'
 }
 
 function getLabel(TR, key) {
@@ -56,7 +53,7 @@ function isActive(filter, key) {
     return true
 }
 
-export default function FilterBar() {
+export default function FilterBar({ actions, cols }) {
     const { apiRoute, filter, setFilter } = useData()
     const { TR } = useText()
     const [descriptors, setDescriptors] = useState([])
@@ -81,14 +78,26 @@ export default function FilterBar() {
     const visible = mainDescriptors.slice(0, visibleCount)
     const overflow = [...mainDescriptors.slice(visibleCount), ...otherDescriptors]
 
-    if (!descriptors.length) return null
+    // ponytail: keep hooks before early return
     const isFiltered = Object.keys(filter).length > 0
+    if (!descriptors.length) {
+        // still show search + actions card when no descriptors (e.g. other collections)
+        return <div className={styles.wrapper}>
+            <div className={styles.topRow}>
+                <Flex gap={10} alignItems='center' className={styles.leftGroup}>
+                    {actions?.length ? <DataActions actions={actions} cols={cols} /> : null}
+                    <div className={styles.searchWrap}><DataSearch /></div>
+                </Flex>
+            </div>
+        </div>
+    }
     return <div className={styles.wrapper}>
         <div className={styles.topRow}>
-            <div className={styles.searchWrap}>
-                <DataSearch />
-            </div>
-            <Flex gap={8} alignItems='center' wrap className={styles.bar}>
+            <Flex gap={10} alignItems='center' className={styles.leftGroup}>
+                {actions?.length ? <DataActions actions={actions} cols={cols} /> : null}
+                <div className={styles.searchWrap}><DataSearch /></div>
+            </Flex>
+            <Flex gap={10} alignItems='center' wrap className={styles.bar}>
                 {overflow.length > 0 && <OverflowDropdown descriptors={overflow} filter={filter} setFilter={setFilter} TR={TR} storeMap={storeMap} />}
                 {visible.map(d => (
                     <FilterPill key={d.key} descriptor={d} filter={filter} setFilter={setFilter} TR={TR} storeMap={storeMap} />
@@ -281,12 +290,12 @@ function FilterChips({ filter, setFilter, descriptors, TR, storeMap }) {
     if (!chips.length) return null
 
     return <Flex gap={8} alignItems='center' wrap className={styles.chips}>
-        <button className={styles.clearAll} onClick={() => setFilter({})}>{TR('clearAll') || 'נקה הכל'}</button>
         {chips.map(c => (
             <span key={c.key} className={styles.chip}>
                 {c.label}
                 <button className={styles.chipX} onClick={c.onRemove} aria-label='remove'><Icon name='x' /></button>
             </span>
         ))}
+        <button className={styles.clearAll} onClick={() => setFilter({})}>{TR('clearAll') || 'נקה הכל'}</button>
     </Flex>
 }
