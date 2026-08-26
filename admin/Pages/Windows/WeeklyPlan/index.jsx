@@ -203,7 +203,10 @@ export default function WeeklyPlan({ onDirtyChange }) {
         setSuccess(null)
         try {
             await apiReq('order_window_template/update', { id: selected.id, windows: stripForSave(draft) })
-            const syncResult = await apiReq('order_window_template/sync', { fromDate: addDays(todayStr(), 1) })
+            const syncResult = await apiReq('order_window_template/sync', {
+                fromDate: addDays(todayStr(), 1),
+                ...(choice !== 'master' ? { storeIds: [choice] } : {})
+            })
             const totals = syncResult.reduce((acc, s) => ({
                 created: acc.created + (+s.synced?.created || 0),
                 updated: acc.updated + (+s.synced?.updated || 0),

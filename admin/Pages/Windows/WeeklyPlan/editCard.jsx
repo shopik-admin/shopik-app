@@ -111,6 +111,17 @@ export default function EditCard({ win, storeGroups = [], onChange, onDelete, on
                                 value={entry?.capacity ?? ''}
                                 onChange={e => patchGroup(group.id, e.target.value)}
                             />
+                            {entry != null && (
+                                <button
+                                    type="button"
+                                    className={styles.deleteBtn}
+                                    title={TR('windows_delete_limit')}
+                                    onClick={() => patchGroup(group.id, '')}
+                                    style={{ padding: '2px 6px' }}
+                                >
+                                    <Icon name="trash" />
+                                </button>
+                            )}
                         </div>
                     )
                 })}
