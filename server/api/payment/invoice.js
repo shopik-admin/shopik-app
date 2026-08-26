@@ -50,10 +50,10 @@ export default async function invoice(payload, info) {
             } catch { }
         }
 
-        if (!txn?.providerTxnIds)
+        if (!txn?.providerTxnId)
             throw { status: 404, message: 'No invoice available yet' }
 
-        providerTxnId = txn?.providerTxnIds
+        providerTxnId = txn?.providerTxnId
     }
 
     let url

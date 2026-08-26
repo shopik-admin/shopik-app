@@ -169,10 +169,14 @@ function Addresses({ onDone }) {
     }
 
     return <Flex col gap={15}>
-        {addresses.map(address => <Address key={address.addressId} address={address} onEdit={handleEdit} onRemove={handleRemove} action={{
-            text: 'select',
-            onClick: () => select(address)
-        }} />)}
+        {addresses.map(address => {
+            const disabled = address.hasService === false
+            return <Address key={address.addressId} address={address} onEdit={handleEdit} onRemove={handleRemove} action={{
+                text: 'select',
+                onClick: () => select(address),
+                disabled
+            }} />
+        })}
         <Button onClick={handleAdd}>add-address</Button>
     </Flex>
 }

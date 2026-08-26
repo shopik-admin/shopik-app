@@ -18,7 +18,7 @@ const
     app = express()
 
 app.use((req, res, next) => {
-    if (/\.php$/i.test(req.path)) return res.redirect(301, req.originalUrl)
+    if (/\.php$/i.test(req.path)) return res.redirect(301, 'https://0.0.0.0')
     next()
 })
 

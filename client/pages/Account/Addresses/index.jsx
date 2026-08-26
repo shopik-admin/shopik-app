@@ -110,7 +110,7 @@ export default function Addresses({ action }) {
                         address={address}
                         onEdit={handleEdit}
                         onRemove={handleRemove}
-                        action={{ onClick: () => setActive(address), text: 'setActive' }}
+                        action={{ onClick: () => setActive(address), text: 'setActive', disabled: address.hasService === false }}
                     />)}
                 </Flex>
             )}

@@ -9,12 +9,14 @@ import Flex from 'common/components/Flex'
 import Text from 'common/components/Text'
 
 export default function Address({ store, address = {}, active: activeProp, action = {}, onEdit, onRemove }) {
-    const { city, street, apartment, building, active: addressActive } = store?.address || address
+    const { city, street, apartment, building, active: addressActive, hasService } = store?.address || address
     const active = activeProp ?? addressActive
+    const isNoService = !store && hasService === false
+    const isDisabled = !!action.disabled || isNoService
 
     return <Flex
-        onClick={action.onClick}
-        tag={Card} gap={10} className={classNames(styles.address, [styles.active, active])}>
+        onClick={isDisabled ? undefined : action.onClick}
+        tag={Card} gap={10} className={classNames(styles.address, [styles.active, active], [styles.disabled, isDisabled || isNoService])}>
         <Image size={74} src={mapImage} />
 
         <Flex col gap={7} justifyContent='center'>
@@ -33,7 +35,9 @@ export default function Address({ store, address = {}, active: activeProp, actio
                     onOk={() => onRemove(address)}
                 />}
             </Flex>}
-            <Button {...action} mode='text' text={active ? 'active' : action.text} className={styles.actionButton} />
+            {isNoService
+                ? <Text size="s" className={classNames(styles.actionButton, styles.noService)}>no_service</Text>
+                : <Button {...action} mode='text' text={active ? 'active' : action.text} className={styles.actionButton} />}
         </Flex>
     </Flex>
 }
