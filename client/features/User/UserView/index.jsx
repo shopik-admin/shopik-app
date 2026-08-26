@@ -12,8 +12,10 @@ import Form from 'common/components/Form'
 import Tabs from 'common/components/Tabs'
 import Text from 'common/components/Text'
 import { useUser } from 'features/User'
-import { useState } from 'react'
-import Account from 'pages/Account'
+import { Suspense, lazy, useState } from 'react'
+import Loader from '#common/components/Loader'
+
+const Account = lazy(() => import('pages/Account'))
 
 
 export default function UserView({ }) {
@@ -35,7 +37,9 @@ export default function UserView({ }) {
         {({ close }) => {
             if (user?.id)
                 return <Flex gap={20} col className={styles.userView}>
-                    <Account onClose={close} />
+                    <Suspense fallback={<Loader />}>
+                        <Account onClose={close} />
+                    </Suspense>
                 </Flex>
             return <Flex gap={20} col className={styles.userView}>
                 <Tabs active={tab} onChange={setTab} options={['login', 'register']} />

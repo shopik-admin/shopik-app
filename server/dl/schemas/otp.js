@@ -9,7 +9,8 @@ const otpSchema = {
     otp: { type: String, required: true },
     token: { type: String, required: true },
     userId: String,
-    payload: Object
+    payload: Object,
+    attempts: { type: Number, default: 0 }
 }
 
 const index = [

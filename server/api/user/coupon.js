@@ -50,8 +50,7 @@ function isCouponEligible(coupon, user, orderSum) {
     if (coupon.condition) {
         if (coupon.condition.orderRange) {
             const { start: rangeStart, end: rangeEnd } = coupon.condition.orderRange
-            const { totalOrders = 0 } = user
-            if (totalOrders < rangeStart || (rangeEnd !== undefined && totalOrders > rangeEnd)) return { eligible: false }
+            if (orderSum < rangeStart || (rangeEnd !== undefined && orderSum > rangeEnd)) return { eligible: false }
         }
 
         if (coupon.condition.lastOrder) {

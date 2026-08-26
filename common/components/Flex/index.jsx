@@ -1,5 +1,6 @@
 import classNames from 'common/functions/classNames'
 import styles from './flex.module.css'
+import { useMemo } from 'react'
 
 /**
  * @typedef {Object} FlexOwnProps
@@ -31,6 +32,10 @@ export default function Flex({
     tag: Tag = 'div',
     ...props
 }) {
+    const mergedStyle = useMemo(
+        () => ({ gap, flexGrow: grow, flexShrink: shrink, ...style }),
+        [gap, grow, shrink, style]
+    )
 
     return <Tag
         className={classNames(
@@ -42,7 +47,7 @@ export default function Flex({
             styles[`ai-${alignItems || (center ? 'center' : '')}`],
             styles[`jc-${justifyContent || (center ? 'center' : '')}`]
         )}
-        style={{ gap, flexGrow: grow, flexShrink: shrink, ...style }}
+        style={mergedStyle}
         {...props}
     >
         {children}

@@ -1,17 +1,23 @@
 import { USER_TOKEN_EXPIRY_MS, USER_TOKEN_COOKIE, GUEST_CART_TOKEN_COOKIE } from '#common/constants.js'
+import verifyOtp from '#server/utils/auth/verifyOtp.js'
+import rateLimit from '#server/utils/auth/rateLimit.js'
 
-export default async function login({ idNum, otpToken, otp }, { DL, utils, platform, setCookie, cookies, clearCookie }) {
+export default async function login({ idNum, otpToken, otp }, { DL, utils, platform, setCookie, cookies, clearCookie, ip }) {
+    await rateLimit(DL, 'otp:verify:ip', ip, 30, 600)
+
     const storedOtp = await DL.Otp.readOne({ token: otpToken })
-    if (!storedOtp || storedOtp.otp !== otp)
+    if (!await verifyOtp(DL, storedOtp, otp))
         throw { message: 'invalid OTP', status: 403 }
 
     let user
 
     if (storedOtp.payload) {
+        if (idNum !== storedOtp.payload.idNum)
+            throw { message: 'login failed', status: 403 }
         user = await DL.User.create(storedOtp.payload)
     } else {
         user = await DL.User.readOne({ idNum })
-        if (!user)
+        if (!user || user.phone !== storedOtp.phone)
             throw { message: 'login failed', status: 403 }
     }
 

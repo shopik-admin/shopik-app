@@ -68,7 +68,7 @@ export default function startHolidaySeed(bootData) {
     const { DL } = bootData
     const schedule = process.env.HOLIDAY_SEED_CRON || '0 3 * * 1'
 
-    cron.schedule(schedule, async () => {
+    const task = cron.schedule(schedule, async () => {
         try {
             const result = await seedHolidays(DL)
             log.success(`[HolidaySeed] Done: ${result.seeded} seeded of ${result.total} candidates`)
@@ -78,4 +78,5 @@ export default function startHolidaySeed(bootData) {
     }, { timezone: process.env.TZ || 'Asia/Jerusalem' })
 
     log.info(`[HolidaySeed] Scheduled: ${schedule}`)
+    return task
 }

@@ -26,7 +26,7 @@ export default function startNightlySync(bootData) {
     const { DL, external } = bootData
     const schedule = process.env.NIGHTLY_SYNC_CRON || '0 2 * * *'
 
-    cron.schedule(schedule, async () => {
+    const task = cron.schedule(schedule, async () => {
         let release
         try {
             release = await acquireLock(DL.redis)
@@ -49,4 +49,5 @@ export default function startNightlySync(bootData) {
     }, { timezone: process.env.TZ || 'Asia/Jerusalem' })
 
     log.info(`[NightlySync] Scheduled: ${schedule}`)
+    return task
 }

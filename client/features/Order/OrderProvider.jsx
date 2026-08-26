@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { useAppData } from 'App'
 
 const OrderContext = createContext()
@@ -31,7 +31,9 @@ export default function OrderProvider({ children }) {
         if (order?.cart) localStorage.cart = JSON.stringify(order.cart)
     }, [order])
 
-    return <OrderContext value={{ order, setOrder }}>
+    const contextValue = useMemo(() => ({ order, setOrder }), [order])
+
+    return <OrderContext value={contextValue}>
         {children}
     </OrderContext>
-}   
+}

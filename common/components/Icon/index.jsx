@@ -1,122 +1,17 @@
 import classNames from 'common/functions/classNames'
 import styles from './icon.module.css'
-import {
-    LuPlus, LuPencil, LuTrash2, LuChevronLeft, LuChevronRight, LuChevronUp, LuChevronDown,
-    LuDownload, LuSettings, LuMenu, LuSearch, LuEllipsis, LuUser, LuContact, LuMonitor,
-    LuBell, LuLogOut, LuLayoutGrid, LuLayoutDashboard, LuBuilding, LuBuilding2, LuReplace,
-    LuListChecks, LuHeadset, LuCircleHelp, LuClipboard, LuClipboardList, LuFileText, LuUsers,
-    LuTable, LuKeyRound, LuCalendar, LuSheet, LuRefreshCw, LuX, LuCheck, LuCircleCheck, LuCalendarClock,
-    LuSmartphone, LuMonitorSmartphone, LuUndo2, LuReceipt, LuUnfoldVertical, LuFoldVertical,
-    LuLoader, LuCopy, LuShare, LuCircle, LuGithub, LuPlay, LuPause, LuShoppingCart,
-    LuShoppingBag, LuArrowUpDown, LuCode, LuPackage, LuStore, LuGlobe, LuPercent, LuTicket,
-    LuSun, LuMoon, LuCloudUpload, LuMap, LuClock, LuTruck, LuCreditCard, LuBarcode,
-    LuListPlus, LuNotebookPen, LuPanelRightClose, LuPanelRightOpen, LuCalendarPlus
-} from 'react-icons/lu'
-import { BsFileEarmarkExcel } from 'react-icons/bs'
-import { TbHeartPlus } from 'react-icons/tb'
+import { coreIcons } from './coreIcons.js'
 
-const iconsList = {
-    add: LuPlus,
-    edit: LuPencil,
-    trash: LuTrash2,
-    left: LuChevronLeft,
-    right: LuChevronRight,
-    download: LuDownload,
-    settings: LuSettings,
-    menu: LuMenu,
-    search: LuSearch,
-    options: LuEllipsis,
-    person: LuUser,
-    persons: LuContact,
-    desktop: LuMonitor,
-    notifications: LuBell,
-    exit: LuLogOut,
-    logout: LuLogOut,
-    fallback: LuLayoutGrid,
-    dashboard: LuLayoutDashboard,
-    buildings: LuBuilding2,
-    building: LuBuilding,
-    replace: LuReplace,
-    placement: LuListChecks,
-    tasks: LuHeadset,
-    question: LuCircleHelp,
-    clipboard: LuClipboard,
-    clipboardList: LuClipboardList,
-    reports: LuFileText,
-    users: LuUsers,
-    table: LuTable,
-    key: LuKeyRound,
-    calendar: LuCalendar,
-    csv: BsFileEarmarkExcel,
-    refresh: LuRefreshCw,
-    x: LuX,
-    v: LuCheck,
-    payRepeat: LuCalendarClock,
-    back: LuChevronRight,
-    asign: LuSmartphone,
-    release: LuMonitorSmartphone,
-    refund: LuUndo2,
-    receipt: LuReceipt,
-    expand: LuUnfoldVertical,
-    collapse: LuFoldVertical,
-    load: LuLoader,
-    copy: LuCopy,
-    share: LuShare,
-    down: LuChevronDown,
-    calendarAdd: LuCalendarPlus,
-    check: LuCircleCheck,
-    checkEmpty: LuCircle,
-    github: LuGithub,
-    play: LuPlay,
-    pause: LuPause,
-    cart: LuShoppingCart,
-    sort: LuArrowUpDown,
-    sortUp: LuChevronUp,
-    sortDown: LuChevronDown,
-    log: LuCode,
-    products: LuPackage,
-    orders: LuShoppingBag,
-    stores: LuStore,
-    domains: LuGlobe,
-    sale: LuPercent,
-    coupon: LuTicket,
-    toMini: LuPanelRightClose,
-    unMini: LuPanelRightOpen,
-    darkMode: LuMoon,
-    lightMode: LuSun,
-    sync: LuCloudUpload,
-    user: LuUser,
-    map: LuMap,
-    time: LuClock,
-    bag: LuShoppingBag,
-    truck: LuTruck,
-    card: LuCreditCard,
-    barcode: LuBarcode,
-    listPlus: LuListPlus,
-    heartPlus: TbHeartPlus,
-    note: LuNotebookPen
+let extraIcons = {}
+
+export function registerIcons(icons) {
+    extraIcons = { ...extraIcons, ...icons }
 }
 
-/**
- * All supported icon names extracted directly from the keys of iconsList.
- *
- * @typedef {keyof typeof iconsList} IconNames
- */
+const allIcons = () => ({ ...coreIcons, ...extraIcons })
 
-/**
- * Icon component.
- *
- * Renders an SVG icon from `react-icons/lu` (Lucide) based on the provided name.
- * Additional props are forwarded to the underlying SVG element.
- *
- * @param {Object} props
- * @param {IconNames} props.name - Icon identifier
- * @param {string} [props.className] - Additional CSS class names
- * @param {boolean} [props.fallback=false] - Use fallback icon if name is invalid
- * @param {...import('react').SVGProps<SVGSVGElement>} [props] - SVG props
- * @returns {JSX.Element|null}
- */
 export default function Icon({ className, name, fallback = false, ...props }) {
+    const iconsList = allIcons()
     let I = iconsList[name]
     if (!I && fallback) I = iconsList.fallback
 

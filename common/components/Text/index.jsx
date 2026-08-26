@@ -1,12 +1,17 @@
 import classNames from 'common/functions/classNames'
 import { useText } from 'common/texts/TextProvider'
 import styles from './text.module.css'
+import { useMemo } from 'react'
 
 export default function Text({ className = '', children, text = children, size = 'm', tag, bold, underline, mode, italic, lineThrough, ellipsis, center, style, ...props }) {
     const
         { TR } = (useText?.() || {}),
         Txt = tag || sizes[size],
-        txt = typeof text != 'string' ? text : (TR?.(text) || text)
+        txt = typeof text != 'string' ? text : (TR?.(text) || text),
+        mergedStyle = useMemo(
+            () => ({ WebkitLineClamp: ellipsis, ...style }),
+            [ellipsis, style]
+        )
 
     return size == 'none' ? txt : <Txt
         className={classNames(
@@ -21,7 +26,7 @@ export default function Text({ className = '', children, text = children, size =
             [styles.lineThrough, lineThrough],
             [styles.ellipsis, ellipsis && ellipsis != '0'],
         )}
-        style={{ WebkitLineClamp: ellipsis, ...style }}
+        style={mergedStyle}
         {...props}
     >{txt}</Txt>
 }

@@ -1,6 +1,9 @@
 import uid from '#common/functions/uid.js'
+import rateLimit from '#server/utils/auth/rateLimit.js'
 
-export default async function register(payload, { DL, utils, external }) {
+export default async function register(payload, { DL, utils, external, ip }) {
+    await rateLimit(DL, 'register:ip', ip, 10, 3600)
+
     const name = utils.extractFields.getName(payload)
     if (name) payload.name = name
 
@@ -17,6 +20,8 @@ export default async function register(payload, { DL, utils, external }) {
     const existingIdNum = await DL.User.count({ idNum: filtered.idNum })
     if (existingIdNum)
         throw { status: 409, message: 'id number already registered' }
+
+    await rateLimit(DL, 'otp:req:phone', filtered.phone, 5, 600)
 
     const token = uid()
     const otp = uid(6, true)

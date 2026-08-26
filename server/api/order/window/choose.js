@@ -87,25 +87,27 @@ export default async function choose(payload, { DL, _user, utils }) {
             { select: DL.Order.defaultSelect }
         )
 
-        const { record, userActor } = utils.data.timeline
-        await record({
-            DL,
-            order,
-            eventType: DL.Timeline.constants.EVENT_TYPES.ORDER_WINDOW,
-            actor: userActor(_user),
-            changes: {
-                oldData: { window: order.window },
-                newData: { window: orderUpdate.window }
-            }
-        })
+        try {
+            const { record, userActor } = utils.data.timeline
+            await record({
+                DL,
+                order,
+                eventType: DL.Timeline.constants.EVENT_TYPES.ORDER_WINDOW,
+                actor: userActor(_user),
+                changes: {
+                    oldData: { window: order.window },
+                    newData: { window: orderUpdate.window }
+                }
+            })
+        } catch {}
+
+        if (previousWindowId)
+            await releaseWindowReservation(DL, previousWindowId, order.window?.reservedGroupId)
 
         return updatedOrder
     } catch (err) {
+        await releaseWindowReservation(DL, windowId, reservedGroupId).catch(() => {})
         throw err
-    } finally {
-        if (previousWindowId) {
-            await releaseWindowReservation(DL, previousWindowId, order.window?.reservedGroupId)
-        }
     }
 }
 

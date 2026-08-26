@@ -1,35 +1,39 @@
+import { lazy } from 'react'
 import Products from './Products'
-import Account from './Account'
 import Home from './Home'
 import Product from './Product'
-import Checkout from './Checkout'
 import Search from './Search'
 import NotFound from './NotFound'
+
+const Account = lazy(() => import('./Account'))
+const Checkout = lazy(() => import('./Checkout'))
 
 export default [
     {
         path: '/',
         element: Home,
         title: 'דף הבית',
-        description: 'ברוכים הבאים'
+        description: 'חנות אונליין'
     },
     {
         path: '/products/*',
         element: Products,
         title: 'מוצרים',
-        description: 'קטלוג מוצרים'
+        description: 'רשימת מוצרים'
     },
     {
         path: '/search',
         element: Search,
         title: 'חיפוש',
-        description: 'חיפוש מוצרים'
+        description: 'חיפוש מוצרים',
+        noindex: true
     },
     {
         path: '/account/*',
         element: Account,
         title: 'אזור אישי',
-        description: 'ניהול החשבון שלי'
+        description: 'עמוד פרטים אישיים',
+        noindex: true
     },
     {
         path: 'product/:productId',
@@ -41,7 +45,8 @@ export default [
         path: 'checkout',
         element: Checkout,
         title: 'קופה',
-        description: 'מעבר לתשלום'
+        description: 'סיום הזמנה',
+        noindex: true
     },
     {
         path: '*',

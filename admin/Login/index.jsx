@@ -5,6 +5,8 @@ import 'common/styles/global.css'
 import '../styles/admin.css'
 
 import TextProvider from 'common/texts/TextProvider.jsx'
+import { registerIcons } from 'common/components/Icon'
+import { adminIcons } from '../../common/components/Icon/adminIcons.js'
 import DigitsInput from 'common/components/DigitsInput'
 import ThemeToggle from 'components/ThemeToggle'
 import apiReq from 'common/functions/apiReq.js'
@@ -15,6 +17,8 @@ import Text from 'common/components/Text'
 import Card from 'common/components/Card'
 import Flex from 'common/components/Flex'
 import { useState } from 'react'
+
+registerIcons(adminIcons)
 
 ReactDOM
     .createRoot(document.getElementById('root'))
@@ -46,6 +50,16 @@ export default function Login() {
             .catch(error => setFormState({ error }))
     }
 
+    function sendAgain() {
+        setFormState({ loading: true })
+        apiReq('admin/login_otp', { idNum: idNum.idNum })
+            .then(({ token }) => {
+                setIdNum({ otpToken: token, idNum: idNum.idNum })
+                setFormState({})
+            })
+            .catch(error => setFormState({ error }))
+    }
+
     return <Flex center col className={styles.login}>
         <Card className={styles.card}>
             <Text size='h1' bold>login_title</Text>
@@ -72,7 +86,7 @@ export default function Login() {
                         <DigitsInput name='otp' onCodeComplete={otp => submit({ otp })} />
                         <Flex center gap={5}>
                             <Text>did_not_receive_code</Text>
-                            <Button type='button' mode='text-brand' onClick={() => submit({ idNum: idNum.idNum })}>send_again</Button>
+                            <Button type='button' mode='text-brand' onClick={sendAgain}>send_again</Button>
                         </Flex>
                     </Flex>
                 }

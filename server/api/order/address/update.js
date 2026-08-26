@@ -1,6 +1,10 @@
 const MAX_DIST_FROM_STORE_KM = 10
 
 export async function findClosestStore(address, DL) {
+    const coords = address?.location?.coordinates
+    if (!Array.isArray(coords) || coords.length !== 2 || coords.some(c => typeof c !== 'number'))
+        return null
+
     const store = await DL.Store.Model.findOne({
         'address.location': {
             $nearSphere: {
@@ -40,13 +44,13 @@ export async function updateOrderAddress({ DL, utils, address, order, select = D
         newData.storeName = newStore?.name || null
     }
 
-    utils.data.timeline.record({
+    await utils.data.timeline.record({
         DL,
         order,
         eventType: DL.Timeline.constants.EVENT_TYPES.ORDER_ADDRESS,
         actor,
         changes: { oldData, newData }
-    })
+    }).catch(() => {})
 
     return updatedOrder
 }

@@ -12,6 +12,8 @@ export default async function update(payload, { DL, validators, utils }) {
     const name = utils.extractFields.getName(payload)
     if (name) payload.name = name
 
+    delete payload.tokens
+
     const update = diff(admin, payload)
 
     const nothingToUpdate = Object.keys(update).length === 0

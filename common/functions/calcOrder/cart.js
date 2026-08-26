@@ -112,7 +112,6 @@ export function calcOrder({ order, product, amount, unitKey, sales }) {
         }
     }
     const calcResult = calcOrderSum({ cart, sales: sales || {} })
-    console.log('calc', { cart, sales: sales || {} })
     applyCalcToCart({ cart, calcResult })
 
     return {

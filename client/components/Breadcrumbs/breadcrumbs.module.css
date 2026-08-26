@@ -1,6 +1,19 @@
 .breadcrumbs {
     width: fit-content;
 
+    .list {
+        display: flex;
+        align-items: center;
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        gap: 0.25rem;
+    }
+
+    .item {
+        display: flex;
+    }
+
     a {
         color: var(--text-secondary);
 

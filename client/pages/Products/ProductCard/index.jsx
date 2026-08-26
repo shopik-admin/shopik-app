@@ -1,6 +1,6 @@
 import styles from './productCard.module.css'
 import Button from 'common/components/Button'
-import Image from 'common/components/Image'
+import Image, { buildSrcSet } from 'common/components/Image'
 import Flex from 'common/components/Flex'
 import Text from 'common/components/Text'
 import { Link } from 'react-router'
@@ -8,9 +8,9 @@ import classNames from 'common/functions/classNames'
 import calcOrder from '#common/functions/calcOrder/cart.js'
 import apiReq from '#common/functions/apiReq.js'
 import { useOrder } from 'features/Order/OrderProvider'
-import { useRef } from 'react'
+import { memo, useRef } from 'react'
 
-export default function ProductCard(props) {
+function ProductCard(props) {
     const { product } = props
     return <Flex
         tag={Link}
@@ -25,14 +25,20 @@ export default function ProductCard(props) {
     </Flex>
 }
 
+export default memo(ProductCard)
+
 export function ProductImage({ product, size = 'm' }) {
     const { images } = product || {}
     const mainImage = images?.product?.find(i => i.main === true) || images?.[0] || null
-    const src = mainImage?.sizes[size] || ''
+    const src = mainImage?.sizes[size] || mainImage?.sizes.l || ''
+    const srcSet = buildSrcSet(mainImage?.sizes)
 
     return <Image
         className={classNames(styles.productImage, styles[size])}
-        src={src} alt={product.name} />
+        src={src}
+        alt={product.name}
+        srcSet={srcSet}
+        sizes={srcSet ? '(max-width: 600px) 45vw, 300px' : undefined} />
 }
 
 export function ProductInfo(props) {
@@ -52,7 +58,6 @@ export function ProductButton({ product, size = 'm', sales = {} }) {
 
     const updateAmount = (newAmount) => {
         const currentRequest = ++latestRequest.current
-        console.log({ sales, product, newAmount })
         const optimisticOrder = calcOrder({
             order: order || {},
             product,

@@ -31,7 +31,12 @@ export function getQueue() {
 export async function enqueueImageJobs(jobs) {
     if (!jobs?.length) return
 
-    await getQueue().addBulk(
+    const q = getQueue()
+    await Promise.all(
+        jobs.map(job => q.remove(`p-${job.productId}`).catch(() => {}))
+    )
+
+    await q.addBulk(
         jobs.map(job => ({
             name: 'process-image',
             data: {
@@ -43,7 +48,7 @@ export async function enqueueImageJobs(jobs) {
                 attempts: 5,
                 backoff: { type: 'exponential', delay: 2 * 60 * 1000 },
                 removeOnComplete: true,
-                removeOnFail: false
+                removeOnFail: true
             }
         }))
     )

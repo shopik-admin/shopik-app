@@ -55,6 +55,8 @@ export default function Product() {
                             width={560}
                             height={560}
                             className={styles.mainImage}
+                            loading='eager'
+                            fetchPriority='high'
                         />
                     </div>
 
@@ -79,7 +81,7 @@ export default function Product() {
                 <Flex className={styles.info} col gap={8} width={400}>
                     {price !== undefined && (
                         <Flex className={styles.priceRow} gap={8} alignItems='flex-end'>
-                            <Text size='h1' bold style={{ fontSize: '48px', lineHeight: 1 }}>
+                            <Text size='xxl' bold style={{ fontSize: '48px', lineHeight: 1 }}>
                                 {price} ₪
                             </Text>
                             <Text mode='sub' style={{ fontSize: '18px', marginBottom: '4px' }}>
@@ -117,7 +119,7 @@ export default function Product() {
     )
 }
 
-Product.init = async function (path) {
+Product.init = async function (path, { origin = '' } = {}) {
     const productId = path.split('/').pop()
     const res = await apiReq('product/get', { id: productId })
     const product = res.products?.[0]
@@ -126,9 +128,37 @@ Product.init = async function (path) {
         return { notFound: true, title: '404' }
     }
 
+    const price = product.prices?.[0]?.price
+    const mainImage = (product.images?.product || []).find(img => img?.main)?.sizes?.xl
+        || product.images?.product?.[0]?.sizes?.xl
+    const absoluteImage = mainImage && !mainImage.startsWith('http') ? `${origin}${mainImage}` : mainImage
+    const canonical = origin ? `${origin}/product/${productId}` : undefined
+
+    const jsonLd = [{
+        '@context': 'https://schema.org',
+        '@type': 'Product',
+        name: product.name,
+        description: product.description || product.name,
+        ...(absoluteImage ? { image: [absoluteImage] } : {}),
+        ...(product.barcode ? { sku: product.barcode } : {}),
+        ...(res.categoryPath ? { category: res.categoryPath } : {}),
+        offers: {
+            '@type': 'Offer',
+            ...(canonical ? { url: canonical } : {}),
+            priceCurrency: 'ILS',
+            ...(price !== undefined ? { price: Number(price) } : {}),
+            availability: 'https://schema.org/InStock'
+        }
+    }]
+
     return {
         title: product.name,
         description: product.description || product.name,
+        seo: {
+            ogType: 'website',
+            ...(absoluteImage ? { image: absoluteImage } : {}),
+            jsonLd
+        },
         data: { product, sales: res.sales, categoryPath: res.categoryPath }
     }
 }

@@ -1,7 +1,7 @@
 import OrderProvider from 'features/Order/OrderProvider'
 import { ModalProvider } from 'common/components/Modal'
 import TextProvider from 'common/texts/TextProvider'
-import { createContext, useContext } from 'react'
+import { createContext, useContext, Suspense, lazy } from 'react'
 import { Routes, Route } from 'react-router'
 import Lists from 'common/features/Lists'
 import Header from 'layout/Header'
@@ -9,6 +9,7 @@ import User from 'features/User'
 import Main from 'layout/Main'
 import Cart from 'layout/Cart'
 import CartProvider from 'layout/Cart/CartProvider'
+import Loader from 'common/components/Loader'
 import pages from './pages'
 
 import 'common/styles/global.css'
@@ -29,7 +30,11 @@ export default function App({ data = {} }) {
                                 <Routes>
                                     {pages.map(({
                                         path, element: Elm
-                                    }) => <Route key={path} path={path} element={<Elm />} />)}
+                                    }) => <Route key={path} path={path} element={
+                                        <Suspense fallback={<Loader />}>
+                                            <Elm />
+                                        </Suspense>
+                                    } />)}
                                     </Routes>
                                     <Cart />
                                 </Main>

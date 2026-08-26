@@ -15,15 +15,79 @@ function injectTemplate(template, { head = '', html = '', data = {} }) {
         .replace('<!--server-data-->', `<script>window.__SD__=${safeJson}</script>`)
 }
 
-function inlineCss(html, buildDir) {
-    return html.replace(
-        /<link\s+rel="stylesheet"[^>]*href="\/(assets\/[^"]+\.css)"[^>]*>/g,
-        (_, href) => `<style>${fs.readFileSync(path.resolve(buildDir, href), 'utf-8')}</style>`
-    )
+function getOrigin(req) {
+    const proto = req.headers['x-forwarded-proto'] || req.protocol || 'http'
+    return `${proto}://${req.headers.host || ''}`
+}
+
+const SITEMAP_CACHE_KEY = 'seo:sitemap'
+
+function buildRobots(origin) {
+    return [
+        'User-agent: *',
+        'Allow: /',
+        'Disallow: /api/',
+        'Disallow: /account',
+        'Disallow: /checkout',
+        'Disallow: /search',
+        '',
+        `Sitemap: ${origin}/sitemap.xml`,
+        ''
+    ].join('\n')
+}
+
+async function buildSitemap(origin, DL) {
+    const fallback = () =>
+        `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n\t<url><loc>${origin}/</loc></url>\n</urlset>\n`
+    try {
+        const cached = await DL.redis?.get(SITEMAP_CACHE_KEY)
+        if (cached) return cached.replaceAll('__ORIGIN__', origin)
+
+        const activeStatus = DL.Product.constants?.STATUS?.ACTIVE
+        const productFilter = activeStatus !== undefined ? { status: activeStatus } : {}
+        const [products, categories] = await Promise.all([
+            DL.Product.Model.find(productFilter, { _id: 0, id: 1, updatedAt: 1 }).lean(),
+            DL.Category.Model.find({}, { _id: 0, path: 1 }).lean()
+        ])
+
+        const entries = [{ loc: '__ORIGIN__/' }]
+        for (const category of categories) {
+            if (category.path) entries.push({ loc: `__ORIGIN__/products/${category.path}` })
+        }
+        for (const product of products) {
+            entries.push({
+                loc: `__ORIGIN__/product/${product.id}`,
+                lastmod: product.updatedAt ? new Date(product.updatedAt).toISOString() : undefined
+            })
+        }
+
+        const xml = [
+            '<?xml version="1.0" encoding="UTF-8"?>',
+            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+            ...entries.map(e => `\t<url><loc>${e.loc}</loc>${e.lastmod ? `<lastmod>${e.lastmod}</lastmod>` : ''}</url>`),
+            '</urlset>',
+            ''
+        ].join('\n')
+
+        await DL.redis?.set(SITEMAP_CACHE_KEY, xml, 'EX', 6 * 60 * 60).catch(() => {})
+        return xml.replaceAll('__ORIGIN__', origin)
+    } catch {
+        return fallback()
+    }
 }
 
 export default async function (app, bootData) {
-    const { utils } = bootData
+    const { utils, DL } = bootData
+
+    app.get('/robots.txt', (req, res) => {
+        res.type('text/plain').set('Cache-Control', 'public, max-age=3600').send(buildRobots(getOrigin(req)))
+    })
+
+    app.get('/sitemap.xml', async (req, res) => {
+        const xml = await buildSitemap(getOrigin(req), DL)
+        res.type('application/xml').set('Cache-Control', 'public, max-age=3600').send(xml)
+    })
+
     const isProd = process.env.NODE_ENV === 'production' || process.env.PRODUCTION === 'true' || Boolean(process.env.PRODUCTION)
     let viteAdmin, viteClient
 
@@ -31,7 +95,7 @@ export default async function (app, bootData) {
     const templates = isProd ? {
         adminIndex: fs.readFileSync(path.resolve(paths.admin.build, 'index.html'), 'utf-8'),
         adminLogin: fs.readFileSync(path.resolve(paths.admin.build, 'Login/login.html'), 'utf-8'),
-        clientIndex: inlineCss(fs.readFileSync(path.resolve(paths.client.build, 'index.html'), 'utf-8'), paths.client.build),
+        clientIndex: fs.readFileSync(path.resolve(paths.client.build, 'index.html'), 'utf-8'),
     } : null
 
     // יבוא ה-RenderFn של ה-Client מראש ב-Production
@@ -111,7 +175,7 @@ export default async function (app, bootData) {
         try {
             const data = await utils.data.getClientData(req, bootData)
             const { template, renderFn } = await getClientContext(req)
-            const { html = '', head = '', status = 200 } = await renderFn({ url: req.originalUrl, data })
+            const { html = '', head = '', status = 200 } = await renderFn({ url: req.originalUrl, data, origin: getOrigin(req) })
 
             return res.status(status).set('Cache-Control', 'no-cache').type('html').end(injectTemplate(template, { head, html, data }))
         } catch (error) {

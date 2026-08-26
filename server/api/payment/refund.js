@@ -1,3 +1,5 @@
+import log from '#server/utils/log.js'
+
 export default async function refund(payload, info) {
     const { DL, external, utils, _admin } = info
     const { orderId, items = [], reason } = payload
@@ -10,7 +12,7 @@ export default async function refund(payload, info) {
     if (!order.payment?.captureProviderTxnId) throw { status: 400, message: 'No capture transaction on order' }
 
     const totalRefund = items.reduce((sum, it) => sum + Number(it.amount || 0), 0)
-    if (totalRefund <= 0) throw { status: 400, message: 'Refund total must be > 0' }
+    if (!Number.isFinite(totalRefund) || totalRefund <= 0) throw { status: 400, message: 'Refund total must be > 0' }
 
     const remainingOrder = Number((order.finalSumWithShippingAndHandling ?? order.finalSum ?? order.sum) - (order.refundedTotal || 0))
     if (totalRefund - remainingOrder > 0.001) throw { status: 400, message: `Refund exceeds remaining amount (${remainingOrder})` }
@@ -25,7 +27,7 @@ export default async function refund(payload, info) {
         const refunded = Number(line.refundedAmount || 0)
         const remaining = Number(line.totalSum || 0) - refunded
         const reqAmount = Number(it.amount)
-        if (reqAmount <= 0) throw { status: 400, message: `Invalid amount for ${it.productId}` }
+        if (!Number.isFinite(reqAmount) || reqAmount <= 0) throw { status: 400, message: `Invalid amount for ${it.productId}` }
         if (reqAmount - remaining > 0.001) throw { status: 400, message: `Refund for ${line.name || it.productId} exceeds remaining (${remaining})` }
         refundItems.push({
             productId: String(it.productId),
@@ -106,20 +108,27 @@ export default async function refund(payload, info) {
         // we will do separate inc? Single $inc with multiple arrayFilters not directly supported for different values.
         // Instead do $inc per line via separate update or use bulk.
     }
-    // Simpler: do loop of updates (safe because preventMultiple lock)
+    const failedLineUpdates = []
     for (const ri of refundItems) {
-        await Model.updateOne(
+        const res = await Model.updateOne(
             { id: order.id, 'cart.id': ri.productId },
             { $inc: { 'cart.$.refundedAmount': ri.amount } }
         ).catch(async () => {
-            // fallback by barcode if id not matched
             await Model.updateOne(
                 { id: order.id, 'cart.barcode': ri.barcode },
                 { $inc: { 'cart.$.refundedAmount': ri.amount } }
-            ).catch(() => {})
+            ).catch(() => null)
+        })
+        if (res?.modifiedCount === 0)
+            failedLineUpdates.push(ri.productId)
+    }
+    const totalRes = await Model.updateOne(updateFilter, updateOps).catch(() => null)
+    if (totalRes?.modifiedCount === 0 || failedLineUpdates.length) {
+        log.error(`[refund] Order ${order.id}: refund succeeded at provider but local counters not updated`, {
+            failedLineUpdates,
+            refundedTotalUpdated: totalRes?.modifiedCount > 0
         })
     }
-    await Model.updateOne(updateFilter, updateOps).catch(() => {})
     const finalSumAfter = Number((order.finalSumWithShippingAndHandling ?? order.finalSum ?? 0) - newRefunded)
     await Model.updateOne({ id: order.id }, { finalSumAfterRefunds: finalSumAfter }).catch(() => {})
 

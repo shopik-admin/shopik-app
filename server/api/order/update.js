@@ -202,5 +202,6 @@ export default async function update(payload, { DL, _admin, utils, external }) {
 
 update.config = {
     required: ['id'],
-    permissions: ['order:update']
+    permissions: ['order:update'],
+    preventMultiple: (body) => `:${body?.id}`
 }

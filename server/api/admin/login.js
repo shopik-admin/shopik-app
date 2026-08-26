@@ -1,13 +1,16 @@
 import { ADMIN_TOKEN_EXPIRY_MS, ADMIN_TOKEN_COOKIE } from '#common/constants.js'
+import verifyOtp from '#server/utils/auth/verifyOtp.js'
+import rateLimit from '#server/utils/auth/rateLimit.js'
 
-export default async function login({ idNum, otpToken, otp }, { DL, utils, platform, setCookie }) {
+export default async function login({ idNum, otpToken, otp }, { DL, utils, platform, setCookie, ip }) {
+    await rateLimit(DL, 'otp:verify:ip', ip, 30, 600)
+
     const admin = await DL.Admin.readOne({ idNum })
     if (!admin)
         throw { message: 'login failed', status: 403 }
 
-    const { phone } = admin
-    const storedOtp = await DL.Otp.readOne({ phone, token: otpToken })
-    if (!storedOtp || storedOtp.otp !== otp)
+    const storedOtp = await DL.Otp.readOne({ phone: admin.phone, token: otpToken })
+    if (!await verifyOtp(DL, storedOtp, otp))
         throw { message: 'login failed', status: 403 }
 
     const token = utils.auth.createToken(admin.id, ADMIN_TOKEN_EXPIRY_MS)

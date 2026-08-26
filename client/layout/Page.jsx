@@ -1,7 +1,10 @@
 import { useLocation, useParams, matchPath } from 'react-router'
 import pages from 'pages'
 import { useAppData } from 'App'
+import { applyHeadToDocument } from 'layout/Head'
 import { useEffect, useState } from 'react'
+
+const BRAND = 'Shopik'
 
 export function usePage(initialData) {
     const { pathname } = useLocation()
@@ -22,12 +25,24 @@ export function usePage(initialData) {
         }
         if ((data.prevPath || appData.url) !== pathname) {
             setLoading(true)
-            page.element.init?.(decodeURI(pathname))
+            page.element.init?.(decodeURI(pathname), { origin: window.location.origin })
                 .then(pageData => {
                     pageData.prevPath = pathname
                     setData(pageData)
-                    document.title = `Shopik | ${pageData.title}`
-                    document.description = pageData.description
+                    const seo = pageData.seo || {}
+                    applyHeadToDocument({
+                        title: `${BRAND} | ${pageData.title || page.title}`,
+                        description: pageData.description || page.description,
+                        noindex: seo.noindex,
+                        canonical: seo.canonical || `${window.location.origin}${pathname === '/' ? '' : pathname}`,
+                        og: {
+                            title: pageData.title && `${BRAND} | ${pageData.title}`,
+                            description: pageData.description,
+                            url: seo.canonical,
+                            type: seo.ogType,
+                            image: seo.image
+                        }
+                    })
                 })
                 .finally(() => setLoading(false))
         }
@@ -40,4 +55,4 @@ export function usePage(initialData) {
         loading,
         path: decodeURIComponent(pathname)
     }
-}   
+}

@@ -5,7 +5,14 @@ export default async function edit(payload, { DL, _user, external, utils }) {
     const name = utils.extractFields.getName(payload)
     if (name) payload.name = name
 
-    const update = diff(_user, payload)
+    const editableTopLevelKeys = new Set(
+        [...(DL.User.userEditableFields || [])].map(key => key.split('.')[0])
+    )
+    const filteredPayload = {}
+    for (const key of Object.keys(payload))
+        if (editableTopLevelKeys.has(key)) filteredPayload[key] = payload[key]
+
+    const update = diff(_user, filteredPayload)
 
     const nothingToUpdate = Object.keys(update).length === 0
     if (nothingToUpdate) return { user: _user }

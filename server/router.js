@@ -9,6 +9,21 @@ const allPermissionsHash = allPermissions.reduce((acc, curr) => {
     return acc
 }, {})
 
+const SENSITIVE_KEY = /otp|passw|secret|token|card|cvv|cvc|authorization/i
+
+function redact(value, depth = 0) {
+    if (!value || typeof value !== 'object' || depth > 4)
+        return value
+    if (Array.isArray(value))
+        return value.map(item => redact(item, depth + 1))
+    const out = {}
+    for (const [key, val] of Object.entries(value))
+        out[key] = SENSITIVE_KEY.test(key) ? '[REDACTED]' : redact(val, depth + 1)
+    return out
+}
+
+const RELEASE_LOCK_SCRIPT = 'if redis.call("get", KEYS[1]) == ARGV[1] then return redis.call("del", KEYS[1]) else return 0 end'
+
 const apiRoutes = {}
 function populateRoutes(api, prefix = '/') {
     for (const [key, value] of Object.entries(api)) {
@@ -66,7 +81,7 @@ export default function router(app, bootData) {
                     data: {
                         request: {
                             platform,
-                            body
+                            body: redact(body)
                         }
                     }
                 }
@@ -83,8 +98,8 @@ export default function router(app, bootData) {
             let _admin
             const { permissions = [], auth } = apiFunction.config || {}
 
-            const isAdmin = permissions.length || platform.includes('admin')
-            if (isAdmin && auth != 'none') {
+            const isAdminRoute = permissions.length > 0 || platform.includes('admin')
+            if (isAdminRoute && auth != 'none') {
                 const adminRequired = permissions.length || auth === 'required'
                 try {
                     _admin = await utils.auth.getAdmin(req, bootData)
@@ -108,7 +123,8 @@ export default function router(app, bootData) {
             }
 
             let _user
-            if (!isAdmin && auth != 'none') { // figure out which requires more definitions default required / lax
+            const needsUserAuth = !permissions.length && auth != 'none'
+            if (needsUserAuth) {
                 try {
                     _user = await utils.auth.getUser(req, bootData)
                     actorId = _user.id
@@ -151,14 +167,17 @@ export default function router(app, bootData) {
                 _user,
             }
 
+            let lockKey,
+                lockAcquired = false
             if (apiFunction?.config?.preventMultiple) {
-                let lockKey = `lock:${route}`
+                lockKey = `lock:${route}`
                 if (typeof apiFunction?.config?.preventMultiple === 'function')
                     lockKey += apiFunction?.config?.preventMultiple(body, info)
-                const lockAcquired = await DL.redis?.set(lockKey, requestId, 'NX', 'EX', 30)
-                if (!lockAcquired) {
+                const acquired = await DL.redis?.set(lockKey, requestId, 'NX', 'EX', 30)
+                if (!acquired) {
                     throw { status: 429, message: 'Too Many Requests' }
                 }
+                lockAcquired = true
             }
 
             if (apiFunction.config?.required?.length) {
@@ -178,30 +197,31 @@ export default function router(app, bootData) {
                 if (requestLog) {
                     requestLogPromise = requestLog.success({
                         ...response,
-                        data: Array.isArray(result) ? `[${result.length} elements]` : result
+                        data: Array.isArray(result) ? `[${result.length} elements]` : redact(result)
                     })
                 }
-                return res.send(response)
+                return res.status(200).send(response)
             }
         } catch (error) {
+            const status = Number(error?.status) || 500
+            const message = error?.message || (typeof error === 'string' && error) || 'Internal Error'
             const errorRes = {
                 requestId,
-                status: error.status || 500,
-                message: error.message || error || 'Internal Error',
-                ...(process.env.PRODUCTION || !error.stack ? {} : {
+                status,
+                message,
+                ...(process.env.PRODUCTION || !error?.stack ? {} : {
                     stack: error.stack
                 })
             }
             if (requestLog)
                 requestLogPromise = requestLog.error(errorRes)
 
-            return res.send(errorRes)
+            if (!res.headersSent)
+                return res.status(status).send(errorRes)
+            return res.end()
         } finally {
-            if (apiFunction?.config?.preventMultiple) {
-                let lockKey = `lock:${route}`
-                if (typeof apiFunction?.config?.preventMultiple === 'function')
-                    lockKey += apiFunction?.config?.preventMultiple(body, info)
-                await DL.redis?.del(lockKey)
+            if (lockAcquired && lockKey) {
+                try { await DL.redis?.eval(RELEASE_LOCK_SCRIPT, 1, lockKey, requestId) } catch {}
             }
             if (requestLog) {
                 if (actorId) {

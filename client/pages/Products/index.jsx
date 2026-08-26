@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Breadcrumbs from 'components/Breadcrumbs'
 import Loader from '#common/components/Loader'
 import apiReq from '#common/functions/apiReq'
@@ -22,6 +22,18 @@ export default function Products() {
 
     const products = [...(data?.products || []), ...extra.flatMap(e => e.products)]
     const sales = extra.reduce((acc, e) => ({ ...acc, ...e.sales }), data?.sales || {})
+
+    const cardSalesById = useMemo(() => {
+        const map = new Map()
+        for (const p of products) {
+            const relevant = {}
+            for (const sId of p.saleIds || []) {
+                if (sales[sId]) relevant[sId] = sales[sId]
+            }
+            map.set(p.id, relevant)
+        }
+        return map
+    }, [products, sales])
 
     useEffect(() => {
         ++latestRequest.current
@@ -66,7 +78,7 @@ export default function Products() {
                 : products.map(p => <ProductCard
                     key={p.id}
                     product={p}
-                    sales={p.saleIds.reduce((acc, sId) => ({ [sId]: sales[sId], ...acc }), {})}
+                    sales={cardSalesById.get(p.id)}
                 >{p.name}</ProductCard>)}
         </div>
         {!loading && hasMore && <div ref={sentinelRef} className={styles.sentinel} />}

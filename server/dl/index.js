@@ -55,29 +55,30 @@ export default async function createDL(__dirname) {
         if (!sources?.length) {
             sources = await DL[modelName].read({ id: sourceIds }, { ...select, _id: 0 })
         }
-        if (sources?.length) {
-            const sourceHash = sources.reduce((acc, source) => ({ ...acc, [source.id]: source }), {})
+        if (!sources?.length)
+            return docs
 
-            return docs.map(doc => ({
-                ...doc,
-                ...Object.fromEntries(
-                    sourceEntries.map(([sourceKey, docKey]) => {
-                        let transformer,
-                            key = docKey
-                        if (typeof docKey === 'object') {
-                            key = docKey.key
-                            transformer = docKey.format
-                        }
-                        const id = doc[docField]
-                        const sourceValue = sourceHash[id]?.[sourceKey]
-                        if (sourceValue === undefined) return null
+        const sourceHash = sources.reduce((acc, source) => ({ ...acc, [source.id]: source }), {})
 
-                        const value = transformer?.(sourceValue) ?? sourceValue
-                        return [key, value]
-                    }).filter(Boolean)
-                )
-            }))
-        }
+        return docs.map(doc => ({
+            ...doc,
+            ...Object.fromEntries(
+                sourceEntries.map(([sourceKey, docKey]) => {
+                    let transformer,
+                        key = docKey
+                    if (typeof docKey === 'object') {
+                        key = docKey.key
+                        transformer = docKey.format
+                    }
+                    const id = doc[docField]
+                    const sourceValue = sourceHash[id]?.[sourceKey]
+                    if (sourceValue === undefined) return null
+
+                    const value = transformer?.(sourceValue) ?? sourceValue
+                    return [key, value]
+                }).filter(Boolean)
+            )
+        }))
     }
 
     return DL

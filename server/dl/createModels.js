@@ -307,10 +307,11 @@ async function createModelFromSchema(schemaPath) {
         })
 
         if (search?.length && Model.filterFields) {
+            const escaped = String(search).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
             for (const field of Model.filterFields) {
                 if (get(schema, `${field}.type`) === String) {
                     if (!processed.$or) processed.$or = []
-                    processed.$or.push({ [field]: new RegExp(search) })
+                    processed.$or.push({ [field]: new RegExp(escaped) })
                 }
             }
         }

@@ -4,9 +4,10 @@ export default function safeJsonParse(str) {
 }
 
 export function parseArray(arr) {
-    const rawJsonStrings = arr.filter(Boolean)
-    if (rawJsonStrings.length === 0) return []
-
-    const jsonArrayString = `[${rawJsonStrings.join(',')}]`
-    return safeJsonParse(jsonArrayString) ?? []
+    if (!Array.isArray(arr)) return []
+    return arr.filter(Boolean).reduce((acc, str) => {
+        const parsed = safeJsonParse(str)
+        if (parsed !== null && parsed !== undefined) acc.push(parsed)
+        return acc
+    }, [])
 }

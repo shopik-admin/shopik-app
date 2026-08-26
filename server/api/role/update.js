@@ -22,7 +22,30 @@ export default async function update(payload, { DL, _admin, validators }) {
     }
 
     const updated = await DL.Role.updateOne({ id }, update)
+    await invalidateAdminAuth(DL, id)
     return updated
+}
+
+async function invalidateAdminAuth(DL, roleId) {
+    try {
+        const roles = await DL.Role.Model.find({}, { id: 1, parentId: 1 }).lean()
+        const affected = new Set([roleId])
+        let grew = true
+        while (grew) {
+            grew = false
+            for (const r of roles) {
+                if (r.parentId && affected.has(r.parentId) && !affected.has(r.id)) {
+                    affected.add(r.id)
+                    grew = true
+                }
+            }
+        }
+        const affectedAdmins = await DL.Admin.Model.find(
+            { roleId: { $in: [...affected] } },
+            { id: 1 }
+        ).lean()
+        await Promise.all(affectedAdmins.map(a => DL.redis?.del(`admin_auth:${a.id}`)))
+    } catch {}
 }
 
 update.config = {

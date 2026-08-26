@@ -1,5 +1,20 @@
 export default async function get(payload, { DL, _user }) {
     const { filter = {}, path, id, barcode } = payload
+    if (id !== undefined && typeof id !== 'string')
+        throw { status: 400, message: 'invalid id' }
+    if (barcode !== undefined && typeof barcode !== 'string')
+        throw { status: 400, message: 'invalid barcode' }
+    if (path !== undefined && typeof path !== 'string')
+        throw { status: 400, message: 'invalid path' }
+
+    let safeFilter = {}
+    if (filter && typeof filter === 'object' && !Array.isArray(filter)) {
+        for (const [key, val] of Object.entries(filter)) {
+            if (key.startsWith('$')) continue
+            if (val === null || ['string', 'number', 'boolean'].includes(typeof val)) safeFilter[key] = val
+        }
+    }
+
     let products = []
     let categoryName
     let categoryPath
@@ -19,11 +34,15 @@ export default async function get(payload, { DL, _user }) {
 
             const category = await DL.Category.readOne({ path: pathParts.join('/') })
             if (category) {
-                filter['category.pathIds'] = category.id
+                safeFilter['category.pathIds'] = category.id
                 categoryName = category.name
             }
         }
-        products = await DL.Product.read(filter, DL.Product.defaultSelect, payload)
+        products = await DL.Product.read(safeFilter, DL.Product.defaultSelect, {
+            ...payload,
+            limit: Math.min(Math.max(Number(payload.limit) || 50, 1), 100),
+            skip: Math.min(Math.max(Number(payload.skip) || 0, 0), 10000)
+        })
     }
 
     // Collect all saleIds from returned products
