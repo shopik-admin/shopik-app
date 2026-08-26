@@ -33,9 +33,10 @@ function formatHebrewDate(iso, TR) {
 
 function formatDateRange(gte, lte, TR) {
     if (!gte && !lte) return null
-    if (gte && lte) return `${formatHebrewDate(gte, TR)} – ${formatHebrewDate(lte, TR)}`
-    if (gte) return `≥ ${formatHebrewDate(gte, TR)}`
-    if (lte) return `≤ ${formatHebrewDate(lte, TR)}`
+    if (gte && lte) {
+        if (gte === lte) return formatHebrewDate(gte, TR)
+        return `${formatHebrewDate(gte, TR)} – ${formatHebrewDate(lte, TR)}`
+    }
     return null
 }
 
@@ -276,14 +277,26 @@ function DateRangeCalendar({ value, TR, onChange }) {
     function onDayClick(day) {
         if (!day) return
         const iso = toIso(day)
-        if (!gte || (gte && lte)) {
-            // first click or reset after complete range
-            onChange({ $gte: iso })
-        } else if (gte && !lte) {
-            if (iso === gte) onChange(null)
-            else if (iso > gte) onChange({ $gte: gte, $lte: iso })
-            else onChange({ $gte: iso, $lte: gte })
+        if (!gte) {
+            onChange({ $gte: iso, $lte: iso })
+            return
         }
+        if (gte && lte) {
+            if (gte === lte) {
+                if (iso === gte) { onChange(null); return }
+                if (iso > gte) { onChange({ $gte: gte, $lte: iso }); return }
+                onChange({ $gte: iso, $lte: gte }); return
+            }
+            // two distinct days
+            if (iso === gte) { onChange({ $gte: lte, $lte: lte }); return }
+            if (iso === lte) { onChange({ $gte: gte, $lte: gte }); return }
+            onChange({ $gte: iso, $lte: iso }); return
+        }
+        // legacy single gte without lte
+        const cur = gte
+        if (iso === cur) { onChange(null); return }
+        if (iso > cur) onChange({ $gte: cur, $lte: iso })
+        else onChange({ $gte: iso, $lte: cur })
     }
     const weekDays = [0, 1, 2, 3, 4, 5, 6].map(i => TR(`day-${i}-short`) || ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'שבת'][i])
     return <div className={styles.calendar}>
@@ -302,7 +315,11 @@ function DateRangeCalendar({ value, TR, onChange }) {
             })}
         </div>
         <Flex justifyContent='center' style={{ marginTop: '8px' }}>
-            {(gte || lte) && <div className={styles.calendarFooter} dir='ltr'>{gte ? gte.split('-').reverse().join('/') : '—'} - {lte ? lte.split('-').reverse().join('/') : '—'}</div>}
+            {(gte || lte) && <div className={styles.calendarFooter} dir='rtl'>
+                <bdi>
+                    {formatDateRange(gte, lte, TR)}
+                </bdi>
+            </div>}
             {(gte || lte) && <button className={styles.clearBtn} onClick={() => {
                 onChange(null)
             }}>{TR('reset')}</button>}
@@ -334,7 +351,7 @@ function FilterChips({ filter, setFilter, descriptors, TR, storeMap }) {
         } else if (typeof val === 'object' && (val.$gte != null || val.$lte != null)) {
             const from = val.$gte || ''
             const to = val.$lte || ''
-            const label = from && to ? `${formatHebrewDate(from, TR)} – ${formatHebrewDate(to, TR)}` : from ? `≥ ${formatHebrewDate(from, TR)}` : `≤ ${formatHebrewDate(to, TR)}`
+            const label = formatDateRange(from, to, TR)
             chips.push({
                 key,
                 label,
