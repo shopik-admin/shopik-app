@@ -27,10 +27,10 @@ function ProductCard(props) {
 
 export default memo(ProductCard)
 
-export function ProductImage({ product, size = 'm' }) {
+export function ProductImage({ product, size = 'm', priority = false }) {
     const { images } = product || {}
     const mainImage = images?.product?.find(i => i.main === true) || images?.[0] || null
-    const src = mainImage?.sizes[size] || mainImage?.sizes.l || ''
+    const src = mainImage?.sizes[size] || mainImage?.sizes?.l || ''
     const srcSet = buildSrcSet(mainImage?.sizes)
 
     return <Image
@@ -38,7 +38,9 @@ export function ProductImage({ product, size = 'm' }) {
         src={src}
         alt={product.name}
         srcSet={srcSet}
-        sizes={srcSet ? '(max-width: 600px) 45vw, 300px' : undefined} />
+        sizes={srcSet ? '(max-width: 600px) 45vw, 300px' : undefined}
+        loading={priority ? 'eager' : 'lazy'}
+        fetchPriority={priority ? 'high' : undefined} />
 }
 
 export function ProductInfo(props) {

@@ -4,7 +4,7 @@ const CSP = [
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' data: https://fonts.gstatic.com",
     "img-src 'self' data: blob: https:",
-    "connect-src 'self' https:",
+    "connect-src 'self' https: ws: wss:",
     "frame-src https://pay.hyp.co.il",
     "form-action 'self' https:",
     "frame-ancestors 'self'",

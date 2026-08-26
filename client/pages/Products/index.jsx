@@ -75,10 +75,11 @@ export default function Products() {
         <Text size='h1' bold>{data?.categoryName || pageData?.title}</Text>
         <div className={styles.list}>
             {loading ? <Loader />
-                : products.map(p => <ProductCard
+                : products.map((p, idx) => <ProductCard
                     key={p.id}
                     product={p}
                     sales={cardSalesById.get(p.id)}
+                    priority={idx < 4}
                 >{p.name}</ProductCard>)}
         </div>
         {!loading && hasMore && <div ref={sentinelRef} className={styles.sentinel} />}

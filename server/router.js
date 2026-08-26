@@ -70,7 +70,9 @@ export default function router(app, bootData) {
             actorName,
             requestLog,
             requestLogPromise,
-            info
+            info,
+            lockKey,
+            lockAcquired = false
         try {
             if (apiFunction?.config?.log !== false) {
                 const logData = {
@@ -167,8 +169,6 @@ export default function router(app, bootData) {
                 _user,
             }
 
-            let lockKey,
-                lockAcquired = false
             if (apiFunction?.config?.preventMultiple) {
                 lockKey = `lock:${route}`
                 if (typeof apiFunction?.config?.preventMultiple === 'function')
