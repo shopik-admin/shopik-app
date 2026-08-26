@@ -30,7 +30,7 @@
         transition: border-color .2s ease, box-shadow .2s ease, background-color .2s ease;
         user-select: none;
 
-        &:hover {
+        &:hover:not(.disabled) {
             border-color: var(--bg-brand-primary);
         }
 
@@ -41,7 +41,7 @@
 
         &.disabled {
             opacity: 0.4;
-            cursor: not-allowed;
+            cursor: default;
 
         }
     }
