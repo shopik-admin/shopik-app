@@ -31,8 +31,8 @@
 }
 
 .successBanner {
-    background: var(--bg-success-secondary);
-    color: var(--fg-success-primary);
+    background: var(--bg-brand-primary);
+    color: var(--fg-white);
 }
 
 .hint {
@@ -331,7 +331,7 @@
 
 .cardGroups {
     display: flex;
-    flex-wrap: wrap;
+    flex-direction: column;
     gap: 2px 8px;
     margin-top: 3px;
 }

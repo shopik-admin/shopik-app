@@ -18,8 +18,7 @@ const toMessage = (err) => (typeof err === 'string' ? err : err?.message || 'som
 function AreaForm({ area, geometry, onClose, onSuccess }) {
     const { TR } = useText()
     const [formData, setFormData] = useState({
-        name: area?.name || '',
-        description: area?.description || ''
+        name: area?.name || ''
     })
     const [saving, setSaving] = useState(false)
     const [error, setError] = useState(null)
@@ -52,12 +51,6 @@ function AreaForm({ area, geometry, onClose, onSuccess }) {
                 name="name"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            />
-            <Input
-                label="description"
-                name="description"
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             />
 
             {error && <div className={styles.formError}><Text size="none">{error}</Text></div>}
@@ -143,6 +136,7 @@ export default function SupplyAreas() {
     const [testLabel, setTestLabel] = useState('')
     const [testResult, setTestResult] = useState(null)
     const [testing, setTesting] = useState(false)
+    console.log('selectedId:', selectedId)
 
     const selectedArea = areas.find(a => a.id === selectedId) || null
 
@@ -278,6 +272,7 @@ export default function SupplyAreas() {
     }
 
     function handleMapBackgroundClick() {
+        console.log('handleMapBackgroundClick')
         setSelectedId(null)
     }
 
@@ -299,7 +294,10 @@ export default function SupplyAreas() {
     function handleMapEdited(id, geometry) {
         setError(null)
         apiReq('supply_area/update', { id, location: geometry })
-            .then(() => callReq())
+            .then(() => {
+                setSelectedId(null)
+                return callReq()
+            })
             .catch(err => setError(toMessage(err)))
     }
 
@@ -349,7 +347,7 @@ export default function SupplyAreas() {
             setTesting(false)
         }
     }
-
+    console.log(selectedArea)
     return (
         <Flex tag={Card} col className={styles.container}>
             <div className={styles.header}>

@@ -46,6 +46,8 @@ function SortableStore({ store, index, onRemove }) {
 }
 
 export default function StoreListEditor({ stores = [], areaStores = [], onChange }) {
+    const { TR } = useText()
+
     const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
     const assignedIds = useMemo(() => areaStores.map(s => s.storeId), [areaStores])
@@ -101,7 +103,7 @@ export default function StoreListEditor({ stores = [], areaStores = [], onChange
                     value=""
                     onChange={(e) => handleAdd(e.target.value)}
                 >
-                    <option value="" disabled>supply_add_store</option>
+                    <option value="" disabled>{TR('supply_add_store')}</option>
                     {availableStores.map(store => (
                         <option key={store.id} value={store.id}>{store.name} ({store.tag})</option>
                     ))}

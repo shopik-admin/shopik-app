@@ -76,25 +76,35 @@ function FlyToPoint({ point, zoom = 16 }) {
     return null
 }
 
-// Custom Save/Cancel control shown while a single area is being edited
+const buttonStyle = `
+display:block;
+min-width: 200px;
+border-radius:6px;
+margin-bottom:10px;
+padding:10px 14px;
+color:#fff;
+font-weight:600;
+font-size:13px;
+text-align:center;`
+// Custom Save/Cancel control shown while a single area is being vertex-edited
 function createEditActionsControl(map, labels, onSave, onCancel) {
     const control = new L.Control({ position: 'bottomright' })
     control.onAdd = () => {
         const container = L.DomUtil.create('div', 'leaflet-control')
-        container.style.cssText = 'background:#fff;border-radius:6px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.25);'
+        container.style.cssText = 'display:flex;flex-direction:row;gap:8px;background:transparent;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.25);'
 
         const save = L.DomUtil.create('a', '', container)
         save.href = '#'
         save.title = labels.save
         save.innerHTML = `&#10003; ${labels.save}`
-        save.style.cssText = 'display:block;padding:6px 14px;background:#16a34a;color:#fff;font-weight:600;font-size:13px;text-align:center;'
+        save.style.cssText = `${buttonStyle}background:#195855;`
         save.onclick = (ev) => { L.DomEvent.stop(ev); onSave() }
 
         const cancel = L.DomUtil.create('a', '', container)
         cancel.href = '#'
         cancel.title = labels.cancel
         cancel.innerHTML = `&#10005; ${labels.cancel}`
-        cancel.style.cssText = 'display:block;padding:6px 14px;background:#fff;color:#475569;font-weight:600;font-size:13px;text-align:center;border-top:1px solid #e2e8f0;'
+        cancel.style.cssText = `${buttonStyle}background:#475569;`
         cancel.onclick = (ev) => { L.DomEvent.stop(ev); onCancel() }
 
         return container
@@ -155,17 +165,17 @@ function MapController({
     const cbRef = useRef({ onSelect, onToggleArea, onCreated, onEdited, onBackgroundClick, selectedId, drawing, toggleMode })
     cbRef.current = { onSelect, onToggleArea, onCreated, onEdited, onBackgroundClick, selectedId, drawing, toggleMode }
 
-    // Clicking empty map (not a polygon) deselects the active area
+    // Clicking empty map (not a polygon) deselects + exits vertex edit
     useEffect(() => {
         function onBgClick() {
             if (cbRef.current.drawing || cbRef.current.toggleMode) return
-            cbRef.current.onBackgroundClick?.()
+            // cbRef.current.onBackgroundClick?.()
         }
         map.on('click', onBgClick)
         return () => map.off('click', onBgClick)
     }, [map])
 
-    // Render all area polygons
+    // Render all area polygons — click opens BOTH: sidebar editor (stores + details) AND vertex editing overlay with Save/Cancel
     useEffect(() => {
         stopEdit()
         const group = groupRef.current || L.featureGroup().addTo(map)
@@ -180,13 +190,13 @@ function MapController({
             const layer = L.polygon(rings, { style: polygonStyle({}) })
             layer.supplyAreaId = area.id
             layer.on('click', (e) => {
-                // debugger
                 L.DomEvent.stopPropagation(e.originalEvent)
                 if (cbRef.current.toggleMode) {
                     cbRef.current.onToggleArea?.(area.id)
                     return
                 }
                 const isSelected = editLayerRef.current === layer
+                // Always update sidebar selection
                 cbRef.current.onSelect?.(isSelected ? null : area.id)
                 if (isSelected) {
                     revertEdit()
@@ -237,7 +247,7 @@ function MapController({
         }
     }, [])
 
-    // Edit only the clicked area: enable L.Edit.Poly on that layer and show Save/Cancel
+    // Disable vertex editing on the active layer and remove Save/Cancel control
     const stopEdit = useCallback(() => {
         const layer = editLayerRef.current
         if (layer?.editing) layer.editing.disable()
@@ -245,10 +255,19 @@ function MapController({
         editOriginalRef.current = null
         removeEditControl()
     }, [removeEditControl])
-    // Leave any active vertex-editing session when entering group selection mode
-    useEffect(() => {
-        if (toggleMode) stopEdit()
-    }, [toggleMode, stopEdit])
+
+    const commitEdit = useCallback(() => {
+        const cur = editLayerRef.current
+        const geometry = cur?.toGeoJSON?.().geometry
+        const id = cur?.supplyAreaId
+        stopEdit()
+        if (cur && geometry) cbRef.current.onEdited?.(id, geometry)
+    }, [stopEdit])
+
+    const cancelEdit = useCallback(() => {
+        revertEdit()
+        stopEdit()
+    }, [revertEdit, stopEdit])
 
     // Refresh snapping targets (existing area vertices)
     useEffect(() => {
@@ -262,8 +281,6 @@ function MapController({
     }, [areas])
 
     // Snap vertices to nearby existing-area vertices within threshold (in screen px).
-    // Mutates the given LatLng objects in place so leaflet-draw's vertex-marker
-    // references stay attached (setLatLngs would detach them and break unsnapping).
     const snapInPlace = useCallback((rings) => {
         if (!rings?.length || !snapTargetsRef.current.length) return false
 
@@ -314,10 +331,10 @@ function MapController({
         })
     }, [snapInPlace])
 
-
-
     const startEdit = useCallback((layer) => {
         if (editLayerRef.current === layer) return
+        // leaflet-draw loads async via useDrawReady — guard so click doesn't throw and kill selection
+        if (!L.Edit?.Poly || !L.LatLngUtil?.cloneLatLngs) return
         stopEdit()
 
         if (layer.editing) layer.editing.disable()
@@ -329,26 +346,8 @@ function MapController({
         editControlRef.current = createEditActionsControl(map, {
             save: TR('supply_save_changes'),
             cancel: TR('cancel')
-        }, () => {
-            const cur = editLayerRef.current
-            const geometry = cur?.toGeoJSON?.().geometry
-            stopEdit()
-            if (cur && geometry) cbRef.current.onEdited?.(cur.supplyAreaId, geometry)
-        }, () => {
-            const cur = editLayerRef.current
-            if (cur && editOriginalRef.current) {
-                cur.getLatLngs().forEach((ring, i) => ring.forEach((point, j) => {
-                    const orig = editOriginalRef.current?.[i]?.[j]
-                    if (orig) {
-                        point.lat = orig.lat
-                        point.lng = orig.lng
-                    }
-                }))
-                cur.redraw()
-            }
-            stopEdit()
-        })
-    }, [map, stopEdit])
+        }, () => commitEdit(), () => cancelEdit())
+    }, [map, stopEdit, TR, commitEdit, cancelEdit])
 
     // New-area draw completion + live vertex snapping
     useEffect(() => {

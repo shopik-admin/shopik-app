@@ -1,7 +1,7 @@
 import { normalizePolygon, validatePolygon, validateNoOverlap } from '#server/external/supplyArea.js'
 
 export default async function create(payload, { DL }) {
-    const { name, description, location, stores } = payload
+    const { name, location, stores } = payload
 
     if (!location)
         throw { status: 400, message: 'Missing required field: location' }
@@ -12,7 +12,6 @@ export default async function create(payload, { DL }) {
 
     const created = await DL.SupplyArea.create({
         name: name || '',
-        description,
         location: normalizedLocation,
         stores: stores?.map(id => ({ storeId: id })) || []
     })
