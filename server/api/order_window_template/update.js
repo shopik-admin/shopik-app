@@ -1,4 +1,5 @@
 import diff from '#common/functions/diff.js'
+import { sanitizeGroupCapacities } from '#server/utils/data/windowGroups.js'
 
 export default async function update(payload, { DL }) {
     const { id } = payload
@@ -21,6 +22,13 @@ export default async function update(payload, { DL }) {
             throw { status: 400, message: 'at least one window is required' }
         const invaildWindows = updateData.windows.some(w => w.start >= w.end)
         if (invaildWindows) throw { status: 400, message: 'windows start must be less than end' }
+
+        // diff returns the full replacement array; normalize group capacities
+        // (stripped entirely for the store-agnostic master template).
+        updateData.windows = updateData.windows.map(w => ({
+            ...w,
+            areaGroups: template.master ? [] : sanitizeGroupCapacities(w.areaGroups, w.maxCapacity)
+        }))
     }
 
     const updated = await DL.OrderWindowTemplate.updateOne({ id }, updateData)

@@ -23,10 +23,33 @@ const orderWindowSchema = {
         type: Number,
         required: true
     },
+    manualCapacity: {
+        type: Boolean,
+        default: false
+    },
+    disabled: {
+        type: Boolean,
+        default: false
+    },
     totalOrders: {
         type: Number,
         default: 0
     },
+    areaGroups: [{
+        _id: false,
+        groupId: {
+            type: String,
+            required: true
+        },
+        capacity: {
+            type: Number,
+            required: true
+        },
+        count: {
+            type: Number,
+            default: 0
+        }
+    }],
     leadHours: {
         type: Number,
         required: true

@@ -6,6 +6,7 @@ import boot from './boot.js'
 import ssr from './ssr.js'
 import startImageWorker from '#server/workers/imageWorker.js'
 import startNightlySync from '#server/cron/nightlySync.js'
+import startHolidaySeed from '#server/cron/holidaySeed.js'
 import log from '#server/utils/log.js'
 import compression from 'compression'
 
@@ -32,6 +33,7 @@ router(app, bootData)
 try {
     await startImageWorker({ DL: bootData.DL })
     startNightlySync(bootData)
+    startHolidaySeed(bootData)
 } catch (e) {
     log.warn('Jobs not started:', e?.message || e)
 }

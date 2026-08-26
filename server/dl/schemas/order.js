@@ -470,7 +470,8 @@ const defaultSelect = {
     deliveryMethod: 1,
     address: 1,
     storeId: 1,
-    window: 1
+    window: 1,
+    address: 1
 }
 
 const index = [
