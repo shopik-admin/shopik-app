@@ -11,16 +11,16 @@ const ISRAEL_CENTER = [31.7683, 35.2137]
 const SNAP_THRESHOLD_PX = 20
 const TILESET_STORAGE_KEY = 'supplyMapTileset'
 
-// All basemaps are free to use (attribution required)
+// All basemaps are free to use (attribution required) — Hebrew labels forced via lang=he where supported (CARTO)
 const TILESETS = {
     light: {
         label: 'supply_map_minimal',
-        url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+        url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png?lang=he',
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
     },
     dark: {
         label: 'supply_map_dark',
-        url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+        url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png?lang=he',
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
     },
     osm: {
@@ -37,9 +37,8 @@ const TILESETS = {
 
 const polygonStyle = ({ selected, draftMember, groupMember, served }) => {
     if (selected) return { color: '#2563eb', weight: 2.5, fillColor: '#3b82f6', fillOpacity: 0.35 }
-    if (draftMember) return { color: '#16a34a', weight: 2.5, fillColor: '#22c55e', fillOpacity: 0.45 }
-    if (groupMember) return { color: '#7c3aed', weight: 2, fillColor: '#8b5cf6', fillOpacity: 0.4 }
-    if (served) return { color: '#f97316', weight: 2, fillColor: '#fb923c', fillOpacity: 0.4 }
+    if (draftMember || groupMember) return { color: '#7c3aed', weight: 2, fillColor: '#8b5cf6', fillOpacity: 0.4 }
+    if (served) return { color: '#195855', weight: 2, fillColor: '#195855', fillOpacity: 0.28 }
     return { color: '#64748b', weight: 1.5, fillColor: '#94a3b8', fillOpacity: 0.15 }
 }
 
@@ -68,11 +67,11 @@ const TEST_ICON = L.divIcon({
     popupAnchor: [0, -18],
 })
 
-function FlyToPoint({ point, zoom = 16 }) {
+function FlyToPoint({ point }) {
     const map = useMap()
     useEffect(() => {
-        if (point) map.flyTo([point.lat, point.lng], zoom, { duration: 1 })
-    }, [point])
+        if (point) map.panTo([point.lat, point.lng], { animate: true, duration: 1 })
+    }, [point, map])
     return null
 }
 
@@ -91,7 +90,7 @@ function createEditActionsControl(map, labels, onSave, onCancel) {
     const control = new L.Control({ position: 'bottomright' })
     control.onAdd = () => {
         const container = L.DomUtil.create('div', 'leaflet-control')
-        container.style.cssText = 'display:flex;flex-direction:row;gap:8px;background:transparent;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.25);'
+        container.style.cssText = 'display:flex;flex-direction:row;gap:8px;background:transparent;overflow:hidden;'
 
         const save = L.DomUtil.create('a', '', container)
         save.href = '#'
@@ -213,17 +212,18 @@ function MapController({
         return () => group.clearLayers()
     }, [map, areas])
 
-    // Highlight the selected area, group members and areas served by the focused store
+    // Highlight: selected (blue) > current group members (purple) > served by store (orange) > default.
+    // When editing a group (toggleMode), only draftAreaIds drives purple; removed areas revert to regular.
     useEffect(() => {
         layersRef.current.forEach((layer, id) => {
             layer.setStyle(polygonStyle({
                 selected: id === selectedId,
                 draftMember: draftAreaIds.includes(id),
-                groupMember: groupAreaIds.includes(id),
+                groupMember: !toggleMode && groupAreaIds.includes(id),
                 served: servedAreaIds.includes(id)
             }))
         })
-    }, [selectedId, servedAreaIds, groupAreaIds, draftAreaIds])
+    }, [selectedId, servedAreaIds, groupAreaIds, draftAreaIds, toggleMode])
 
     const removeEditControl = useCallback(() => {
         if (editControlRef.current) {
@@ -411,7 +411,7 @@ function MapController({
     return null
 }
 
-export default function SupplyAreaMap({ areas = [], stores = [], activeStoreIds = [], servedAreaIds = [], groupAreaIds = [], draftAreaIds = [], focusPoint, testPoint, testLabel, ...mapControllerProps }) {
+export default function SupplyAreaMap({ areas = [], stores = [], activeStoreIds = [], servedAreaIds = [], groupAreaIds = [], draftAreaIds = [], focusPoint, focusGroupPoint, testPoint, testLabel, ...mapControllerProps }) {
     const { TR } = useText()
     // Tileset: explicit user pick persists; otherwise follows the admin dark/light theme
     const [tilesetId, setTilesetId] = useState(() => {
@@ -444,7 +444,7 @@ export default function SupplyAreaMap({ areas = [], stores = [], activeStoreIds 
     })
 
     return (
-        <div style={{ position: 'relative', height: '100%' }}>
+        <div style={{ position: 'relative', top: '16px', right: '10px', height: '99%' }}>
             <MapContainer
                 center={ISRAEL_CENTER}
                 zoom={12}
@@ -488,6 +488,8 @@ export default function SupplyAreaMap({ areas = [], stores = [], activeStoreIds 
                     </Marker>
                 )}
                 <FlyToPoint point={focusPoint} />
+                <FlyToPoint point={focusGroupPoint} />
+                <FlyToPoint point={testPoint} />
             </MapContainer>
             <div className={styles.tilePicker}>
                 {Object.entries(TILESETS).map(([id, ts]) => (

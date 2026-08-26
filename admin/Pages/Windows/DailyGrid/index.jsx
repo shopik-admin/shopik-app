@@ -96,6 +96,10 @@ export default function DailyGrid({ date, onDateChange }) {
             overlapsWindow(sd, win))
     }
 
+    const daySpecials = useMemo(() =>
+        specialDays.filter(sd => sd.date === effectiveDate),
+        [specialDays, effectiveDate])
+
     const dayName = TR(`day-${new Date(effectiveDate + 'T12:00:00').getDay()}`)
 
     return <Flex col gap={8} className={styles.container}>
@@ -148,7 +152,12 @@ export default function DailyGrid({ date, onDateChange }) {
         {error && <div className={styles.error}><Text size="none">{error}</Text></div>}
         {loading && !windows.length && <Loader size={32} className={styles.loader} />}
         {!loading && !windows.length && (
-            <Text mode="sub" className={styles.empty}>windows_no_windows</Text>
+            <Flex col gap={4} alignItems="center" className={styles.emptyWrap}>
+                {!!daySpecials.length && (
+                    <Text className={styles.specialEmptyLabel}>{daySpecials.map(sd => sd.name).join(', ')}</Text>
+                )}
+                <Text mode="sub" className={styles.empty}>windows_no_windows</Text>
+            </Flex>
         )}
 
         {!!rows.length && (
@@ -395,29 +404,36 @@ function WindowCell({ win, specials, onUpdated, onError }) {
             specialNames ? `${TR('windows_special_day')}: ${specialNames}` : ''
         ].filter(Boolean).join('\n')}
     >
-        {editing ? (
-            <input
-                autoFocus
-                type="number"
-                min={1}
-                max={100}
-                className={styles.capacityInput}
-                value={value}
-                onChange={e => setValue(e.target.value)}
-                onBlur={commitCapacity}
-                onKeyDown={e => {
-                    if (e.key === 'Enter') e.target.blur()
-                    if (e.key === 'Escape') setEditing(false)
-                }}
-            />
-        ) : (
-            <span
-                className={classNames(styles.capacity, isClosed && styles.strike)}
-                onClick={() => { setValue(String(win.maxCapacity)); setEditing(true) }}
-            >
-                <b>{win.totalOrders}</b>/<b>{win.maxCapacity}</b>
-            </span>
-        )}
+        <div className={styles.capacityStack}>
+            {editing ? (
+                <input
+                    autoFocus
+                    type="number"
+                    min={1}
+                    max={100}
+                    className={styles.capacityInput}
+                    value={value}
+                    onChange={e => setValue(e.target.value)}
+                    onBlur={commitCapacity}
+                    onKeyDown={e => {
+                        if (e.key === 'Enter') e.target.blur()
+                        if (e.key === 'Escape') setEditing(false)
+                    }}
+                />
+            ) : (
+                <>
+                    <span
+                        className={classNames(styles.capacity, isClosed && styles.strike)}
+                        onClick={() => { setValue(String(win.maxCapacity)); setEditing(true) }}
+                    >
+                        <b>{win.totalOrders}</b>/<b>{win.maxCapacity}</b>
+                    </span>
+                    {!!specials.length && (
+                        <span className={styles.specialLabel} title={specialNames}>{specialNames}</span>
+                    )}
+                </>
+            )}
+        </div>
 
         <div className={styles.menuWrap} ref={menuRef}>
             <button className={styles.menuItem} onClick={toggleDisabled}>

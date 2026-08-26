@@ -111,6 +111,18 @@
     flex-shrink: 0;
 }
 
+.storeListAddress {
+    color: var(--text-tertiary);
+    font-size: .74rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+    text-align: end;
+    margin-inline-start: .5rem;
+}
+
 .empty {
     padding: .5rem;
     color: var(--text-tertiary);

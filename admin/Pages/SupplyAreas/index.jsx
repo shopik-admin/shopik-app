@@ -7,6 +7,7 @@ import Flex from 'common/components/Flex'
 import Card from 'common/components/Card'
 import Text from 'common/components/Text'
 import Icon from 'common/components/Icon'
+import Form from 'common/components/Form'
 import { useModal } from 'common/components/Modal'
 import { useText } from 'common/texts/TextProvider'
 import SupplyAreaMap from './SupplyAreaMap'
@@ -16,19 +17,12 @@ import styles from './supplyAreas.module.css'
 const toMessage = (err) => (typeof err === 'string' ? err : err?.message || 'something went wrong')
 
 function AreaForm({ area, geometry, onClose, onSuccess }) {
-    const { TR } = useText()
-    const [formData, setFormData] = useState({
-        name: area?.name || ''
-    })
     const [saving, setSaving] = useState(false)
-    const [error, setError] = useState(null)
 
-    async function handleSubmit(e) {
-        e.preventDefault()
+    async function handleAction(vals) {
         setSaving(true)
-        setError(null)
         try {
-            const payload = { ...formData }
+            const payload = { name: vals.name?.trim() ?? '' }
             if (area) {
                 await apiReq('supply_area/update', { id: area.id, ...payload })
                 onSuccess(area)
@@ -38,80 +32,68 @@ function AreaForm({ area, geometry, onClose, onSuccess }) {
             }
             onClose()
         } catch (err) {
-            setError(toMessage(err))
+            throw toMessage(err)
         } finally {
             setSaving(false)
         }
     }
 
     return (
-        <form onSubmit={handleSubmit} className={styles.areaForm}>
+        <Form action={handleAction} className={styles.areaForm} noSubmit>
             <Input
                 label="name"
                 name="name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                defaultValue={area?.name || ''}
             />
-
-            {error && <div className={styles.formError}><Text size="none">{error}</Text></div>}
 
             <Flex gap={8} justifyContent="end" className={styles.formActions}>
                 <Button type="button" onClick={onClose} disabled={saving} mode="outline">cancel</Button>
-                <Button type="submit" disabled={saving}>
-                    {saving ? 'supply_saving' : area ? 'supply_save_changes' : 'supply_create_area'}
+                <Button type="submit" loading={saving}>
+                    {area ? 'supply_save_changes' : 'supply_create_area'}
                 </Button>
             </Flex>
-        </form>
+        </Form>
     )
 }
 
 function GroupForm({ group, stores, defaultStoreId = '', onClose, onSuccess }) {
     const { TR } = useText()
-    const [formData, setFormData] = useState({
-        name: group?.name || '',
-        storeId: group?.storeId || defaultStoreId || ''
-    })
-    const [error, setError] = useState(null)
 
-    function handleSubmit(e) {
-        e.preventDefault()
-        if (!formData.name.trim()) return setError('supply_group_name_required')
-        if (!formData.storeId) return setError('supply_choose_store_required')
-        setError(null)
-        onSuccess({ name: formData.name.trim(), storeId: formData.storeId })
+    async function handleAction(vals) {
+        const name = vals.name?.trim() ?? ''
+        const storeId = vals.storeId ?? ''
+        if (!name) throw TR('supply_group_name_required')
+        if (!storeId) throw TR('supply_choose_store_required')
+        onSuccess({ name, storeId })
         onClose()
     }
 
     return (
-        <form onSubmit={handleSubmit} className={styles.areaForm}>
+        <Form action={handleAction} className={styles.areaForm} noSubmit>
             <Input
                 label="name"
                 name="name"
                 required
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                defaultValue={group?.name || ''}
             />
             <div className={styles.groupStoreField}>
                 <label className={styles.groupStoreLabel}><Text size="none">supply_store</Text></label>
                 <select
                     className={styles.storeSelect}
-                    value={formData.storeId}
-                    onChange={(e) => setFormData({ ...formData, storeId: e.target.value })}
+                    name="storeId"
+                    defaultValue={group?.storeId || defaultStoreId || ''}
                 >
-                    <option value="" disabled>supply_choose_store</option>
                     {stores.map(store => (
                         <option key={store.id} value={store.id}>{store.name} ({store.tag})</option>
                     ))}
                 </select>
             </div>
 
-            {error && <div className={styles.formError}><Text size="none">{TR(error)}</Text></div>}
-
             <Flex gap={8} justifyContent="end" className={styles.formActions}>
                 <Button type="button" onClick={onClose} mode="outline">cancel</Button>
                 <Button type="submit">{group ? 'supply_save_changes' : 'supply_next_select_areas'}</Button>
             </Flex>
-        </form>
+        </Form>
     )
 }
 
@@ -136,7 +118,6 @@ export default function SupplyAreas() {
     const [testLabel, setTestLabel] = useState('')
     const [testResult, setTestResult] = useState(null)
     const [testing, setTesting] = useState(false)
-    console.log('selectedId:', selectedId)
 
     const selectedArea = areas.find(a => a.id === selectedId) || null
 
@@ -155,6 +136,33 @@ export default function SupplyAreas() {
         if (focusStoreCoords) return { lat: focusStoreCoords[1], lng: focusStoreCoords[0] }
         return testPoint
     }, [focusStoreCoords, testPoint])
+
+    // Pan to the selected area group (center of its polygons, or its store when empty) — only on group selection, not on every area toggle
+    const focusGroupPoint = useMemo(() => {
+        if (!groupDraft) return null
+        const targetGroup = groupDraft.id ? groups.find(g => g.id === groupDraft.id) : null
+        const ids = targetGroup?.areaIds?.length ? targetGroup.areaIds : groupDraft.areaIds
+        if (ids?.length) {
+            let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity, count = 0
+            areas.forEach(a => {
+                if (!ids.includes(a.id)) return
+                const coords = a.location?.coordinates || []
+                coords.forEach(ring => ring.forEach(([lng, lat]) => {
+                    if (lat < minLat) minLat = lat
+                    if (lat > maxLat) maxLat = lat
+                    if (lng < minLng) minLng = lng
+                    if (lng > maxLng) maxLng = lng
+                    count++
+                }))
+            })
+            if (count) return { lat: (minLat + maxLat) / 2, lng: (minLng + maxLng) / 2 }
+        }
+        const storeId = targetGroup?.storeId || groupDraft.storeId
+        const store = stores.find(s => s.id === storeId)
+        const c = store?.address?.location?.coordinates
+        if (Array.isArray(c) && c.length === 2) return { lat: c[1], lng: c[0] }
+        return null
+    }, [groupDraft?.id, groups, areas, stores])
 
     function openAreaForm(area = null, geometry = null) {
         openModal(
@@ -272,7 +280,6 @@ export default function SupplyAreas() {
     }
 
     function handleMapBackgroundClick() {
-        console.log('handleMapBackgroundClick')
         setSelectedId(null)
     }
 
@@ -347,7 +354,6 @@ export default function SupplyAreas() {
             setTesting(false)
         }
     }
-    console.log(selectedArea)
     return (
         <Flex tag={Card} col className={styles.container}>
             <div className={styles.header}>
@@ -475,6 +481,8 @@ export default function SupplyAreas() {
                                         className={`${styles.storeListItem} ${store.id === focusStoreId ? styles.active : ''}`}
                                         onClick={() => setFocusStoreId(store.id)}
                                     >
+                                        <span className={styles.storeListName}>{store.name}</span>
+                                        <span className={styles.storeListAddress}>{[store.address?.city, store.address?.street, store.address?.building].filter(Boolean).join(', ')}</span>
                                         <button
                                             type="button"
                                             className={`${styles.expander} ${expanded ? styles.expanderOpen : ''}`}
@@ -483,8 +491,6 @@ export default function SupplyAreas() {
                                         >
                                             <Icon name="down" />
                                         </button>
-                                        <span className={styles.storeListName}>{store.name}</span>
-                                        <span className={styles.storeListTag}>{store.tag}</span>
                                     </div>
                                     {expanded && (
                                         <div className={styles.groupChildren}>
@@ -526,6 +532,7 @@ export default function SupplyAreas() {
                         toggleMode={!!groupDraft}
                         onToggleArea={handleToggleGroupArea}
                         focusPoint={focusPoint}
+                        focusGroupPoint={focusGroupPoint}
                         selectedId={selectedId}
                         drawing={creating}
                         testPoint={testPoint}
