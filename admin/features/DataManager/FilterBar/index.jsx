@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import { useText } from 'common/texts/TextProvider'
 import { useData } from '../DataProvider'
 import apiReq from 'common/functions/apiReq'
@@ -21,12 +21,21 @@ function getLabel(TR, key) {
     return TR(key) || key
 }
 
-function formatDateRange(gte, lte) {
+function formatHebrewDate(iso, TR) {
+    if (!iso || typeof iso !== 'string') return iso || ''
+    const parts = iso.split('-')
+    if (parts.length !== 3) return iso
+    const [y, m, d] = parts
+    const idx = Number(m) - 1
+    const month = TR(`month-${idx}-short`) || TR(`month-${idx}`) || m
+    return `${Number(d)} ${month} ${y}`
+}
+
+function formatDateRange(gte, lte, TR) {
     if (!gte && !lte) return null
-    // keep ISO display for now; image shows Jan 8, 2027 — keep YYYY-MM-DD per spec, but show friendly if needed
-    if (gte && lte) return `${gte} - ${lte}`
-    if (gte) return `≥ ${gte}`
-    if (lte) return `≤ ${lte}`
+    if (gte && lte) return `${formatHebrewDate(gte, TR)} – ${formatHebrewDate(lte, TR)}`
+    if (gte) return `≥ ${formatHebrewDate(gte, TR)}`
+    if (lte) return `≤ ${formatHebrewDate(lte, TR)}`
     return null
 }
 
@@ -114,7 +123,7 @@ function FilterPill({ descriptor, filter, setFilter, TR, storeMap }) {
     const active = isActive(filter, descriptor.key)
     const count = filter[descriptor.key]?.$in?.length || (active ? 1 : 0)
     const isDate = descriptor.type === 'date'
-    const dateText = isDate ? formatDateRange(filter[descriptor.key]?.$gte, filter[descriptor.key]?.$lte) : null
+    const dateText = isDate ? formatDateRange(filter[descriptor.key]?.$gte, filter[descriptor.key]?.$lte, TR) : null
     const displayText = isDate && dateText ? dateText : label
     return <Popover
         button={<button className={`${styles.pill} ${active ? styles.active : ''} ${isDate ? styles.datePill : ''}`}>
@@ -175,22 +184,19 @@ function FilterControl({ descriptor, filter, setFilter, TR, storeMap }) {
         const gte = value?.$gte || ''
         const lte = value?.$lte || ''
         return <Flex gap={8} col>
-            <input type='date' value={gte} onChange={e => {
-                const v = e.target.value
+            <DateDDMMYYYYInput value={gte} placeholder='dd/mm/yyyy' onChange={v => {
                 setFilter(prev => {
                     const cur = prev[key] || {}
                     const next = { ...prev, [key]: { ...cur, $gte: v || undefined } }
                     if (!next[key].$gte) delete next[key].$gte
                     if (!next[key].$lte) delete next[key].$lte
                     if (!next[key].$gte && !next[key].$lte) { const n = { ...prev }; delete n[key]; return n }
-                    // clean undefined
                     if (!next[key].$gte) delete next[key].$gte
                     if (!next[key].$lte) delete next[key].$lte
                     return next
                 })
             }} />
-            <input type='date' value={lte} onChange={e => {
-                const v = e.target.value
+            <DateDDMMYYYYInput value={lte} placeholder='dd/mm/yyyy' onChange={v => {
                 setFilter(prev => {
                     const cur = prev[key] || {}
                     const next = { ...prev, [key]: { ...cur, $lte: v || undefined } }
@@ -258,6 +264,58 @@ function FilterControl({ descriptor, filter, setFilter, TR, storeMap }) {
     return <div style={{ fontSize: 13, opacity: .6 }}>{TR('search')} — {key}</div>
 }
 
+function isoToDisplay(iso) {
+    if (!iso || typeof iso !== 'string') return ''
+    const p = iso.split('-')
+    if (p.length !== 3) return iso
+    return `${p[2]}/${p[1]}/${p[0]}`
+}
+function displayToIso(str) {
+    if (!str) return null
+    const p = str.split('/')
+    if (p.length !== 3) return null
+    const [d, m, y] = p
+    if (!/^\d{1,2}$/.test(d) || !/^\d{1,2}$/.test(m) || !/^\d{4}$/.test(y)) return null
+    const dd = d.padStart(2, '0'), mm = m.padStart(2, '0')
+    const iso = `${y}-${mm}-${dd}`
+    const dt = new Date(iso)
+    if (Number.isNaN(dt.getTime())) return null
+    return iso
+}
+function DateDDMMYYYYInput({ value, onChange, placeholder }) {
+    const [text, setText] = useState(isoToDisplay(value))
+    const inputRef = useRef(null)
+    // keep local text in sync when external value changes
+    useEffect(() => { setText(isoToDisplay(value)) }, [value])
+    return <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+        <input
+            type='text'
+            inputMode='numeric'
+            dir='ltr'
+            placeholder={placeholder}
+            value={text}
+            onChange={e => {
+                const v = e.target.value
+                setText(v)
+                if (v === '') onChange('')
+                else {
+                    const iso = displayToIso(v)
+                    if (iso) onChange(iso)
+                }
+            }}
+            onBlur={e => {
+                const iso = displayToIso(e.target.value)
+                if (e.target.value !== '' && !iso) setText(isoToDisplay(value))
+            }}
+            style={{ flex: 1, padding: '6px 8px', border: '1px solid #ddd', borderRadius: 8, direction: 'ltr' }}
+        />
+        <button type='button' onClick={() => inputRef.current?.showPicker?.()} style={{ border: '1px solid #ddd', borderRadius: 8, padding: 6, background: '#fff', cursor: 'pointer' }} aria-label='calendar'>
+            <Icon name='calendar' />
+        </button>
+        <input ref={el => { inputRef.current = el }} type='date' value={value || ''} onChange={e => { const iso = e.target.value; setText(isoToDisplay(iso)); onChange(iso) }} style={{ position: 'absolute', opacity: 0, width: 0, height: 0, pointerEvents: 'none' }} tabIndex={-1} aria-hidden />
+    </div>
+}
+
 function FilterChips({ filter, setFilter, descriptors, TR, storeMap }) {
     const chips = []
     for (const [key, val] of Object.entries(filter)) {
@@ -282,8 +340,16 @@ function FilterChips({ filter, setFilter, descriptors, TR, storeMap }) {
         } else if (typeof val === 'object' && (val.$gte != null || val.$lte != null)) {
             const from = val.$gte || ''
             const to = val.$lte || ''
-            const label = from && to ? `${from} - ${to}` : from ? `≥ ${from}` : `≤ ${to}`
-            chips.push({ key, label: `${getLabel(TR, key)}: ${label}`, onRemove: () => { const n = { ...filter }; delete n[key]; setFilter(n) } })
+            const label = from && to ? `${formatHebrewDate(from, TR)} – ${formatHebrewDate(to, TR)}` : from ? `≥ ${formatHebrewDate(from, TR)}` : `≤ ${formatHebrewDate(to, TR)}`
+            chips.push({
+                key,
+                label,
+                onRemove: () => {
+                    const n = { ...filter }
+                    delete n[key]
+                    setFilter(n)
+                }
+            })
         }
     }
 
