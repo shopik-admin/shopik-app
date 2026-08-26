@@ -7,15 +7,23 @@ import useApi from 'common/functions/useApi'
 import apiReq from 'common/functions/apiReq'
 import { useEffect, useState } from 'react'
 import { useOrder } from '../OrderProvider'
+import { useAppData } from 'App'
 import Text from 'common/components/Text'
 import Flex from 'common/components/Flex'
 import { useUser } from 'features/User'
 
 
-export default function WindowOptions() {
+export default function WindowOptions({ onChangeStore, onChangeAddress }) {
     const { order, setOrder } = useOrder()
     const { addresses } = useUser()
-    const { data, loading } = useApi('order/window/options')
+    const { pickupStores } = useAppData()
+    const { data, loading, callReq } = useApi('order/window/options')
+
+    // Refetch windows when the order's store changes (e.g. after
+    // delivery_method switches between pickup/delivery). The initial
+    // useApi fetch runs on mount; this covers the race where options
+    // would otherwise be fetched for the stale store.
+    useEffect(() => { callReq() }, [order.storeId])
 
     const [windowLoading, setWindowLoading] = useState(null)
     const [activeDay, setActiveDay] = useState(null)
@@ -31,6 +39,8 @@ export default function WindowOptions() {
     if (loading) return <Loader />
 
     const activeAddress = addresses?.find(a => a.active)
+    const isPickup = order?.deliveryMethod === 'pickup'
+    const selectedStore = isPickup ? pickupStores?.find(s => s.id === order.storeId) : null
 
     const onChoose = async (window) => {
         if (window.chosen || window.disabled || windowLoading) return
@@ -44,7 +54,13 @@ export default function WindowOptions() {
     }
 
     return <Flex col gap={20} className={styles.windowOptions}>
-        <Address address={activeAddress} />
+        {onChangeStore && isPickup && selectedStore
+            ? <Address store={selectedStore} action={{ text: 'change', onClick: onChangeStore }} />
+            : <Address
+                address={activeAddress}
+                active={false}
+                action={onChangeAddress ? { text: 'change', onClick: onChangeAddress } : undefined}
+            />}
         <Text bold>Choose day</Text>
 
         <HorizontalScroll items={data?.map(day => (

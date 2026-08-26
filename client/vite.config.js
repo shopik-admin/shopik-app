@@ -29,7 +29,11 @@ export default defineConfig({
     emptyOutDir: true
   },
   ssr: { noExternal: ['common'] },
-
+  server: {
+    allowedHosts: [
+      'neat-lines-enjoy.loca.lt',
+    ]
+  },
   css: {
     modules: {
       generateScopedName: (name, fileName) => {

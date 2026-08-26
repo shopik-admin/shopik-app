@@ -8,8 +8,9 @@ import Card from 'common/components/Card'
 import Flex from 'common/components/Flex'
 import Text from 'common/components/Text'
 
-export default function Address({ store, address = {}, action = {}, onEdit, onRemove }) {
-    const { city, street, apartment, building, active } = store?.address || address
+export default function Address({ store, address = {}, active: activeProp, action = {}, onEdit, onRemove }) {
+    const { city, street, apartment, building, active: addressActive } = store?.address || address
+    const active = activeProp ?? addressActive
 
     return <Flex
         onClick={action.onClick}
@@ -23,16 +24,16 @@ export default function Address({ store, address = {}, action = {}, onEdit, onRe
         </Flex>
 
         <Flex col justifyContent='space-between' grow={1}>
-            {!store && <Flex gap={10} justifyContent='end' className={styles.buttons}>
-                <Button icon='edit' mode='text' onClick={() => onEdit(address)} stopPropagation preventDefault />
-                <ConfirmButton
+            {!store && (onEdit || onRemove) && <Flex gap={10} justifyContent='end' className={styles.buttons}>
+                {onEdit && <Button icon='edit' mode='text' onClick={() => onEdit(address)} stopPropagation preventDefault />}
+                {onRemove && <ConfirmButton
                     icon='trash' mode='text'
                     q='remove_address_confirm'
                     stopPropagation preventDefault
                     onOk={() => onRemove(address)}
-                />
+                />}
             </Flex>}
-            <Button {...action} mode='text' text={active ? 'active' : ''} className={styles.actionButton} />
+            <Button {...action} mode='text' text={active ? 'active' : action.text} className={styles.actionButton} />
         </Flex>
     </Flex>
 }

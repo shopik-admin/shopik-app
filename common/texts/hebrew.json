@@ -285,6 +285,7 @@
         "select-address-subtitle": "לאן לספק את ההזמנה?",
         "select-store-title": "בחירת נקודת איסוף",
         "select-store-subtitle": "מאיפה נעדיף לאסוף?",
+        "change": "שינוי",
         "remove_address_confirm": "למחוק כתובת זו?",
         "export_csv_tooltip": "ייצוא כל הנתונים לקובץ CSV",
         "refresh_tooltip": "רענון נתונים"

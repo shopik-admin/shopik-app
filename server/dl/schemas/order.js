@@ -468,6 +468,7 @@ const defaultSelect = {
     coupons: 1,
     orderPickupToken: 1,
     deliveryMethod: 1,
+    address: 1,
     storeId: 1,
     window: 1
 }
