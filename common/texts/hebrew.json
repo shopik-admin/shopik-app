@@ -68,7 +68,7 @@
         "end": "סיום",
         "export": "ייצוא",
         "failed": "נכשל",
-        "filter": "סינון",
+        "filter": "סנן",
         "finance": "כספים",
         "first": "שם פרטי",
         "fromDate": "התחלה",
@@ -384,6 +384,12 @@
         "windows_full_day_preview": "סגירת כל חלונות המשלוח בתאריך זה.",
         "windows_preview_closed": "חלונות סגורים",
         "windows_preview_open": "חלונות פתוחים",
-        "windows_create": "יצירה"
+        "windows_create": "יצירה",
+        "window.date": "תאריך",
+        "clearAll": "נקה הכל",
+        "picking": "בליקוט",
+        "picked": "מוכן לאריזה",
+        "packed": "מוכן למשלוח",
+        "window.endTimestamp": "אספקה עד"
     }
 }

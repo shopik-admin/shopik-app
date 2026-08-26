@@ -7,21 +7,17 @@ export default function Orders({ }) {
             apiRoute='order'
             actions={['export', 'refresh']}
             defaultSort={{ updatedAt: -1 }}
-            rowActions={['active']}
             onRowClick={console.log}
             cols={[
                 { key: 'number' },
                 { key: 'name', type: 'name' },
                 { key: 'phone' },
                 { key: 'email' },
-                { key: 'status' },
-                { key: 'deliveryMethod' },
+                { key: 'status', type: 'tr' },
+                { key: 'deliveryMethod', type: 'tr' },
                 { key: 'sum', type: 'coin' },
                 { key: 'paid', type: 'boolean' },
-                { key: 'deliverBy', type: 'datetime' },
-                { key: 'createdAt', type: 'date' },
-                { key: 'updatedAt', type: 'datetime' },
-                { key: 'active', type: 'boolean' },
+                { key: 'window.endTimestamp', type: 'datetime' }
             ]}
         />
     </div>
