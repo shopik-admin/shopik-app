@@ -144,9 +144,11 @@ function OverflowDropdown({ descriptors, filter, setFilter, TR, storeMap }) {
     const activeCount = descriptors.filter(d => isActive(filter, d.key)).length
     return <Popover
         button={<button className={`${styles.pill} ${styles.overflowPill}`}>
-            <Icon name='filter' />
-            <span>{TR('filter')}</span>
-            {activeCount > 0 && <span className={styles.badge}>{activeCount}</span>}
+            <Flex gap={8}>
+                <Icon name='filter' />
+                <span>{TR('filter')}</span>
+                {activeCount > 0 && <span className={styles.badge}>{activeCount}</span>}
+            </Flex>
             <Icon name='down' className={styles.chevron} />
         </button>}
     >
