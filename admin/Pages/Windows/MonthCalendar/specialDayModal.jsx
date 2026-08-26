@@ -1,11 +1,13 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import apiReq from 'common/functions/apiReq'
 import Button from 'common/components/Button'
+import Checkbox from 'common/components/Checkbox'
 import Flex from 'common/components/Flex'
+import Form from 'common/components/Form'
 import Input from 'common/components/Input'
 import Text from 'common/components/Text'
 import { useText } from 'common/texts/TextProvider'
-import { formatHourRange, formatHour } from '../dates.js'
+import { formatHourRange } from '../dates.js'
 import styles from './month.module.css'
 
 const HOURS = Array.from({ length: 24 }, (_, h) => ({
@@ -22,17 +24,18 @@ const toMessage = err => typeof err === 'string' ? err : err?.message || 'someth
  */
 export default function SpecialDayModal({ special, date, stores = [], onDone, onClose }) {
     const { TR } = useText()
-    const [name, setName] = useState(special?.name || '')
-    const [allStores, setAllStores] = useState(!special?.storeId)
-    const [storeId, setStoreId] = useState(!allStores ? special?.storeId : stores[0]?.id)
-    const [fullDay, setFullDay] = useState(special?.start == null)
+    const allStoreIds = useMemo(() => (stores || []).map(s => s.id), [stores])
+    const [storeIds, setStoreIds] = useState(() => {
+        if (special?.storeIds?.length) return [...special.storeIds]
+        return []
+    })
+    const [fullDay, setFullDay] = useState(special ? special?.start == null : true)
     const [start, setStart] = useState(special?.start ?? 10)
     const [end, setEnd] = useState(special?.end ?? 16)
     const [error, setError] = useState(null)
     const [saving, setSaving] = useState(false)
 
     const previewWindows = useMemo(() => {
-        // representative template windows to illustrate the closure effect
         const sample = [[8, 10], [10, 12], [12, 14], [14, 16], [16, 18], [18, 20]]
         const sd = fullDay ? { start: null, end: null } : { start, end }
         const closed = sample.filter(w =>
@@ -41,23 +44,28 @@ export default function SpecialDayModal({ special, date, stores = [], onDone, on
         return { closed, open }
     }, [fullDay, start, end])
 
-    async function save() {
-        if (!name.trim()) {
-            setError('windows_name_required')
-            return
+    async function handleAction(vals) {
+        // Form collects vals via FormData (name, fullDay, start, end)
+        // storeIds is handled via controlled state (multiple values collapse in Object.fromEntries)
+        const name = vals.name?.trim() ?? ''
+        if (!name) throw 'windows_name_required'
+
+        const payload = {
+            name,
+            date: special?.date || date,
+            storeIds: storeIds.length ? storeIds : [],
+            start: fullDay ? null : Number(vals.start ?? start),
+            end: fullDay ? null : Number(vals.end ?? end),
         }
+        // when fullDay, start/end are disabled and not submitted — ensure null
+        if (fullDay) {
+            payload.start = null
+            payload.end = null
+        }
+
         setSaving(true)
         setError(null)
         try {
-            const payload = {
-                name,
-                date: special?.date || date,
-                ...(allStores ? {} : { storeId })
-            }
-            if (!fullDay) {
-                payload.start = Number(start)
-                payload.end = Number(end)
-            }
             if (special) {
                 await apiReq('special_day/update', { id: special.id, ...payload })
                 onDone?.('windows_updated')
@@ -67,14 +75,16 @@ export default function SpecialDayModal({ special, date, stores = [], onDone, on
             }
             onClose()
         } catch (e) {
-            setError(toMessage(e))
+            const msg = toMessage(e)
+            setError(msg)
+            throw msg
         } finally {
             setSaving(false)
         }
     }
 
     async function remove() {
-        if (!window.confirm(`${TR('windows_delete_special_confirm')} "${name}"?${special?.source === 'hebcal' ? ` (${TR('windows_hebcal_restore_note')})` : ''}`))
+        if (!window.confirm(`${TR('windows_delete_special_confirm')} "${special?.name}"?${special?.source === 'hebcal' ? ` (${TR('windows_hebcal_restore_note')})` : ''}`))
             return
         setSaving(true)
         try {
@@ -88,68 +98,129 @@ export default function SpecialDayModal({ special, date, stores = [], onDone, on
         }
     }
 
-    return <Flex col gap={10}>
-        <Input
-            label="name"
-            name="name"
-            required
-            defaultValue={name}
-            onChange={e => setName(e.target.value)}
-        />
+    function handleStoresMouseDown(e) {
+        const opt = e.target
+        if (opt.tagName !== 'OPTION') return
+        e.preventDefault()
+        const value = opt.value
+        if (value === '_all') {
+            setStoreIds([])
+            return
+        }
+        setStoreIds(prev => {
+            // global -> toggle single on
+            if (prev.length === 0) return [value]
+            if (prev.includes(value)) {
+                const next = prev.filter(id => id !== value)
+                // toggling off last specific -> back to global (empty) per spec
+                return next
+            }
+            return [...prev, value]
+        })
+    }
 
-        <div className={styles.scopeRow}>
-            <Text size="s">windows_scope</Text>
-            <Flex gap={4}>
-                <button type="button" className={allStores ? styles.toggleOn : styles.toggle} onClick={() => setAllStores(true)}><Text size="none">windows_all_stores_toggle</Text></button>
-                <button type="button" className={!allStores ? styles.toggleOn : styles.toggle} onClick={() => setAllStores(false)}><Text size="none">windows_specific_store</Text></button>
-            </Flex>
-            {!allStores && (
+    // keyboard / fallback (if change fires without mousedown)
+    function handleStoresChange(e) {
+        const selected = Array.from(e.target.selectedOptions).map(o => o.value)
+        if (selected.includes('_all')) {
+            // if _all plus others, user used keyboard to add _all — treat as global
+            const withoutAll = selected.filter(v => v !== '_all')
+            if (storeIds.length === 0 && withoutAll.length) {
+                setStoreIds(withoutAll)
+            } else {
+                setStoreIds([])
+            }
+            return
+        }
+        setStoreIds(selected)
+    }
+
+    return <Form
+        action={handleAction}
+        error={error}
+        loading={saving}
+        noSubmit
+        onChange={() => setError(null)}
+    >
+        <Flex col gap={10}>
+            <Input
+                label="name"
+                name="name"
+                required
+                defaultValue={special?.name || ''}
+            />
+
+            <div className={styles.scopeRow}>
+                <Text size="s">stores</Text>
                 <select
                     className={styles.select}
-                    value={storeId}
-                    onChange={e => setStoreId(e.target.value)}
+                    name="storeIds"
+                    multiple
+                    size={Math.min(6, Math.max(3, stores.length + 1))}
+                    value={storeIds.length ? storeIds : ['_all']}
+                    onChange={handleStoresChange}
+                    onMouseDown={handleStoresMouseDown}
+                    style={{ minWidth: '200px', height: 'auto' }}
                 >
+                    <option value="_all">{TR('windows_all_stores') || 'All stores'}</option>
                     {(stores || []).map(s => (
                         <option key={s.id} value={s.id}>{s.name}</option>
                     ))}
                 </select>
-            )}
-        </div>
+            </div>
 
-        <div className={styles.scopeRow}>
-            <Text size="s">type</Text>
-            <Flex gap={4}>
-                <button type="button" className={fullDay ? styles.toggleOn : styles.toggle} onClick={() => setFullDay(true)}><Text size="none">windows_full_day</Text></button>
-                <button type="button" className={!fullDay ? styles.toggleOn : styles.toggle} onClick={() => setFullDay(false)}><Text size="none">windows_hours</Text></button>
-            </Flex>
-        </div>
+            <Checkbox
+                name="fullDay"
+                checked={fullDay}
+                onChange={e => setFullDay(e.target.checked)}
+            >
+                <Text size="s">windows_full_day</Text>
+            </Checkbox>
 
-        {!fullDay && (
             <Flex gap={8} alignItems="center">
-                <select className={styles.select} value={start} onChange={e => setStart(Number(e.target.value))}>
-                    {HOURS.map(h => <option key={h.value} value={h.value}>{h.text}</option>)}
+                <select
+                    className={styles.select}
+                    name="start"
+                    value={fullDay ? '' : start}
+                    onChange={e => setStart(Number(e.target.value))}
+                    disabled={fullDay}
+                >
+                    {fullDay && <option value="">-</option>}
+                    {!fullDay && HOURS.map(h => <option key={h.value} value={h.value}>{h.text}</option>)}
                 </select>
                 <span><Text size="none">windows_until</Text></span>
-                <select className={styles.select} value={end} onChange={e => setEnd(Number(e.target.value))}>
-                    {HOURS.slice(1).map(h => <option key={h.value} value={h.value}>{h.text}</option>)}
+                <select
+                    className={styles.select}
+                    name="end"
+                    value={fullDay ? '' : end}
+                    onChange={e => setEnd(Number(e.target.value))}
+                    disabled={fullDay}
+                >
+                    {fullDay && <option value="">-</option>}
+                    {!fullDay && HOURS.slice(1).map(h => <option key={h.value} value={h.value}>{h.text}</option>)}
                 </select>
             </Flex>
-        )}
 
-        <Text size="s" mode="sub">
-            {fullDay
-                ? TR('windows_full_day_preview')
-                : `${TR('windows_preview_closed')} ${previewWindows.closed.map(w => formatHourRange(...w)).join(', ') || '—'} ${TR('windows_preview_close_suffix')} ${previewWindows.open.map(w => formatHourRange(...w)).join(', ') || '—'} ${TR('windows_preview_open_suffix')}`}
-        </Text>
+            <Text size="s" mode="sub">
+                {fullDay
+                    ? TR('windows_full_day_preview')
+                    : <Flex col gap={8} style={{ textWrap: 'auto', maxWidth: '240px' }}>
+                        <span>
+                            {TR('windows_preview_closed')}: {previewWindows.closed.map(w => formatHourRange(...w)).join(', ') || '—'}
+                        </span>
+                        <span>
+                            {TR('windows_preview_open')}: {previewWindows.open.map(w => formatHourRange(...w)).join(', ') || '—'}
+                        </span>
+                    </Flex>}
+            </Text>
 
-        {error && <div className={styles.errorBox}><Text size="none">{TR(error)}</Text></div>}
-
-        <Flex gap={8} justifyContent="end">
-            {special && (
-                <Button mode="outline" icon="trash" onClick={remove} disabled={saving}>delete</Button>
-            )}
-            <Button mode="outline" onClick={onClose} disabled={saving}>cancel</Button>
-            <Button onClick={save} loading={saving}>{special ? 'save' : 'windows_create'}</Button>
+            <Flex gap={8} justifyContent="end" style={{ marginTop: 8 }}>
+                {special && (
+                    <Button mode="outline" icon="trash" onClick={remove} disabled={saving} type="button">delete</Button>
+                )}
+                <Button mode="outline" onClick={onClose} disabled={saving} type="button">cancel</Button>
+                <Button type="submit" loading={saving}>{special ? 'save' : 'windows_create'}</Button>
+            </Flex>
         </Flex>
-    </Flex>
+    </Form>
 }

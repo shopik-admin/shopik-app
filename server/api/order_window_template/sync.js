@@ -81,7 +81,7 @@ export default async function sync(payload, { DL }) {
     const specialDays = await DL.SpecialDay.Model.find({
         active: true,
         date: { $gte: startDateStr, $lte: endDateStr }
-    }).select({ _id: 0, date: 1, storeId: 1, start: 1, end: 1 }).lean()
+    }).select({ _id: 0, date: 1, storeIds: 1, start: 1, end: 1 }).lean()
     const specialMap = buildSpecialMap(specialDays)
 
     // 2. Bulk fetch all existing order windows for all stores within the date range
@@ -194,7 +194,7 @@ export default async function sync(payload, { DL }) {
                     // Special-day aware generation: don't create future windows
                     // fully/partially covered by an active closure.
                     const covered = daySpecials?.some(sd =>
-                        (!sd.storeId || sd.storeId === storeId) &&
+                        (!sd.storeIds?.length || sd.storeIds.includes(storeId)) &&
                         overlapsWindow(sd, tw)
                     )
                     if (covered) continue

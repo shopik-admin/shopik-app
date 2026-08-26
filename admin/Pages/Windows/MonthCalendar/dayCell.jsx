@@ -26,22 +26,24 @@ export default function DayCell({ cell, specials, storeName, isPast, isToday, on
     >
         <span className={styles.dateNum}>{Number(cell.date.slice(8))}</span>
 
-        {shown.map(sd => (
-            <button
+        {shown.map(sd => {
+            const ids = sd.storeIds || []
+            const label = ids.length ? ids.map(id => storeName(id) || id).join(', ') : ''
+            return <button
                 key={sd.id}
                 type="button"
                 className={styles.chip}
-                title={`${sd.name}${sd.storeId ? ` (${storeName(sd.storeId) || sd.storeId})` : ''} ${TR('windows_click_to_edit')}`}
+                title={`${sd.name}${label ? ` (${label})` : ''} ${TR('windows_click_to_edit')}`}
                 onClick={e => {
                     e.stopPropagation()
                     onEditChip?.(sd)
                 }}
             >
                 {sd.name}
-                {sd.storeId && <span className={styles.chipStore}>· {storeName(sd.storeId) || sd.storeId}</span>}
+                {ids.length > 0 && <span className={styles.chipStore}>· {label}</span>}
                 {!isPast && sd.start != null && <span className={styles.chipStore}> {formatHourRange(sd.start, sd.end)}</span>}
             </button>
-        ))}
+        })}
         {overflow > 0 && <span className={styles.overflow}>+{overflow} <Text size="none">{TR('windows_more')}</Text></span>}
 
         {!isPast && (

@@ -21,7 +21,7 @@ export default async function read(payload, { DL }) {
         active: true,
         date: { $gte: fromDate, $lte: toDate }
     })
-        .select({ _id: 0, id: 1, name: 1, date: 1, storeId: 1, start: 1, end: 1, source: 1, createdBy: 1 })
+        .select({ _id: 0, id: 1, name: 1, date: 1, storeIds: 1, start: 1, end: 1, source: 1, createdBy: 1 })
         .sort({ date: 1, start: 1 })
         .lean()
 }

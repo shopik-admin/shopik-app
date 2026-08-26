@@ -49,11 +49,11 @@ export default async function options(payload, { DL, _user, utils }) {
     // Special-day closures are enforced at read time (no mutation of generated rows)
     const specialDays = await DL.SpecialDay.Model.find({
         active: true,
-        date: { $gte: dateFrom, $lte: dateTo },
-        $or: [{ storeId }, { storeId: null }]
+        date: { $gte: dateFrom, $lte: dateTo }
     })
-        .select({ _id: 0, date: 1, storeId: 1, start: 1, end: 1 })
+        .select({ _id: 0, date: 1, storeIds: 1, start: 1, end: 1, name: 1 })
         .lean()
+    // filter by scope in-memory via specialDaysFor (global storeIds handling)
     const specialMap = buildSpecialMap(specialDays)
 
     const now = Date.now()
@@ -75,7 +75,7 @@ export default async function options(payload, { DL, _user, utils }) {
             (groupEntry ? groupEntry.count >= groupEntry.capacity : false)
         const isAlmostFull = !isFull && w.totalOrders >= (w.maxCapacity - 2)
         const isSpecial = specialDaysFor(specialMap, w.date, storeId)
-            .some(sd => overlapsWindow(sd, w))
+            .find(sd => overlapsWindow(sd, w))
         const isClosed = Boolean(w.disabled)
         delete w.leadTimestamp
         delete w.totalOrders
@@ -84,7 +84,7 @@ export default async function options(payload, { DL, _user, utils }) {
         w.chosen = window?.id === w.id
         // disabled combines the operational closure flag with computed states
         w.disabled = isClosed || isPast || isFull || isSpecial
-        w.note = isPast ? 'past' : isFull ? 'full' : isSpecial ? 'special day' : isClosed ? 'closed' : isAlmostFull ? 'almost full' : ''
+        w.note = isPast ? 'past' : isFull ? 'full' : isSpecial ? isSpecial.name : isClosed ? 'closed' : isAlmostFull ? 'almost full' : ''
 
         const windowsDate = new Date(w.date)
         if (!grouped[w.date]) grouped[w.date] = {

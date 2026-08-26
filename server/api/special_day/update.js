@@ -10,16 +10,18 @@ export default async function update(payload, { DL }) {
     const candidate = {
         name: payload.name !== undefined ? payload.name : existing.name,
         date: payload.date !== undefined ? payload.date : existing.date,
-        storeId: payload.storeId !== undefined ? (payload.storeId || undefined) : existing.storeId,
+        storeIds: payload.storeIds !== undefined
+            ? (Array.isArray(payload.storeIds) && payload.storeIds.length ? payload.storeIds.filter(Boolean) : undefined)
+            : existing.storeIds,
         start: payload.start !== undefined ? (payload.start ?? null) : (existing.start ?? null),
         end: payload.end !== undefined ? (payload.end ?? null) : (existing.end ?? null)
     }
 
     validateSpecialDayShape(candidate)
 
-    if (candidate.storeId && candidate.storeId !== existing.storeId) {
-        const store = await DL.Store.Model.findOne({ id: candidate.storeId }, { _id: 0, id: 1 }).lean()
-        if (!store) throw { status: 400, message: 'store not found' }
+    if (candidate.storeIds?.length) {
+        const found = await DL.Store.Model.distinct('id', { id: { $in: candidate.storeIds } })
+        if (found.length !== candidate.storeIds.length) throw { status: 400, message: 'store not found' }
     }
 
     await assertNoConflicts(DL, candidate, id)

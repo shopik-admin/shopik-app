@@ -32,7 +32,7 @@ export async function seedHolidays(DL) {
 
             const f = ev.getFlags()
             const name = ev.render('he') || ev.getDesc()
-            const base = { name, date, storeId: null, source: 'hebcal' }
+            const base = { name, date, storeIds: [], source: 'hebcal' }
 
             if (f & flags.CHAG) {
                 candidates.push({ ...base, start: null, end: null })
@@ -48,13 +48,13 @@ export async function seedHolidays(DL) {
         // this range — including admin-created replacements (never overwritten).
         const sameDate = await DL.SpecialDay.Model.find({
             active: true,
-            date: candidate.date,
-            $or: [{ storeId: null }, { storeId: { $exists: false } }]
+            date: candidate.date
         })
-            .select({ _id: 0, storeId: 1, start: 1, end: 1 })
+            .select({ _id: 0, storeIds: 1, start: 1, end: 1 })
             .lean()
+        const globalSameDate = sameDate.filter(sd => !sd.storeIds?.length)
 
-        if (sameDate.some(existing => overlapsSpecialDay(candidate, existing)))
+        if (globalSameDate.some(existing => overlapsSpecialDay(candidate, existing)))
             continue
 
         await DL.SpecialDay.create(candidate)

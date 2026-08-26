@@ -4,7 +4,7 @@
  * A special day closes delivery windows for `date`:
  *  - all-day when `start` is null/undefined
  *  - partial [start, end) otherwise
- * Scope: storeId == null applies to ALL stores, otherwise just that store.
+ * Scope: storeIds null/empty applies to ALL stores, otherwise just those stores.
  */
 
 export function overlapsWindow(sd, w) {
@@ -12,8 +12,13 @@ export function overlapsWindow(sd, w) {
     return w.start < sd.end && w.end > sd.start
 }
 
+function isGlobal(sd) {
+    return !sd.storeIds || sd.storeIds.length === 0
+}
+
 export function sameScope(a, b) {
-    return (a.storeId ?? null) === (b.storeId ?? null)
+    if (isGlobal(a) || isGlobal(b)) return true
+    return a.storeIds.some(id => b.storeIds.includes(id))
 }
 
 export function overlapsSpecialDay(a, b) {
@@ -38,6 +43,6 @@ export function buildSpecialMap(docs) {
  */
 export function specialDaysFor(specialMap, date, storeId) {
     return (specialMap.get(date) || []).filter(sd =>
-        sd.storeId == null || sd.storeId === storeId
+        isGlobal(sd) || sd.storeIds.includes(storeId)
     )
 }

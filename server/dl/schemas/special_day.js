@@ -12,7 +12,7 @@ const specialDaySchema = {
         type: String,
         required: true
     },
-    storeId: String,
+    storeIds: [String],
     start: Number,
     end: Number,
     source: {
@@ -24,7 +24,7 @@ const specialDaySchema = {
 }
 
 const index = [
-    { date: 1, storeId: 1 },
+    { date: 1, storeIds: 1 },
     { source: 1, date: 1 }
 ]
 

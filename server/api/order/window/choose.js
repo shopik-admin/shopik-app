@@ -35,12 +35,12 @@ export default async function choose(payload, { DL, _user, utils }) {
 
     const activeSpecials = await DL.SpecialDay.Model.find({
         active: true,
-        date: windowDoc.date,
-        $or: [{ storeId: windowDoc.storeId }, { storeId: null }]
+        date: windowDoc.date
     })
-        .select({ _id: 0, start: 1, end: 1 })
+        .select({ _id: 0, storeIds: 1, start: 1, end: 1 })
         .lean()
-    if (activeSpecials.some(sd => overlapsWindow(sd, windowDoc)))
+    const applicable = activeSpecials.filter(sd => !sd.storeIds?.length || sd.storeIds.includes(windowDoc.storeId))
+    if (applicable.some(sd => overlapsWindow(sd, windowDoc)))
         throw { status: 400, message: 'window is unavailable' }
 
     // Group-restricted windows are bookable by members of those groups only

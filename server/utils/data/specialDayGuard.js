@@ -7,6 +7,13 @@ export function validateSpecialDayShape(sd) {
     if (!sd.name?.trim()) throw { status: 400, message: 'name is required' }
     if (!DATE_RE.test(sd.date || '')) throw { status: 400, message: 'date must be YYYY-MM-DD' }
 
+    if (sd.storeIds != null) {
+        if (!Array.isArray(sd.storeIds)) throw { status: 400, message: 'storeIds must be an array' }
+        for (const id of sd.storeIds) {
+            if (typeof id !== 'string' || !id.trim()) throw { status: 400, message: 'storeIds must be string ids' }
+        }
+    }
+
     if (sd.start != null || sd.end != null) {
         if (!Number.isInteger(sd.start) || !Number.isInteger(sd.end))
             throw { status: 400, message: 'start and end must be whole hours' }
@@ -28,7 +35,7 @@ export async function assertNoConflicts(DL, candidate, existingId) {
         date: candidate.date,
         ...(existingId ? { id: { $ne: existingId } } : {})
     })
-        .select({ _id: 0, id: 1, name: 1, storeId: 1, start: 1, end: 1 })
+        .select({ _id: 0, id: 1, name: 1, storeIds: 1, start: 1, end: 1 })
         .lean()
 
     const conflict = sameDate.find(other =>
@@ -40,8 +47,9 @@ export async function assertNoConflicts(DL, candidate, existingId) {
             message: `an active special day already covers this scope (${conflict.name})`
         }
 
-    const storeIds = candidate.storeId ||
-        await DL.Store.Model.distinct('id', { active: true })
+    const storeIds = candidate.storeIds?.length
+        ? candidate.storeIds
+        : await DL.Store.Model.distinct('id', { active: true })
 
     const busyWindows = (await DL.OrderWindow.Model.find({
         storeId: { $in: Array.isArray(storeIds) ? storeIds : [storeIds] },

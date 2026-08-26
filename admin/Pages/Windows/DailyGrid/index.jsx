@@ -92,7 +92,7 @@ export default function DailyGrid({ date, onDateChange }) {
     function specialFor(win) {
         return specialDays.filter(sd =>
             sd.date === effectiveDate &&
-            (sd.storeId == null || sd.storeId === win.storeId) &&
+            (!sd.storeIds?.length || sd.storeIds.includes(win.storeId)) &&
             overlapsWindow(sd, win))
     }
 

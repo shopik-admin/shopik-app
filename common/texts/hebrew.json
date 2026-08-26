@@ -382,9 +382,8 @@
         "windows_hours": "שעות",
         "windows_until": "עד",
         "windows_full_day_preview": "סגירת כל חלונות המשלוח בתאריך זה.",
-        "windows_preview_closed": "החלונות",
-        "windows_preview_close_suffix": "ייסגרו, ו-",
-        "windows_preview_open_suffix": "יישארו פתוחים.",
+        "windows_preview_closed": "חלונות סגורים",
+        "windows_preview_open": "חלונות פתוחים",
         "windows_create": "יצירה"
     }
 }

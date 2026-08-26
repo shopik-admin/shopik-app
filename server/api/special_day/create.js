@@ -1,19 +1,21 @@
 import { validateSpecialDayShape, assertNoConflicts } from '#server/utils/data/specialDayGuard.js'
 
 export default async function create(payload, { DL, _admin }) {
+    const rawIds = payload.storeIds
+    const storeIds = Array.isArray(rawIds) ? rawIds.filter(Boolean) : undefined
     const candidate = {
         name: payload.name,
         date: payload.date,
-        storeId: payload.storeId || undefined,
+        storeIds: storeIds?.length ? storeIds : undefined,
         start: payload.start ?? null,
         end: payload.end ?? null
     }
 
     validateSpecialDayShape(candidate)
 
-    if (candidate.storeId) {
-        const store = await DL.Store.Model.findOne({ id: candidate.storeId }, { _id: 0, id: 1 }).lean()
-        if (!store) throw { status: 400, message: 'store not found' }
+    if (candidate.storeIds?.length) {
+        const found = await DL.Store.Model.distinct('id', { id: { $in: candidate.storeIds } })
+        if (found.length !== candidate.storeIds.length) throw { status: 400, message: 'store not found' }
     }
 
     // Order-protection + same-scope overlap guard
