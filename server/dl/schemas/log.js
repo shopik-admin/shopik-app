@@ -126,7 +126,7 @@ const methods = Log => {
             }
             if (actorData)
                 update.actor = actorData
-            try { await Log.updateOne({ id: log.id }, update) } catch {}
+            try { await Log.updateOne({ id: log.id }, update) } catch { }
         }
         async function success(responseData) {
             const update = {
@@ -162,7 +162,8 @@ export const meta = {
     index,
     constants,
     noActive: true,
-    methods
+    methods,
+    timestamps: { createdAt: true, updatedAt: false }
 }
 
 export default logSchema

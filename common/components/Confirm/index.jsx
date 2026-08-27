@@ -8,7 +8,7 @@ export default function Confirm({ q, onOk, onCancel, okText = 'confirm', cancelT
         {typeof q == 'string' ? <Text size='l' bold center>{q}</Text> : q}
         <Flex gap={20} center>
             <Button onClick={() => onOk?.()}>{okText}</Button>
-            <Button mode='text' onClick={() => onCancel?.()}>{cancelText}</Button>
+            <Button mode='outline' onClick={() => onCancel?.()}>{cancelText}</Button>
         </Flex>
     </Flex>
 }

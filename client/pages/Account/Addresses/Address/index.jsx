@@ -2,17 +2,21 @@ import classNames from 'common/functions/classNames'
 import styles from './address.module.css'
 import mapImage from './map.png'
 import Button from 'common/components/Button'
+import ConfirmButton from 'common/components/ConfirmButton'
 import Image from 'common/components/Image'
 import Card from 'common/components/Card'
 import Flex from 'common/components/Flex'
 import Text from 'common/components/Text'
 
-export default function Address({ store, address = {}, action = {}, onEdit, onRemove }) {
-    const { city, street, apartment, building, active } = store?.address || address
+export default function Address({ store, address = {}, active: activeProp, action = {}, onEdit, onRemove }) {
+    const { city, street, apartment, building, active: addressActive, hasService } = store?.address || address
+    const active = activeProp ?? addressActive
+    const isNoService = !store && hasService === false
+    const isDisabled = !!action.disabled || isNoService
 
     return <Flex
-        onClick={action.onClick}
-        tag={Card} gap={10} className={classNames(styles.address, [styles.active, active])}>
+        onClick={isDisabled ? undefined : action.onClick}
+        tag={Card} gap={10} className={classNames(styles.address, [styles.active, active], [styles.disabled, isDisabled || isNoService])}>
         <Image size={74} src={mapImage} />
 
         <Flex col gap={7} justifyContent='center'>
@@ -22,11 +26,18 @@ export default function Address({ store, address = {}, action = {}, onEdit, onRe
         </Flex>
 
         <Flex col justifyContent='space-between' grow={1}>
-            {!store && <Flex gap={10} justifyContent='end' className={styles.buttons}>
-                <Button icon='edit' mode='text' onClick={() => onEdit(address)} stopPropagation preventDefault />
-                <Button icon='trash' mode='text' onClick={() => onRemove(address)} stopPropagation preventDefault />
+            {!store && (onEdit || onRemove) && <Flex gap={10} justifyContent='end' className={styles.buttons}>
+                {onEdit && <Button icon='edit' mode='text' onClick={() => onEdit(address)} stopPropagation preventDefault />}
+                {onRemove && <ConfirmButton
+                    icon='trash' mode='text'
+                    q='remove_address_confirm'
+                    stopPropagation preventDefault
+                    onOk={() => onRemove(address)}
+                />}
             </Flex>}
-            <Button {...action} mode='text' text={active ? 'active' : ''} className={styles.actionButton} />
+            {isNoService
+                ? <Text size="s" className={classNames(styles.actionButton, styles.noService)}>no_service</Text>
+                : <Button {...action} mode='text' text={active ? 'active' : action.text} className={styles.actionButton} />}
         </Flex>
     </Flex>
 }

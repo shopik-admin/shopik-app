@@ -44,13 +44,13 @@ export default async function (app, bootData) {
         viteAdmin = await createServer({
             root: paths.admin.root,
             configFile: paths.admin.configFile,
-            server: { middlewareMode: true, hmr: { port: 24680 } },
+            server: { middlewareMode: true, ws: { port: 24680 } },
             appType: 'custom'
         })
         viteClient = await createServer({
             root: paths.client.root,
             configFile: paths.client.configFile,
-            server: { middlewareMode: true, hmr: { port: 24679 } },
+            server: { middlewareMode: true, ws: { port: 24679 } },
             appType: 'custom'
         })
 

@@ -1,0 +1,68 @@
+.wrapper {
+    position: relative;
+    display: inline-flex;
+}
+
+.wrapper::after {
+    content: attr(data-tip);
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1f1f1f;
+    color: #fff;
+    font-size: 12px;
+    line-height: 1.4;
+    padding: 6px 10px;
+    border-radius: 8px;
+    white-space: normal;
+    width: max-content;
+    max-width: 220px;
+    text-align: center;
+    pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+    z-index: 9999;
+    transition: opacity 0.15s ease 0.3s, visibility 0.15s ease 0.3s;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+}
+
+.wrapper::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%) rotate(45deg);
+    background: #1f1f1f;
+    width: 8px;
+    height: 8px;
+    pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+    z-index: 9999;
+    transition: opacity 0.15s ease 0.3s, visibility 0.15s ease 0.3s;
+}
+
+/* top (default) */
+.wrapper[data-position='top']::after {
+    bottom: calc(100% + 8px);
+}
+
+.wrapper[data-position='top']::before {
+    bottom: calc(100% + 4px);
+}
+
+/* bottom */
+.wrapper[data-position='bottom']::after {
+    top: calc(100% + 8px);
+}
+
+.wrapper[data-position='bottom']::before {
+    top: calc(100% + 4px);
+}
+
+.wrapper:hover::after,
+.wrapper:focus-within::after,
+.wrapper:hover::before,
+.wrapper:focus-within::before {
+    opacity: 1;
+    visibility: visible;
+}

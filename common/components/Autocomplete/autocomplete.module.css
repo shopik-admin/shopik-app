@@ -1,0 +1,48 @@
+.autocomplete {
+    position: relative;
+    width: 100%;
+}
+
+.dropdown {
+    position: absolute;
+    top: 70px;
+    inset-inline-start: 0;
+    inset-inline-end: 0;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-3xl);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    max-height: 220px;
+    overflow-y: auto;
+    z-index: 20;
+}
+
+.option {
+    padding: 10px 14px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.option:hover,
+.option.active {
+    background: var(--bg-secondary);
+}
+
+.empty {
+    padding: 10px 14px;
+    color: var(--text-tertiary);
+    font-size: 13px;
+}
+
+.loaderWrap {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 16px;
+}
+
+.error {
+    color: var(--text-error-primary);
+    font-size: 13px;
+    margin-top: 4px;
+}

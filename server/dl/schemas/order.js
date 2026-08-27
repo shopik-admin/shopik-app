@@ -180,7 +180,8 @@ export const cartSchema = [{
         option: unitOptionSchema
     },
     shelfLife: Number,
-    shelfLifeDate: Date
+    shelfLifeDate: Date,
+    refundedAmount: { type: Number, default: 0 }
 }]
 
 const orderSchema = {
@@ -278,6 +279,22 @@ const orderSchema = {
         default: false,
         filter: true
     },
+    payment: {
+        provider: { type: String, default: 'hyp' },
+        providerTxnId: String,
+        authCode: String,
+        providerUid: String,
+        providerPayerId: String,
+        cardToken: String,
+        cardExpiry: String,
+        last4digits: String,
+        cardCompany: String,
+        terminalId: String,
+        authorizedAmount: Number,
+        capturedAt: Date,
+        captureProviderTxnId: String
+    },
+    refundedTotal: { type: Number, default: 0 },
     invoice: invoiceSchema,
     receipt: {
         url: String,
@@ -446,6 +463,7 @@ const defaultSelect = {
     coupons: 1,
     orderPickupToken: 1,
     deliveryMethod: 1,
+    address: 1,
     storeId: 1,
     window: 1,
     address: 1
