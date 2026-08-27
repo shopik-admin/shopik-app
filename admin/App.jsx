@@ -12,15 +12,23 @@ function AdminLayout() {
     return <Sidebar >
         <Header />
         <Main />
-        {/*  <BottomMenu /> */}
     </Sidebar>
+}
+
+function isOpsPath(path) {
+    return path === '/admin/ops' || path?.startsWith('/admin/ops/')
 }
 
 export default function App() {
     const pages = usePages()
+    const opsPages = pages.filter(p => isOpsPath(p.path))
+    const otherPages = pages.filter(p => !isOpsPath(p.path))
     return <Routes>
+        {opsPages.map((page) => (
+            <Route key={page.key} path={page.path} Component={page.component} />
+        ))}
         <Route element={<AdminLayout />}>
-            {pages.map((page) => (
+            {otherPages.map((page) => (
                 <Route key={page.key} path={page.path} Component={page.component} />
             ))}
         </Route>

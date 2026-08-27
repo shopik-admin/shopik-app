@@ -1,0 +1,14 @@
+.ops { padding-bottom: 60px; }
+.filters { display:flex; gap:6px; overflow:auto; padding:8px 0; }
+.filters button { padding:8px 10px; border:1px solid #ddd; background:#fff; border-radius:8px; }
+.filters button.active { background:#111; color:#fff; }
+.list { display:flex; flex-direction:column; gap:10px; }
+.card { background:#fff; border:1px solid #eee; border-radius:12px; padding:12px; }
+.cardHead { display:flex; gap:8px; align-items:center; }
+.status { text-transform:uppercase; font-size:12px; background:#f0f0f0; padding:2px 6px; border-radius:6px; }
+.mine { font-size:12px; color:#0a0; font-weight:700; }
+.actions { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+.actions button { padding:8px 10px; border-radius:8px; border:1px solid #ddd; background:#fff; }
+.sheet { position:fixed; inset:0; background:#fff; z-index:20; padding:16px; overflow:auto; }
+.pickRow { border-bottom:1px solid #eee; padding:8px 0; }
+.error { color:red; padding:8px; }

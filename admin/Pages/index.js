@@ -15,6 +15,7 @@ import ComaxProducts from 'Pages/ComaxProducts'
 import ComaxSales from 'Pages/ComaxSales'
 import SupplyAreas from 'Pages/SupplyAreas'
 import Windows from 'Pages/Windows'
+import Ops from 'Pages/Ops'
 
 const pages = [
     { key: 'dashboard', name: 'Dashboard', path: '/', section: 'main', icon: 'desktop', component: Dashboard,/*  permission: 'dashboard:read' */ },
@@ -30,6 +31,7 @@ const pages = [
     { key: 'stores', name: 'Stores', path: '/stores', section: 'management', icon: 'stores', component: Stores, permission: 'store:read' },
     { key: 'supply-areas', name: 'Supply Areas', path: '/supply-areas', section: 'management', icon: 'map', component: SupplyAreas, permission: 'supply_area:read' },
     { key: 'windows', name: 'Windows', path: '/windows', section: 'management', icon: 'calendar', component: Windows, permission: 'order_window_template:read' },
+    { key: 'ops', name: 'Ops', path: '/admin/ops', section: 'operations', icon: 'orders', component: Ops, permission: ['order:read', 'order:pick', 'order:ship'] },
 
     { key: 'comax-products', name: 'Comax Products', path: '/comax-products', section: 'comax', icon: 'products', component: ComaxProducts, permission: 'comax_product:read' },
     { key: 'comax-sales', name: 'Comax Sales', path: '/comax-sales', section: 'comax', icon: 'sale', component: ComaxSales, permission: 'comax_sale:read' },
@@ -45,5 +47,9 @@ export default function usePages() {
     if (isSuperAdmin)
         return pages
 
-    return pages.filter(p => role.permissions.includes(p.permission))
+    return pages.filter(p => {
+        if (!p.permission) return true
+        if (Array.isArray(p.permission)) return p.permission.some(perm => role.permissions.includes(perm))
+        return role.permissions.includes(p.permission)
+    })
 } 

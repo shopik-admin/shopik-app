@@ -422,6 +422,12 @@ const orderSchema = {
         restoredAt: Date
     },
     shipperComment: String,
+    shipmentId: String,
+    deliveryProof: {
+        url: String,
+        at: Date
+    },
+    pickingReleaseCount: Number,
 }
 
 const virtuals = {
