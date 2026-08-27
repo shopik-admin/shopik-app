@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import useApi from 'common/functions/useApi'
 import apiReq from 'common/functions/apiReq'
 import Button from 'common/components/Button'
@@ -7,101 +7,17 @@ import Flex from 'common/components/Flex'
 import Card from 'common/components/Card'
 import Text from 'common/components/Text'
 import Icon from 'common/components/Icon'
-import Form from 'common/components/Form'
-import { useModal } from 'common/components/Modal'
 import { useText } from 'common/texts/TextProvider'
 import SupplyAreaMap from './SupplyAreaMap'
 import styles from './supplyAreas.module.css'
 
 const toMessage = (err) => (typeof err === 'string' ? err : err?.message || 'something went wrong')
 
-function AreaForm({ area, geometry, onClose, onSuccess }) {
-    const [saving, setSaving] = useState(false)
-
-    async function handleAction(vals) {
-        setSaving(true)
-        try {
-            const payload = { name: vals.name?.trim() ?? '' }
-            if (area) {
-                await apiReq('supply_area/update', { id: area.id, ...payload })
-                onSuccess(area)
-            } else {
-                const created = await apiReq('supply_area/create', { ...payload, location: geometry })
-                onSuccess(created)
-            }
-            onClose()
-        } catch (err) {
-            throw toMessage(err)
-        } finally {
-            setSaving(false)
-        }
-    }
-
-    return (
-        <Form action={handleAction} className={styles.areaForm} noSubmit>
-            <Input
-                label="name"
-                name="name"
-                defaultValue={area?.name || ''}
-            />
-
-            <Flex gap={8} justifyContent="end" className={styles.formActions}>
-                <Button type="button" onClick={onClose} disabled={saving} mode="outline">cancel</Button>
-                <Button type="submit" loading={saving}>
-                    {area ? 'supply_save_changes' : 'supply_create_area'}
-                </Button>
-            </Flex>
-        </Form>
-    )
-}
-
-function GroupForm({ group, stores, defaultStoreId = '', onClose, onSuccess }) {
-    const { TR } = useText()
-
-    async function handleAction(vals) {
-        const name = vals.name?.trim() ?? ''
-        const storeId = vals.storeId ?? ''
-        if (!name) throw TR('supply_group_name_required')
-        if (!storeId) throw TR('supply_choose_store_required')
-        onSuccess({ name, storeId })
-        onClose()
-    }
-
-    return (
-        <Form action={handleAction} className={styles.areaForm} noSubmit>
-            <Input
-                label="name"
-                name="name"
-                required
-                defaultValue={group?.name || ''}
-            />
-            <div className={styles.groupStoreField}>
-                <label className={styles.groupStoreLabel}><Text size="none">supply_store</Text></label>
-                <select
-                    className={styles.storeSelect}
-                    name="storeId"
-                    defaultValue={group?.storeId || defaultStoreId || ''}
-                >
-                    {stores.map(store => (
-                        <option key={store.id} value={store.id}>{store.name} ({store.tag})</option>
-                    ))}
-                </select>
-            </div>
-
-            <Flex gap={8} justifyContent="end" className={styles.formActions}>
-                <Button type="button" onClick={onClose} mode="outline">cancel</Button>
-                <Button type="submit">{group ? 'supply_save_changes' : 'supply_next_select_areas'}</Button>
-            </Flex>
-        </Form>
-    )
-}
-
 export default function SupplyAreas() {
     const { TR } = useText()
     const { data: areas = [], callReq, setData, loading } = useApi('supply_area/read', { limit: 0 })
     const { data: stores = [] } = useApi('store/read')
     const { data: groups = [], callReq: refetchGroups } = useApi('area_group/read', { limit: 0 })
-    const { openModal, closeModal } = useModal()
 
     const [selectedId, setSelectedId] = useState(null)
     const [areaDraft, setAreaDraft] = useState(null) // { id, name, storeIds }
@@ -123,6 +39,12 @@ export default function SupplyAreas() {
     const [testing, setTesting] = useState(false)
 
     const selectedArea = areas.find(a => a.id === selectedId) || null
+
+    useEffect(() => {
+        if (groupDraft || creating) {
+            setTestResult(null)
+        }
+    }, [groupDraft, creating])
 
     // While drafting, keep the saved member state of the edited group visible (purple)
     const viewGroup = groupDraft?.id ? groups.find(g => g.id === groupDraft.id) : null
@@ -166,22 +88,6 @@ export default function SupplyAreas() {
         if (Array.isArray(c) && c.length === 2) return { lat: c[1], lng: c[0] }
         return null
     }, [groupDraft?.id, groups, areas, stores])
-
-    function openAreaForm(area = null, geometry = null) {
-        openModal(
-            <AreaForm
-                area={area}
-                geometry={geometry}
-                onClose={closeModal}
-                onSuccess={(result) => {
-                    callReq()
-                    setSelectedId(result.id)
-                    setError(null)
-                }}
-            />,
-            { title: area ? `${TR('edit')} ${area.name}` : TR('supply_new_supply_area') }
-        )
-    }
 
     function handleNewArea() {
         if (groupDraft || geometryEditingId) return
@@ -244,32 +150,6 @@ export default function SupplyAreas() {
         apiReq('supply_area/delete', { id: selectedArea.id })
             .then(() => { callReq(); setSelectedId(null); setAreaDraft(null); setGeometryEditingId(null) })
             .catch(err => setError(toMessage(err)))
-    }
-
-    function openGroupForm(group = null, defaultStoreId = '') {
-        if (creating) return
-        setError(null)
-        openModal(
-            <GroupForm
-                group={group}
-                stores={stores}
-                defaultStoreId={defaultStoreId}
-                onClose={closeModal}
-                onSuccess={({ name, storeId }) => {
-                    setCreating(false)
-                    setSelectedId(null)
-                    setGroupDraft(prev => {
-                        const sameSubject = prev && (prev.id ?? null) === (group?.id ?? null)
-                        const areaIds = sameSubject
-                            ? prev.areaIds
-                            : (group ? [...(group.areaIds || [])] : [])
-                        return { id: group?.id ?? null, name, storeId, areaIds }
-                    })
-                    setExpandedStores(prev => prev.includes(storeId) ? prev : [...prev, storeId])
-                }}
-            />,
-            { title: group ? `${TR('edit')} ${group.name}` : TR('supply_new_area_group') }
-        )
     }
 
     // Clicking a saved group expands it inline into edit mode with its areas highlighted
