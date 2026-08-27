@@ -11,7 +11,6 @@ import Form from 'common/components/Form'
 import { useModal } from 'common/components/Modal'
 import { useText } from 'common/texts/TextProvider'
 import SupplyAreaMap from './SupplyAreaMap'
-import StoreListEditor from './StoreListEditor'
 import styles from './supplyAreas.module.css'
 
 const toMessage = (err) => (typeof err === 'string' ? err : err?.message || 'something went wrong')
@@ -105,6 +104,9 @@ export default function SupplyAreas() {
     const { openModal, closeModal } = useModal()
 
     const [selectedId, setSelectedId] = useState(null)
+    const [areaDraft, setAreaDraft] = useState(null) // { id, name, storeIds }
+    const [geometryEditingId, setGeometryEditingId] = useState(null)
+    const [savingArea, setSavingArea] = useState(false)
     const [focusStoreId, setFocusStoreId] = useState(null)
     const [creating, setCreating] = useState(false)
     const [expandedStores, setExpandedStores] = useState([])
@@ -181,10 +183,65 @@ export default function SupplyAreas() {
     }
 
     function handleNewArea() {
-        if (groupDraft) return
+        if (groupDraft || geometryEditingId) return
         setError(null)
         setCreating(true)
         setSelectedId(null)
+        setAreaDraft(null)
+        setGeometryEditingId(null)
+    }
+
+    // ——— Area popup (Option H: view → edit via bubble, geometry via footer) ———
+    function handleSelectArea(id) {
+        if (groupDraft) return
+        if (geometryEditingId) return
+        setError(null)
+        setSelectedId(id)
+        setAreaDraft(null)
+    }
+    function handleStartAreaPropsEdit() {
+        if (!selectedArea) return
+        setError(null)
+        setAreaDraft({ id: selectedArea.id, name: selectedArea.name || '', storeIds: (selectedArea.stores || []).map(s => s.storeId) })
+    }
+    function handleCancelAreaPropsEdit() {
+        setAreaDraft(null)
+        setError(null)
+    }
+    function handleSaveAreaProps() {
+        if (!areaDraft) return
+        const { id, name, storeIds } = areaDraft
+        setSavingArea(true)
+        setError(null)
+        apiReq('supply_area/update', { id, name: (name || '').trim(), stores: storeIds })
+            .then(updated => {
+                setData(prev => prev.map(a => a.id === id ? { ...a, name: updated.name, stores: updated.stores } : a))
+                setAreaDraft(null)
+            })
+            .catch(err => setError(toMessage(err)))
+            .finally(() => setSavingArea(false))
+    }
+    function handleStartGeometryEdit() {
+        if (!selectedArea) return
+        setError(null)
+        setAreaDraft(null)
+        setGeometryEditingId(selectedArea.id)
+    }
+    function handleGeometryCommit(id, geometry) {
+        setGeometryEditingId(null)
+        setError(null)
+        apiReq('supply_area/update', { id, location: geometry })
+            .then(() => callReq())
+            .catch(err => setError(toMessage(err)))
+    }
+    function handleGeometryCancel() { setGeometryEditingId(null) }
+    function handleDeleteAreaPopup() {
+        if (!selectedArea) return
+        if (!window.confirm(`${TR('supply_delete_area_confirm')} "${selectedArea.name}"?`)) return
+        setError(null)
+        apiReq('supply_area/delete', { id: selectedArea.id })
+            .then(() => { callReq(); setSelectedId(null); setAreaDraft(null); setGeometryEditingId(null) })
+            .catch(err => setError(toMessage(err)))
     }
 
     function openGroupForm(group = null, defaultStoreId = '') {
@@ -216,9 +273,12 @@ export default function SupplyAreas() {
     // Clicking a saved group expands it inline into edit mode with its areas highlighted
     function startGroupEdit(group) {
         if (groupDraft?.id === group.id) return
+        if (geometryEditingId) return
         setError(null)
         setCreating(false)
         setSelectedId(null)
+        setAreaDraft(null)
+        setGeometryEditingId(null)
         setGroupDraft({ id: group.id, name: group.name, storeId: group.storeId, areaIds: [...(group.areaIds || [])] })
         setExpandedStores(prev => prev.includes(group.storeId) ? prev : [...prev, group.storeId])
     }
@@ -282,11 +342,13 @@ export default function SupplyAreas() {
 
     function handleCreateGroup() {
         if (!groupDraft || groupDraft.id) return
-        const { name } = groupDraft
+        const { name, areaIds } = groupDraft
         const missingName = !name?.trim()
-        if (missingName) {
+        const missingAreas = !areaIds?.length
+        if (missingName || missingAreas) {
             const parts = []
             if (missingName) parts.push(TR('supply_group_name_required'))
+            if (missingAreas) parts.push(TR('supply_no_area_groups'))
             setError(parts.join(' — '))
             return
         }
@@ -294,11 +356,13 @@ export default function SupplyAreas() {
     }
 
     function handleNewGroupInline(storeId) {
-        if (creating) return
+        if (creating || geometryEditingId) return
         if (groupDraft && !groupDraft.id && groupDraft.storeId === storeId) return
         setError(null)
         setCreating(false)
         setSelectedId(null)
+        setAreaDraft(null)
+        setGeometryEditingId(null)
         setGroupDraft({ id: null, name: '', storeId, areaIds: [] })
         setExpandedStores(prev => prev.includes(storeId) ? prev : [...prev, storeId])
     }
@@ -323,7 +387,9 @@ export default function SupplyAreas() {
     }
 
     function handleMapBackgroundClick() {
+        if (groupDraft || creating || geometryEditingId) return
         setSelectedId(null)
+        setAreaDraft(null)
     }
 
     function handleCancelCreate() {
@@ -337,37 +403,6 @@ export default function SupplyAreas() {
             .then(created => {
                 callReq()
                 setSelectedId(created.id)
-            })
-            .catch(err => setError(toMessage(err)))
-    }
-
-    function handleMapEdited(id, geometry) {
-        setError(null)
-        apiReq('supply_area/update', { id, location: geometry })
-            .then(() => {
-                setSelectedId(null)
-                return callReq()
-            })
-            .catch(err => setError(toMessage(err)))
-    }
-
-    function handleDeleteArea() {
-        if (!selectedArea) return
-        if (!window.confirm(`${TR('supply_delete_area_confirm')} "${selectedArea.name}"?`)) return
-        setError(null)
-        apiReq('supply_area/delete', { id: selectedArea.id })
-            .then(() => {
-                callReq()
-                setSelectedId(null)
-            })
-            .catch(err => setError(toMessage(err)))
-    }
-
-    function handleStoresChange(id, storeIds) {
-        setError(null)
-        apiReq('supply_area/update', { id, stores: storeIds })
-            .then(updated => {
-                setData(prev => prev.map(a => a.id === id ? { ...a, stores: updated.stores } : a))
             })
             .catch(err => setError(toMessage(err)))
     }
@@ -436,7 +471,7 @@ export default function SupplyAreas() {
                     {creating && (
                         <Button size="s" mode="outline" onClick={handleCancelCreate}>supply_cancel_draw</Button>
                     )}
-                    <Button size="s" icon="add" onClick={handleNewArea} disabled={!!groupDraft}>new area</Button>
+                    <Button size="s" icon="add" onClick={handleNewArea} disabled={!!groupDraft || !!geometryEditingId}>new area</Button>
                 </Flex>
             </div>
 
@@ -452,23 +487,6 @@ export default function SupplyAreas() {
 
             <Flex className={styles.body}>
                 <div className={styles.sidebar}>
-
-                    {selectedArea && (
-                        <div className={styles.editor}>
-                            <div className={styles.editorHeader}>
-                                <h3 className={styles.editorTitle}>{selectedArea.name}</h3>
-                                <Flex gap={6}>
-                                    <Button size="s" icon="edit" onClick={() => openAreaForm(selectedArea)}>edit</Button>
-                                    <Button size="s" icon="trash" mode="outline" onClick={handleDeleteArea}>delete</Button>
-                                </Flex>
-                            </div>
-                            <StoreListEditor
-                                stores={stores}
-                                areaStores={selectedArea.stores || []}
-                                onChange={(ids) => handleStoresChange(selectedArea.id, ids)}
-                            />
-                        </div>
-                    )}
 
                     <div className={styles.storeListPane}>
                         <h4 className={styles.storeListTitle}><Text>supply_stores_groups</Text></h4>
@@ -598,13 +616,23 @@ export default function SupplyAreas() {
                         focusPoint={focusPoint}
                         focusGroupPoint={focusGroupPoint}
                         selectedId={selectedId}
+                        areaDraft={areaDraft}
+                        setAreaDraft={setAreaDraft}
+                        geometryEditingId={geometryEditingId}
                         drawing={creating}
                         testPoint={testPoint}
                         testLabel={testLabel}
-                        onSelect={setSelectedId}
+                        savingArea={savingArea}
+                        onSelect={handleSelectArea}
                         onBackgroundClick={handleMapBackgroundClick}
                         onCreated={handleMapCreated}
-                        onEdited={handleMapEdited}
+                        onEdited={handleGeometryCommit}
+                        onGeometryCancel={handleGeometryCancel}
+                        onStartAreaPropsEdit={handleStartAreaPropsEdit}
+                        onSaveAreaProps={handleSaveAreaProps}
+                        onCancelAreaPropsEdit={handleCancelAreaPropsEdit}
+                        onDeleteArea={handleDeleteAreaPopup}
+                        onStartGeometryEdit={handleStartGeometryEdit}
                     />
                 </div>
             </Flex>
