@@ -539,18 +539,20 @@ export default function SupplyAreas() {
                                                                 <div className={styles.groupEditHint}>
                                                                     <Text size="none">supply_group_hint</Text>
                                                                 </div>
-                                                                <Flex gap={8} justifyContent="end" alignItems="center">
-                                                                    <Button size="s" mode="outline" icon="trash" onClick={handleDeleteGroup}>delete</Button>
-                                                                    <Button size="s" mode="outline" onClick={handleCancelGroupDraft}>cancel</Button>
-                                                                    <Button
-                                                                        size="s"
-                                                                        icon="check"
-                                                                        loading={savingGroup}
-                                                                        disabled={!groupDirty || !groupDraft.name?.trim()}
-                                                                        onClick={handleSaveGroup}
-                                                                    >
-                                                                        save
-                                                                    </Button>
+                                                                <Flex gap={8} justifyContent="space-between" alignItems="center">
+                                                                    <Button size="s" mode="outline" icon="trash" onClick={handleDeleteGroup} />
+                                                                    <Flex gap={8}>
+                                                                        <Button size="s" mode="outline" onClick={handleCancelGroupDraft}>cancel</Button>
+                                                                        <Button
+                                                                            size="s"
+                                                                            icon="check"
+                                                                            loading={savingGroup}
+                                                                            disabled={!groupDirty || !groupDraft.name?.trim()}
+                                                                            onClick={handleSaveGroup}
+                                                                        >
+                                                                            save
+                                                                        </Button>
+                                                                    </Flex>
                                                                 </Flex>
                                                             </div>
                                                         )}
