@@ -605,7 +605,7 @@ export default function SupplyAreaMap({
                                 <div>
                                     <strong>{store.name}</strong>
                                     {store.tag && <span> ({store.tag})</span>}
-                                    <div style={{ fontSize: 12, color: '#475569' }}>
+                                    <div className={styles.popupSubtle}>
                                         {[a.city, a.street, a.building].filter(Boolean).join(', ')}
                                     </div>
                                 </div>
