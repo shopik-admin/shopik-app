@@ -134,7 +134,7 @@ export default function FilterBar({ actions, cols }) {
             </div>
         </div>
         {isFiltered && <div className={styles.separator} />}
-        <FilterChips filter={filter} setFilter={setFilter} descriptors={descriptors} TR={TR} storeMap={storeMap} />
+        <FilterChips filter={filter} setFilter={setFilter} TR={TR} storeMap={storeMap} />
     </div>
 }
 
@@ -172,14 +172,53 @@ function OverflowDropdown({ descriptors, filter, setFilter, TR, storeMap }) {
         </button>}
     >
         {({ close }) => <div className={styles.overflowContent}>
-            {descriptors.map(d => (
-                <div key={d.key} className={styles.overflowItem}>
-                    <div className={styles.overflowLabel}>{getLabel(TR, d.key)}</div>
-                    <FilterControl descriptor={d} filter={filter} setFilter={setFilter} TR={TR} storeMap={storeMap} />
-                </div>
-            ))}
+            {descriptors.map(d => {
+                if (d.type === 'date') {
+                    return (
+                        <div key={d.key} className={styles.overflowItem}>
+                            <CollapsibleDateFilter descriptor={d} filter={filter} setFilter={setFilter} TR={TR} />
+                        </div>
+                    )
+                }
+                return (
+                    <div key={d.key} className={styles.overflowItem}>
+                        <div className={styles.overflowLabel}>{getLabel(TR, d.key)}</div>
+                        <FilterControl descriptor={d} filter={filter} setFilter={setFilter} TR={TR} storeMap={storeMap} />
+                    </div>
+                )
+            })}
         </div>}
     </Popover>
+}
+
+function CollapsibleDateFilter({ descriptor, filter, setFilter, TR }) {
+    const key = descriptor.key
+    const value = filter[key]
+    const rangeText = formatDateRange(value?.$gte, value?.$lte, TR)
+    const [expanded, setExpanded] = useState(false)
+    const label = getLabel(TR, key)
+    return (
+        <div>
+            <button type='button' className={styles.overflowDateHeader} onClick={() => setExpanded(v => !v)} aria-expanded={expanded}>
+                <span className={styles.overflowDateLabel}>{label}</span>
+                <Flex gap={6} alignItems='center'>
+                    {rangeText && <span className={styles.overflowDateSummary}>{rangeText}</span>}
+                    <Icon name='down' className={`${styles.chevron} ${styles.overflowDateArrow} ${expanded ? styles.expanded : ''}`} />
+                </Flex>
+            </button>
+            {expanded && (
+                <div className={styles.overflowDateCalendarWrap}>
+                    <DateRangeCalendar value={value} TR={TR} onChange={nextRange => {
+                        if (!nextRange || (!nextRange.$gte && !nextRange.$lte)) {
+                            const n = { ...filter }; delete n[key]; setFilter(n)
+                        } else {
+                            setFilter(prev => ({ ...prev, [key]: nextRange }))
+                        }
+                    }} />
+                </div>
+            )}
+        </div>
+    )
 }
 
 function FilterControl({ descriptor, filter, setFilter, TR, storeMap }) {
@@ -204,8 +243,6 @@ function FilterControl({ descriptor, filter, setFilter, TR, storeMap }) {
     }
 
     if (type === 'date') {
-        const gte = value?.$gte || ''
-        const lte = value?.$lte || ''
         return <Flex gap={8} col>
             <DateRangeCalendar value={value} TR={TR} onChange={nextRange => {
                 if (!nextRange || (!nextRange.$gte && !nextRange.$lte)) {
@@ -267,7 +304,6 @@ function FilterControl({ descriptor, filter, setFilter, TR, storeMap }) {
     return <div style={{ fontSize: 13, opacity: .6 }}>{TR('search')} — {key}</div>
 }
 
-function isoToIsoDay(iso) { return iso } // helper kept for readability
 function DateRangeCalendar({ value, TR, onChange }) {
     const gte = value?.$gte || null
     const lte = value?.$lte || null
@@ -350,7 +386,7 @@ function DateRangeCalendar({ value, TR, onChange }) {
     </div>
 }
 
-function FilterChips({ filter, setFilter, descriptors, TR, storeMap }) {
+function FilterChips({ filter, setFilter, TR, storeMap }) {
     const chips = []
     for (const [key, val] of Object.entries(filter)) {
         if (val == null) continue

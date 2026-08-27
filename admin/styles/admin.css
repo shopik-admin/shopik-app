@@ -255,7 +255,6 @@ body .Card_ .Card_close {
 
 body .Popover_ {
     border: 1px solid var(--border-tertiary);
-    border-radius: var(--radius-lg);
     box-shadow: var(--shadow-lg);
 }
 
