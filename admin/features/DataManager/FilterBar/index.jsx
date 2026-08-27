@@ -72,6 +72,7 @@ function useDynamicVisibleCount(barRef, mainCount, otherCount) {
 function isActive(filter, key) {
     const v = filter[key]
     if (v == null) return false
+    if (typeof v === 'string') return v.trim().length > 0
     if (typeof v === 'object') {
         if (Array.isArray(v.$in)) return v.$in.length > 0
         return v.$gte != null || v.$lte != null || v.$gt != null || v.$lt != null
@@ -143,12 +144,20 @@ function FilterPill({ descriptor, filter, setFilter, TR, storeMap }) {
     const active = isActive(filter, descriptor.key)
     const count = filter[descriptor.key]?.$in?.length || (active ? 1 : 0)
     const isDate = descriptor.type === 'date'
+    const isString = descriptor.type === 'string'
     const dateText = isDate ? formatDateRange(filter[descriptor.key]?.$gte, filter[descriptor.key]?.$lte, TR) : null
-    const displayText = isDate && dateText ? dateText : label
+    let displayText = label
+    if (isDate && dateText) displayText = dateText
+    else if (isString && active) {
+        const v = filter[descriptor.key]
+        const raw = typeof v === 'string' ? v : ''
+        displayText = raw ? `${label}: ${raw}` : label
+    }
     return <Popover
         button={<button className={`${styles.pill} ${active ? styles.active : ''} ${isDate ? styles.datePill : ''}`}>
             {isDate && <Icon name='calendar' className={styles.chevron} />}
-            <span>{displayText}</span>
+            {isString && active && <Icon name='search' className={styles.chevron} />}
+            <span style={isString && active ? { maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis' } : undefined}>{displayText}</span>
             {active && !isDate && <span className={styles.badge}>{count > 1 ? count : '•'}</span>}
             <Icon name='down' className={styles.chevron} />
         </button>}
@@ -161,6 +170,20 @@ function FilterPill({ descriptor, filter, setFilter, TR, storeMap }) {
 
 function OverflowDropdown({ descriptors, filter, setFilter, TR, storeMap }) {
     const activeCount = descriptors.filter(d => isActive(filter, d.key)).length
+    const sorted = useMemo(() => {
+        const order = { enum: 0, store: 0, boolean: 1, string: 2, date: 3, number: 4 }
+        return [...descriptors].sort((a, b) => {
+            const oa = order[a.type] ?? 99
+            const ob = order[b.type] ?? 99
+            if (oa !== ob) return oa - ob
+            // ponytail: keep date range intuitive — start above end
+            if (oa === 3) {
+                if (a.key === 'start' && b.key === 'end') return -1
+                if (a.key === 'end' && b.key === 'start') return 1
+            }
+            return a.key.localeCompare(b.key)
+        })
+    }, [descriptors])
     return <Popover
         button={<button className={`${styles.pill} ${styles.overflowPill}`}>
             <Flex gap={8}>
@@ -172,7 +195,7 @@ function OverflowDropdown({ descriptors, filter, setFilter, TR, storeMap }) {
         </button>}
     >
         {({ close }) => <div className={styles.overflowContent}>
-            {descriptors.map(d => {
+            {sorted.map(d => {
                 if (d.type === 'date') {
                     return (
                         <div key={d.key} className={styles.overflowItem}>
@@ -183,7 +206,7 @@ function OverflowDropdown({ descriptors, filter, setFilter, TR, storeMap }) {
                 return (
                     <div key={d.key} className={styles.overflowItem}>
                         <div className={styles.overflowLabel}>{getLabel(TR, d.key)}</div>
-                        <FilterControl descriptor={d} filter={filter} setFilter={setFilter} TR={TR} storeMap={storeMap} />
+                        <FilterControl descriptor={d} filter={filter} setFilter={setFilter} TR={TR} storeMap={storeMap} close={close} />
                     </div>
                 )
             })}
@@ -221,7 +244,7 @@ function CollapsibleDateFilter({ descriptor, filter, setFilter, TR }) {
     )
 }
 
-function FilterControl({ descriptor, filter, setFilter, TR, storeMap }) {
+function FilterControl({ descriptor, filter, setFilter, TR, storeMap, close }) {
     const { key, type, options } = descriptor
     const value = filter[key]
 
@@ -300,7 +323,32 @@ function FilterControl({ descriptor, filter, setFilter, TR, storeMap }) {
         </div>
     }
 
-    // string fallback — not rendered as pill filter
+    if (type === 'string') {
+        // ponytail: per-field prefix search — only this field, ^value (escaped + 'i' on server), send plain string only
+        const strVal = typeof value === 'string' ? value : ''
+        return <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <input
+                    type='text'
+                    value={strVal}
+                    placeholder={`${getLabel(TR, key)}...`}
+                    autoFocus
+                    onChange={e => {
+                        const v = e.target.value
+                        if (!v.trim()) {
+                            setFilter(prev => { const n = { ...prev }; delete n[key]; return n })
+                        } else {
+                            setFilter(prev => ({ ...prev, [key]: v }))
+                        }
+                    }}
+                    onKeyDown={e => { if (e.key === 'Escape') { const n = { ...filter }; delete n[key]; setFilter(n); close?.() } }}
+                    style={{ flex: 1, padding: '8px 10px', border: '1px solid var(--border-secondary)', borderRadius: 8, fontSize: 13, outline: 'none' }}
+                />
+                {strVal && <button type='button' onClick={() => { const n = { ...filter }; delete n[key]; setFilter(n) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', padding: 4 }} aria-label='clear'><Icon name='x' /></button>}
+            </div>
+        </div>
+    }
+
     return <div style={{ fontSize: 13, opacity: .6 }}>{TR('search')} — {key}</div>
 }
 
@@ -390,7 +438,11 @@ function FilterChips({ filter, setFilter, TR, storeMap }) {
     const chips = []
     for (const [key, val] of Object.entries(filter)) {
         if (val == null) continue
-        if (val === true || val === false) {
+        if (typeof val === 'string') {
+            // string prefix search chip — val is raw prefix (server adds ^ + 'i'), plain string only
+            const label = `${getLabel(TR, key)}: ${val}`
+            chips.push({ key, label, onRemove: () => { const n = { ...filter }; delete n[key]; setFilter(n) } })
+        } else if (val === true || val === false) {
             chips.push({ key, label: `${getLabel(TR, key)}`, onRemove: () => { const n = { ...filter }; delete n[key]; setFilter(n) } })
         } else if (typeof val === 'object' && Array.isArray(val.$in)) {
             for (const v of val.$in) {

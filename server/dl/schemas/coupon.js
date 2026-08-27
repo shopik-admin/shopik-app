@@ -19,18 +19,21 @@ const couponSchema = {
         required: true,
         lowercase: true,
         trim: true,
-        unique: true
+        unique: true,
+        filter: true
     },
     name: {
         type: String,
-        required: true
+        required: true,
+        filter: true
     },
     description: String,
     department: {
         type: String,
         enum: Object.values(DEPARTMENTS),
         required: true,
-        default: DEPARTMENTS.MARKETING
+        default: DEPARTMENTS.MARKETING,
+        filter: true
     },
     discount: {
         type: Number,
@@ -48,17 +51,20 @@ const couponSchema = {
     benefit: {
         type: String,
         required: true,
-        enum: Object.values(BENEFITS)
+        enum: Object.values(BENEFITS),
+        filter: true
     },
     whitelist: [String],
     blacklist: [String],
     start: {
         type: Date,
-        required: true
+        required: true,
+        filter: true
     },
     end: {
         type: Date,
-        required: true
+        required: true,
+        filter: true
     },
     dynamic: {
         type: Boolean,
@@ -86,7 +92,8 @@ const couponSchema = {
     status: {
         type: String,
         default: STATUS.ACTIVE,
-        enum: Object.values(STATUS)
+        enum: Object.values(STATUS),
+        filter: true
     },
     adminId: {
         type: String,
