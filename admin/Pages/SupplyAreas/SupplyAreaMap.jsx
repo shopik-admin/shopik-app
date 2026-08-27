@@ -557,7 +557,7 @@ export default function SupplyAreaMap({
                             {!isAreaEditing ? (
                                 <>
                                     <div className={styles.areaPopupHeader}>
-                                        <strong className={styles.areaPopupTitle}>{selectedArea.name || <Text size="none">supply_no_area_groups</Text>}</strong>
+                                        <strong className={styles.areaPopupTitle}>{selectedArea.name || <Text size="none">no_name</Text>}</strong>
                                         <Flex gap={6} className={styles.areaPopupActions}>
                                             <Button size="s" icon="edit" onClick={onStartAreaPropsEdit}></Button>
                                             <Button size="s" icon="trash" mode="outline" className={styles.deleteButton} onClick={onDeleteArea}></Button>

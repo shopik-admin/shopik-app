@@ -345,6 +345,7 @@
         "supply_show_groups": "הצגת קבוצות אזורים",
         "supply_hide_groups": "הסתרת קבוצות אזורים",
         "supply_no_area_groups": "אין קבוצות אזורים",
+        "no_name": "ללא שם",
         "supply_no_stores": "אין חנויות",
         "supply_group_details_required": "הזינו שם ובחרו חנות עבור הקבוצה",
         "supply_delete_group_confirm": "למחוק את קבוצת האזורים",
