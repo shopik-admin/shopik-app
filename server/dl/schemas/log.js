@@ -40,6 +40,7 @@ const logSchema = {
     actor: {
         type: {
             type: String,
+            enum: Object.values(constants.ACTOR),
             filter: true,
             default: constants.ACTOR.ANONYMOUS
         },
@@ -72,6 +73,7 @@ const logSchema = {
     userAgent: { type: String },
     status: {
         type: String,
+        enum: Object.values(constants.STATUS),
         default: constants.STATUS.PENDING,
         filter: true
     },

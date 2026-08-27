@@ -306,8 +306,18 @@ async function createModelFromSchema(schemaPath) {
             if (!Model.filterFields?.has(key))
                 delete processed[key]
             else {
-                // sanitize operator objects: allow $in, $gte, $lte, $gt, $lt
                 const val = processed[key]
+                // ponytail: per-field string prefix search — "^value" (case-insensitive, escaped)
+                if (typeof val === 'string') {
+                    if (get(schema, `${key}.type`) === String) {
+                        const trimmed = val.trim()
+                        if (!trimmed) { delete processed[key]; return }
+                        const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+                        processed[key] = new RegExp('^' + escaped, 'i')
+                    }
+                    return
+                }
+                // sanitize operator objects: allow $in, $gte, $lte, $gt, $lt
                 if (val && typeof val === 'object' && !(val instanceof RegExp) && !Array.isArray(val)) {
                     const allowed = {}
                     if (Array.isArray(val.$in)) {

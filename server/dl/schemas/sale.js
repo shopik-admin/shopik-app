@@ -51,7 +51,8 @@ const saleSchema = {
     },
     name: {
         type: String,
-        required: true
+        required: true,
+        filter: true
     },
     displayName: {
         type: String,
@@ -66,15 +67,18 @@ const saleSchema = {
     kind: {
         type: String,
         enum: Object.values(KINDS),
-        required: true
+        required: true,
+        filter: true
     },
     start: {
         type: Date,
-        required: true
+        required: true,
+        filter: true
     },
     end: {
         type: Date,
-        required: true
+        required: true,
+        filter: true
     },
     amount: {
         type: Number,

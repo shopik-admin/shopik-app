@@ -2,6 +2,11 @@
     "direction": "rtl",
     "texts": {
         "actor.name": "מבצע הפעולה",
+        "actor.type": "סוג מבצע",
+        "actor.id": "מזהה מבצע הפעולה",
+        "action": "פעולה",
+        "ip": "כתובת IP",
+        "requestId": "מזהה בקשה",
         "active": "פעיל",
         "add": "הוספה",
         "address": "כתובת",
@@ -124,6 +129,12 @@
         "paid": "שולם",
         "paid-edit": "בעריכה",
         "pending": "בהמתנה",
+        "success": "הצלחה",
+        "error": "שגיאה",
+        "admin": "מנהל",
+        "user": "משתמש",
+        "api": "API",
+        "anonymous": "אנונימי",
         "percent": "אחוז",
         "permissions": "הרשאות",
         "phone": "טלפון",
@@ -420,6 +431,12 @@
         "picking": "בליקוט",
         "picked": "מוכן לאריזה",
         "packed": "מוכן למשלוח",
-        "window.endTimestamp": "אספקה עד"
+        "window.endTimestamp": "אספקה עד",
+        "category.pathIds": "מזהה קטגוריה",
+        "keywords": "מילות מפתח",
+        "hidden": "מוסתר",
+        "addresses.city": "עיר",
+        "addresses.street": "רחוב",
+        "secondPhone": "טלפון נוסף"
     }
 }

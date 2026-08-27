@@ -260,7 +260,8 @@ const orderSchema = {
     number: {
         type: String,
         unique: true,
-        required: true
+        required: true,
+        filter: true
     },
     replaceProducts: {
         type: Boolean,
