@@ -5,7 +5,7 @@ export default async function remove(payload, { DL, _user }) {
         { select: DL.User.defaultSelect }
     )
     await DL.redis?.del(`user_auth:${_user.id}`)
-    return updatedUser
+    return { user: updatedUser }
 }
 
 remove.config = { auth: 'required', required: ['addressId'] }

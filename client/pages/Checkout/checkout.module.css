@@ -24,6 +24,32 @@
     padding-top: 8px;
 }
 
+.paymentFrameWrapper {
+    width: 100%;
+    min-height: 680px;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #fff;
+    /*  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06); */
+}
+
+.paymentFrame {
+    width: 100%;
+    height: 680px;
+    border: none;
+    display: block;
+}
+
+.payError {
+    color: var(--danger, #d32f2f);
+    text-align: center;
+}
+
+.paymentLoaderWrapper {
+    min-height: 600px;
+    width: 100%;
+}
+
 .sidebar {
     position: sticky;
     top: 24px;

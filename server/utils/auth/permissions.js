@@ -59,5 +59,9 @@ export default [
     'supply_area:update',
     'supply_area:read',
     'supply_area:id',
-    'supply_area:delete'
+    'supply_area:delete',
+    'payment:create',
+    'transaction:read',
+    'payment_transaction:read',
+    'order:payment'
 ]

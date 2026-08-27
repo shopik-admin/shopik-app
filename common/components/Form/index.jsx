@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Button from '../Button'
 import Text from '../Text'
 
-export default function Form({ className = '', children, submitText, error, loading, action, noSubmit, onChange }) {
+export default function Form({ className = '', children, submitText, error, loading, action, noSubmit, onChange, autoComplete }) {
     const
         [actionLoading, setActionLoading] = useState(false),
         [actionError, setActionError] = useState('')
@@ -50,6 +50,7 @@ export default function Form({ className = '', children, submitText, error, load
         onSubmit={submit}
         onChange={handleChange}
         className={classNames(styles.form, className)}
+        autoComplete={autoComplete}
     >
         {children}
         <div className={styles.footer}>

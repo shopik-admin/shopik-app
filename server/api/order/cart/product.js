@@ -73,6 +73,5 @@ export default async function product(payload, { DL, _user, utils, cookies, setC
 
 product.config = {
     auth: 'lax',
-    requiredFields: ['id', 'amount'],
-    permission: null
+    required: ['id', 'amount']
 }
