@@ -690,6 +690,19 @@
     font-size: .8rem;
 }
 
+.deleteButton {
+    color: var(--fg-error-primary) !important;
+    border-color: var(--border-error) !important;
+}
+.deleteButton:hover {
+    background: var(--bg-error-secondary) !important;
+    border-color: var(--border-error) !important;
+    color: var(--fg-error-primary) !important;
+}
+.deleteButton svg {
+    color: var(--fg-error-primary);
+}
+
 .areaForm {
     display: flex;
     flex-direction: column;

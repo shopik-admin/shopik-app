@@ -516,7 +516,7 @@ export default function SupplyAreas() {
                                 <div key={store.id} className={styles.storeBranch}>
                                     <div
                                         className={`${styles.storeListItem} ${store.id === focusStoreId ? styles.active : ''}`}
-                                        onClick={() => setFocusStoreId(store.id)}
+                                        onClick={() => setFocusStoreId(prev => prev != store.id ? store.id : null)}
                                     >
                                         <span className={styles.storeListName}>{store.name}</span>
                                         <span className={styles.storeListAddress}>{[store.address?.city, store.address?.street, store.address?.building].filter(Boolean).join(', ')}</span>
@@ -595,7 +595,7 @@ export default function SupplyAreas() {
                                                                         <Text size="none">supply_group_hint</Text>
                                                                     </div>
                                                                     <Flex gap={8} justifyContent="space-between" alignItems="center">
-                                                                        <Button size="s" mode="outline" icon="trash" onClick={handleDeleteGroup} />
+                                                                        <Button size="s" mode="outline" icon="trash" className={styles.deleteButton} onClick={handleDeleteGroup} />
                                                                         <Flex gap={8}>
                                                                             <Button size="s" mode="outline" onClick={handleCancelGroupDraft}>cancel</Button>
                                                                             <Button

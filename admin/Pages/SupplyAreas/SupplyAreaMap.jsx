@@ -560,7 +560,7 @@ export default function SupplyAreaMap({
                                         <strong className={styles.areaPopupTitle}>{selectedArea.name || <Text size="none">supply_no_area_groups</Text>}</strong>
                                         <Flex gap={6} className={styles.areaPopupActions}>
                                             <Button size="s" icon="edit" onClick={onStartAreaPropsEdit}></Button>
-                                            <Button size="s" icon="trash" mode="outline" onClick={onDeleteArea}></Button>
+                                            <Button size="s" icon="trash" mode="outline" className={styles.deleteButton} onClick={onDeleteArea}></Button>
                                         </Flex>
                                     </div>
                                     <div className={styles.areaPopupStores}>
