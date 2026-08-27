@@ -411,6 +411,43 @@
     color: var(--text-primary-on-brand);
 }
 
+.groupBranch {
+    display: flex;
+    flex-direction: column;
+    gap: .4rem;
+}
+
+.groupEditPane {
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+    padding: .75rem;
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    background: var(--bg-primary);
+}
+
+.groupNameInput {
+    width: 100%;
+    padding: .45rem .6rem;
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    background: var(--bg-primary-alt);
+    color: var(--text-primary);
+    font-size: .85rem;
+    outline: none;
+}
+
+.groupNameInput:focus {
+    border-color: var(--border-brand);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--text-brand) 15%, transparent);
+}
+
+.groupEditHint {
+    color: var(--text-tertiary);
+    font-size: .78rem;
+}
+
 .areaForm {
     display: flex;
     flex-direction: column;

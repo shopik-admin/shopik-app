@@ -62,4 +62,16 @@
         color: var(--text-secondary);
         border: 1px solid var(--Colors-Border-border-primary, #C5CFCC);
     }
+
+    &:disabled,
+    &[disabled] {
+        opacity: 0.45;
+        cursor: default;
+        filter: grayscale(0.15);
+    }
+
+    &:disabled:hover,
+    &[disabled]:hover {
+        opacity: 0.45;
+    }
 }
