@@ -10,11 +10,18 @@ import { useState } from 'react'
 import Address from './Address'
 import Title from '#common/components/Title/index.jsx'
 import { useOrder } from 'features/Order/OrderProvider'
+import AddressAutocomplete from 'common/components/AddressAutocomplete'
 
 export function AddressForm({ initialData, onDone }) {
     const [formState, setFormState] = useState()
     const { onLogin } = useUser()
     const { setOrder } = useOrder()
+    const [autocomplete, setAutocomplete] = useState({
+        city: initialData?.city || '',
+        street: initialData?.street || '',
+        building: initialData?.building || '',
+        apartment: initialData?.apartment || ''
+    })
 
     function handleSubmit(data) {
         setFormState({ loading: true })
@@ -23,6 +30,11 @@ export function AddressForm({ initialData, onDone }) {
         if (isEdit) {
             data.addressId = initialData.addressId
         }
+        // Merge validated autocomplete values (real addresses)
+        data.city = autocomplete.city || data.city
+        data.street = autocomplete.street || data.street
+        data.building = autocomplete.building || data.building
+        data.apartment = autocomplete.apartment ?? data.apartment
         const endpoint = isEdit ? 'user/address/edit' : 'user/address/add'
 
         apiReq(endpoint, data)
@@ -39,18 +51,15 @@ export function AddressForm({ initialData, onDone }) {
     }
 
     return (
-        <Form action={handleSubmit} {...formState} submitText={initialData?.addressId ? 'עדכן כתובת' : 'הוסף כתובת'}>
-            <Input name='city' required defaultValue={initialData?.city} />
-            <Input name='street' required defaultValue={initialData?.street} />
-            <Flex gap={16}>
-                <Input name='building' required defaultValue={initialData?.building} />
-                <Input name='apartment' defaultValue={initialData?.apartment} />
-            </Flex>
+        <Form action={handleSubmit} {...formState} submitText={initialData?.addressId ? 'עדכן כתובת' : 'הוסף כתובת'} autoComplete="off">
+            <input type="text" style={{ display: 'none' }} autoComplete="off" tabIndex={-1} aria-hidden="true" />
+            <input type="password" style={{ display: 'none' }} autoComplete="off" tabIndex={-1} aria-hidden="true" />
+            <AddressAutocomplete value={autocomplete} onChange={setAutocomplete} required />
             <Flex gap={16}>
                 <Input name='floor' defaultValue={initialData?.floor} />
                 <Input name='entrance' defaultValue={initialData?.entrance} />
             </Flex>
-            <Input name='comment' placeholder={'addess-comment-placeholder'} type='textarea' rows={3} defaultValue={initialData?.notes} />
+            <Input name='comment' placeholder={'address.comment'} type='textarea' rows={3} defaultValue={initialData?.notes} />
         </Form>
     )
 }

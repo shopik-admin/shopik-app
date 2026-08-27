@@ -131,14 +131,14 @@ async function ensureSearchIndex(
             }
         }
 
-        const existingList = typeof Model.listSearchIndexes === 'function' 
-            ? await Model.listSearchIndexes(name).catch(() => []) 
+        const existingList = typeof Model.listSearchIndexes === 'function'
+            ? await Model.listSearchIndexes(name).catch(() => [])
             : []
         const existing = existingList[0]
 
         if (!existing) {
             if (typeof Model.createSearchIndex === 'function') {
-                await Model.createSearchIndex({ name, definition }).catch(() => {})
+                await Model.createSearchIndex({ name, definition }).catch(() => { })
             }
             return true
         }
@@ -147,7 +147,7 @@ async function ensureSearchIndex(
             return false
 
         if (typeof Model.updateSearchIndex === 'function') {
-            await Model.updateSearchIndex(name, definition).catch(() => {})
+            await Model.updateSearchIndex(name, definition).catch(() => { })
         }
 
         return true
@@ -233,7 +233,7 @@ function createMongooseSchema(schema, meta) {
 
     const mongooseSchema = new Schema(schema, {
         versionKey: false,
-        timestamps: true
+        timestamps: meta?.timestamps ?? true
     })
 
     if (meta?.index) {

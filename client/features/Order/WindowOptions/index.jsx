@@ -91,7 +91,7 @@ export default function WindowOptions({ onChangeStore, onChangeAddress }) {
                         onClick={() => onChoose(window)}
                         gap={10} justifyContent="space-between" alignItems="center"
                     >
-                        <Text bold>{window.start}:00 - {window.end}:00</Text>
+                        <Text bold>{window.end}:00 - {window.start}:00</Text>
                         {windowLoading === window.id ? <Loader size={14} /> : (
                             <Text mode="sub">{isSelected ? 'Chosen window' : window.note || 'Available'}</Text>
                         )}

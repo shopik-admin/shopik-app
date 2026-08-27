@@ -37,7 +37,7 @@ export default function Input(props) {
     const
         { name = '', label = name, title = label, placeholder = title,
             className, type = '', info = '', icon = '',
-            required = false, defaultValue, defaults, onChange, ...ps
+            required = false, defaultValue, defaults, onChange, onBlur: externalOnBlur, ...ps
         } = props,
         functionType = typeof type == 'function',
         [visited, setVisited] = useState(),
@@ -48,7 +48,7 @@ export default function Input(props) {
         requiredSign = required ? ' *' : ''
 
     function onInputChange(e) { setValue(e?.target ? e.target.value : e); onChange?.(e) }
-    function onBlur() { setTimeout(() => setVisited(true), 100) }
+    function onBlur(e) { setTimeout(() => setVisited(true), 100); externalOnBlur?.(e) }
 
     return <label className={classNames(styles.input, className, [styles.invalid, invalidError], [styles.visited, visited], [styles.withIcon, icon])}>
         {(label && type != 'hidden') && <Text className={styles.label}>{TR(title) || TR(label) || label}{label.trim() && requiredSign}</Text>}
