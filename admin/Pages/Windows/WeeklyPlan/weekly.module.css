@@ -73,7 +73,7 @@
 .canvasWrap {
     overflow-y: auto;
     overflow-x: hidden;
-    max-height: calc(100vh - 320px);
+    max-height: calc(100vh - 260px);
     min-height: 320px;
     margin-inline-start: 52px;
     border: 1px solid var(--border-tertiary);

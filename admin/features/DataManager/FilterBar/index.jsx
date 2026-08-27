@@ -40,17 +40,33 @@ function formatDateRange(gte, lte, TR) {
     return null
 }
 
-function useVisibleCount(mainCount) {
-    const [w, setW] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200)
+function useDynamicVisibleCount(barRef, mainCount, otherCount) {
+    const [count, setCount] = useState(mainCount)
     useEffect(() => {
-        const h = () => setW(window.innerWidth)
-        window.addEventListener('resize', h)
-        return () => window.removeEventListener('resize', h)
-    }, [])
-    if (w < 600) return 0
-    if (w < 900) return Math.min(1, mainCount)
-    if (w < 1200) return Math.min(2, mainCount)
-    return mainCount
+        const el = barRef.current
+        if (!el) return
+        const pill = 125, gap = 10
+        function compute() {
+            const W = el.clientWidth
+            let best = 0
+            for (let n = mainCount; n >= 0; n--) {
+                const hasOverflow = otherCount > 0 || n < mainCount
+                const total = n + (hasOverflow ? 1 : 0)
+                if (total === 0) { best = 0; break }
+                const need = total * pill + (total - 1) * gap
+                if (need <= W) { best = n; break }
+            }
+            setCount(best)
+        }
+        compute()
+        const ro = new ResizeObserver(compute)
+        ro.observe(el)
+        const parent = el.parentElement
+        if (parent) ro.observe(parent)
+        window.addEventListener('resize', compute)
+        return () => { ro.disconnect(); window.removeEventListener('resize', compute) }
+    }, [barRef, mainCount, otherCount])
+    return count
 }
 
 function isActive(filter, key) {
@@ -84,7 +100,8 @@ export default function FilterBar({ actions, cols }) {
 
     const mainDescriptors = descriptors.filter(d => d.main)
     const otherDescriptors = descriptors.filter(d => !d.main)
-    const visibleCount = useVisibleCount(mainDescriptors.length)
+    const barRef = useRef(null)
+    const visibleCount = useDynamicVisibleCount(barRef, mainDescriptors.length, otherDescriptors.length)
     const visible = mainDescriptors.slice(0, visibleCount)
     const overflow = [...mainDescriptors.slice(visibleCount), ...otherDescriptors]
 
@@ -107,12 +124,14 @@ export default function FilterBar({ actions, cols }) {
                 {actions?.length ? <DataActions actions={actions} cols={cols} /> : null}
                 <div className={styles.searchWrap}><DataSearch /></div>
             </Flex>
-            <Flex gap={10} alignItems='center' wrap className={styles.bar}>
-                {overflow.length > 0 && <OverflowDropdown descriptors={overflow} filter={filter} setFilter={setFilter} TR={TR} storeMap={storeMap} />}
-                {visible.map(d => (
-                    <FilterPill key={d.key} descriptor={d} filter={filter} setFilter={setFilter} TR={TR} storeMap={storeMap} />
-                ))}
-            </Flex>
+            <div ref={barRef} className={styles.bar}>
+                <Flex gap={8} alignItems='center' wrap={false} style={{ flexWrap: 'nowrap' }}>
+                    {overflow.length > 0 && <OverflowDropdown descriptors={overflow} filter={filter} setFilter={setFilter} TR={TR} storeMap={storeMap} />}
+                    {visible.map(d => (
+                        <FilterPill key={d.key} descriptor={d} filter={filter} setFilter={setFilter} TR={TR} storeMap={storeMap} />
+                    ))}
+                </Flex>
+            </div>
         </div>
         {isFiltered && <div className={styles.separator} />}
         <FilterChips filter={filter} setFilter={setFilter} descriptors={descriptors} TR={TR} storeMap={storeMap} />
@@ -173,9 +192,11 @@ function FilterControl({ descriptor, filter, setFilter, TR, storeMap }) {
             <input type='checkbox' checked={checked} onChange={e => {
                 if (e.target.checked) setFilter(prev => ({ ...prev, [key]: true }))
                 else {
-                    const next = { ...prev }
-                    delete next[key]
-                    setFilter(next)
+                    setFilter(prev => {
+                        const next = { ...prev }
+                        delete next[key]
+                        return next
+                    })
                 }
             }} />
             <span>{getLabel(TR, key)}</span>
