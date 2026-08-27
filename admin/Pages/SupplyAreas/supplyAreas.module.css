@@ -417,6 +417,22 @@
     gap: .4rem;
 }
 
+/* Animated expand/fade for group edit - same container, content fades inside */
+.groupEditWrap {
+    display: grid;
+    grid-template-rows: 0fr;
+    opacity: 0;
+    transition: grid-template-rows 280ms ease, opacity 220ms ease;
+}
+.groupBranchExpanded .groupEditWrap {
+    grid-template-rows: 1fr;
+    opacity: 1;
+}
+.groupEditWrapInner {
+    overflow: hidden;
+    min-height: 0;
+}
+
 .groupEditPane {
     display: flex;
     flex-direction: column;
@@ -425,6 +441,56 @@
     border: 1px solid var(--border-primary);
     border-radius: var(--radius-md);
     background: var(--bg-primary);
+    opacity: 0;
+    transform: translateY(-6px);
+    transition: opacity 220ms ease 60ms, transform 220ms ease 60ms;
+}
+.groupBranchExpanded .groupEditPane {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.groupNameRow {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    padding: .45rem .6rem;
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    background: var(--bg-primary-alt);
+    cursor: pointer;
+    transition: border-color 150ms ease, background-color 150ms ease;
+}
+.groupNameRow:hover {
+    border-color: var(--border-brand);
+    background: var(--bg-primary);
+}
+.groupNameText {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-primary);
+    font-size: .85rem;
+    font-weight: var(--font-weight-semibold);
+}
+.groupNameEditIcon {
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    width: 1.6rem;
+    height: 1.6rem;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    transition: background-color 150ms ease, color 150ms ease;
+}
+.groupNameEditIcon:hover {
+    background: var(--bg-secondary-hover);
+    color: var(--text-secondary);
 }
 
 .groupNameInput {

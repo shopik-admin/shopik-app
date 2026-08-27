@@ -111,6 +111,7 @@ export default function SupplyAreas() {
     const [creating, setCreating] = useState(false)
     const [expandedStores, setExpandedStores] = useState([])
     const [groupDraft, setGroupDraft] = useState(null) // { id?, name, storeId, areaIds }
+    const [editingGroupName, setEditingGroupName] = useState(false)
     const [savingGroup, setSavingGroup] = useState(false)
     const [error, setError] = useState(null)
     const [testCity, setTestCity] = useState('')
@@ -208,9 +209,10 @@ export default function SupplyAreas() {
         setAreaDraft(null)
         setError(null)
     }
-    function handleSaveAreaProps() {
-        if (!areaDraft) return
-        const { id, name, storeIds } = areaDraft
+    function handleSaveAreaProps(draftOverride) {
+        const draft = draftOverride || areaDraft
+        if (!draft) return
+        const { id, name, storeIds } = draft
         setSavingArea(true)
         setError(null)
         apiReq('supply_area/update', { id, name: (name || '').trim(), stores: storeIds })
@@ -280,6 +282,7 @@ export default function SupplyAreas() {
         setAreaDraft(null)
         setGeometryEditingId(null)
         setGroupDraft({ id: group.id, name: group.name, storeId: group.storeId, areaIds: [...(group.areaIds || [])] })
+        setEditingGroupName(false)
         setExpandedStores(prev => prev.includes(group.storeId) ? prev : [...prev, group.storeId])
     }
 
@@ -335,6 +338,7 @@ export default function SupplyAreas() {
             .then(() => {
                 refetchGroups()
                 setGroupDraft(null)
+                setEditingGroupName(false)
             })
             .catch(err => setError(toMessage(err)))
             .finally(() => setSavingGroup(false))
@@ -364,11 +368,13 @@ export default function SupplyAreas() {
         setAreaDraft(null)
         setGeometryEditingId(null)
         setGroupDraft({ id: null, name: '', storeId, areaIds: [] })
+        setEditingGroupName(true)
         setExpandedStores(prev => prev.includes(storeId) ? prev : [...prev, storeId])
     }
 
     function handleCancelGroupDraft() {
         setGroupDraft(null)
+        setEditingGroupName(false)
         setError(null)
     }
 
@@ -382,6 +388,7 @@ export default function SupplyAreas() {
             .then(() => {
                 refetchGroups()
                 setGroupDraft(null)
+                setEditingGroupName(false)
             })
             .catch(err => setError(toMessage(err)))
     }
@@ -516,7 +523,7 @@ export default function SupplyAreas() {
                                             {storeGroups.map(group => {
                                                 const isEditing = groupDraft?.id === group.id
                                                 return (
-                                                    <div key={group.id} className={styles.groupBranch}>
+                                                    <div key={group.id} className={`${styles.groupBranch} ${isEditing ? styles.groupBranchExpanded : ''}`}>
                                                         <div
                                                             className={`${styles.storeListItem} ${styles.groupListItem} ${isEditing ? styles.active : ''}`}
                                                             onClick={() => startGroupEdit(group)}
@@ -525,13 +532,74 @@ export default function SupplyAreas() {
                                                             <span className={styles.storeListName}>{group.name}</span>
                                                             <span className={styles.groupCount}>{(group.areaIds || []).length}</span>
                                                         </div>
-                                                        {isEditing && (
+                                                        <div className={styles.groupEditWrap}>
+                                                            <div className={styles.groupEditWrapInner}>
+                                                                {isEditing && (
+                                                                    <div className={styles.groupEditPane} onClick={e => e.stopPropagation()}>
+                                                                        {editingGroupName ? (
+                                                                            <input
+                                                                                className={styles.groupNameInput}
+                                                                                value={groupDraft.name}
+                                                                                onChange={e => setGroupDraft(prev => ({ ...prev, name: e.target.value }))}
+                                                                                onBlur={() => setEditingGroupName(false)}
+                                                                                onKeyDown={e => { if (e.key === 'Enter') setEditingGroupName(false) }}
+                                                                                placeholder={TR('name')}
+                                                                                autoFocus
+                                                                            />
+                                                                        ) : (
+                                                                            <div className={styles.groupNameRow} onClick={() => setEditingGroupName(true)}>
+                                                                                <button
+                                                                                    type="button"
+                                                                                    className={styles.groupNameEditIcon}
+                                                                                    onClick={e => { e.stopPropagation(); setEditingGroupName(true) }}
+                                                                                    title={TR('edit')}
+                                                                                >
+                                                                                    <Icon name="edit" />
+                                                                                </button>
+                                                                                <span className={styles.groupNameText}>{groupDraft.name || TR('name')}</span>
+                                                                            </div>
+                                                                        )}
+                                                                        <div className={styles.editorMeta}>
+                                                                            <Text size="none">{`${groupDraft.areaIds.length} ${TR('supply_areas_selected')}`}</Text>
+                                                                        </div>
+                                                                        <div className={styles.groupEditHint}>
+                                                                            <Text size="none">supply_group_hint</Text>
+                                                                        </div>
+                                                                        <Flex gap={8} justifyContent="space-between" alignItems="center">
+                                                                            <Button size="s" mode="outline" icon="trash" onClick={handleDeleteGroup} />
+                                                                            <Flex gap={8}>
+                                                                                <Button size="s" mode="outline" onClick={handleCancelGroupDraft}>cancel</Button>
+                                                                                <Button
+                                                                                    size="s"
+                                                                                    icon="check"
+                                                                                    loading={savingGroup}
+                                                                                    disabled={!groupDirty || !groupDraft.name?.trim()}
+                                                                                    onClick={handleSaveGroup}
+                                                                                >
+                                                                                    save
+                                                                                </Button>
+                                                                            </Flex>
+                                                                        </Flex>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )
+                                            })}
+                                            {/* New group draft (id === null) — shown inline under its store */}
+                                            {groupDraft && !groupDraft.id && groupDraft.storeId === store.id && (
+                                                <div className={`${styles.groupBranch} ${styles.groupBranchExpanded}`}>
+                                                    <div className={styles.groupEditWrap}>
+                                                        <div className={styles.groupEditWrapInner}>
                                                             <div className={styles.groupEditPane} onClick={e => e.stopPropagation()}>
+                                                                <div className={styles.editorMeta}><Text size="none">supply_new_area_group</Text></div>
                                                                 <input
                                                                     className={styles.groupNameInput}
                                                                     value={groupDraft.name}
-                                                                    onChange={e => setGroupDraft(prev => ({ ...prev, name: e.target.value }))}
+                                                                    onChange={e => { if (error) setError(null); setGroupDraft(prev => ({ ...prev, name: e.target.value })) }}
                                                                     placeholder={TR('name')}
+                                                                    autoFocus
                                                                 />
                                                                 <div className={styles.editorMeta}>
                                                                     <Text size="none">{`${groupDraft.areaIds.length} ${TR('supply_areas_selected')}`}</Text>
@@ -539,54 +607,20 @@ export default function SupplyAreas() {
                                                                 <div className={styles.groupEditHint}>
                                                                     <Text size="none">supply_group_hint</Text>
                                                                 </div>
-                                                                <Flex gap={8} justifyContent="space-between" alignItems="center">
-                                                                    <Button size="s" mode="outline" icon="trash" onClick={handleDeleteGroup} />
-                                                                    <Flex gap={8}>
-                                                                        <Button size="s" mode="outline" onClick={handleCancelGroupDraft}>cancel</Button>
-                                                                        <Button
-                                                                            size="s"
-                                                                            icon="check"
-                                                                            loading={savingGroup}
-                                                                            disabled={!groupDirty || !groupDraft.name?.trim()}
-                                                                            onClick={handleSaveGroup}
-                                                                        >
-                                                                            save
-                                                                        </Button>
-                                                                    </Flex>
+                                                                <Flex gap={8} justifyContent="end">
+                                                                    <Button size="s" mode="outline" onClick={handleCancelGroupDraft}>cancel</Button>
+                                                                    <Button
+                                                                        size="s"
+                                                                        icon="check"
+                                                                        loading={savingGroup}
+                                                                        onClick={handleCreateGroup}
+                                                                    >
+                                                                        create
+                                                                    </Button>
                                                                 </Flex>
                                                             </div>
-                                                        )}
+                                                        </div>
                                                     </div>
-                                                )
-                                            })}
-                                            {/* New group draft (id === null) — shown inline under its store */}
-                                            {groupDraft && !groupDraft.id && groupDraft.storeId === store.id && (
-                                                <div className={styles.groupEditPane} onClick={e => e.stopPropagation()}>
-                                                    <div className={styles.editorMeta}><Text size="none">supply_new_area_group</Text></div>
-                                                    <input
-                                                        className={styles.groupNameInput}
-                                                        value={groupDraft.name}
-                                                        onChange={e => { if (error) setError(null); setGroupDraft(prev => ({ ...prev, name: e.target.value })) }}
-                                                        placeholder={TR('name')}
-                                                        autoFocus
-                                                    />
-                                                    <div className={styles.editorMeta}>
-                                                        <Text size="none">{`${groupDraft.areaIds.length} ${TR('supply_areas_selected')}`}</Text>
-                                                    </div>
-                                                    <div className={styles.groupEditHint}>
-                                                        <Text size="none">supply_group_hint</Text>
-                                                    </div>
-                                                    <Flex gap={8} justifyContent="end">
-                                                        <Button size="s" mode="outline" onClick={handleCancelGroupDraft}>cancel</Button>
-                                                        <Button
-                                                            size="s"
-                                                            icon="check"
-                                                            loading={savingGroup}
-                                                            onClick={handleCreateGroup}
-                                                        >
-                                                            create
-                                                        </Button>
-                                                    </Flex>
                                                 </div>
                                             )}
                                             <div

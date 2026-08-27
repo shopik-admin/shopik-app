@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -427,6 +427,46 @@ function MapController({
     return null
 }
 
+function AreaEditForm({ areaDraft, setAreaDraft, stores, savingArea, onCancel, onSave }) {
+    const { TR } = useText()
+    const [localName, setLocalName] = useState(areaDraft.name)
+    // Sync when switching to a different area (id changes), but not on every keystroke
+    useEffect(() => { setLocalName(areaDraft.name) }, [areaDraft.id])
+    const areaStoresForEditor = useMemo(() => (areaDraft.storeIds || []).map(id => ({ storeId: id })), [areaDraft.storeIds])
+    const handleSave = () => {
+        // Commit local name to parent draft before save
+        const toSave = { ...areaDraft, name: localName }
+        setAreaDraft(toSave)
+        onSave(toSave)
+    }
+    const handleBlur = () => {
+        if (localName !== areaDraft.name) setAreaDraft(prev => ({ ...prev, name: localName }))
+    }
+    return (
+        <>
+            <div className={styles.areaPopupHeader}>
+                <input
+                    className={styles.groupNameInput}
+                    value={localName}
+                    onChange={e => setLocalName(e.target.value)}
+                    onBlur={handleBlur}
+                    placeholder={TR('name')}
+                    autoFocus
+                />
+            </div>
+            <StoreListEditor
+                stores={stores}
+                areaStores={areaStoresForEditor}
+                onChange={ids => setAreaDraft(prev => ({ ...prev, storeIds: ids }))}
+            />
+            <Flex gap={8} justifyContent="end" style={{ marginTop: 8 }}>
+                <Button size="s" mode="outline" onClick={onCancel}>cancel</Button>
+                <Button size="s" icon="check" loading={savingArea} onClick={handleSave}>save</Button>
+            </Flex>
+        </>
+    )
+}
+
 export default function SupplyAreaMap({
     areas = [], stores = [], activeStoreIds = [], servedAreaIds = [], groupAreaIds = [], draftAreaIds = [],
     focusPoint, focusGroupPoint, testPoint, testLabel,
@@ -436,8 +476,8 @@ export default function SupplyAreaMap({
 }) {
     const { TR } = useText()
 
-    const selectedArea = areas.find(a => a.id === selectedId) || null
-    const popupPosition = (() => {
+    const selectedArea = useMemo(() => areas.find(a => a.id === selectedId) || null, [areas, selectedId])
+    const popupPosition = useMemo(() => {
         if (!selectedArea?.location?.coordinates?.length || geometryEditingId) return null
         let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity, count = 0
         selectedArea.location.coordinates.forEach(ring => ring.forEach(([lng, lat]) => {
@@ -449,9 +489,8 @@ export default function SupplyAreaMap({
         }))
         if (!count) return null
         return [(minLat + maxLat) / 2, (minLng + maxLng) / 2]
-    })()
+    }, [selectedArea, geometryEditingId])
     const isAreaEditing = !!areaDraft && areaDraft.id === selectedId
-    const areaStoresForEditor = isAreaEditing ? (areaDraft.storeIds || []).map(id => ({ storeId: id })) : []
     // Tileset: explicit user pick persists; otherwise follows the admin dark/light theme
     const [tilesetId, setTilesetId] = useState(() => {
         const stored = localStorage.getItem(TILESET_STORAGE_KEY)
@@ -540,26 +579,14 @@ export default function SupplyAreaMap({
                                     </Flex>
                                 </>
                             ) : (
-                                <>
-                                    <div className={styles.areaPopupHeader}>
-                                        <input
-                                            className={styles.groupNameInput}
-                                            value={areaDraft.name}
-                                            onChange={e => setAreaDraft(prev => ({ ...prev, name: e.target.value }))}
-                                            placeholder={TR('name')}
-                                            autoFocus
-                                        />
-                                    </div>
-                                    <StoreListEditor
-                                        stores={stores}
-                                        areaStores={areaStoresForEditor}
-                                        onChange={ids => setAreaDraft(prev => ({ ...prev, storeIds: ids }))}
-                                    />
-                                    <Flex gap={8} justifyContent="end" style={{ marginTop: 8 }}>
-                                        <Button size="s" mode="outline" onClick={onCancelAreaPropsEdit}>cancel</Button>
-                                        <Button size="s" icon="check" loading={savingArea} onClick={onSaveAreaProps}>save</Button>
-                                    </Flex>
-                                </>
+                                <AreaEditForm
+                                    areaDraft={areaDraft}
+                                    setAreaDraft={setAreaDraft}
+                                    stores={stores}
+                                    savingArea={savingArea}
+                                    onCancel={onCancelAreaPropsEdit}
+                                    onSave={onSaveAreaProps}
+                                />
                             )}
                         </div>
                     </Popup>
