@@ -466,6 +466,15 @@ export default function SupplyAreas() {
                             </Text>
                         </div>
                     )}
+                    {groupDraft && (
+                        <div className={`${styles.hint} ${styles.groupHint}`}>
+                            <Text size="none">{`${TR('supply_group_hint')} "${groupDraft.name}"`}</Text>
+                        </div>
+                    )}
+                    {creating && (
+                        <div className={styles.hint}><Text size="none">supply_draw_hint</Text></div>
+                    )}
+                    {error && <div className={styles.errorBanner}><Text size="none">{error}</Text></div>}
                 </Flex>
                 <Flex gap={8} justifyContent="flex-end">
                     {creating && (
@@ -475,15 +484,6 @@ export default function SupplyAreas() {
                 </Flex>
             </div>
 
-            {error && <div className={styles.errorBanner}><Text size="none">{error}</Text></div>}
-            {creating && (
-                <div className={styles.hint}><Text size="none">supply_draw_hint</Text></div>
-            )}
-            {groupDraft && (
-                <div className={`${styles.hint} ${styles.groupHint}`}>
-                    <Text size="none">{`${TR('supply_group_hint')} "${groupDraft.name}"`}</Text>
-                </div>
-            )}
 
             <Flex className={styles.body}>
                 <div className={styles.sidebar}>
