@@ -102,8 +102,8 @@ body .Table_ table tr.Table_selected {
 
 body .Button_ {
     border: none;
-    border-radius: var(--radius-lg);
-    padding: 10px 16px;
+    border-radius: var(--radius-full);
+    padding: 10px 10px;
     transition: background-color .2s, box-shadow .2s, transform .1s;
 }
 
@@ -136,7 +136,8 @@ body .Button_.Button_outline:hover:not(:disabled) {
 body .Input_ input,
 body .Input_ textarea {
     border: 1px solid var(--border-secondary);
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-full);
+    direction: rtl;
 }
 
 body .Input_ input:hover,
@@ -254,7 +255,6 @@ body .Card_ .Card_close {
 
 body .Popover_ {
     border: 1px solid var(--border-tertiary);
-    border-radius: var(--radius-lg);
     box-shadow: var(--shadow-lg);
 }
 

@@ -78,7 +78,7 @@
         "end": "סיום",
         "export": "ייצוא",
         "failed": "נכשל",
-        "filter": "סינון",
+        "filter": "סנן",
         "finance": "כספים",
         "first": "שם פרטי",
         "fromDate": "התחלה",
@@ -209,7 +209,7 @@
         "to_login": "כניסה",
         "did_not_receive_code": "לא קיבלת קוד?",
         "send_again": "שלח שוב",
-        "store_address_title": "נקודת איסוף",
+        "store_address_title": "נקודת אספקה",
         "good morning": "בוקר טוב",
         "good afternoon": "צהריים טובים",
         "good evening": "ערב טוב",
@@ -414,6 +414,12 @@
         "windows_full_day_preview": "סגירת כל חלונות המשלוח בתאריך זה.",
         "windows_preview_closed": "חלונות סגורים",
         "windows_preview_open": "חלונות פתוחים",
-        "windows_create": "יצירה"
+        "windows_create": "יצירה",
+        "window.date": "תאריך",
+        "clearAll": "נקה הכל",
+        "picking": "בליקוט",
+        "picked": "מוכן לאריזה",
+        "packed": "מוכן למשלוח",
+        "window.endTimestamp": "אספקה עד"
     }
 }

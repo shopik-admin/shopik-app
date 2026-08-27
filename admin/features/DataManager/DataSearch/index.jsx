@@ -4,7 +4,7 @@ import { useData } from '../DataProvider'
 
 let to
 export default function DataSearch({ className = '' }) {
-    const { setSearch } = useData()
+    const { search: searchValue, setSearch } = useData()
 
     function search(e) {
         let { value } = e.target
@@ -16,6 +16,7 @@ export default function DataSearch({ className = '' }) {
     return <Input
         className={`${styles.search} ${className}`}
         placeholder='חיפוש..'
+        defaultValue={searchValue}
         onChange={search}
         type='search'
         icon='search'

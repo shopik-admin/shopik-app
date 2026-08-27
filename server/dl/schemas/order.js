@@ -90,7 +90,7 @@ const adminSchema = {
 
 const windowSchema = {
     id: String,
-    date: String,
+    date: { type: String, filter: true },
     start: Number,
     end: Number,
     reservedAt: Date,
@@ -186,7 +186,7 @@ export const cartSchema = [{
 
 const orderSchema = {
     domainId: String,
-    storeId: String,
+    storeId: { type: String, filter: true },
     storeName: String,
     userId: String,
     cart: cartSchema,
@@ -213,7 +213,8 @@ const orderSchema = {
     deliveryMethod: {
         type: String,
         enum: Object.values(DELIVERY_METHOD),
-        default: DELIVERY_METHOD.DELIVERY
+        default: DELIVERY_METHOD.DELIVERY,
+        filter: true
     },
     window: windowSchema,
     pickBy: Date,
@@ -228,7 +229,8 @@ const orderSchema = {
     status: {
         type: String,
         enum: Object.values(ORDER_STATUS),
-        default: ORDER_STATUS.CART
+        default: ORDER_STATUS.CART,
+        filter: true
     },
     sum: {
         type: Number,
@@ -274,7 +276,8 @@ const orderSchema = {
     },
     paid: {
         type: Boolean,
-        default: false
+        default: false,
+        filter: true
     },
     payment: {
         provider: { type: String, default: 'hyp' },
@@ -322,14 +325,6 @@ const orderSchema = {
         userArrived: { type: Number, default: 0 },
         notifyUserSms: { type: Number, default: 0 }
     },
-    tag: String,
-    tagHistory: [{
-        _id: false,
-        oldTag: String,
-        newTag: String,
-        source: String,
-        createdAt: { type: Date, default: Date.now }
-    }],
     deliveryDetails: {
         clientETA: Date,
         clientArrivalState: {
@@ -476,7 +471,10 @@ const defaultSelect = {
 
 const index = [
     { storeId: -1 },
-    { userId: -1 }
+    { userId: -1 },
+    { 'window.date': 1 },
+    { status: 1 },
+    { deliveryMethod: 1 }
 ]
 
 export const meta = {

@@ -17,7 +17,7 @@ export default function (redis, Model) {
 
     function matchesFilter(doc, filter) {
         for (const [path, expected] of Object.entries(filter)) {
-            if (!Model.filterFields.has(path)) continue // Whitelist enforcement
+            if (!Model.filterFields.has(path) && path !== '$or') continue // Whitelist enforcement
             if (path === '$or') {
                 if (!expected.some(f => matchesFilter(doc, f))) return false
                 continue
@@ -34,8 +34,27 @@ export default function (redis, Model) {
 
             if (expected instanceof RegExp) {
                 if (actual == null || !expected.test(String(actual))) return false
-            } else if (Array.isArray(expected.$in)) {
-                if (!expected.$in.includes(actual)) return false
+            } else if (expected && typeof expected === 'object' && !Array.isArray(expected)) {
+                // operator object: $in, $gte, $lte, $gt, $lt
+                if (Array.isArray(expected.$in)) {
+                    if (!expected.$in.includes(actual)) return false
+                }
+                if (expected.$gte != null) {
+                    if (actual == null || actual < expected.$gte) return false
+                }
+                if (expected.$gt != null) {
+                    if (actual == null || actual <= expected.$gt) return false
+                }
+                if (expected.$lte != null) {
+                    if (actual == null || actual > expected.$lte) return false
+                }
+                if (expected.$lt != null) {
+                    if (actual == null || actual >= expected.$lt) return false
+                }
+                // if no recognized op, fall through to equality check (already handled $in/range)
+                if (!('$in' in expected) && !('$gte' in expected) && !('$gt' in expected) && !('$lte' in expected) && !('$lt' in expected)) {
+                    if (actual !== expected) return false
+                }
             } else if (actual !== expected) return false
         }
         return true

@@ -14,7 +14,7 @@ const _date = (v, includeTime) => {
     const dateObj = new Date(v)
     if (isNaN(dateObj.getTime())) return ''
     const datePart = dateFormatter.format(dateObj).replace(/\./g, '/')
-    return includeTime ? `${datePart}, ${timeFormatter.format(dateObj)}` : datePart
+    return includeTime ? `${datePart} ${timeFormatter.format(dateObj)}` : datePart
 }
 
 /**

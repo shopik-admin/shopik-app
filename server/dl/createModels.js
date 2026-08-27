@@ -302,8 +302,30 @@ async function createModelFromSchema(schemaPath) {
     Model.processFilter = (filter, search) => {
         const processed = { ...filter }
         Object.keys(processed).forEach(key => {
+            if (key === '$or') return // allow search-generated $or
             if (!Model.filterFields?.has(key))
                 delete processed[key]
+            else {
+                // sanitize operator objects: allow $in, $gte, $lte, $gt, $lt
+                const val = processed[key]
+                if (val && typeof val === 'object' && !(val instanceof RegExp) && !Array.isArray(val)) {
+                    const allowed = {}
+                    if (Array.isArray(val.$in)) {
+                        if (val.$in.length) allowed.$in = val.$in
+                        else { delete processed[key]; return }
+                    }
+                    if (val.$gte != null) allowed.$gte = val.$gte
+                    if (val.$lte != null) allowed.$lte = val.$lte
+                    if (val.$gt != null) allowed.$gt = val.$gt
+                    if (val.$lt != null) allowed.$lt = val.$lt
+                    if (Object.keys(allowed).length) processed[key] = allowed
+                    else {
+                        // no recognized operator — keep only if it's a plain value object (unlikely)
+                        // treat as no-op to avoid injection
+                        delete processed[key]
+                    }
+                }
+            }
         })
 
         if (search?.length && Model.filterFields) {

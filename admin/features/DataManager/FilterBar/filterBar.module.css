@@ -1,0 +1,392 @@
+.wrapper {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    background: var(--bg-primary);
+    border-radius: 16px;
+    border: 1px solid var(--border-secondary);
+    padding: 20px;
+    gap: 0;
+}
+
+.topRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    direction: ltr;
+}
+
+.leftGroup {
+    display: flex;
+    align-items: center;
+    flex: 0 1 auto;
+    direction: ltr;
+}
+
+.searchWrap {
+    flex: 0 1 300px;
+    min-width: 220px;
+    max-width: 250px;
+}
+
+.searchWrap>div {
+    width: 100%;
+}
+
+.bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: nowrap;
+    direction: rtl;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.separator {
+    height: 1px;
+    background: var(--border-tertiary);
+    margin: 10px 0 8px;
+}
+
+.pill {
+    display: inline-flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 36px;
+    gap: 6px;
+    padding: 8px 10px;
+    min-width: 98px;
+    border-radius: 999px;
+    border: 1px solid var(--border-secondary);
+    background: var(--bg-primary);
+    font-size: var(--text-sm);
+    cursor: pointer;
+    white-space: nowrap;
+    color: var(--text-primary);
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.pill span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.pill.active {
+    border-color: var(--border-brand);
+    background: var(--bg-brand-secondary);
+    color: var(--text-primary);
+}
+
+.pill.overflowPill {
+    background: var(--bg-brand-primary);
+    color: var(--text-primary-on-brand);
+    border-color: var(--border-brand);
+}
+
+.datePill {
+    gap: 8px;
+}
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 999px;
+    background: var(--bg-brand-primary);
+    color: var(--text-primary-on-brand);
+    font-size: 11px;
+}
+
+.overflowPill .badge {
+    background: var(--text-white);
+    color: var(--bg-brand-primary);
+}
+
+.pill.active .badge {
+    background: var(--bg-brand-primary);
+    color: var(--text-primary-on-brand);
+}
+
+.chevron {
+    font-size: var(--text-md);
+    opacity: 0.7;
+    color: currentColor;
+}
+
+.popoverContent {
+    padding-top: 12px;
+    min-width: 220px;
+    max-width: 300px;
+}
+
+.popoverTitle {
+    font-weight: 600;
+    margin-bottom: 8px;
+    font-size: 14px;
+    color: var(--text-primary);
+}
+
+.overflowContent {
+    padding: 8px;
+    max-height: 60vh;
+    overflow: auto;
+    min-width: 320px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+.overflowItem {
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border-tertiary);
+}
+
+.overflowItem:last-child {
+    border-bottom: none;
+}
+
+.overflowLabel {
+    font-weight: 600;
+    font-size: 13px;
+    margin-bottom: 6px;
+    color: var(--text-primary);
+}
+
+.checkRow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+    font-size: 13px;
+    cursor: pointer;
+    color: var(--text-primary);
+}
+
+.checkRow input[type="checkbox"] {
+    accent-color: var(--bg-brand-primary);
+}
+
+.enumList {
+    display: flex;
+    flex-direction: column;
+    max-height: 220px;
+    overflow: auto;
+}
+
+.clearBtn {
+    margin-top: 6px;
+    font-size: 12px;
+    background: none;
+    border: none;
+    color: var(--text-brand);
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+.chips {
+    padding: 2px 0 2px;
+    border-top: none;
+    justify-content: flex-start;
+    direction: rtl;
+}
+
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: var(--radius-full);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-secondary);
+    font-size: var(--text-sm);
+    color: var(--text-primary);
+}
+
+.chipX {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    font-size: 12px;
+    color: var(--text-tertiary);
+}
+
+.clearAll {
+    background: none;
+    border: none;
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-semibold);
+    cursor: pointer;
+    color: var(--text-brand);
+    white-space: nowrap;
+}
+
+.calendar {
+    direction: rtl;
+    user-select: none;
+    color: var(--text-primary);
+}
+
+.calendarHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: var(--text-primary);
+}
+
+.calendarNav {
+    border: 1px solid var(--border-secondary);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    border-radius: var(--radius-md);
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.calendarNav:hover {
+    background: var(--bg-secondary-hover);
+}
+
+.calendarGrid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+}
+
+.calendarWeekDay {
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-tertiary);
+    opacity: 1;
+    padding: 4px 0;
+}
+
+.calendarDay {
+    border: 1px solid transparent;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    border-radius: var(--radius-md);
+    height: 32px;
+    cursor: pointer;
+    padding: 0 12px;
+}
+
+.calendarDay:hover {
+    background: var(--bg-secondary-hover);
+    border-color: var(--border-secondary);
+}
+
+.calendarDaySelected {
+    background: var(--bg-brand-primary) !important;
+    color: var(--text-primary-on-brand) !important;
+    border-color: var(--border-brand) !important;
+}
+
+.calendarDayRange {
+    background: var(--bg-brand-secondary) !important;
+    color: var(--text-primary) !important;
+}
+
+.calendarFooter {
+    margin-top: 8px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-tertiary);
+    opacity: 1;
+    direction: ltr;
+}
+
+.overflowDateHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 6px 0;
+    gap: 12px;
+    direction: rtl;
+    text-align: right;
+    color: var(--text-primary);
+}
+
+.overflowDateLabel {
+    font-weight: 600;
+    font-size: 13px;
+    white-space: nowrap;
+    color: var(--text-primary);
+}
+
+.overflowDateSummary {
+    font-weight: 400;
+    font-size: 12px;
+    color: var(--text-tertiary);
+    opacity: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 150px;
+    direction: ltr;
+}
+
+.overflowDateArrow {
+    transition: transform .2s ease;
+    flex-shrink: 0;
+    color: var(--text-tertiary);
+}
+
+.overflowDateArrow.expanded {
+    transform: rotate(180deg);
+}
+
+.overflowDateCalendarWrap {
+    margin-top: 10px;
+    display: flex;
+    justify-content: center;
+    animation: overflowDateExpand .18s ease;
+}
+
+@keyframes overflowDateExpand {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (max-width: 650px) {
+    .topRow {
+        /* flex-direction: column; */
+        align-items: stretch;
+    }
+
+    .searchWrap {
+        flex: 1 1 100%;
+        min-width: 0;
+    }
+
+    .bar {
+        justify-content: flex-start;
+    }
+}

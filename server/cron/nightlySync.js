@@ -1,5 +1,6 @@
 import cron from 'node-cron'
 import log from '#server/utils/log.js'
+import { acquireLock } from '#server/utils/redisLock.js'
 import importComaxProducts from '#server/api/comax_product/import.js'
 import syncComax from '#server/api/comax_product/sync.js'
 import enqueueChangedImages from '#server/services/image/enqueue.js'
@@ -7,21 +8,6 @@ import importGovAddresses from '#server/scripts/importGovAddresses.js'
 
 const LOCK_KEY = 'nightly-sync:lock'
 const LOCK_TTL_SECONDS = 60 * 60 * 4
-
-async function acquireLock(redis) {
-    if (!redis) return null
-    const token = `${process.pid}-${Date.now()}`
-    const ok = await redis.set(LOCK_KEY, token, 'EX', LOCK_TTL_SECONDS, 'NX')
-    if (!ok) return null
-    return async () => {
-        try {
-            const current = await redis.get(LOCK_KEY)
-            if (current === token) await redis.del(LOCK_KEY)
-        } catch {
-            // lock expires on its own via TTL
-        }
-    }
-}
 
 export default function startNightlySync(bootData) {
     const { DL, external } = bootData
@@ -31,7 +17,7 @@ export default function startNightlySync(bootData) {
     cron.schedule(schedule, async () => {
         let release
         try {
-            release = await acquireLock(DL.redis)
+            release = await acquireLock(DL.redis, LOCK_KEY, LOCK_TTL_SECONDS)
             if (!release) {
                 log.warn('[NightlySync] Skipped — another instance holds the lock')
                 return

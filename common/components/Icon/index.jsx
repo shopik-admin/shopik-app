@@ -10,7 +10,7 @@ import {
     LuLoader, LuCopy, LuShare, LuCircle, LuGithub, LuPlay, LuPause, LuShoppingCart,
     LuShoppingBag, LuArrowUpDown, LuCode, LuPackage, LuStore, LuGlobe, LuPercent, LuTicket,
     LuSun, LuMoon, LuCloudUpload, LuMap, LuClock, LuTruck, LuCreditCard, LuBarcode,
-    LuListPlus, LuNotebookPen, LuPanelRightClose, LuPanelRightOpen, LuCalendarPlus
+    LuListPlus, LuNotebookPen, LuPanelRightClose, LuPanelRightOpen, LuCalendarPlus, LuSlidersHorizontal
 } from 'react-icons/lu'
 import { BsFileEarmarkExcel } from 'react-icons/bs'
 import { TbHeartPlus } from 'react-icons/tb'
@@ -94,7 +94,8 @@ const iconsList = {
     barcode: LuBarcode,
     listPlus: LuListPlus,
     heartPlus: TbHeartPlus,
-    note: LuNotebookPen
+    note: LuNotebookPen,
+    filter: LuSlidersHorizontal
 }
 
 /**
