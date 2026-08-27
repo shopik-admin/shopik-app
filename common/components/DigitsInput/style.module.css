@@ -8,7 +8,7 @@
         text-align: center !important;
         appearance: none;
         font-weight: bold;
-        border-radius: var(--radius-md);
+        border-radius: var(--radius-md) !important;
         height: 48px;
 
         &+span {
