@@ -442,33 +442,44 @@ export default function SupplyAreas() {
     return (
         <Flex tag={Card} col className={styles.container}>
             <div className={styles.header}>
-                <Flex gap={8} alignItems="end">
+                <Flex gap={8} alignItems="end" className={styles.headerControls}>
                     <Input
+                        className={styles.headerInput}
                         label="city"
                         name="city"
                         value={testCity}
                         onChange={(e) => setTestCity(e.target.value)}
                     />
                     <Input
+                        className={styles.headerInput}
                         label="street"
                         name="street"
                         value={testStreet}
                         onChange={(e) => setTestStreet(e.target.value)}
                     />
                     <Input
+                        className={styles.headerInput}
                         label="building"
                         name="building"
                         value={testBuilding}
                         onChange={(e) => setTestBuilding(e.target.value)}
                     />
-                    <Button size="s" icon="search" onClick={handleTest} loading={testing}>test</Button>
+                    <Button
+                        className={styles.headerBtn}
+                        size="s"
+                        icon="search"
+                        onClick={handleTest}
+                        loading={testing}
+                    >
+                        test
+                    </Button>
                     {testResult && (
                         <div className={testResult.error ? styles.testResultError : styles.testResult}>
                             <Text size="none">
                                 {testResult.error
                                     ? testResult.error
                                     : testResult.hasService
-                                        ? `${TR('supply_in_area')}: ${testResult.area?.name}`
+                                        ? null
                                         : TR('supply_no_service')}
                             </Text>
                         </div>
@@ -483,11 +494,11 @@ export default function SupplyAreas() {
                     )}
                     {error && <div className={styles.errorBanner}><Text size="none">{error}</Text></div>}
                 </Flex>
-                <Flex gap={8} justifyContent="flex-end">
+                <Flex gap={8} alignItems="end" justifyContent="flex-end" className={styles.headerActions}>
                     {creating && (
-                        <Button size="s" mode="outline" onClick={handleCancelCreate}>supply_cancel_draw</Button>
+                        <Button className={styles.headerBtn} size="s" mode="outline" onClick={handleCancelCreate}>supply_cancel_draw</Button>
                     )}
-                    <Button size="s" icon="add" onClick={handleNewArea} disabled={!!groupDraft || !!geometryEditingId}>new area</Button>
+                    <Button className={styles.headerBtn} size="s" icon="add" onClick={handleNewArea} disabled={!!groupDraft || !!geometryEditingId}>new area</Button>
                 </Flex>
             </div>
 
@@ -523,65 +534,82 @@ export default function SupplyAreas() {
                                             {storeGroups.map(group => {
                                                 const isEditing = groupDraft?.id === group.id
                                                 return (
-                                                    <div key={group.id} className={`${styles.groupBranch} ${isEditing ? styles.groupBranchExpanded : ''}`}>
+                                                    <div key={group.id} className={`${styles.groupCard} ${isEditing ? styles.groupCardExpanded : ''}`}>
                                                         <div
-                                                            className={`${styles.storeListItem} ${styles.groupListItem} ${isEditing ? styles.active : ''}`}
-                                                            onClick={() => startGroupEdit(group)}
+                                                            className={`${styles.groupCardHeader} ${isEditing ? styles.groupCardHeaderExpanded : ''}`}
+                                                            onClick={() => {
+                                                                if (isEditing) {
+                                                                    handleCancelGroupDraft()
+                                                                } else {
+                                                                    startGroupEdit(group)
+                                                                }
+                                                            }}
+                                                            title={isEditing ? TR('cancel') : undefined}
                                                         >
-                                                            <span className={styles.groupDot} />
-                                                            <span className={styles.storeListName}>{group.name}</span>
-                                                            <span className={styles.groupCount}>{(group.areaIds || []).length}</span>
-                                                        </div>
-                                                        <div className={styles.groupEditWrap}>
-                                                            <div className={styles.groupEditWrapInner}>
-                                                                {isEditing && (
-                                                                    <div className={styles.groupEditPane} onClick={e => e.stopPropagation()}>
-                                                                        {editingGroupName ? (
-                                                                            <input
-                                                                                className={styles.groupNameInput}
-                                                                                value={groupDraft.name}
-                                                                                onChange={e => setGroupDraft(prev => ({ ...prev, name: e.target.value }))}
-                                                                                onBlur={() => setEditingGroupName(false)}
-                                                                                onKeyDown={e => { if (e.key === 'Enter') setEditingGroupName(false) }}
-                                                                                placeholder={TR('name')}
-                                                                                autoFocus
-                                                                            />
-                                                                        ) : (
-                                                                            <div className={styles.groupNameRow} onClick={() => setEditingGroupName(true)}>
-                                                                                <button
-                                                                                    type="button"
-                                                                                    className={styles.groupNameEditIcon}
-                                                                                    onClick={e => { e.stopPropagation(); setEditingGroupName(true) }}
-                                                                                    title={TR('edit')}
-                                                                                >
-                                                                                    <Icon name="edit" />
-                                                                                </button>
-                                                                                <span className={styles.groupNameText}>{groupDraft.name || TR('name')}</span>
-                                                                            </div>
-                                                                        )}
-                                                                        <div className={styles.editorMeta}>
-                                                                            <Text size="none">{`${groupDraft.areaIds.length} ${TR('supply_areas_selected')}`}</Text>
-                                                                        </div>
-                                                                        <div className={styles.groupEditHint}>
-                                                                            <Text size="none">supply_group_hint</Text>
-                                                                        </div>
-                                                                        <Flex gap={8} justifyContent="space-between" alignItems="center">
-                                                                            <Button size="s" mode="outline" icon="trash" onClick={handleDeleteGroup} />
-                                                                            <Flex gap={8}>
-                                                                                <Button size="s" mode="outline" onClick={handleCancelGroupDraft}>cancel</Button>
-                                                                                <Button
-                                                                                    size="s"
-                                                                                    icon="check"
-                                                                                    loading={savingGroup}
-                                                                                    disabled={!groupDirty || !groupDraft.name?.trim()}
-                                                                                    onClick={handleSaveGroup}
-                                                                                >
-                                                                                    save
-                                                                                </Button>
-                                                                            </Flex>
-                                                                        </Flex>
-                                                                    </div>
+                                                            <div className={styles.groupHeaderStart}>
+                                                                <span className={styles.groupHeaderIcon}>
+                                                                    {isEditing ? (
+                                                                        <Icon name="sortUp" className={styles.groupArrowIcon} />
+                                                                    ) : (
+                                                                        <span className={styles.groupDot} />
+                                                                    )}
+                                                                </span>
+                                                                {!isEditing && (
+                                                                    <span className={styles.storeListName}>{group.name}</span>
                                                                 )}
+                                                            </div>
+                                                            {!isEditing && (
+                                                                <span className={styles.groupCount}>{(group.areaIds || []).length}</span>
+                                                            )}
+                                                        </div>
+                                                        <div className={styles.groupCardContentWrap}>
+                                                            <div className={styles.groupCardContentInner}>
+                                                                <div className={styles.groupEditPane} onClick={e => e.stopPropagation()}>
+                                                                    {editingGroupName && isEditing ? (
+                                                                        <input
+                                                                            className={styles.groupNameInput}
+                                                                            value={groupDraft?.name ?? group.name}
+                                                                            onChange={e => setGroupDraft(prev => ({ ...prev, name: e.target.value }))}
+                                                                            onBlur={() => setEditingGroupName(false)}
+                                                                            onKeyDown={e => { if (e.key === 'Enter') setEditingGroupName(false) }}
+                                                                            placeholder={TR('name')}
+                                                                            autoFocus
+                                                                        />
+                                                                    ) : (
+                                                                        <div
+                                                                            className={styles.groupNameRow}
+                                                                            onClick={() => { if (isEditing) setEditingGroupName(true) }}
+                                                                        >
+                                                                            <span className={styles.groupNameText}>
+                                                                                {(isEditing ? groupDraft?.name : group.name) || TR('name')}
+                                                                            </span>
+                                                                            <span className={styles.groupNameEditIcon} title={TR('edit')}>
+                                                                                <Icon name="edit" />
+                                                                            </span>
+                                                                        </div>
+                                                                    )}
+                                                                    <div className={styles.editorMeta}>
+                                                                        <Text size="none">{`${(isEditing ? groupDraft?.areaIds : group.areaIds || []).length} ${TR('supply_areas_selected')}`}</Text>
+                                                                    </div>
+                                                                    <div className={styles.groupEditHint}>
+                                                                        <Text size="none">supply_group_hint</Text>
+                                                                    </div>
+                                                                    <Flex gap={8} justifyContent="space-between" alignItems="center">
+                                                                        <Button size="s" mode="outline" icon="trash" onClick={handleDeleteGroup} />
+                                                                        <Flex gap={8}>
+                                                                            <Button size="s" mode="outline" onClick={handleCancelGroupDraft}>cancel</Button>
+                                                                            <Button
+                                                                                size="s"
+                                                                                icon="check"
+                                                                                loading={savingGroup}
+                                                                                disabled={!groupDirty || !groupDraft?.name?.trim()}
+                                                                                onClick={handleSaveGroup}
+                                                                            >
+                                                                                save
+                                                                            </Button>
+                                                                        </Flex>
+                                                                    </Flex>
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -589,11 +617,22 @@ export default function SupplyAreas() {
                                             })}
                                             {/* New group draft (id === null) — shown inline under its store */}
                                             {groupDraft && !groupDraft.id && groupDraft.storeId === store.id && (
-                                                <div className={`${styles.groupBranch} ${styles.groupBranchExpanded}`}>
-                                                    <div className={styles.groupEditWrap}>
-                                                        <div className={styles.groupEditWrapInner}>
+                                                <div className={`${styles.groupCard} ${styles.groupCardExpanded}`}>
+                                                    <div
+                                                        className={`${styles.groupCardHeader} ${styles.groupCardHeaderExpanded}`}
+                                                        onClick={handleCancelGroupDraft}
+                                                        title={TR('cancel')}
+                                                    >
+                                                        <div className={styles.groupHeaderStart}>
+                                                            <span className={styles.groupHeaderIcon}>
+                                                                <Icon name="sortUp" className={styles.groupArrowIcon} />
+                                                            </span>
+                                                            <span className={styles.storeListName}><Text size="none">supply_new_area_group</Text></span>
+                                                        </div>
+                                                    </div>
+                                                    <div className={styles.groupCardContentWrap}>
+                                                        <div className={styles.groupCardContentInner}>
                                                             <div className={styles.groupEditPane} onClick={e => e.stopPropagation()}>
-                                                                <div className={styles.editorMeta}><Text size="none">supply_new_area_group</Text></div>
                                                                 <input
                                                                     className={styles.groupNameInput}
                                                                     value={groupDraft.name}
