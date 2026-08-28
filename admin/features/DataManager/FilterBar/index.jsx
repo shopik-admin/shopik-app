@@ -342,7 +342,7 @@ function FilterControl({ descriptor, filter, setFilter, TR, storeMap, close }) {
                         }
                     }}
                     onKeyDown={e => { if (e.key === 'Escape') { const n = { ...filter }; delete n[key]; setFilter(n); close?.() } }}
-                    style={{ flex: 1, padding: '8px 10px', border: '1px solid var(--border-secondary)', borderRadius: 8, fontSize: 13, outline: 'none' }}
+                    className={styles.stringInput}
                 />
                 {strVal && <button type='button' onClick={() => { const n = { ...filter }; delete n[key]; setFilter(n) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', padding: 4 }} aria-label='clear'><Icon name='x' /></button>}
             </div>
