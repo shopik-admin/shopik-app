@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import useApi from 'common/functions/useApi'
 import Flex from 'common/components/Flex'
 import Tabs from 'common/components/Tabs'
 import { useText } from 'common/texts/TextProvider'
@@ -19,6 +20,9 @@ export default function Windows() {
     const [dailyDate, setDailyDate] = useState(undefined)
     const [weeklyDirty, setWeeklyDirty] = useState(false)
 
+    const { data: stores = [] } = useApi('store/read', { limit: 0 })
+    const { data: areaGroups = [] } = useApi('area_group/read', { limit: 0 })
+
     function handleTabChange(newTab) {
         if (newTab !== tab && weeklyDirty && !window.confirm(TR('windows_unsaved_confirm')))
             return
@@ -35,13 +39,25 @@ export default function Windows() {
     return <Flex col gap={12} className={styles.container}>
         <Tabs options={TABS} active={tab} onChange={handleTabChange} className={styles.tabs} />
         {tab === 'daily' && (
-            <DailyGrid date={dailyDate} onDateChange={setDailyDate} />
+            <DailyGrid
+                date={dailyDate}
+                onDateChange={setDailyDate}
+                stores={stores}
+                areaGroups={areaGroups}
+            />
         )}
         {tab === 'weekly' && (
-            <WeeklyPlan onDirtyChange={setWeeklyDirty} />
+            <WeeklyPlan
+                onDirtyChange={setWeeklyDirty}
+                stores={stores}
+                areaGroups={areaGroups}
+            />
         )}
         {tab === 'month' && (
-            <MonthCalendar onGoToDay={goToDay} />
+            <MonthCalendar
+                onGoToDay={goToDay}
+                stores={stores}
+            />
         )}
     </Flex>
 }
