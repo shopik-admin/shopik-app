@@ -5,142 +5,289 @@ import distanceMeters from 'common/functions/distance'
 import StorePicker from './StorePicker'
 import { OPS_PROXIMITY_RADIUS_M } from 'common/constants'
 import { useUser } from 'features/User'
+import Icon from 'common/components/Icon'
+import DataProvider, { useData } from 'features/DataManager/DataProvider'
+import FilterBar from 'features/DataManager/FilterBar'
 import styles from './ops.module.css'
 
-function formatWindow(w) {
+// --- hebrew status labels (match design) ---
+const STATUS_LABEL = {
+    paid: 'ממתין לליקוט',
+    picking: 'בליקוט',
+    picked: 'ממתין לאריזה',
+    packed: 'ממתין לשילוח',
+    shipped: 'בשילוח',
+    done: 'סופק',
+    canceled: 'בוטל',
+    failed: 'נכשל',
+}
+
+function progressOf(order) {
+    const total = order?.cart?.length || 0
+    if (!total) return { done: 0, total: 0, pct: 0 }
+    const done = order.cart.filter(c => c.finalAmount != null || c.missing).length
+    const pct = total ? Math.round((done / total) * 100) : 0
+    return { done, total, pct }
+}
+
+function variantOf(order) {
+    const s = order?.status
+    if (s === 'picking') return 'picking'
+    if (s === 'picked') return 'picking'
+    if (s === 'packed') return 'packed'
+    if (s === 'shipped') return 'shipped'
+    if (s === 'done') return 'done'
+    if (s === 'paid') {
+        const end = order?.window?.endTimestamp ? new Date(order.window.endTimestamp).getTime() : 0
+        if (end && end - Date.now() < 60 * 60 * 1000 && end > Date.now()) return 'urgent'
+        return 'waiting'
+    }
+    return 'idle'
+}
+
+function formatDayWindow(w) {
     if (!w) return ''
-    const d = w.endTimestamp ? new Date(w.endTimestamp) : null
-    return d ? d.toLocaleString() : w.date || ''
+    if (w.date && w.start != null && w.end != null) {
+        const d = new Date(w.date)
+        const day = d.toLocaleDateString('he-IL', { weekday: 'short' })
+        return `${day} ${w.start}-${w.end}`
+    }
+    if (w.start != null && w.end != null) return `${w.start}-${w.end}`
+    if (w.date) return w.date
+    return ''
+}
+
+function formatTimeHM(w) {
+    if (!w?.endTimestamp) return '--:--'
+    const d = new Date(w.endTimestamp)
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
+function ProgressRing({ pct, color = '#eab308' }) {
+    const r = 22, c = 2 * Math.PI * r, off = c - (pct / 100) * c
+    return <div className={styles.progressRing}>
+        <svg width="56" height="56" viewBox="0 0 56 56">
+            <circle cx="28" cy="28" r={r} stroke="#f3f4f6" strokeWidth="5" fill="none" />
+            <circle cx="28" cy="28" r={r} stroke={color} strokeWidth="5" fill="none" strokeLinecap="round"
+                strokeDasharray={c} strokeDashoffset={off} />
+        </svg>
+        <span className={styles.progressLabel}>{pct}%</span>
+    </div>
 }
 
 function OrderCard({ o, onAction, coords }) {
-    const isMine = o.isMine
-    const addr = o.address ? `${o.address.city || ''} ${o.address.street || ''} ${o.address.building || ''}`.trim() : ''
+    const { done, total, pct } = progressOf(o)
+    const variant = variantOf(o)
+    const foot = variant
+    const colorMap = { picking: '#22c55e', packed: '#06b6d4', shipped: '#8b5cf6', waiting: '#f59e0b', urgent: '#ef4444', done: '#16a34a', idle: '#d1d5db' }
+    const ringColor = colorMap[variant] || '#e5e7eb'
+    const addr = o.storeName || o.address?.city || ''
+    const street = o.address ? `${o.address.street || ''} ${o.address.building || ''}`.trim() : ''
     const dist = coords && o.address?.location?.coordinates ? Math.round(distanceMeters(coords, o.address.location.coordinates)) : null
     const canDeliver = o.status === 'shipped' && (dist != null ? dist <= OPS_PROXIMITY_RADIUS_M : false)
-    return <div className={styles.card} style={{ borderLeft: isMine ? '4px solid #0a0' : undefined }}>
-        <div className={styles.cardHead}>
-            <b>#{o.number}</b> <span className={styles.status}>{o.status}</span> {isMine && <span className={styles.mine}>Mine</span>}
+    const boxes = o.boxes || {}
+
+    return <div className={styles.orderCard} data-variant={variant}>
+        <div className={styles.cardTop}>
+            <span className={styles.orderNum}>
+                <span className={styles.orderNumIcon}><Icon name="truck" /></span>
+                משלוח | {o.number || o.id?.slice(0, 8)}
+            </span>
+            <span className={styles.cardTopMeta}>
+                {addr && `${addr} • `}{formatDayWindow(o.window)} {o.window?.endTimestamp && <span style={{ marginInlineStart: 4 }}>◷ {formatDayWindow(o.window)}</span>}
+            </span>
         </div>
-        <div>{o.name?.first} {o.name?.last} — {o.phone}</div>
-        <div>{addr}</div>
-        <div>Window: {formatWindow(o.window)} {o.window?.endTimestamp && <Countdown end={o.window.endTimestamp} />}</div>
-        <div>{o.cart?.length || 0} items — {o.finalSum ?? o.sum} ₪ {dist != null && <span>· {dist}m</span>}</div>
-        <div className={styles.actions}>
-            {o.status === 'paid' && <button onClick={()=>onAction('claim', o)}>Start picking</button>}
-            {o.status === 'picking' && o.isMine && <button onClick={()=>onAction('pick', o)}>Continue picking</button>}
-            {o.status === 'picked' && <button onClick={()=>onAction('pack', o)}>Pack</button>}
-            {o.status === 'packed' && <button onClick={()=>onAction('ship_select', o)}>Select for shipment</button>}
-            {o.status === 'shipped' && <button disabled={!canDeliver && !o.isMine} onClick={()=>onAction('deliver', o)}>{canDeliver ? 'Deliver (in range)' : 'Deliver'}</button>}
-            <button onClick={()=>onAction('open', o)}>Open</button>
+
+        <div className={styles.cardMeta}>
+            <span className={styles.metaItem}><Icon name="building" /> חנות: {o.storeName || o.storeId || '—'}</span>
+            {street && <span className={styles.metaItem}><Icon name="map" /> {street}</span>}
+            <span className={styles.metaItem}><Icon name="time" /> יום {formatDayWindow(o.window)}</span>
+        </div>
+
+        <div className={styles.cardMain}>
+            <div className={styles.timeBlock}>
+                <div className={styles.timeBig}>{formatTimeHM(o.window)}</div>
+                <div className={styles.timeSub}>{o.status === 'done' ? 'סופק' : 'לסיום ליקוט'}</div>
+            </div>
+
+            <div className={styles.boxesRow}>
+                <span className={styles.boxItem}>{(boxes.amount ?? 5)} <Icon name="bag" /></span>
+                <span className={styles.boxItem}>{(boxes.cold ?? 2)} <span style={{ color: '#0e7490' }}>❄</span></span>
+                <span className={styles.boxItem}>{(boxes.freeze ?? 2)} <Icon name="bag" /></span>
+            </div>
+
+            <div className={styles.progressWrap}>
+                <div className={styles.progressTop}>{done}/{total}</div>
+                <div className={styles.progressSub}>מוצרים שסופקו</div>
+                <ProgressRing pct={pct} color={ringColor} />
+            </div>
+        </div>
+
+        <div className={styles.cardFooter} data-foot={foot}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <span className={styles.footerDot}>{variant === 'done' ? '✓' : variant === 'urgent' ? '!' : '○'}</span>
+                {STATUS_LABEL[o.status] || o.status}
+                {o.isMine && <span style={{ opacity: 0.7 }}>• שלי</span>}
+            </span>
+            <span className={styles.footerActions}>
+                {o.status === 'paid' && <button className={`${styles.miniBtn} ${styles.miniBtnPrimary}`} onClick={() => onAction('claim', o)}>התחל ליקוט</button>}
+                {o.status === 'picking' && o.isMine && <button className={`${styles.miniBtn} ${styles.miniBtnPrimary}`} onClick={() => onAction('pick', o)}>המשך ליקוט</button>}
+                {o.status === 'picked' && <button className={`${styles.miniBtn} ${styles.miniBtnPrimary}`} onClick={() => onAction('pack', o)}>ארוז</button>}
+                {o.status === 'packed' && <button className={styles.miniBtn} onClick={() => onAction('ship_select', o)}>בחר לשילוח</button>}
+                {o.status === 'shipped' && <button className={styles.miniBtn} disabled={!canDeliver && !o.isMine} onClick={() => onAction('deliver', o)}>{canDeliver ? 'מסור' : 'מסירה'}</button>}
+                <button className={styles.miniBtn} onClick={() => onAction('open', o)}>פתח</button>
+            </span>
         </div>
     </div>
 }
 
-function Countdown({ end }) {
-    const [now, setNow] = useState(Date.now())
-    useEffect(()=>{ const id=setInterval(()=>setNow(Date.now()), 30000); return ()=>clearInterval(id)},[])
-    const diff = new Date(end).getTime() - now
-    if (diff <= 0) return <span style={{color:'red'}}>overdue</span>
-    const mins = Math.floor(diff/60000)
-    const h = Math.floor(mins/60), m = mins%60
-    const urgent = diff < 60*60000
-    return <span style={{color: urgent?'red':undefined}}>{h>0?`${h}h ${m}m`:`${m}m`} left</span>
-}
-
-export default function OpsPage() {
-    const user = useUser()
+function OpsInner() {
+    const { data, filter, setFilter } = useData()
     const { coords } = useGeolocation()
-    const [orders, setOrders] = useState([])
-    const [filter, setFilter] = useState('all')
+    const [mineOnly, setMineOnly] = useState(false)
     const [selectedShip, setSelectedShip] = useState({})
-    const [currentStore, setCurrentStore] = useState(user?.currentStoreId || null)
     const [pickOrder, setPickOrder] = useState(null)
-    const [shipOrders, setShipOrders] = useState([])
     const [deliverOrder, setDeliverOrder] = useState(null)
-    const [error, setError] = useState(null)
 
-    async function load() {
-        try {
-            const data = await apiReq('order/ops/list', { limit: 50 })
-            setOrders(data || [])
-        } catch (e) { setError(String(e)) }
-    }
-    useEffect(()=>{ if (currentStore || user?.currentStoreId) load(); const id=setInterval(load, 15000); return ()=>clearInterval(id)}, [currentStore])
-    useEffect(()=>{ if (user?.currentStoreId && !currentStore) setCurrentStore(user.currentStoreId)},[user?.currentStoreId])
+    const rawOrders = useMemo(() => {
+        const arr = Array.isArray(data) ? data : []
+        return arr.filter(o => o.status !== 'cart')
+    }, [data])
 
-    const visible = useMemo(()=>{
-        if (filter==='mine') return orders.filter(o=>o.isMine)
-        if (filter==='paid') return orders.filter(o=>o.status==='paid')
-        if (filter==='picked') return orders.filter(o=>o.status==='picked')
-        if (filter==='packed') return orders.filter(o=>o.status==='packed')
-        if (filter==='shipped') return orders.filter(o=>o.status==='shipped')
-        return orders
-    }, [orders, filter])
+    const visible = useMemo(() => {
+        if (!mineOnly) return rawOrders
+        return rawOrders.filter(o => o.isMine)
+    }, [rawOrders, mineOnly])
+
+    const kanban = useMemo(() => {
+        const pick = visible.filter(o => ['paid', 'picking', 'picked'].includes(o.status))
+        const ship = visible.filter(o => ['packed', 'shipped'].includes(o.status))
+        const done = visible.filter(o => ['done', 'canceled', 'failed'].includes(o.status))
+        return { pick, ship, done }
+    }, [visible])
 
     async function handle(action, o) {
-        if (action==='claim') {
-            try { await apiReq('order/ops/claim', { id: o.id }); setPickOrder(o.id); await load() } catch(e){ alert(String(e)) }
-        } else if (action==='pack') {
+        if (action === 'claim') {
+            try { await apiReq('order/ops/claim', { id: o.id }); setPickOrder(o.id) } catch (e) { alert(String(e)) }
+        } else if (action === 'pack') {
             const bags = { regular: 1 }; const boxes = {}
-            try { await apiReq('order/ops/pack', { id: o.id, bags, boxes }); await load() } catch(e){ alert(String(e)) }
-        } else if (action==='ship_select') {
-            setSelectedShip(prev=> ({...prev, [o.id]: !prev[o.id]}))
-        } else if (action==='open') {
+            try { await apiReq('order/ops/pack', { id: o.id, bags, boxes }) } catch (e) { alert(String(e)) }
+        } else if (action === 'ship_select') {
+            setSelectedShip(prev => ({ ...prev, [o.id]: !prev[o.id] }))
+        } else if (action === 'open') {
             setPickOrder(o.id)
-        } else if (action==='pick') {
+        } else if (action === 'pick') {
             setPickOrder(o.id)
-        } else if (action==='deliver') {
+        } else if (action === 'deliver') {
             setDeliverOrder(o)
         }
     }
 
     async function startShipment() {
-        const ids = Object.keys(selectedShip).filter(k=>selectedShip[k])
-        if (!ids.length) return alert('select at least one order')
+        const ids = Object.keys(selectedShip).filter(k => selectedShip[k])
+        if (!ids.length) return alert('בחר לפחות הזמנה אחת')
         try {
             const origin = coords || undefined
             const res = await apiReq('shipment/start', { orderIds: ids, coordinates: origin })
-            if (res.failures?.length) alert('Some orders unavailable: ' + res.failures.join(', '))
-            // compute route
-            try { await apiReq('shipment/route', { shipmentId: res.shipment.id, origin }) } catch {}
+            if (res.failures?.length) alert('חלק מההזמנות לא זמינות: ' + res.failures.join(', '))
+            try { await apiReq('shipment/route', { shipmentId: res.shipment.id, origin }) } catch { }
             setSelectedShip({})
-            await load()
-        } catch(e){ alert(String(e)) }
+        } catch (e) { alert(String(e)) }
     }
+
+    return <>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', margin: '8px 0' }}>
+            <button className={mineOnly ? `${styles.miniBtn} ${styles.miniBtnPrimary}` : styles.miniBtn} onClick={() => setMineOnly(v => !v)}>
+                {mineOnly ? 'שלי ✓' : 'הכל'}
+            </button>
+            <span style={{ marginInlineStart: 'auto', display: 'inline-flex', gap: 8 }}>
+                <button className={`${styles.miniBtn} ${styles.miniBtnPrimary}`} onClick={startShipment}>התחל שילוח ({Object.values(selectedShip).filter(Boolean).length})</button>
+            </span>
+        </div>
+
+        <div className={`${styles.kanban} ${styles.kanbanDesktopOnly}`} style={{ display: 'grid' }}>
+            <div className={styles.column}>
+                <div className={styles.columnHeader}>ליקוט <small>{kanban.pick.length}</small></div>
+                <div className={styles.columnList}>
+                    {kanban.pick.map(o => <OrderCard key={o.id} o={o} onAction={handle} coords={coords} />)}
+                    {!kanban.pick.length && <div className={styles.empty}>אין הזמנות לליקוט</div>}
+                </div>
+            </div>
+            <div className={styles.column}>
+                <div className={styles.columnHeader}>שילוח <small>{kanban.ship.length}</small></div>
+                <div className={styles.columnList}>
+                    {kanban.ship.map(o => <OrderCard key={o.id} o={o} onAction={handle} coords={coords} />)}
+                    {!kanban.ship.length && <div className={styles.empty}>אין הזמנות לשילוח</div>}
+                </div>
+            </div>
+            <div className={styles.column}>
+                <div className={styles.columnHeader}>סופק <small>{kanban.done.length}</small></div>
+                <div className={styles.columnList}>
+                    {kanban.done.map(o => <OrderCard key={o.id} o={o} onAction={handle} coords={coords} />)}
+                    {!kanban.done.length && <div className={styles.empty}>אין הזמנות שסופקו</div>}
+                </div>
+            </div>
+        </div>
+
+        {/* <div className={styles.list}>
+            {visible.map(o=> <OrderCard key={o.id} o={o} onAction={handle} coords={coords} />)}
+            {!visible.length && <div className={styles.empty}>אין הזמנות</div>}
+        </div> */}
+
+        {pickOrder && <PickSheet orderId={pickOrder} onClose={() => setPickOrder(null)} />}
+        {deliverOrder && <DeliverSheet order={deliverOrder} coords={coords} onClose={() => setDeliverOrder(null)} />}
+    </>
+}
+
+export default function OpsPage() {
+    const user = useUser()
+    const [currentStore, setCurrentStore] = useState(user?.currentStoreId || null)
+    useEffect(() => { if (user?.currentStoreId && !currentStore) setCurrentStore(user.currentStoreId) }, [user?.currentStoreId])
 
     if (!currentStore && !user?.currentStoreId) {
-        return <StorePicker onSelected={id=>setCurrentStore(id)} />
+        return <StorePicker onSelected={id => setCurrentStore(id)} />
     }
 
+    const opsCols = [
+        { key: 'number' },
+        { key: 'status', type: 'tr' },
+        { key: 'storeId' },
+        { key: 'deliveryMethod', type: 'tr' },
+        { key: 'window.date', type: 'tr' },
+    ]
+
     return <div className={styles.ops}>
-        <div className={styles.filters}>
-            {['all','mine','paid','picked','packed','shipped'].map(f=> <button key={f} className={filter===f?styles.active:''} onClick={()=>setFilter(f)}>{f}</button>)}
-            <button onClick={load}>Refresh</button>
-            <button onClick={startShipment}>Start shipment ({Object.values(selectedShip).filter(Boolean).length})</button>
+        <div className={styles.pageHeader}>
+            <h1>הזמנות</h1>
+            <div className={styles.headerActions}>
+                <button className={styles.iconBtn}><Icon name="notifications" /></button>
+                <button className={styles.iconBtn}><Icon name="time" /></button>
+                <button className={styles.iconBtn}><Icon name="settings" /></button>
+            </div>
         </div>
-        {error && <div className={styles.error}>{error}</div>}
-        <div className={styles.list}>
-            {visible.map(o=> <OrderCard key={o.id} o={o} onAction={handle} coords={coords} />)}
-            {!visible.length && <div>No orders</div>}
-        </div>
-        {pickOrder && <PickSheet orderId={pickOrder} onClose={()=>{setPickOrder(null); load()}} />}
-        {deliverOrder && <DeliverSheet order={deliverOrder} coords={coords} onClose={()=>{setDeliverOrder(null); load()}} />}
-        <ShipTracker />
+
+        <DataProvider apiRoute='order/ops' limit={50} defaultSort={{ 'window.endTimestamp': 1 }} cols={opsCols}>
+            <div style={{ padding: '12px 12px 0' }}>
+                <FilterBar cols={opsCols} />
+            </div>
+            <div style={{ padding: '8px 12px 0' }}>
+                <OpsInner />
+            </div>
+        </DataProvider>
     </div>
 }
 
 function PickSheet({ orderId, onClose }) {
     const [order, setOrder] = useState(null)
-    useEffect(()=>{ apiReq('order/id', { id: orderId }).then(setOrder).catch(()=>{}) },[orderId])
-    if (!order) return <div className={styles.sheet}>Loading… <button onClick={onClose}>Close</button></div>
+    useEffect(() => { apiReq('order/id', { id: orderId }).then(setOrder).catch(() => { }) }, [orderId])
+    if (!order) return <div className={styles.sheet}>טוען… <button onClick={onClose}>סגור</button></div>
     return <div className={styles.sheet}>
-        <h3>Pick #{order.number} — {order.status}</h3>
-        {order.cart?.map(item=> <PickRow key={item.barcode} item={item} orderId={orderId} onDone={()=>apiReq('order/id',{id:orderId}).then(setOrder)} />)}
-        <div style={{marginTop:12}}>
-            <button onClick={async()=>{ try{ await apiReq('order/ops/pick_complete',{id:orderId}); alert('picked'); onClose()} catch(e){alert(String(e))} }}>Complete picking</button>
-            <button onClick={async()=>{ try{ await apiReq('order/ops/release',{id:orderId}); onClose()} catch(e){alert(String(e))} }}>Release</button>
-            <button onClick={onClose}>Close</button>
+        <h3>ליקוט #{order.number} — {STATUS_LABEL[order.status] || order.status}</h3>
+        {order.cart?.map(item => <PickRow key={item.barcode || item.id} item={item} orderId={orderId} onDone={() => apiReq('order/id', { id: orderId }).then(setOrder)} />)}
+        <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button className={`${styles.miniBtn} ${styles.miniBtnPrimary}`} onClick={async () => { try { await apiReq('order/ops/pick_complete', { id: orderId }); alert('נלקט'); onClose() } catch (e) { alert(String(e)) } }}>סיום ליקוט</button>
+            <button className={styles.miniBtn} onClick={async () => { try { await apiReq('order/ops/release', { id: orderId }); onClose() } catch (e) { alert(String(e)) } }}>שחרר</button>
+            <button className={styles.miniBtn} onClick={onClose}>סגור</button>
         </div>
     </div>
 }
@@ -150,61 +297,50 @@ function PickRow({ item, orderId, onDone }) {
     const [val, setVal] = useState(item.finalAmount ?? '')
     async function doAction(action) {
         try {
-            await apiReq('order/ops/pick_item', { id: orderId, barcode: item.barcode, action, finalAmount: Number(val), missingReason: action==='missing'?'missing':undefined })
+            await apiReq('order/ops/pick_item', { id: orderId, barcode: item.barcode, action, finalAmount: Number(val), missingReason: action === 'missing' ? 'missing' : undefined })
             onDone()
-        } catch(e){ alert(String(e)) }
+        } catch (e) { alert(String(e)) }
     }
     return <div className={styles.pickRow}>
-        <div>{item.name} — {item.amount} {isWeighted?`(weighed · ${item.unit?.baseUnit||'kg'})`:''} {item.barcode || <i>no barcode</i>}</div>
+        <div>{item.name} — {item.amount} {isWeighted ? `(שקילה · ${item.unit?.baseUnit || 'kg'})` : ''} {item.barcode || <i>ללא ברקוד</i>}</div>
         {isWeighted ? <>
-            <input type='number' step='0.01' placeholder='weighed amount' value={val} onChange={e=>setVal(e.target.value)} />
-            <button onClick={()=>doAction('weight')}>Save weight</button>
-            <button onClick={()=>doAction('missing')}>Missing</button>
+            <input type='number' step='0.01' placeholder='כמות שנשקלה' value={val} onChange={e => setVal(e.target.value)} />
+            <button className={styles.miniBtn} onClick={() => doAction('weight')}>שמור שקילה</button>
+            <button className={styles.miniBtn} onClick={() => doAction('missing')}>חסר</button>
         </> : <>
-            <input type='number' value={val} onChange={e=>setVal(e.target.value)} placeholder='amount' />
-            <button onClick={()=>doAction('scan')}>Scan / Save</button>
-            <button onClick={()=>doAction('missing')}>Missing</button>
+            <input type='number' value={val} onChange={e => setVal(e.target.value)} placeholder='כמות' />
+            <button className={styles.miniBtn} onClick={() => doAction('scan')}>סרוק / שמור</button>
+            <button className={styles.miniBtn} onClick={() => doAction('missing')}>חסר</button>
         </>}
-        {item.missing && <span> — MISSING</span>}
-        {item.finalAmount!=null && !item.missing && <span> — final {item.finalAmount}</span>}
+        {item.missing && <span> — חסר</span>}
+        {item.finalAmount != null && !item.missing && <span> — סופק {item.finalAmount}</span>}
     </div>
 }
 
 function DeliverSheet({ order, coords, onClose }) {
     const [file, setFile] = useState(null)
     const [preview, setPreview] = useState(null)
-    async function submit(force=false) {
-        if (!file) return alert('take a photo')
+    async function submit(force = false) {
+        if (!file) return alert('צלם תמונה')
         const reader = new FileReader()
         reader.onload = async () => {
             const base64 = String(reader.result).split(',')[1]
             try {
                 await apiReq('shipment/deliver', { orderId: order.id, imageBase64: base64, coordinates: coords, force })
                 onClose()
-            } catch(e){ alert(String(e)) }
+            } catch (e) { alert(String(e)) }
         }
         reader.readAsDataURL(file)
     }
     return <div className={styles.sheet}>
-        <h3>Deliver #{order.number}</h3>
+        <h3>מסירה #{order.number}</h3>
         <div>{order.address?.city} {order.address?.street} {order.address?.building}</div>
-        <input type='file' accept='image/*' capture='environment' onChange={e=>{ const f=e.target.files[0]; setFile(f); if(f) setPreview(URL.createObjectURL(f)) }} />
-        {preview && <img src={preview} alt='preview' style={{maxWidth:'100%', marginTop:8}} />}
-        <div>
-            <button onClick={()=>submit(false)}>Submit</button>
-            <button onClick={()=>submit(true)}>Force submit (GPS drift)</button>
-            <button onClick={onClose}>Cancel</button>
+        <input type='file' accept='image/*' capture='environment' onChange={e => { const f = e.target.files[0]; setFile(f); if (f) setPreview(URL.createObjectURL(f)) }} />
+        {preview && <img src={preview} alt='preview' style={{ maxWidth: '100%', marginTop: 8 }} />}
+        <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+            <button className={`${styles.miniBtn} ${styles.miniBtnPrimary}`} onClick={() => submit(false)}>שלח</button>
+            <button className={styles.miniBtn} onClick={() => submit(true)}>שלח בכוח (חריגת GPS)</button>
+            <button className={styles.miniBtn} onClick={onClose}>ביטול</button>
         </div>
     </div>
-}
-
-function ShipTracker() {
-    const { coords } = useGeolocation()
-    // find active shipment for this shipper: we poll ops list for shipped mine
-    useEffect(()=>{
-        if (!coords) return
-        // locate active shipment via shipper — we don't have direct endpoint, so we piggyback on location: try to discover via shipment in memory
-        // Instead, we fetch active shipment ids by calling shipment/location only when we know shipmentId — tracker will be driven by ActiveShipment view.
-    },[coords])
-    return null
 }

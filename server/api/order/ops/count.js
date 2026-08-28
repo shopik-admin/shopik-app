@@ -9,7 +9,7 @@ export default async function count(payload, { DL, _admin }) {
     const canShip = _admin.hasPermission('order:ship') || isSuper
     if (!canRead && !canPick && !canShip) throw { status: 403, message: 'Forbidden' }
 
-    const filter = { active: true }
+    const filter = { active: true, status: { $ne: 'cart' } }
     if (canRead) {
         if (admin?.currentStoreId) filter.storeId = admin.currentStoreId
         else if (!isSuper && admin?.storeIds?.length) filter.storeId = { $in: admin.storeIds }

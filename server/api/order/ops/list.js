@@ -18,7 +18,7 @@ export default async function list(payload, { DL, _admin }) {
         search
     } = payload || {}
 
-    const filter = { active: true }
+    const filter = { active: true, status: { $ne: 'cart' } }
 
     if (canRead) {
         if (admin?.currentStoreId) {
