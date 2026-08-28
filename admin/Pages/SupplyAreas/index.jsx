@@ -187,41 +187,43 @@ export default function SupplyAreas() {
 
     function handleToggleGroupArea(areaId) {
         if (!groupDraft) return
-        // clear prior create validation error when user fixes selection
         if (!groupDraft.id && error) setError(null)
         const has = groupDraft.areaIds.includes(areaId)
-        const area = areas.find(a => a.id === areaId)
-        if (!has && !area?.stores?.some(s => s.storeId === groupDraft.storeId)) {
-            const storeIds = [...new Set([...(area?.stores || []).map(s => s.storeId), groupDraft.storeId])]
-            apiReq('supply_area/update', { id: areaId, stores: storeIds })
-                .then(updated => setData(prev => prev.map(a => a.id === areaId ? { ...a, stores: updated.stores } : a)))
-                .catch(err => setError(toMessage(err)))
-        }
         setGroupDraft({
             ...groupDraft,
             areaIds: has ? groupDraft.areaIds.filter(id => id !== areaId) : [...groupDraft.areaIds, areaId]
         })
     }
 
-    function handleSaveGroup() {
+    async function handleSaveGroup() {
         if (!groupDraft) return
         const { id, name, storeId, areaIds } = groupDraft
         if (!name?.trim() || !storeId) {
             setError('supply_group_details_required')
             return
         }
-        // For existing groups, save is disabled until dirty, but guard anyway
         if (id && !groupDirty) return
         setSavingGroup(true)
         setError(null)
-        apiReq(id ? 'area_group/update' : 'area_group/create', { ...(id ? { id } : {}), name: name.trim(), storeId, areaIds })
-            .then(() => {
-                refetchGroups()
-                setGroupDraft(null)
-                setEditingGroupName(false)
-            })
-            .catch(err => setError(toMessage(err)))
-            .finally(() => setSavingGroup(false))
+        try {
+            // Auto-assign store to member areas if not already assigned
+            const areasNeedingStore = areas.filter(a => areaIds.includes(a.id) && !a.stores?.some(s => s.storeId === storeId))
+            if (areasNeedingStore.length) {
+                await Promise.all(areasNeedingStore.map(area => {
+                    const storeIds = [...new Set([...(area.stores || []).map(s => s.storeId), storeId])]
+                    return apiReq('supply_area/update', { id: area.id, stores: storeIds })
+                }))
+                callReq()
+            }
+            await apiReq(id ? 'area_group/update' : 'area_group/create', { ...(id ? { id } : {}), name: name.trim(), storeId, areaIds })
+            refetchGroups()
+            setGroupDraft(null)
+            setEditingGroupName(false)
+        } catch (err) {
+            setError(toMessage(err))
+        } finally {
+            setSavingGroup(false)
+        }
     }
 
     function handleCreateGroup() {
@@ -308,7 +310,12 @@ export default function SupplyAreas() {
                 street: testStreet,
                 building: testBuilding
             })
-            const [lng, lat] = geocoded.location.coordinates
+            const coords = geocoded?.location?.coordinates
+            if (!Array.isArray(coords) || coords.length < 2) {
+                setTestResult({ error: TR('supply_no_service') })
+                return
+            }
+            const [lng, lat] = coords
             const res = await apiReq('supply_area/lookup', { lng, lat })
             setTestResult(res)
             setTestPoint({ lat, lng })

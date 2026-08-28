@@ -432,7 +432,6 @@ function AreaEditForm({ areaDraft, setAreaDraft, stores, savingArea, onCancel, o
     const [localName, setLocalName] = useState(areaDraft.name)
     // Sync when switching to a different area (id changes), but not on every keystroke
     useEffect(() => { setLocalName(areaDraft.name) }, [areaDraft.id])
-    const areaStoresForEditor = useMemo(() => (areaDraft.storeIds || []).map(id => ({ storeId: id })), [areaDraft.storeIds])
     const handleSave = () => {
         // Commit local name to parent draft before save
         const toSave = { ...areaDraft, name: localName }
@@ -456,7 +455,7 @@ function AreaEditForm({ areaDraft, setAreaDraft, stores, savingArea, onCancel, o
             </div>
             <StoreListEditor
                 stores={stores}
-                areaStores={areaStoresForEditor}
+                storeIds={areaDraft.storeIds || []}
                 onChange={ids => setAreaDraft(prev => ({ ...prev, storeIds: ids }))}
             />
             <Flex gap={8} justifyContent="end" style={{ marginTop: 8 }}>
@@ -521,8 +520,12 @@ export default function SupplyAreaMap({
         return Array.isArray(c) && c.length === 2
     })
 
+    const activeFlyPoint = useMemo(() => {
+        return testPoint || focusGroupPoint || focusPoint || null
+    }, [testPoint, focusGroupPoint, focusPoint])
+
     return (
-        <div style={{ position: 'relative', top: '16px', right: '10px', height: '99%' }}>
+        <div className={styles.mapInnerWrap}>
             <MapContainer
                 center={ISRAEL_CENTER}
                 zoom={12}
@@ -621,9 +624,7 @@ export default function SupplyAreaMap({
                         <Popup>{testLabel}</Popup>
                     </Marker>
                 )}
-                <FlyToPoint point={focusPoint} />
-                <FlyToPoint point={focusGroupPoint} />
-                <FlyToPoint point={testPoint} />
+                <FlyToPoint point={activeFlyPoint} />
             </MapContainer>
             <div className={styles.tilePicker}>
                 {Object.entries(TILESETS).map(([id, ts]) => (
