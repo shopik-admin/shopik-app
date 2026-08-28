@@ -1,10 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import 'leaflet-draw/dist/leaflet.draw.css'
 import Text from 'common/components/Text'
 import { useText } from 'common/texts/TextProvider'
+import Button from 'common/components/Button'
+import Flex from 'common/components/Flex'
+import StoreListEditor from './StoreListEditor'
 import styles from './supplyAreas.module.css'
 
 const ISRAEL_CENTER = [31.7683, 35.2137]
@@ -140,6 +143,7 @@ function useDrawReady() {
 function MapController({
     areas,
     selectedId,
+    geometryEditingId,
     servedAreaIds,
     groupAreaIds,
     draftAreaIds,
@@ -149,6 +153,7 @@ function MapController({
     onToggleArea,
     onCreated,
     onEdited,
+    onGeometryCancel,
     onBackgroundClick
 }) {
     const map = useMap()
@@ -161,69 +166,8 @@ function MapController({
     const editLayerRef = useRef(null)
     const editOriginalRef = useRef(null)
     const editControlRef = useRef(null)
-    const cbRef = useRef({ onSelect, onToggleArea, onCreated, onEdited, onBackgroundClick, selectedId, drawing, toggleMode })
-    cbRef.current = { onSelect, onToggleArea, onCreated, onEdited, onBackgroundClick, selectedId, drawing, toggleMode }
-
-    // Clicking empty map (not a polygon) deselects + exits vertex edit
-    useEffect(() => {
-        function onBgClick() {
-            if (cbRef.current.drawing || cbRef.current.toggleMode) return
-            // cbRef.current.onBackgroundClick?.()
-        }
-        map.on('click', onBgClick)
-        return () => map.off('click', onBgClick)
-    }, [map])
-
-    // Render all area polygons — click opens BOTH: sidebar editor (stores + details) AND vertex editing overlay with Save/Cancel
-    useEffect(() => {
-        stopEdit()
-        const group = groupRef.current || L.featureGroup().addTo(map)
-        groupRef.current = group
-        group.clearLayers()
-        layersRef.current.clear()
-
-        areas.forEach(area => {
-            const rings = (area.location?.coordinates || []).map(ring =>
-                ring.map(([lng, lat]) => [lat, lng])
-            )
-            const layer = L.polygon(rings, { style: polygonStyle({}) })
-            layer.supplyAreaId = area.id
-            layer.on('click', (e) => {
-                L.DomEvent.stopPropagation(e.originalEvent)
-                if (cbRef.current.toggleMode) {
-                    cbRef.current.onToggleArea?.(area.id)
-                    return
-                }
-                const isSelected = editLayerRef.current === layer
-                // Always update sidebar selection
-                cbRef.current.onSelect?.(isSelected ? null : area.id)
-                if (isSelected) {
-                    revertEdit()
-                    stopEdit()
-                    return
-                }
-                if (cbRef.current.drawing) return
-                startEdit(layer)
-            })
-            group.addLayer(layer)
-            layersRef.current.set(area.id, layer)
-        })
-
-        return () => group.clearLayers()
-    }, [map, areas])
-
-    // Highlight: selected (blue) > current group members (purple) > served by store (orange) > default.
-    // When editing a group (toggleMode), only draftAreaIds drives purple; removed areas revert to regular.
-    useEffect(() => {
-        layersRef.current.forEach((layer, id) => {
-            layer.setStyle(polygonStyle({
-                selected: id === selectedId,
-                draftMember: draftAreaIds.includes(id),
-                groupMember: !toggleMode && groupAreaIds.includes(id),
-                served: servedAreaIds.includes(id)
-            }))
-        })
-    }, [selectedId, servedAreaIds, groupAreaIds, draftAreaIds, toggleMode])
+    const cbRef = useRef({ onSelect, onToggleArea, onCreated, onEdited, onGeometryCancel, onBackgroundClick, selectedId, geometryEditingId, drawing, toggleMode })
+    cbRef.current = { onSelect, onToggleArea, onCreated, onEdited, onGeometryCancel, onBackgroundClick, selectedId, geometryEditingId, drawing, toggleMode }
 
     const removeEditControl = useCallback(() => {
         if (editControlRef.current) {
@@ -267,7 +211,84 @@ function MapController({
     const cancelEdit = useCallback(() => {
         revertEdit()
         stopEdit()
+        cbRef.current.onGeometryCancel?.()
     }, [revertEdit, stopEdit])
+
+    const startEdit = useCallback((layer) => {
+        if (editLayerRef.current === layer) return
+        if (!L.Edit?.Poly || !L.LatLngUtil?.cloneLatLngs) return
+        stopEdit()
+        if (layer.editing) layer.editing.disable()
+        layer.editing = new L.Edit.Poly(layer)
+        editOriginalRef.current = L.LatLngUtil.cloneLatLngs(layer.getLatLngs())
+        layer.editing.enable()
+        editLayerRef.current = layer
+        editControlRef.current = createEditActionsControl(map, {
+            save: TR('supply_save_changes'),
+            cancel: TR('cancel')
+        }, () => commitEdit(), () => cancelEdit())
+    }, [map, stopEdit, TR, commitEdit, cancelEdit])
+
+    // Clicking empty map closes area popup (when not drawing/group-editing/geometry-editing)
+    // Guard against polygon clicks bubbling to map (they fire layer 'click' then map 'click')
+    useEffect(() => {
+        function onBgClick(e) {
+            if (cbRef.current.drawing || cbRef.current.toggleMode || cbRef.current.geometryEditingId) return
+            // Ignore clicks that originated on a polygon/path - handled by layer handler
+            const target = e.originalEvent?.target
+            if (target?.closest?.('.leaflet-interactive')) return
+            if (target?.tagName?.toLowerCase() === 'path') return
+            // Leaflet may have _stopped flag on the DOM event when layer called stopPropagation
+            if (e.originalEvent?._stopped) return
+            cbRef.current.onBackgroundClick?.()
+        }
+        map.on('click', onBgClick)
+        return () => map.off('click', onBgClick)
+    }, [map])
+
+    // Render all area polygons — click selects area (popup); geometry edit only via footer button
+    useEffect(() => {
+        stopEdit()
+        const group = groupRef.current || L.featureGroup().addTo(map)
+        groupRef.current = group
+        group.clearLayers()
+        layersRef.current.clear()
+
+        areas.forEach(area => {
+            const rings = (area.location?.coordinates || []).map(ring =>
+                ring.map(([lng, lat]) => [lat, lng])
+            )
+            const layer = L.polygon(rings, polygonStyle({}))
+            layer.supplyAreaId = area.id
+            layer.on('click', (e) => {
+                if (e.originalEvent) L.DomEvent.stop(e.originalEvent)
+                if (cbRef.current.toggleMode) {
+                    cbRef.current.onToggleArea?.(area.id)
+                    return
+                }
+                if (cbRef.current.drawing) return
+                if (cbRef.current.geometryEditingId) return
+                const isSelected = cbRef.current.selectedId === area.id
+                cbRef.current.onSelect?.(isSelected ? null : area.id)
+            })
+            group.addLayer(layer)
+            layersRef.current.set(area.id, layer)
+        })
+
+        return () => group.clearLayers()
+    }, [map, areas])
+
+    // Highlight: selected (blue) > current group members (purple) > served by store (orange) > default.
+    useEffect(() => {
+        layersRef.current.forEach((layer, id) => {
+            layer.setStyle(polygonStyle({
+                selected: id === selectedId,
+                draftMember: draftAreaIds.includes(id),
+                groupMember: !toggleMode && groupAreaIds.includes(id),
+                served: servedAreaIds.includes(id)
+            }))
+        })
+    }, [selectedId, servedAreaIds, groupAreaIds, draftAreaIds, toggleMode])
 
     // Refresh snapping targets (existing area vertices)
     useEffect(() => {
@@ -331,23 +352,18 @@ function MapController({
         })
     }, [snapInPlace])
 
-    const startEdit = useCallback((layer) => {
-        if (editLayerRef.current === layer) return
-        // leaflet-draw loads async via useDrawReady — guard so click doesn't throw and kill selection
-        if (!L.Edit?.Poly || !L.LatLngUtil?.cloneLatLngs) return
-        stopEdit()
-
-        if (layer.editing) layer.editing.disable()
-        layer.editing = new L.Edit.Poly(layer)
-        editOriginalRef.current = L.LatLngUtil.cloneLatLngs(layer.getLatLngs())
-        layer.editing.enable()
-        editLayerRef.current = layer
-
-        editControlRef.current = createEditActionsControl(map, {
-            save: TR('supply_save_changes'),
-            cancel: TR('cancel')
-        }, () => commitEdit(), () => cancelEdit())
-    }, [map, stopEdit, TR, commitEdit, cancelEdit])
+    // Start/cancel vertex editing when parent sets geometryEditingId (Edit shape flow, Option H)
+    useEffect(() => {
+        if (!geometryEditingId) {
+            if (editLayerRef.current) {
+                revertEdit()
+                stopEdit()
+            }
+            return
+        }
+        const layer = layersRef.current.get(geometryEditingId)
+        if (layer) startEdit(layer)
+    }, [geometryEditingId, startEdit, revertEdit, stopEdit])
 
     // New-area draw completion + live vertex snapping
     useEffect(() => {
@@ -411,8 +427,70 @@ function MapController({
     return null
 }
 
-export default function SupplyAreaMap({ areas = [], stores = [], activeStoreIds = [], servedAreaIds = [], groupAreaIds = [], draftAreaIds = [], focusPoint, focusGroupPoint, testPoint, testLabel, ...mapControllerProps }) {
+function AreaEditForm({ areaDraft, setAreaDraft, stores, savingArea, onCancel, onSave }) {
     const { TR } = useText()
+    const [localName, setLocalName] = useState(areaDraft.name)
+    // Sync when switching to a different area (id changes), but not on every keystroke
+    useEffect(() => { setLocalName(areaDraft.name) }, [areaDraft.id])
+    const areaStoresForEditor = useMemo(() => (areaDraft.storeIds || []).map(id => ({ storeId: id })), [areaDraft.storeIds])
+    const handleSave = () => {
+        // Commit local name to parent draft before save
+        const toSave = { ...areaDraft, name: localName }
+        setAreaDraft(toSave)
+        onSave(toSave)
+    }
+    const handleBlur = () => {
+        if (localName !== areaDraft.name) setAreaDraft(prev => ({ ...prev, name: localName }))
+    }
+    return (
+        <>
+            <div className={styles.areaPopupHeader}>
+                <input
+                    className={styles.groupNameInput}
+                    value={localName}
+                    onChange={e => setLocalName(e.target.value)}
+                    onBlur={handleBlur}
+                    placeholder={TR('name')}
+                    autoFocus
+                />
+            </div>
+            <StoreListEditor
+                stores={stores}
+                areaStores={areaStoresForEditor}
+                onChange={ids => setAreaDraft(prev => ({ ...prev, storeIds: ids }))}
+            />
+            <Flex gap={8} justifyContent="end" style={{ marginTop: 8 }}>
+                <Button size="s" mode="outline" onClick={onCancel}>cancel</Button>
+                <Button size="s" icon="check" loading={savingArea} onClick={handleSave}>save</Button>
+            </Flex>
+        </>
+    )
+}
+
+export default function SupplyAreaMap({
+    areas = [], stores = [], activeStoreIds = [], servedAreaIds = [], groupAreaIds = [], draftAreaIds = [],
+    focusPoint, focusGroupPoint, testPoint, testLabel,
+    selectedId, geometryEditingId, areaDraft, setAreaDraft, savingArea,
+    onSelect, onStartAreaPropsEdit, onSaveAreaProps, onCancelAreaPropsEdit, onDeleteArea, onStartGeometryEdit,
+    ...mapControllerProps
+}) {
+    const { TR } = useText()
+
+    const selectedArea = useMemo(() => areas.find(a => a.id === selectedId) || null, [areas, selectedId])
+    const popupPosition = useMemo(() => {
+        if (!selectedArea?.location?.coordinates?.length || geometryEditingId) return null
+        let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity, count = 0
+        selectedArea.location.coordinates.forEach(ring => ring.forEach(([lng, lat]) => {
+            if (lat < minLat) minLat = lat
+            if (lat > maxLat) maxLat = lat
+            if (lng < minLng) minLng = lng
+            if (lng > maxLng) maxLng = lng
+            count++
+        }))
+        if (!count) return null
+        return [(minLat + maxLat) / 2, (minLng + maxLng) / 2]
+    }, [selectedArea, geometryEditingId])
+    const isAreaEditing = !!areaDraft && areaDraft.id === selectedId
     // Tileset: explicit user pick persists; otherwise follows the admin dark/light theme
     const [tilesetId, setTilesetId] = useState(() => {
         const stored = localStorage.getItem(TILESET_STORAGE_KEY)
@@ -456,7 +534,63 @@ export default function SupplyAreaMap({ areas = [], stores = [], activeStoreIds 
                     url={tileset.url}
                     attribution={tileset.attribution}
                 />
-                <MapController areas={areas} servedAreaIds={servedAreaIds} groupAreaIds={groupAreaIds} draftAreaIds={draftAreaIds} {...mapControllerProps} />
+                <MapController
+                    areas={areas}
+                    servedAreaIds={servedAreaIds}
+                    groupAreaIds={groupAreaIds}
+                    draftAreaIds={draftAreaIds}
+                    selectedId={selectedId}
+                    geometryEditingId={geometryEditingId}
+                    onSelect={onSelect}
+                    {...mapControllerProps}
+                />
+                {selectedArea && popupPosition && (
+                    <Popup
+                        position={popupPosition}
+                        maxWidth={420}
+                        minWidth={300}
+                        autoClose={false}
+                        closeOnClick={false}
+                        eventHandlers={{ remove: () => onSelect?.(null) }}
+                    >
+                        <div className={styles.areaPopup} onMouseDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()}>
+                            {!isAreaEditing ? (
+                                <>
+                                    <div className={styles.areaPopupHeader}>
+                                        <strong className={styles.areaPopupTitle}>{selectedArea.name || <Text size="none">no_name</Text>}</strong>
+                                        <Flex gap={6} className={styles.areaPopupActions}>
+                                            <Button size="s" icon="edit" onClick={onStartAreaPropsEdit}></Button>
+                                            <Button size="s" icon="trash" mode="outline" className={styles.deleteButton} onClick={onDeleteArea}></Button>
+                                        </Flex>
+                                    </div>
+                                    <div className={styles.areaPopupStores}>
+                                        {(selectedArea.stores || []).length ? (
+                                            (selectedArea.stores || []).map(s => {
+                                                const st = stores.find(x => x.id === s.storeId)
+                                                return <span key={s.storeId} className={styles.areaPopupTag}>{st ? `${st.name} (${st.tag})` : s.storeId}</span>
+                                            })
+                                        ) : (
+                                            <span className={styles.areaPopupEmpty}><Text size="none">supply_no_stores_assigned</Text></span>
+                                        )}
+                                    </div>
+                                    <Flex gap={8} justifyContent="end" style={{ marginTop: 8 }}>
+                                        <Button size="s" mode="outline" onClick={() => onSelect?.(null)}>cancel</Button>
+                                        <Button size="s" icon="edit" onClick={onStartGeometryEdit}>supply_edit_shape</Button>
+                                    </Flex>
+                                </>
+                            ) : (
+                                <AreaEditForm
+                                    areaDraft={areaDraft}
+                                    setAreaDraft={setAreaDraft}
+                                    stores={stores}
+                                    savingArea={savingArea}
+                                    onCancel={onCancelAreaPropsEdit}
+                                    onSave={onSaveAreaProps}
+                                />
+                            )}
+                        </div>
+                    </Popup>
+                )}
                 {storePins.map(store => {
                     const [lng, lat] = store.address.location.coordinates
                     const active = activeStoreIds.includes(store.id)
@@ -471,7 +605,7 @@ export default function SupplyAreaMap({ areas = [], stores = [], activeStoreIds 
                                 <div>
                                     <strong>{store.name}</strong>
                                     {store.tag && <span> ({store.tag})</span>}
-                                    <div style={{ fontSize: 12, color: '#475569' }}>
+                                    <div className={styles.popupSubtle}>
                                         {[a.city, a.street, a.building].filter(Boolean).join(', ')}
                                     </div>
                                 </div>

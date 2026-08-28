@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import useApi from 'common/functions/useApi'
 import apiReq from 'common/functions/apiReq'
 import Button from 'common/components/Button'
@@ -7,108 +7,27 @@ import Flex from 'common/components/Flex'
 import Card from 'common/components/Card'
 import Text from 'common/components/Text'
 import Icon from 'common/components/Icon'
-import Form from 'common/components/Form'
-import { useModal } from 'common/components/Modal'
 import { useText } from 'common/texts/TextProvider'
 import SupplyAreaMap from './SupplyAreaMap'
-import StoreListEditor from './StoreListEditor'
 import styles from './supplyAreas.module.css'
 
 const toMessage = (err) => (typeof err === 'string' ? err : err?.message || 'something went wrong')
-
-function AreaForm({ area, geometry, onClose, onSuccess }) {
-    const [saving, setSaving] = useState(false)
-
-    async function handleAction(vals) {
-        setSaving(true)
-        try {
-            const payload = { name: vals.name?.trim() ?? '' }
-            if (area) {
-                await apiReq('supply_area/update', { id: area.id, ...payload })
-                onSuccess(area)
-            } else {
-                const created = await apiReq('supply_area/create', { ...payload, location: geometry })
-                onSuccess(created)
-            }
-            onClose()
-        } catch (err) {
-            throw toMessage(err)
-        } finally {
-            setSaving(false)
-        }
-    }
-
-    return (
-        <Form action={handleAction} className={styles.areaForm} noSubmit>
-            <Input
-                label="name"
-                name="name"
-                defaultValue={area?.name || ''}
-            />
-
-            <Flex gap={8} justifyContent="end" className={styles.formActions}>
-                <Button type="button" onClick={onClose} disabled={saving} mode="outline">cancel</Button>
-                <Button type="submit" loading={saving}>
-                    {area ? 'supply_save_changes' : 'supply_create_area'}
-                </Button>
-            </Flex>
-        </Form>
-    )
-}
-
-function GroupForm({ group, stores, defaultStoreId = '', onClose, onSuccess }) {
-    const { TR } = useText()
-
-    async function handleAction(vals) {
-        const name = vals.name?.trim() ?? ''
-        const storeId = vals.storeId ?? ''
-        if (!name) throw TR('supply_group_name_required')
-        if (!storeId) throw TR('supply_choose_store_required')
-        onSuccess({ name, storeId })
-        onClose()
-    }
-
-    return (
-        <Form action={handleAction} className={styles.areaForm} noSubmit>
-            <Input
-                label="name"
-                name="name"
-                required
-                defaultValue={group?.name || ''}
-            />
-            <div className={styles.groupStoreField}>
-                <label className={styles.groupStoreLabel}><Text size="none">supply_store</Text></label>
-                <select
-                    className={styles.storeSelect}
-                    name="storeId"
-                    defaultValue={group?.storeId || defaultStoreId || ''}
-                >
-                    {stores.map(store => (
-                        <option key={store.id} value={store.id}>{store.name} ({store.tag})</option>
-                    ))}
-                </select>
-            </div>
-
-            <Flex gap={8} justifyContent="end" className={styles.formActions}>
-                <Button type="button" onClick={onClose} mode="outline">cancel</Button>
-                <Button type="submit">{group ? 'supply_save_changes' : 'supply_next_select_areas'}</Button>
-            </Flex>
-        </Form>
-    )
-}
 
 export default function SupplyAreas() {
     const { TR } = useText()
     const { data: areas = [], callReq, setData, loading } = useApi('supply_area/read', { limit: 0 })
     const { data: stores = [] } = useApi('store/read')
     const { data: groups = [], callReq: refetchGroups } = useApi('area_group/read', { limit: 0 })
-    const { openModal, closeModal } = useModal()
 
     const [selectedId, setSelectedId] = useState(null)
+    const [areaDraft, setAreaDraft] = useState(null) // { id, name, storeIds }
+    const [geometryEditingId, setGeometryEditingId] = useState(null)
+    const [savingArea, setSavingArea] = useState(false)
     const [focusStoreId, setFocusStoreId] = useState(null)
     const [creating, setCreating] = useState(false)
     const [expandedStores, setExpandedStores] = useState([])
     const [groupDraft, setGroupDraft] = useState(null) // { id?, name, storeId, areaIds }
+    const [editingGroupName, setEditingGroupName] = useState(false)
     const [savingGroup, setSavingGroup] = useState(false)
     const [error, setError] = useState(null)
     const [testCity, setTestCity] = useState('')
@@ -120,6 +39,12 @@ export default function SupplyAreas() {
     const [testing, setTesting] = useState(false)
 
     const selectedArea = areas.find(a => a.id === selectedId) || null
+
+    useEffect(() => {
+        if (groupDraft || creating) {
+            setTestResult(null)
+        }
+    }, [groupDraft, creating])
 
     // While drafting, keep the saved member state of the edited group visible (purple)
     const viewGroup = groupDraft?.id ? groups.find(g => g.id === groupDraft.id) : null
@@ -164,62 +89,96 @@ export default function SupplyAreas() {
         return null
     }, [groupDraft?.id, groups, areas, stores])
 
-    function openAreaForm(area = null, geometry = null) {
-        openModal(
-            <AreaForm
-                area={area}
-                geometry={geometry}
-                onClose={closeModal}
-                onSuccess={(result) => {
-                    callReq()
-                    setSelectedId(result.id)
-                    setError(null)
-                }}
-            />,
-            { title: area ? `${TR('edit')} ${area.name}` : TR('supply_new_supply_area') }
-        )
-    }
-
     function handleNewArea() {
-        if (groupDraft) return
+        if (groupDraft || geometryEditingId) return
         setError(null)
         setCreating(true)
         setSelectedId(null)
+        setAreaDraft(null)
+        setGeometryEditingId(null)
     }
 
-    function openGroupForm(group = null, defaultStoreId = '') {
-        if (creating) return
+    // ——— Area popup (Option H: view → edit via bubble, geometry via footer) ———
+    function handleSelectArea(id) {
+        if (groupDraft) return
+        if (geometryEditingId) return
         setError(null)
-        openModal(
-            <GroupForm
-                group={group}
-                stores={stores}
-                defaultStoreId={defaultStoreId}
-                onClose={closeModal}
-                onSuccess={({ name, storeId }) => {
-                    setCreating(false)
-                    setSelectedId(null)
-                    setGroupDraft(prev => {
-                        const sameSubject = prev && (prev.id ?? null) === (group?.id ?? null)
-                        const areaIds = sameSubject
-                            ? prev.areaIds
-                            : (group ? [...(group.areaIds || [])] : [])
-                        return { id: group?.id ?? null, name, storeId, areaIds }
-                    })
-                }}
-            />,
-            { title: group ? `${TR('edit')} ${group.name}` : TR('supply_new_area_group') }
-        )
+        setSelectedId(id)
+        setAreaDraft(null)
+    }
+    function handleStartAreaPropsEdit() {
+        if (!selectedArea) return
+        setError(null)
+        setAreaDraft({ id: selectedArea.id, name: selectedArea.name || '', storeIds: (selectedArea.stores || []).map(s => s.storeId) })
+    }
+    function handleCancelAreaPropsEdit() {
+        setAreaDraft(null)
+        setError(null)
+    }
+    function handleSaveAreaProps(draftOverride) {
+        const draft = draftOverride || areaDraft
+        if (!draft) return
+        const { id, name, storeIds } = draft
+        setSavingArea(true)
+        setError(null)
+        apiReq('supply_area/update', { id, name: (name || '').trim(), stores: storeIds })
+            .then(updated => {
+                setData(prev => prev.map(a => a.id === id ? { ...a, name: updated.name, stores: updated.stores } : a))
+                setAreaDraft(null)
+            })
+            .catch(err => setError(toMessage(err)))
+            .finally(() => setSavingArea(false))
+    }
+    function handleStartGeometryEdit() {
+        if (!selectedArea) return
+        setError(null)
+        setAreaDraft(null)
+        setGeometryEditingId(selectedArea.id)
+    }
+    function handleGeometryCommit(id, geometry) {
+        setGeometryEditingId(null)
+        setError(null)
+        apiReq('supply_area/update', { id, location: geometry })
+            .then(() => callReq())
+            .catch(err => setError(toMessage(err)))
+    }
+    function handleGeometryCancel() { setGeometryEditingId(null) }
+    function handleDeleteAreaPopup() {
+        if (!selectedArea) return
+        if (!window.confirm(`${TR('supply_delete_area_confirm')} "${selectedArea.name}"?`)) return
+        setError(null)
+        apiReq('supply_area/delete', { id: selectedArea.id })
+            .then(() => { callReq(); setSelectedId(null); setAreaDraft(null); setGeometryEditingId(null) })
+            .catch(err => setError(toMessage(err)))
     }
 
-    // Clicking a saved group jumps straight into edit mode with its areas highlighted
+    // Clicking a saved group expands it inline into edit mode with its areas highlighted
     function startGroupEdit(group) {
         if (groupDraft?.id === group.id) return
+        if (geometryEditingId) return
         setError(null)
         setCreating(false)
         setSelectedId(null)
+        setAreaDraft(null)
+        setGeometryEditingId(null)
         setGroupDraft({ id: group.id, name: group.name, storeId: group.storeId, areaIds: [...(group.areaIds || [])] })
+        setEditingGroupName(false)
+        setExpandedStores(prev => prev.includes(group.storeId) ? prev : [...prev, group.storeId])
     }
+
+    // Dirty: name changed OR area membership changed (set equality). Save disabled until dirty.
+    const groupDirty = useMemo(() => {
+        if (!groupDraft) return false
+        // New group (no id yet) — considered dirty when it has a valid name; enables Save for creation
+        if (!groupDraft.id) return !!groupDraft.name?.trim() && !!groupDraft.storeId
+        const orig = groups.find(g => g.id === groupDraft.id)
+        if (!orig) return true
+        const nameChanged = (orig.name || '').trim() !== (groupDraft.name || '').trim()
+        const a = [...(orig.areaIds || [])].sort()
+        const b = [...(groupDraft.areaIds || [])].sort()
+        const areasChanged = a.length !== b.length || a.some((v, i) => v !== b[i])
+        return nameChanged || areasChanged
+    }, [groupDraft, groups])
 
     function toggleStoreExpand(storeId) {
         setExpandedStores(prev =>
@@ -228,6 +187,8 @@ export default function SupplyAreas() {
 
     function handleToggleGroupArea(areaId) {
         if (!groupDraft) return
+        // clear prior create validation error when user fixes selection
+        if (!groupDraft.id && error) setError(null)
         const has = groupDraft.areaIds.includes(areaId)
         const area = areas.find(a => a.id === areaId)
         if (!has && !area?.stores?.some(s => s.storeId === groupDraft.storeId)) {
@@ -249,19 +210,51 @@ export default function SupplyAreas() {
             setError('supply_group_details_required')
             return
         }
+        // For existing groups, save is disabled until dirty, but guard anyway
+        if (id && !groupDirty) return
         setSavingGroup(true)
         setError(null)
         apiReq(id ? 'area_group/update' : 'area_group/create', { ...(id ? { id } : {}), name: name.trim(), storeId, areaIds })
             .then(() => {
                 refetchGroups()
                 setGroupDraft(null)
+                setEditingGroupName(false)
             })
             .catch(err => setError(toMessage(err)))
             .finally(() => setSavingGroup(false))
     }
 
+    function handleCreateGroup() {
+        if (!groupDraft || groupDraft.id) return
+        const { name, areaIds } = groupDraft
+        const missingName = !name?.trim()
+        const missingAreas = !areaIds?.length
+        if (missingName || missingAreas) {
+            const parts = []
+            if (missingName) parts.push(TR('supply_group_name_required'))
+            if (missingAreas) parts.push(TR('supply_no_area_groups'))
+            setError(parts.join(' — '))
+            return
+        }
+        handleSaveGroup()
+    }
+
+    function handleNewGroupInline(storeId) {
+        if (creating || geometryEditingId) return
+        if (groupDraft && !groupDraft.id && groupDraft.storeId === storeId) return
+        setError(null)
+        setCreating(false)
+        setSelectedId(null)
+        setAreaDraft(null)
+        setGeometryEditingId(null)
+        setGroupDraft({ id: null, name: '', storeId, areaIds: [] })
+        setEditingGroupName(true)
+        setExpandedStores(prev => prev.includes(storeId) ? prev : [...prev, storeId])
+    }
+
     function handleCancelGroupDraft() {
         setGroupDraft(null)
+        setEditingGroupName(false)
         setError(null)
     }
 
@@ -275,12 +268,15 @@ export default function SupplyAreas() {
             .then(() => {
                 refetchGroups()
                 setGroupDraft(null)
+                setEditingGroupName(false)
             })
             .catch(err => setError(toMessage(err)))
     }
 
     function handleMapBackgroundClick() {
+        if (groupDraft || creating || geometryEditingId) return
         setSelectedId(null)
+        setAreaDraft(null)
     }
 
     function handleCancelCreate() {
@@ -294,37 +290,6 @@ export default function SupplyAreas() {
             .then(created => {
                 callReq()
                 setSelectedId(created.id)
-            })
-            .catch(err => setError(toMessage(err)))
-    }
-
-    function handleMapEdited(id, geometry) {
-        setError(null)
-        apiReq('supply_area/update', { id, location: geometry })
-            .then(() => {
-                setSelectedId(null)
-                return callReq()
-            })
-            .catch(err => setError(toMessage(err)))
-    }
-
-    function handleDeleteArea() {
-        if (!selectedArea) return
-        if (!window.confirm(`${TR('supply_delete_area_confirm')} "${selectedArea.name}"?`)) return
-        setError(null)
-        apiReq('supply_area/delete', { id: selectedArea.id })
-            .then(() => {
-                callReq()
-                setSelectedId(null)
-            })
-            .catch(err => setError(toMessage(err)))
-    }
-
-    function handleStoresChange(id, storeIds) {
-        setError(null)
-        apiReq('supply_area/update', { id, stores: storeIds })
-            .then(updated => {
-                setData(prev => prev.map(a => a.id === id ? { ...a, stores: updated.stores } : a))
             })
             .catch(err => setError(toMessage(err)))
     }
@@ -357,117 +322,69 @@ export default function SupplyAreas() {
     return (
         <Flex tag={Card} col className={styles.container}>
             <div className={styles.header}>
-                <Flex gap={8} alignItems="end">
+                <Flex gap={8} alignItems="end" className={styles.headerControls}>
                     <Input
+                        className={styles.headerInput}
                         label="city"
                         name="city"
                         value={testCity}
                         onChange={(e) => setTestCity(e.target.value)}
                     />
                     <Input
+                        className={styles.headerInput}
                         label="street"
                         name="street"
                         value={testStreet}
                         onChange={(e) => setTestStreet(e.target.value)}
                     />
                     <Input
+                        className={styles.headerInput}
                         label="building"
                         name="building"
                         value={testBuilding}
                         onChange={(e) => setTestBuilding(e.target.value)}
                     />
-                    <Button size="s" icon="search" onClick={handleTest} loading={testing}>test</Button>
+                    <Button
+                        className={styles.headerBtn}
+                        size="s"
+                        icon="search"
+                        onClick={handleTest}
+                        loading={testing}
+                    >
+                        test
+                    </Button>
                     {testResult && (
                         <div className={testResult.error ? styles.testResultError : styles.testResult}>
                             <Text size="none">
                                 {testResult.error
                                     ? testResult.error
                                     : testResult.hasService
-                                        ? `${TR('supply_in_area')}: ${testResult.area?.name}`
+                                        ? null
                                         : TR('supply_no_service')}
                             </Text>
                         </div>
                     )}
-                </Flex>
-                <Flex gap={8} justifyContent="flex-end">
-                    {creating && (
-                        <Button size="s" mode="outline" onClick={handleCancelCreate}>supply_cancel_draw</Button>
+                    {groupDraft && (
+                        <div className={`${styles.hint} ${styles.groupHint}`}>
+                            <Text size="none">{`${TR('supply_group_hint')} "${groupDraft.name}"`}</Text>
+                        </div>
                     )}
-                    <Button size="s" icon="add" onClick={handleNewArea} disabled={!!groupDraft}>new area</Button>
+                    {creating && (
+                        <div className={styles.hint}><Text size="none">supply_draw_hint</Text></div>
+                    )}
+                    {error && <div className={styles.errorBanner}><Text size="none">{error}</Text></div>}
+                </Flex>
+                <Flex gap={8} alignItems="end" justifyContent="flex-end" className={styles.headerActions}>
+                    {creating && (
+                        <Button className={styles.headerBtn} size="s" mode="outline" onClick={handleCancelCreate}>supply_cancel_draw</Button>
+                    )}
+                    <Button className={styles.headerBtn} size="s" icon="add" onClick={handleNewArea} disabled={!!groupDraft || !!geometryEditingId}>new area</Button>
                 </Flex>
             </div>
 
-            {error && <div className={styles.errorBanner}><Text size="none">{error}</Text></div>}
-            {creating && (
-                <div className={styles.hint}><Text size="none">supply_draw_hint</Text></div>
-            )}
-            {groupDraft && (
-                <div className={`${styles.hint} ${styles.groupHint}`}>
-                    <Text size="none">{`${TR('supply_group_hint')} "${groupDraft.name}"`}</Text>
-                </div>
-            )}
 
             <Flex className={styles.body}>
                 <div className={styles.sidebar}>
-
-                    {selectedArea && (
-                        <div className={styles.editor}>
-                            <div className={styles.editorHeader}>
-                                <h3 className={styles.editorTitle}>{selectedArea.name}</h3>
-                                <Flex gap={6}>
-                                    <Button size="s" icon="edit" onClick={() => openAreaForm(selectedArea)}>edit</Button>
-                                    <Button size="s" icon="trash" mode="outline" onClick={handleDeleteArea}>delete</Button>
-                                </Flex>
-                            </div>
-                            <StoreListEditor
-                                stores={stores}
-                                areaStores={selectedArea.stores || []}
-                                onChange={(ids) => handleStoresChange(selectedArea.id, ids)}
-                            />
-                        </div>
-                    )}
-
-                    {groupDraft ? (
-                        <div className={styles.editor}>
-                            <div className={styles.editorHeader}>
-                                <h3 className={styles.editorTitle}>
-                                    <Text size="none">{groupDraft.id ? 'supply_edit_area_group' : 'supply_new_area_group'}</Text>
-                                </h3>
-                                {groupDraft.id && (
-                                    <Flex gap={6}>
-                                        <Button
-                                            size="s"
-                                            icon="edit"
-                                            mode="outline"
-                                            onClick={() => openGroupForm({ id: groupDraft.id, name: groupDraft.name, storeId: groupDraft.storeId })}
-                                        >
-                                            edit
-                                        </Button>
-                                        <Button size="s" icon="trash" mode="outline" onClick={handleDeleteGroup}>delete</Button>
-                                    </Flex>
-                                )}
-                            </div>
-                            <div className={styles.editorMeta}><Text size="none">{`${TR('name')}: ${groupDraft.name}`}</Text></div>
-                            <div className={styles.editorMeta}>
-                                <Text size="none">{`${TR('supply_store')}: ${stores.find(s => s.id === groupDraft.storeId)?.name || '—'}`}</Text>
-                            </div>
-                            <div className={styles.editorMeta}>
-                                <Text size="none">{`${groupDraft.areaIds.length} ${TR('supply_areas_selected')}`}</Text>
-                            </div>
-                            <Flex gap={8} justifyContent="end">
-                                <Button size="s" mode="outline" onClick={handleCancelGroupDraft}>cancel</Button>
-                                <Button
-                                    size="s"
-                                    icon="check"
-                                    loading={savingGroup}
-                                    disabled={!groupDraft.name?.trim() || !groupDraft.storeId}
-                                    onClick={handleSaveGroup}
-                                >
-                                    save
-                                </Button>
-                            </Flex>
-                        </div>
-                    ) : null}
 
                     <div className={styles.storeListPane}>
                         <h4 className={styles.storeListTitle}><Text>supply_stores_groups</Text></h4>
@@ -479,7 +396,7 @@ export default function SupplyAreas() {
                                 <div key={store.id} className={styles.storeBranch}>
                                     <div
                                         className={`${styles.storeListItem} ${store.id === focusStoreId ? styles.active : ''}`}
-                                        onClick={() => setFocusStoreId(store.id)}
+                                        onClick={() => setFocusStoreId(prev => prev != store.id ? store.id : null)}
                                     >
                                         <span className={styles.storeListName}>{store.name}</span>
                                         <span className={styles.storeListAddress}>{[store.address?.city, store.address?.street, store.address?.building].filter(Boolean).join(', ')}</span>
@@ -494,20 +411,140 @@ export default function SupplyAreas() {
                                     </div>
                                     {expanded && (
                                         <div className={styles.groupChildren}>
-                                            {storeGroups.map(group => (
-                                                <div
-                                                    key={group.id}
-                                                    className={`${styles.storeListItem} ${styles.groupListItem} ${groupDraft?.id === group.id ? styles.active : ''}`}
-                                                    onClick={() => startGroupEdit(group)}
-                                                >
-                                                    <span className={styles.groupDot} />
-                                                    <span className={styles.storeListName}>{group.name}</span>
-                                                    <span className={styles.groupCount}>{(group.areaIds || []).length}</span>
+                                            {storeGroups.map(group => {
+                                                const isEditing = groupDraft?.id === group.id
+                                                return (
+                                                    <div key={group.id} className={`${styles.groupCard} ${isEditing ? styles.groupCardExpanded : ''}`}>
+                                                        <div
+                                                            className={`${styles.groupCardHeader} ${isEditing ? styles.groupCardHeaderExpanded : ''}`}
+                                                            onClick={() => {
+                                                                if (isEditing) {
+                                                                    handleCancelGroupDraft()
+                                                                } else {
+                                                                    startGroupEdit(group)
+                                                                }
+                                                            }}
+                                                            title={isEditing ? TR('cancel') : undefined}
+                                                        >
+                                                            <div className={styles.groupHeaderStart}>
+                                                                <span className={styles.groupHeaderIcon}>
+                                                                    {isEditing ? (
+                                                                        <Icon name="sortUp" className={styles.groupArrowIcon} />
+                                                                    ) : (
+                                                                        <span className={styles.groupDot} />
+                                                                    )}
+                                                                </span>
+                                                                {!isEditing && (
+                                                                    <span className={styles.storeListName}>{group.name}</span>
+                                                                )}
+                                                            </div>
+                                                            {!isEditing && (
+                                                                <span className={styles.groupCount}>{(group.areaIds || []).length}</span>
+                                                            )}
+                                                        </div>
+                                                        <div className={styles.groupCardContentWrap}>
+                                                            <div className={styles.groupCardContentInner}>
+                                                                <div className={styles.groupEditPane} onClick={e => e.stopPropagation()}>
+                                                                    {editingGroupName && isEditing ? (
+                                                                        <input
+                                                                            className={styles.groupNameInput}
+                                                                            value={groupDraft?.name ?? group.name}
+                                                                            onChange={e => setGroupDraft(prev => ({ ...prev, name: e.target.value }))}
+                                                                            onBlur={() => setEditingGroupName(false)}
+                                                                            onKeyDown={e => { if (e.key === 'Enter') setEditingGroupName(false) }}
+                                                                            placeholder={TR('name')}
+                                                                            autoFocus
+                                                                        />
+                                                                    ) : (
+                                                                        <div
+                                                                            className={styles.groupNameRow}
+                                                                            onClick={() => { if (isEditing) setEditingGroupName(true) }}
+                                                                        >
+                                                                            <span className={styles.groupNameText}>
+                                                                                {(isEditing ? groupDraft?.name : group.name) || TR('name')}
+                                                                            </span>
+                                                                            <span className={styles.groupNameEditIcon} title={TR('edit')}>
+                                                                                <Icon name="edit" />
+                                                                            </span>
+                                                                        </div>
+                                                                    )}
+                                                                    <div className={styles.editorMeta}>
+                                                                        <Text size="none">{`${(isEditing ? groupDraft?.areaIds : group.areaIds || []).length} ${TR('supply_areas_selected')}`}</Text>
+                                                                    </div>
+                                                                    <div className={styles.groupEditHint}>
+                                                                        <Text size="none">supply_group_hint</Text>
+                                                                    </div>
+                                                                    <Flex gap={8} justifyContent="space-between" alignItems="center">
+                                                                        <Button size="s" mode="outline" icon="trash" className={styles.deleteButton} onClick={handleDeleteGroup} />
+                                                                        <Flex gap={8}>
+                                                                            <Button size="s" mode="outline" onClick={handleCancelGroupDraft}>cancel</Button>
+                                                                            <Button
+                                                                                size="s"
+                                                                                icon="check"
+                                                                                loading={savingGroup}
+                                                                                disabled={!groupDirty || !groupDraft?.name?.trim()}
+                                                                                onClick={handleSaveGroup}
+                                                                            >
+                                                                                save
+                                                                            </Button>
+                                                                        </Flex>
+                                                                    </Flex>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )
+                                            })}
+                                            {/* New group draft (id === null) — shown inline under its store */}
+                                            {groupDraft && !groupDraft.id && groupDraft.storeId === store.id && (
+                                                <div className={`${styles.groupCard} ${styles.groupCardExpanded}`}>
+                                                    <div
+                                                        className={`${styles.groupCardHeader} ${styles.groupCardHeaderExpanded}`}
+                                                        onClick={handleCancelGroupDraft}
+                                                        title={TR('cancel')}
+                                                    >
+                                                        <div className={styles.groupHeaderStart}>
+                                                            <span className={styles.groupHeaderIcon}>
+                                                                <Icon name="sortUp" className={styles.groupArrowIcon} />
+                                                            </span>
+                                                            <span className={styles.storeListName}><Text size="none">supply_new_area_group</Text></span>
+                                                        </div>
+                                                    </div>
+                                                    <div className={styles.groupCardContentWrap}>
+                                                        <div className={styles.groupCardContentInner}>
+                                                            <div className={styles.groupEditPane} onClick={e => e.stopPropagation()}>
+                                                                <input
+                                                                    className={styles.groupNameInput}
+                                                                    value={groupDraft.name}
+                                                                    onChange={e => { if (error) setError(null); setGroupDraft(prev => ({ ...prev, name: e.target.value })) }}
+                                                                    placeholder={TR('name')}
+                                                                    autoFocus
+                                                                />
+                                                                <div className={styles.editorMeta}>
+                                                                    <Text size="none">{`${groupDraft.areaIds.length} ${TR('supply_areas_selected')}`}</Text>
+                                                                </div>
+                                                                <div className={styles.groupEditHint}>
+                                                                    <Text size="none">supply_group_hint</Text>
+                                                                </div>
+                                                                <Flex gap={8} justifyContent="end">
+                                                                    <Button size="s" mode="outline" onClick={handleCancelGroupDraft}>cancel</Button>
+                                                                    <Button
+                                                                        size="s"
+                                                                        icon="check"
+                                                                        loading={savingGroup}
+                                                                        onClick={handleCreateGroup}
+                                                                    >
+                                                                        create
+                                                                    </Button>
+                                                                </Flex>
+                                                            </div>
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                            ))}
+                                            )}
                                             <div
                                                 className={`${styles.storeListItem} ${styles.addGroupRow}`}
-                                                onClick={() => openGroupForm(null, store.id)}
+                                                onClick={() => handleNewGroupInline(store.id)}
                                             >
                                                 <Icon name="add" />
                                                 <span className={styles.addGroupLabel}><Text size="none">supply_new_area_group</Text></span>
@@ -534,13 +571,23 @@ export default function SupplyAreas() {
                         focusPoint={focusPoint}
                         focusGroupPoint={focusGroupPoint}
                         selectedId={selectedId}
+                        areaDraft={areaDraft}
+                        setAreaDraft={setAreaDraft}
+                        geometryEditingId={geometryEditingId}
                         drawing={creating}
                         testPoint={testPoint}
                         testLabel={testLabel}
-                        onSelect={setSelectedId}
+                        savingArea={savingArea}
+                        onSelect={handleSelectArea}
                         onBackgroundClick={handleMapBackgroundClick}
                         onCreated={handleMapCreated}
-                        onEdited={handleMapEdited}
+                        onEdited={handleGeometryCommit}
+                        onGeometryCancel={handleGeometryCancel}
+                        onStartAreaPropsEdit={handleStartAreaPropsEdit}
+                        onSaveAreaProps={handleSaveAreaProps}
+                        onCancelAreaPropsEdit={handleCancelAreaPropsEdit}
+                        onDeleteArea={handleDeleteAreaPopup}
+                        onStartGeometryEdit={handleStartGeometryEdit}
                     />
                 </div>
             </Flex>
