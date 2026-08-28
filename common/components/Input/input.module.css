@@ -44,7 +44,7 @@
 
         &:focus {
             border-color: var(--border-brand);
-            box-shadow: 0 0 0 1px var(--border-brand);
+            box-shadow: 0 0 0 1px var(--border-brand) !important;
         }
 
         &[type='textarea'] {

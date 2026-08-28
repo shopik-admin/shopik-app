@@ -1,9 +1,9 @@
-/* Ops page — matches Admin Orders designs (mobile list + desktop kanban) : figma via 3 screenshots */
+/* Ops page — now aligned with other admin pages (DataManager pattern).
+   Uses Main's background/padding via AdminLayout; no full-viewport overrides. */
 .ops {
-  direction: rtl;
-  min-height: 100dvh;
-  background: #f4f6f5;
-  padding: 0 0 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 /* --- header --- */
@@ -141,7 +141,7 @@
 .kanban {
   display: grid;
   gap: 12px;
-  padding: 8px 12px;
+  direction: rtl;
 }
 @media (min-width: 900px) {
   .kanban {
@@ -182,7 +182,6 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 0 12px;
 }
 @media (min-width: 900px) {
   .list { display: none; }

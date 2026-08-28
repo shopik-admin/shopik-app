@@ -245,7 +245,7 @@ export default function OpsPage() {
     useEffect(() => { if (user?.currentStoreId && !currentStore) setCurrentStore(user.currentStoreId) }, [user?.currentStoreId])
 
     if (!currentStore && !user?.currentStoreId) {
-        return <StorePicker onSelected={id => setCurrentStore(id)} />
+        return <div className={styles.ops}><StorePicker onSelected={id => setCurrentStore(id)} /></div>
     }
 
     const opsCols = [
@@ -257,22 +257,9 @@ export default function OpsPage() {
     ]
 
     return <div className={styles.ops}>
-        <div className={styles.pageHeader}>
-            <h1>הזמנות</h1>
-            <div className={styles.headerActions}>
-                <button className={styles.iconBtn}><Icon name="notifications" /></button>
-                <button className={styles.iconBtn}><Icon name="time" /></button>
-                <button className={styles.iconBtn}><Icon name="settings" /></button>
-            </div>
-        </div>
-
         <DataProvider apiRoute='order/ops' limit={50} defaultSort={{ 'window.endTimestamp': 1 }} cols={opsCols}>
-            <div style={{ padding: '12px 12px 0' }}>
-                <FilterBar cols={opsCols} />
-            </div>
-            <div style={{ padding: '8px 12px 0' }}>
-                <OpsInner />
-            </div>
+            <FilterBar cols={opsCols} />
+            <OpsInner />
         </DataProvider>
     </div>
 }
