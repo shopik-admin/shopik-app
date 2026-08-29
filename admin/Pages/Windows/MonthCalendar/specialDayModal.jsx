@@ -24,7 +24,6 @@ const toMessage = err => typeof err === 'string' ? err : err?.message || 'someth
  */
 export default function SpecialDayModal({ special, date, stores = [], onDone, onClose }) {
     const { TR } = useText()
-    const allStoreIds = useMemo(() => (stores || []).map(s => s.id), [stores])
     const [storeIds, setStoreIds] = useState(() => {
         if (special?.storeIds?.length) return [...special.storeIds]
         return []
@@ -45,8 +44,6 @@ export default function SpecialDayModal({ special, date, stores = [], onDone, on
     }, [fullDay, start, end])
 
     async function handleAction(vals) {
-        // Form collects vals via FormData (name, fullDay, start, end)
-        // storeIds is handled via controlled state (multiple values collapse in Object.fromEntries)
         const name = vals.name?.trim() ?? ''
         if (!name) throw 'windows_name_required'
 
@@ -57,7 +54,6 @@ export default function SpecialDayModal({ special, date, stores = [], onDone, on
             start: fullDay ? null : Number(vals.start ?? start),
             end: fullDay ? null : Number(vals.end ?? end),
         }
-        // when fullDay, start/end are disabled and not submitted — ensure null
         if (fullDay) {
             payload.start = null
             payload.end = null
@@ -98,43 +94,6 @@ export default function SpecialDayModal({ special, date, stores = [], onDone, on
         }
     }
 
-    function handleStoresMouseDown(e) {
-        const opt = e.target
-        if (opt.tagName !== 'OPTION') return
-        e.preventDefault()
-        const value = opt.value
-        if (value === '_all') {
-            setStoreIds([])
-            return
-        }
-        setStoreIds(prev => {
-            // global -> toggle single on
-            if (prev.length === 0) return [value]
-            if (prev.includes(value)) {
-                const next = prev.filter(id => id !== value)
-                // toggling off last specific -> back to global (empty) per spec
-                return next
-            }
-            return [...prev, value]
-        })
-    }
-
-    // keyboard / fallback (if change fires without mousedown)
-    function handleStoresChange(e) {
-        const selected = Array.from(e.target.selectedOptions).map(o => o.value)
-        if (selected.includes('_all')) {
-            // if _all plus others, user used keyboard to add _all — treat as global
-            const withoutAll = selected.filter(v => v !== '_all')
-            if (storeIds.length === 0 && withoutAll.length) {
-                setStoreIds(withoutAll)
-            } else {
-                setStoreIds([])
-            }
-            return
-        }
-        setStoreIds(selected)
-    }
-
     return <Form
         action={handleAction}
         error={error}
@@ -158,8 +117,15 @@ export default function SpecialDayModal({ special, date, stores = [], onDone, on
                     multiple
                     size={Math.min(6, Math.max(3, stores.length + 1))}
                     value={storeIds.length ? storeIds : ['_all']}
-                    onChange={handleStoresChange}
-                    onMouseDown={handleStoresMouseDown}
+                    onChange={e => {
+                        const selected = Array.from(e.target.selectedOptions).map(o => o.value)
+                        if (selected.includes('_all')) {
+                            const withoutAll = selected.filter(v => v !== '_all')
+                            setStoreIds(storeIds.length === 0 && withoutAll.length ? withoutAll : [])
+                        } else {
+                            setStoreIds(selected)
+                        }
+                    }}
                     style={{ minWidth: '200px', height: 'auto' }}
                 >
                     <option value="_all">{TR('windows_all_stores') || 'All stores'}</option>

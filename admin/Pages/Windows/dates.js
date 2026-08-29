@@ -7,13 +7,6 @@ export function todayStr() {
     }).format(new Date())
 }
 
-export function addDays(dateStr, days) {
-    const [y, m, d] = dateStr.split('-').map(Number)
-    const date = new Date(y, m - 1, d)
-    date.setDate(date.getDate() + days)
-    return toDateStr(date)
-}
-
 export function toDateStr(date) {
     const y = date.getFullYear()
     const m = String(date.getMonth() + 1).padStart(2, '0')
@@ -23,11 +16,13 @@ export function toDateStr(date) {
 
 export function parseDate(dateStr) {
     const [y, m, d] = dateStr.split('-').map(Number)
-    return new Date(y, m - 1, d)
+    return new Date(y, m - 1, d, 12, 0, 0)
 }
 
-export function getDayOfWeek(dateStr) {
-    return parseDate(dateStr).getDay()
+export function addDays(dateStr, days) {
+    const date = parseDate(dateStr)
+    date.setDate(date.getDate() + days)
+    return toDateStr(date)
 }
 
 // 'YYYY-MM' helpers for the monthly calendar
@@ -37,18 +32,18 @@ export function currentMonth() {
 
 export function addMonths(month, delta) {
     const [y, m] = month.split('-').map(Number)
-    const date = new Date(y, m - 1 + delta, 1)
+    const date = new Date(y, m - 1 + delta, 1, 12, 0, 0)
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
 }
 
 export function monthGridDays(month) {
-    // Returns 42 cells (6 weeks) of {date|null} starting Sunday
+    // Returns 42 cells (6 weeks) of {date, inMonth, dayOfWeek} starting Sunday
     const [y, m] = month.split('-').map(Number)
-    const first = new Date(y, m - 1, 1)
+    const first = new Date(y, m - 1, 1, 12, 0, 0)
     const startOffset = first.getDay()
     const cells = []
     for (let i = 0; i < 42; i++) {
-        const date = new Date(y, m - 1, 1 - startOffset + i)
+        const date = new Date(y, m - 1, 1 - startOffset + i, 12, 0, 0)
         cells.push({
             date: toDateStr(date),
             inMonth: date.getMonth() === m - 1,
@@ -63,5 +58,5 @@ export function formatHour(h) {
 }
 
 export function formatHourRange(start, end) {
-    return `${formatHour(start)}–${end >= 24 ? '23:59' : formatHour(end)}`
+    return `${formatHour(start)}–${end >= 24 ? '24:00' : formatHour(end)}`
 }
