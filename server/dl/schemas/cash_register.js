@@ -1,14 +1,15 @@
 const cashRegisterSchema = {
-    enabled: { type: Boolean, default: true },
-    type: { type: String }, // comax, nibit, etc.
+    type: { type: String }, // comax
+    storeId: { type: String, required: true },
     data: {
-        PriceListID: String,
-        CustomerID: String,
-        LoginID: String,
-        LoginPassword: String,
-        StoreID: String,
-        GeneratePrt: String,
-        ChkAllBarKod: Boolean,
+        // Comax Data: not required because the cash register could be of other type potentially.
+        // PriceListID: String, 
+        // CustomerID: String,
+        // LoginID: String,
+        // LoginPassword: String,
+        // StoreID: String,
+        // GeneratePrt: String,
+        // ChkAllBarKod: Boolean,
     }
 }
 
