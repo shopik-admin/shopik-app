@@ -303,32 +303,49 @@ function MapController({
         })
     }, [selectedId, servedAreaIds, groupAreaIds, draftAreaIds, toggleMode])
 
-    // Refresh snapping targets (existing area vertices)
+    // Refresh snapping targets (existing area vertices) — bucketed grid for O(1) lookup
     useEffect(() => {
-        const points = []
+        const grid = new Map()
+        const keyFor = (lat, lng) => `${Math.floor(lat * 100)}_${Math.floor(lng * 100)}`
         areas.forEach(area =>
             area.location?.coordinates?.forEach(ring =>
-                ring.forEach(([lng, lat]) => points.push(L.latLng(lat, lng)))
+                ring.forEach(([lng, lat]) => {
+                    const p = L.latLng(lat, lng)
+                    const k = keyFor(lat, lng)
+                    if (!grid.has(k)) grid.set(k, [])
+                    grid.get(k).push(p)
+                })
             )
         )
-        snapTargetsRef.current = points
+        snapTargetsRef.current = grid
     }, [areas])
 
     // Snap vertices to nearby existing-area vertices within threshold (in screen px).
     const snapInPlace = useCallback((rings) => {
-        if (!rings?.length || !snapTargetsRef.current.length) return false
+        if (!rings?.length || !snapTargetsRef.current.size) return false
 
         let changed = false
+        const keyFor = (lat, lng) => `${Math.floor(lat * 100)}_${Math.floor(lng * 100)}`
         rings.forEach(ring => ring.forEach(point => {
             const containerPoint = map.latLngToContainerPoint(point)
             let best = null
             let bestDist = SNAP_THRESHOLD_PX
 
-            for (const target of snapTargetsRef.current) {
-                const dist = containerPoint.distanceTo(map.latLngToContainerPoint(target))
-                if (dist <= bestDist) {
-                    bestDist = dist
-                    best = target
+            const baseLat = Math.floor(point.lat * 100)
+            const baseLng = Math.floor(point.lng * 100)
+            for (let dLat = -1; dLat <= 1; dLat++) {
+                for (let dLng = -1; dLng <= 1; dLng++) {
+                    const cell = snapTargetsRef.current.get(`${baseLat + dLat}_${baseLng + dLng}`)
+                    if (!cell) continue
+                    for (const target of cell) {
+                        // skip self (0 distance but also same point if editing polygon's own vertex)
+                        if (target.lat === point.lat && target.lng === point.lng) continue
+                        const dist = containerPoint.distanceTo(map.latLngToContainerPoint(target))
+                        if (dist <= bestDist) {
+                            bestDist = dist
+                            best = target
+                        }
+                    }
                 }
             }
             if (best) {

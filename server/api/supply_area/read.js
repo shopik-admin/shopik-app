@@ -24,9 +24,9 @@ function boundsToRing(outer, inner) {
     ]
     return rewind({ type: 'Polygon', coordinates: [outerRing, innerRing] })
 }
-
+const select = { _id: 0, name: 1, location: 1, stores: 1, id: 1 }
 export default async function read(payload, { DL }) {
-    const { filter = {}, select, bounds, ring } = payload
+    const { filter = {}, bounds, ring } = payload
 
     const hasRing = ring && ring.outer && typeof ring.outer.north === 'number'
     const hasBounds = bounds && typeof bounds.north === 'number' && typeof bounds.south === 'number'
@@ -40,7 +40,7 @@ export default async function read(payload, { DL }) {
         const query = { ...processedFilter, location: { $geoIntersects: { $geometry: geometry } } }
         const { skip = 0, limit = 30, sort, select: sel } = payload
         const finalSelect = sel || select
-        let q = DL.SupplyArea.Model.find(query, { _id: 0 }).lean()
+        let q = DL.SupplyArea.Model.find(query, select).lean()
         if (finalSelect) q = q.select(finalSelect)
         if (sort) q = q.sort(sort)
         if (skip) q = q.skip(Number(skip))
@@ -64,7 +64,7 @@ export default async function read(payload, { DL }) {
         const query = { ...processedFilter, location: { $geoIntersects: { $geometry: geometry } } }
         const { skip = 0, limit = 30, sort, select: sel } = payload
         const finalSelect = sel || select
-        let q = DL.SupplyArea.Model.find(query, { _id: 0 }).lean()
+        let q = DL.SupplyArea.Model.find(query, select).lean()
         if (finalSelect) q = q.select(finalSelect)
         if (sort) q = q.sort(sort)
         if (skip) q = q.skip(Number(skip))

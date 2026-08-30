@@ -79,14 +79,14 @@ export default function SupplyAreas() {
         viewportFetchedRef.current = true
         viewportBoundsRef.current = bounds
         try {
-            const data = await apiReq('supply_area/read', { bounds, limit: 0 })
+            const data = await apiReq('supply_area/read', { bounds, limit: 0, select: { id: 1, name: 1, location: 1, stores: 1 } })
             if (Array.isArray(data)) {
                 setAreas(prev => {
                     if (prev.length === 0) return data
                     return mergeById(prev, data)
                 })
             }
-        } catch (_) { }
+        } catch (_) {}
         setLoading(false)
     }, [])
 
@@ -108,7 +108,7 @@ export default function SupplyAreas() {
                 let skip = 0
                 const limit = 200
                 while (true) {
-                    const page = await apiReq('supply_area/read', { ring: { inner, outer }, skip, limit })
+                    const page = await apiReq('supply_area/read', { ring: { inner, outer }, skip, limit, select: { id: 1, name: 1, location: 1, stores: 1 } })
                     if (!Array.isArray(page) || page.length === 0) break
                     setAreas(prev => mergeById(prev, page))
                     if (page.length < limit) break
