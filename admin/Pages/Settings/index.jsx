@@ -167,7 +167,7 @@ function SettingModalContent({ setting, defaultCategory, onSuccess, onClose }) {
                     Cancel
                 </Button>
                 <Button type="submit" disabled={loading}>
-                    {loading ? 'Saving...' : isEdit ? 'Save' : 'Add'}
+                    {loading ? 'saving' : isEdit ? 'Save' : 'Add'}
                 </Button>
             </div>
         </form>
