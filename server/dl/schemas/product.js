@@ -217,7 +217,8 @@ const defaultSelectOne = {
 export const meta = {
     constants,
     defaultSelect,
-    defaultSelectOne
+    defaultSelectOne,
+    index: [{ storeIds: 1 }]
 }
 
 export default productSchema

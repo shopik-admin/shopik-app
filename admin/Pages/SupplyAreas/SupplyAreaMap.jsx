@@ -570,7 +570,7 @@ export default function SupplyAreaMap({
                                         {(selectedArea.stores || []).length ? (
                                             (selectedArea.stores || []).map(s => {
                                                 const st = stores.find(x => x.id === s.storeId)
-                                                return <span key={s.storeId} className={styles.areaPopupTag}>{st ? `${st.name} (${st.tag})` : s.storeId}</span>
+                                                return <span key={s.storeId} className={styles.areaPopupTag}>{st ? `${st.name}` : s.storeId}</span>
                                             })
                                         ) : (
                                             <span className={styles.areaPopupEmpty}><Text size="none">supply_no_stores_assigned</Text></span>
@@ -607,7 +607,6 @@ export default function SupplyAreaMap({
                             <Popup>
                                 <div>
                                     <strong>{store.name}</strong>
-                                    {store.tag && <span> ({store.tag})</span>}
                                     <div className={styles.popupSubtle}>
                                         {[a.city, a.street, a.building].filter(Boolean).join(', ')}
                                     </div>

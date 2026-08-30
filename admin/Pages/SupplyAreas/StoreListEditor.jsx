@@ -32,7 +32,6 @@ function SortableStore({ store, index, onRemove }) {
         >
             <span className={styles.storeOrder}>{index + 1}</span>
             <span className={styles.storeName}>{store.name}</span>
-            <span className={styles.storeTag}>{store.tag}</span>
             <button
                 type="button"
                 className={styles.removeStore}
@@ -104,7 +103,7 @@ export default function StoreListEditor({ stores = [], storeIds = [], onChange }
                 >
                     <option value="" disabled>{TR('supply_add_store')}</option>
                     {availableStores.map(store => (
-                        <option key={store.id} value={store.id}>{store.name} ({store.tag})</option>
+                        <option key={store.id} value={store.id}>{store.name}</option>
                     ))}
                 </select>
             </Flex>

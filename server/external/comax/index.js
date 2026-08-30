@@ -1,7 +1,7 @@
 import { buildComaxParams, buildComaxPromotionParams } from './utils.js'
-import { fetchComax, fetchComaxPromotions } from './client.js'
+import { fetchComax, fetchComaxBalance, fetchComaxPromotions } from './client.js'
 import { parseXml, normalizeArray, parseXmlFile } from './parser.js'
-import { mapItem, mapPromotion } from './mapper.js'
+import { mapItem, mapPromotion, mapBalance } from './mapper.js'
 
 async function getProducts({ DL, ...options }) {
     // 1. Build query params
@@ -37,6 +37,24 @@ async function getProductsFromFile({ inputFile }) {
 
 }
 
+async function getBalance({ DL, ...options }) {
+    const params = buildComaxParams(options)
+    params.ChangesAfter = '01/01/2025'
+    const xml = await fetchComaxBalance({ params }, { DL })
+    const parsed = parseXml(xml)
+    const items = normalizeArray(
+        parsed?.ArrayOfClsItemsBalance?.ClsItemsBalance
+        ?? parsed?.['soap:Envelope']?.['soap:Body']?.Get_AllItemsBalanceBySearchResponse?.Get_AllItemsBalanceBySearchResult?.ClsItemsBalance
+    )
+    if (items.length === 0) {
+        console.log('[Comax] No balances returned')
+        return []
+    }
+    const balances = items.map(mapBalance).filter(b => b.barcode)
+    console.log(`[Comax] Fetched ${balances.length} balances`)
+    return balances
+}
+
 async function getPromotions({ DL, ...options }) {
     const params = buildComaxPromotionParams(options)
     const rawPromotions = await fetchComaxPromotions({ params }, { DL })
@@ -52,6 +70,7 @@ async function getPromotions({ DL, ...options }) {
 const comax = ({ DL }) => ({
     getProducts: options => getProducts({ ...options, DL }),
     getProductsFromFile,
-    getPromotions: options => getPromotions({ ...options, DL })
+    getPromotions: options => getPromotions({ ...options, DL }),
+    getBalance: options => getBalance({ ...options, DL })
 })
 export default comax

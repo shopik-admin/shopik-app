@@ -1,0 +1,20 @@
+.form {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.form :global(.Input_input) {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+}
+.form :global(.Input_label) {
+    text-align: right;
+}
+/* switch: keep label above, toggle centered like the text input */
+.form :global(.Input_input:has(input[type="checkbox"])) {
+    align-items: stretch;
+}
+.form :global(.Input_input:has(input[type="checkbox"])) :global(.Input_label) {
+    text-align: right;
+}

@@ -5,7 +5,7 @@ export function extractFields(payload, fields) {
 }
 
 const requiredAddressFields = ['address.city', 'address.street', 'address.building']
-const addressFields = [...requiredAddressFields, 'address.zip']
+const addressFields = [...requiredAddressFields]
 export function getAddress(payload) {
     if (requiredAddressFields.some(f => !payload[f]))
         return null

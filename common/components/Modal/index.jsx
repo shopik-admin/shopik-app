@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState, } from 'react'
 import ReactDOM from 'react-dom'
 import './modal.css'
+import Text from '../Text'
 
 const ModalContext = createContext(null)
 
@@ -110,7 +111,7 @@ function PortalModal({
             >
                 {options.title && (
                     <div className="modal-header">
-                        <h3>{options.title}</h3>
+                        <Text size="h3">{options.title}</Text>
                     </div>
                 )}
 
