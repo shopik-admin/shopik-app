@@ -42,8 +42,7 @@ export function buildComaxParams(options) {
         LoginPassword: options.loginPassword || process.env.COMAX_LOGIN_PASSWORD,
         StoreID: options.storeId || process.env.COMAX_STORE_ID,
         PriceListID: options.priceListId || process.env.COMAX_PRICELIST_ID,
-        WithOutArchive: 1,
-        SelByPriceList: 1
+        WithOutArchive: 1
     }
 
     for (const [key, comaxKey] of Object.entries(nameMap)) {
