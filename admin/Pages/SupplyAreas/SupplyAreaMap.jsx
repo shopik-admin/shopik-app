@@ -235,23 +235,11 @@ function MapController({
         }, () => commitEdit(), () => cancelEdit())
     }, [map, stopEdit, TR, commitEdit, cancelEdit])
 
-    // Viewport tracking: emit padded bounds on mount and on moveend (debounced)
+    // Viewport tracking: emit padded bounds once on mount (background rings cover rest)
     useEffect(() => {
         if (!cbRef.current.onViewportChange) return
-        let timer = null
-        const emit = () => cbRef.current.onViewportChange?.(getPaddedBounds(map))
-        // initial viewport after mount
-        const initial = setTimeout(emit, 100)
-        const onMoveEnd = () => {
-            clearTimeout(timer)
-            timer = setTimeout(emit, 400)
-        }
-        map.on('moveend', onMoveEnd)
-        return () => {
-            clearTimeout(initial)
-            clearTimeout(timer)
-            map.off('moveend', onMoveEnd)
-        }
+        const t = setTimeout(() => cbRef.current.onViewportChange?.(getPaddedBounds(map)), 10)
+        return () => clearTimeout(t)
     }, [map])
 
     // Clicking empty map closes area popup (when not drawing/group-editing/geometry-editing)
