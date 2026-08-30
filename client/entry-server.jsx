@@ -24,11 +24,21 @@ export async function render({ url, data }) {
     noindex={notFound}
   />)
 
-  const vars = Object.entries(data?.settings?.Theme || {})
-    .map(([key, value]) => `--${key}:${value};`)
-    .join('')
-
-  head += `<style>:root{${vars}}</style>`
+  const themeEntries = Object.entries(data?.settings?.Theme || {})
+  const lightVars = []
+  const darkVars = []
+  for (const [key, value] of themeEntries) {
+    if (value && typeof value === 'object' && !Array.isArray(value) && ('light' in value || 'dark' in value)) {
+      if (value.light) lightVars.push(`--${key}:${value.light};`)
+      if (value.dark) darkVars.push(`--${key}:${value.dark};`)
+      else if (value.light) darkVars.push(`--${key}:${value.light};`)
+    } else {
+      lightVars.push(`--${key}:${value};`)
+    }
+  }
+  const lightCss = lightVars.join('')
+  const darkCss = darkVars.join('')
+  head += `<style>:root{${lightCss}}${darkCss ? `:root[data-theme=dark]{${darkCss}}` : ''}</style>`
 
   return {
     html,

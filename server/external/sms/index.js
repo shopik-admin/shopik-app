@@ -1,41 +1,40 @@
-const DEFAULT_SOURCE = 'Shopik'
-
-function getToken() {
-    return process.env.TOKEN_019 || ''
-}
-
-function getUsername() {
-    return process.env.USERNAME_019 || ''
-}
-
-function getSource() {
-    const s = process.env.SMS_SOURCE_019 || DEFAULT_SOURCE
-    // 019 source max 11 chars, alphanumeric + letters only
-    return String(s).slice(0, 11)
-}
+import { getSmsConfig } from './config.js'
 
 function normalizePhone(raw) {
     let d = String(raw).replace(/\D/g, '')
-    // handle +972 or 972 prefix → replace with 0
     if (d.startsWith('972')) d = '0' + d.slice(3)
-    // if 9 digits starting with 5 → prefix 0 (5xxxxxxxx → 05xxxxxxxx)
     if (d.length === 9 && d.startsWith('5')) d = '0' + d
     return d
 }
 
 function isValidPhone(d) {
-    // Israeli mobile: 10 digits starting with 05, or 9 digits starting with 5 (before normalization)
     return /^0?5\d{8}$/.test(d)
 }
 
 export default function sms({ DL }) {
-    async function send(phones, message) {
-        const token = getToken()
-        const username = getUsername()
-        const source = getSource()
-        const endpoint = process.env.SMS_API_URL || 'https://019sms.co.il/api'
+    async function send(phones, message, opts = {}) {
+        let domainId = opts.domainId || (typeof opts === 'string' ? opts : undefined)
+        // also allow opts as string for backward compat
+        if (!domainId && opts && typeof opts === 'object' && opts.domainId) domainId = opts.domainId
 
         let logPromise, log
+        // resolve config early for logging (but log even if domainId missing)
+        let token, username, source, endpoint
+        let configError = null
+        try {
+            const cfg = await getSmsConfig(DL, domainId)
+            token = cfg.token
+            username = cfg.username
+            source = cfg.source
+            endpoint = cfg.endpoint
+        } catch (e) {
+            configError = e
+            token = ''
+            username = ''
+            source = 'Shopik'
+            endpoint = 'https://019sms.co.il/api'
+        }
+
         try {
             const logData = {
                 action: 'sms',
@@ -45,6 +44,7 @@ export default function sms({ DL }) {
                         phones,
                         body: message,
                         source,
+                        domainId: domainId || '(missing)',
                         username: username ? `${username.slice(0, 3)}***` : '(missing)'
                     }
                 }
@@ -52,7 +52,8 @@ export default function sms({ DL }) {
             log = DL.Log.start(logData)
             log.actor({ type: DL.Log.constants.ACTOR.API })
 
-            // Validation before network call
+            if (configError) throw configError
+
             if (!Array.isArray(phones) || phones.length === 0) throw new Error('No phones provided')
             if (!message || typeof message !== 'string' || !message.trim()) throw new Error('Empty message')
 
@@ -63,19 +64,16 @@ export default function sms({ DL }) {
             }
 
             if (!token) {
-                // Fallback stub behaviour for dev without credentials
-                console.warn('[sms] TOKEN_019 not set — stubbing send', { phones: normalized, message })
-                logPromise = log.success({ message: 'stubbed (no TOKEN_019)', phones: normalized })
+                console.warn('[sms] TOKEN_019 not set for domain', domainId, '— stubbing send', { phones: normalized, message })
+                logPromise = log.success({ message: 'stubbed (no TOKEN_019)', phones: normalized, domainId })
                 return { stubbed: true, phones: normalized }
             }
             if (!username) {
-                const errMsg = '019 SMS username not configured — set SMS_USERNAME or USERNAME_019 env var (must match TOKEN_019 owner)'
+                const errMsg = `019 SMS username not configured for domain ${domainId} — set sms:019 config (USERNAME_019) for this domain`
                 console.error('[sms]', errMsg)
                 throw new Error(errMsg)
             }
 
-            // Build body per https://docs.019sms.co.il/sms/send-sms.html
-            // Destinations phone can be string for single or array for multiple (019 accepts both)
             const phoneField = normalized.length === 1 ? normalized[0] : normalized
             const body = {
                 sms: {
@@ -106,7 +104,6 @@ export default function sms({ DL }) {
                 clearTimeout(timeout)
             }
 
-            // 019 returns { status: 0, message, shipment_id } on success
             const status = data?.status
             if (status !== 0 && status !== '0') {
                 const msg = data?.message || data?.raw || `HTTP ${res?.status}`
@@ -116,8 +113,8 @@ export default function sms({ DL }) {
                 throw err
             }
 
-            console.log(`[sms] Sent to ${normalized.join(', ')}: "${message.slice(0, 80)}" → shipment ${data.shipment_id || data.message}`)
-            logPromise = log.success({ message: data.message || 'sent', shipment_id: data.shipment_id, phones: normalized, providerResponse: data })
+            console.log(`[sms] Sent to ${normalized.join(', ')}: "${message.slice(0, 80)}" → shipment ${data.shipment_id || data.message} [domain:${domainId}]`)
+            logPromise = log.success({ message: data.message || 'sent', shipment_id: data.shipment_id, phones: normalized, providerResponse: data, domainId })
             return data
         } catch (error) {
             const errData = {
@@ -128,7 +125,6 @@ export default function sms({ DL }) {
             }
             if (log) logPromise = log.error(errData)
             else {
-                // If log not started yet, create one
                 try {
                     const fallbackLog = DL.Log.start({ action: 'sms', direction: DL.Log.constants.DIRECTION.OUT, data: { request: { phones, body: message } } })
                     fallbackLog.actor({ type: DL.Log.constants.ACTOR.API })
@@ -141,8 +137,8 @@ export default function sms({ DL }) {
         }
     }
 
-    async function otp(phone, code) {
-        return send([phone], `Your OTP: ${code}\nValid for 10 minutes`)
+    async function otp(phone, code, opts = {}) {
+        return send([phone], `Your OTP: ${code}\nValid for 10 minutes`, opts)
     }
 
     return { send, otp, _normalizePhone: normalizePhone }
