@@ -10,10 +10,7 @@ import styles from './weekly.module.css'
 
 const { HOUR_PX } = WINDOWS_PAGE
 
-export const resizeGuard = { lastEnd: 0 }
-export const editCloseGuard = { lastClose: 0 }
-
-export default function WindowCard({ win, day, conflict, readonly, storeGroups = [], editing, onToggleEdit, onChange, onDelete }) {
+export default function WindowCard({ win, day, conflict, readonly, storeGroups = [], editing, resizeGuardRef, onToggleEdit, onChange, onDelete }) {
     const { TR } = useText()
     const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
         id: win._cid,
@@ -34,7 +31,7 @@ export default function WindowCard({ win, day, conflict, readonly, storeGroups =
             if (dh === last) return
             last = dh
             if (edge === 'bottom') {
-                const end = Math.min(23, Math.max(orig.start + 1, orig.end + dh))
+                const end = Math.min(24, Math.max(orig.start + 1, orig.end + dh))
                 onChange(win._cid, { end })
             } else {
                 const start = Math.max(0, Math.min(orig.end - 1, orig.start + dh))
@@ -44,7 +41,7 @@ export default function WindowCard({ win, day, conflict, readonly, storeGroups =
         function onUp() {
             window.removeEventListener('pointermove', onMove)
             window.removeEventListener('pointerup', onUp)
-            resizeGuard.lastEnd = Date.now()
+            if (resizeGuardRef) resizeGuardRef.current.lastEnd = Date.now()
         }
         window.addEventListener('pointermove', onMove)
         window.addEventListener('pointerup', onUp)

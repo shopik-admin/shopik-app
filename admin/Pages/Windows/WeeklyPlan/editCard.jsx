@@ -6,10 +6,11 @@ import styles from './weekly.module.css'
 
 const { MAX_CAPACITY } = WINDOWS_PAGE
 
-const HOURS = Array.from({ length: 24 }, (_, h) => ({
+const HOURS = Array.from({ length: 25 }, (_, h) => ({
     value: h,
-    text: `${String(h).padStart(2, '0')}:00`
+    text: h >= 24 ? '24:00' : `${String(h).padStart(2, '0')}:00`
 }))
+const START_HOURS = HOURS.slice(0, 24)
 
 /**
  * Inline editor popover for a single weekly-plan window card.
@@ -52,7 +53,7 @@ export default function EditCard({ win, storeGroups = [], onChange, onDelete, on
                     onChange({ start: start < win.end ? start : win.start })
                 }}
             >
-                {HOURS.map(h => <option key={h.value} value={h.value}>{h.text}</option>)}
+                {START_HOURS.map(h => <option key={h.value} value={h.value}>{h.text}</option>)}
             </select>
             <span><Text size="none">windows_to</Text></span>
             <select

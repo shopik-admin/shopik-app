@@ -173,6 +173,25 @@
     accent-color: var(--bg-brand-primary);
 }
 
+.stringInput {
+    flex: 1;
+    padding: 8px 10px;
+    border: 1px solid var(--border-secondary);
+    border-radius: 8px;
+    font-size: 13px;
+    outline: none;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+.stringInput::placeholder {
+    color: var(--text-placeholder);
+}
+
+.stringInput:focus {
+    border-color: var(--border-brand);
+}
+
 .enumList {
     display: flex;
     flex-direction: column;

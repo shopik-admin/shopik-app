@@ -12,7 +12,7 @@ import { WINDOWS_PAGE } from 'common/constants.js'
 import { addDays, todayStr } from '../dates.js'
 import HourRuler from './hourRuler.jsx'
 import DayColumn from './dayColumn.jsx'
-import WindowCard, { resizeGuard, editCloseGuard } from './windowCard.jsx'
+import WindowCard from './windowCard.jsx'
 import styles from './weekly.module.css'
 
 const { HOUR_PX, MAX_CAPACITY } = WINDOWS_PAGE
@@ -44,11 +44,9 @@ function stripForSave(draft) {
         .sort((a, b) => a.dayOfWeek - b.dayOfWeek || a.start - b.start)
 }
 
-export default function WeeklyPlan({ onDirtyChange }) {
+export default function WeeklyPlan({ onDirtyChange, stores = [], areaGroups = [] }) {
     const { TR } = useText()
     const { data: templates = [], loading, callReq } = useApi('order_window_template/read', { limit: 0 })
-    const { data: stores = [] } = useApi('store/read', { limit: 0 })
-    const { data: areaGroups = [] } = useApi('area_group/read', { limit: 0 })
 
     const [choice, setChoice] = useState('master')
     const [draft, setDraft] = useState(null)
@@ -60,6 +58,8 @@ export default function WeeklyPlan({ onDirtyChange }) {
     const [scrolled, setScrolled] = useState(false)
 
     const scrollRef = useRef(null)
+    const resizeGuardRef = useRef({ lastEnd: 0 })
+    const editCloseGuardRef = useRef({ lastClose: 0 })
 
     useEffect(() => {
         if (scrolled || !draft?.length || !scrollRef.current) return
@@ -96,7 +96,7 @@ export default function WeeklyPlan({ onDirtyChange }) {
         function onDocPointerDown(e) {
             if (e.target.closest?.('[data-editcard]')) return
             if (e.target.closest?.(`.${styles.card}`)) return
-            editCloseGuard.lastClose = Date.now()
+            editCloseGuardRef.current.lastClose = Date.now()
             setEditingCid(null)
         }
         document.addEventListener('pointerdown', onDocPointerDown)
@@ -148,12 +148,12 @@ export default function WeeklyPlan({ onDirtyChange }) {
 
     function addWindow(day, hour) {
         // A click that just closed an editor must not create a window
-        if (Date.now() - editCloseGuard.lastClose < 300) return
+        if (Date.now() - editCloseGuardRef.current.lastClose < 300) return
         setError(null)
         setDraft(prev => [...(prev || []), {
             dayOfWeek: day,
             start: hour,
-            end: Math.min(23, hour + 2),
+            end: Math.min(24, hour + 2),
             maxCapacity: selected?.windows?.[0]?.maxCapacity ?? Math.min(MAX_CAPACITY, 20),
             leadHours: undefined,
             areaGroups: [],
@@ -164,17 +164,17 @@ export default function WeeklyPlan({ onDirtyChange }) {
     function handleDragEnd(event) {
         const { active, delta, over } = event
         const { day: fromDay, cid } = active.data.current || {}
-        if (cid == null || fromDay === 6) return
+        if (cid == null) return
 
         const targetDay = over?.data.current?.day ?? fromDay
-        if (targetDay == null || targetDay === 6) return
+        if (targetDay == null) return
 
         const dh = Math.round(delta.y / HOUR_PX)
         const win = draft.find(w => w._cid === cid)
         if (!win || (!dh && targetDay === fromDay)) return
 
         const duration = win.end - win.start
-        const start = Math.max(0, Math.min(23 - duration, win.start + dh))
+        const start = Math.max(0, Math.min(24 - duration, win.start + dh))
 
         setDraft(prev => prev.map(w => w._cid === cid
             ? { ...w, dayOfWeek: targetDay, start, end: start + duration }
@@ -287,10 +287,10 @@ export default function WeeklyPlan({ onDirtyChange }) {
                             <DayColumn
                                 key={day}
                                 day={day}
-                                disabled={day === 6}
+                                resizeGuardRef={resizeGuardRef}
                                 onAddWindow={addWindow}
                             >
-                                {day !== 6 && draft?.filter(w => w.dayOfWeek === day).map(win => (
+                                {draft?.filter(w => w.dayOfWeek === day).map(win => (
                                     <WindowCard
                                         key={win._cid}
                                         win={win}
@@ -298,13 +298,11 @@ export default function WeeklyPlan({ onDirtyChange }) {
                                         conflict={conflicts.has(win._cid)}
                                         storeGroups={storeGroups}
                                         editing={editingCid === win._cid}
+                                        resizeGuardRef={resizeGuardRef}
                                         onToggleEdit={toggleEdit}
                                         onChange={updateWin}
                                         onDelete={deleteWin}
                                     />
-                                ))}
-                                {day === 6 && selected?.windows?.filter(w => w.dayOfWeek === 6).map((win, i) => (
-                                    <StaticLegacyCard key={i} win={win} />
                                 ))}
                             </DayColumn>
                         ))}
@@ -313,16 +311,4 @@ export default function WeeklyPlan({ onDirtyChange }) {
             </div>
         </div>
     </Flex>
-}
-
-function StaticLegacyCard({ win }) {
-    const style = {
-        top: `${win.start * HOUR_PX}px`,
-        height: `${(win.end - win.start) * HOUR_PX}px`
-    }
-    return <div className={styles.card} style={style}>
-        <div className={styles.cardInner}>
-            {String(win.start).padStart(2, '0')}:00–{String(win.end).padStart(2, '0')}:00
-        </div>
-    </div>
 }

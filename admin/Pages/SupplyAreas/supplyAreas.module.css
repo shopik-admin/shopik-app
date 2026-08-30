@@ -8,11 +8,63 @@
 
 .header {
     display: flex;
-    align-items: center;
+    align-items: flex-end;
     justify-content: space-between;
     gap: 1rem;
-    padding: 1rem 1.25rem;
+    padding: .75rem 1.25rem;
     border-bottom: 1px solid var(--border-primary);
+}
+
+.headerControls {
+    display: flex;
+    align-items: flex-end;
+    gap: .5rem;
+    flex-wrap: wrap;
+}
+
+.headerActions {
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-end;
+    gap: .5rem;
+    flex-shrink: 0;
+}
+
+.headerInput {
+    margin: 0 !important;
+    display: flex;
+    flex-direction: column;
+}
+
+.headerInput :global(span),
+.headerInput label {
+    margin-top: 0 !important;
+    padding-bottom: 4px !important;
+    font-size: .8rem !important;
+    line-height: 1.2 !important;
+}
+
+.headerInput input {
+    height: 36px !important;
+    min-height: 36px !important;
+    max-height: 36px !important;
+    padding: 0 .75rem !important;
+    box-sizing: border-box !important;
+    font-size: .875rem !important;
+    line-height: 34px !important;
+}
+
+.headerBtn {
+    height: 36px !important;
+    min-height: 36px !important;
+    max-height: 36px !important;
+    padding: 0 .9rem !important;
+    box-sizing: border-box !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: .875rem !important;
+    line-height: 1 !important;
 }
 
 .title {
@@ -23,8 +75,12 @@
 }
 
 .errorBanner {
-    margin: .75rem 1.25rem 0;
-    padding: .6rem .9rem;
+    height: 36px;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    margin: 0;
+    padding: 0 .75rem;
     border: 1px solid var(--fg-error-primary);
     border-radius: var(--radius-md);
     background: color-mix(in srgb, var(--fg-error-primary) 10%, transparent);
@@ -33,8 +89,12 @@
 }
 
 .hint {
-    margin: .75rem 1.25rem 0;
-    padding: .6rem .9rem;
+    height: 36px;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    margin: 0;
+    padding: 0 .75rem;
     border: 1px solid var(--border-brand);
     border-radius: var(--radius-md);
     background: color-mix(in srgb, var(--text-brand) 8%, transparent);
@@ -220,33 +280,6 @@
     color: var(--text-secondary);
 }
 
-.editor {
-    display: flex;
-    flex-direction: column;
-    gap: .5rem;
-    padding: 1rem;
-    border: 1px solid var(--border-primary);
-    border-radius: var(--radius-lg);
-    background: var(--bg-primary-alt);
-}
-
-.editorHeader {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: .5rem;
-}
-
-.editorTitle {
-    margin: 0;
-    color: var(--text-primary);
-    font-size: 1rem;
-    font-weight: var(--font-weight-semibold);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
 .editorMeta {
     color: var(--text-secondary);
     font-size: .85rem;
@@ -354,20 +387,30 @@
 }
 
 .testResult {
-    padding: .45rem .6rem;
+    height: 36px;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    padding: 0 .75rem;
     border-radius: var(--radius-md);
     background: var(--bg-primary);
     color: var(--text-secondary);
     font-size: .85rem;
+    white-space: nowrap;
 }
 
 .testResultError {
-    padding: .45rem .6rem;
+    height: 36px;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    padding: 0 .75rem;
     border: 1px solid var(--fg-error-primary);
     border-radius: var(--radius-md);
     background: color-mix(in srgb, var(--fg-error-primary) 10%, transparent);
     color: var(--fg-error-primary);
     font-size: .85rem;
+    white-space: nowrap;
 }
 
 .mapPane {
@@ -411,23 +454,258 @@
     color: var(--text-primary-on-brand);
 }
 
-.areaForm {
+.groupCard {
     display: flex;
     flex-direction: column;
-    gap: .9rem;
-}
-
-.formError {
-    padding: .5rem .75rem;
-    border: 1px solid var(--fg-error-primary);
+    border: 1px solid var(--border-primary);
     border-radius: var(--radius-md);
-    background: color-mix(in srgb, var(--fg-error-primary) 10%, transparent);
-    color: var(--fg-error-primary);
-    font-size: .85rem;
+    background: var(--bg-primary-alt);
+    overflow: hidden;
+    transition:
+        border-color .2s ease,
+        background-color .2s ease,
+        box-shadow .2s ease;
+
+    &:hover {
+        border-color: var(--border-brand);
+    }
+
+    &.groupCardExpanded {
+        border-color: var(--text-brand);
+        background: var(--bg-primary);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, .06);
+    }
 }
 
-.formActions {
-    margin-top: .25rem;
+.groupCardHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .5rem;
+    padding: .55rem .8rem;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color .15s ease, padding .2s ease;
+
+    &:hover {
+        background: color-mix(in srgb, var(--text-brand) 6%, transparent);
+    }
+}
+
+.groupCardHeaderExpanded {
+    padding: .45rem .8rem .2rem;
+}
+
+.groupHeaderStart {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    flex: 1;
+    min-width: 0;
+}
+
+.groupHeaderIcon {
+    display: grid;
+    place-items: center;
+    width: 1rem;
+    height: 1rem;
+    flex-shrink: 0;
+}
+
+.groupArrowIcon {
+    color: var(--accent-group-light);
+    font-size: 1.15rem;
+    display: block;
+    transition: transform .2s ease, color .2s ease;
+}
+
+.groupCardContentWrap {
+    display: grid;
+    grid-template-rows: 0fr;
+    opacity: 0;
+    transition:
+        grid-template-rows 280ms cubic-bezier(0.4, 0, 0.2, 1),
+        opacity 220ms ease;
+}
+
+.groupCardExpanded .groupCardContentWrap {
+    grid-template-rows: 1fr;
+    opacity: 1;
+}
+
+.groupCardContentInner {
+    overflow: hidden;
+    min-height: 0;
+}
+
+.groupEditPane {
+    display: flex;
+    flex-direction: column;
+    gap: .55rem;
+    padding: .35rem .75rem .75rem;
+    opacity: 0;
+    transform: translateY(-4px);
+    transition: opacity 220ms ease 40ms, transform 220ms ease 40ms;
+}
+
+.groupCardExpanded .groupEditPane {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.groupNameRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .5rem;
+    padding: .45rem .65rem;
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    background: var(--bg-primary-alt);
+    cursor: pointer;
+    transition: border-color 150ms ease, background-color 150ms ease;
+
+    &:hover {
+        border-color: var(--border-brand);
+        background: var(--bg-primary);
+    }
+}
+
+.groupNameText {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-primary);
+    font-size: .875rem;
+    font-weight: var(--font-weight-medium);
+}
+
+.groupNameEditIcon {
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    color: var(--text-tertiary);
+    font-size: .95rem;
+    transition: color 150ms ease;
+
+    &:hover {
+        color: var(--text-brand);
+    }
+}
+
+.groupNameInput {
+    width: 100%;
+    padding: .45rem .65rem;
+    border: 1px solid var(--border-brand);
+    border-radius: var(--radius-md);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: .875rem;
+    font-weight: var(--font-weight-medium);
+    outline: none;
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--text-brand) 15%, transparent);
+}
+
+.groupEditHint {
+    color: var(--text-tertiary);
+    font-size: .78rem;
+}
+
+.areaPopup {
+    display: flex;
+    flex-direction: column;
+    gap: .6rem;
+    min-width: 280px;
+}
+
+.areaPopupHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .5rem;
+}
+
+.areaPopupTitle {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: right;
+    white-space: nowrap;
+    color: var(--text-primary);
+    font-size: .95rem;
+    font-weight: var(--font-weight-semibold);
+}
+
+.areaPopupActions {
+    flex-shrink: 0;
+}
+
+.areaPopupStores {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .35rem;
+}
+
+.areaPopupTag {
+    padding: .2rem .45rem;
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm);
+    background: var(--bg-primary-alt);
+    color: var(--text-secondary);
+    font-size: .75rem;
+}
+
+.areaPopupEmpty {
+    color: var(--text-tertiary);
+    font-size: .8rem;
+}
+
+.deleteButton {
+    color: var(--fg-error-primary) !important;
+    border-color: var(--border-error) !important;
+}
+.deleteButton:hover {
+    background: var(--bg-error-secondary) !important;
+    border-color: var(--border-error) !important;
+    color: var(--fg-error-primary) !important;
+}
+.deleteButton svg {
+    color: var(--fg-error-primary);
+}
+
+.popupSubtle {
+    font-size: 12px;
+    color: var(--text-tertiary);
+}
+
+.mapPane :global(.leaflet-popup-content-wrapper) {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-primary);
+    box-shadow: 0 3px 14px rgba(0,0,0,0.22);
+}
+.mapPane :global(.leaflet-popup-tip) {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+}
+.mapPane :global(.leaflet-popup-content) {
+    color: var(--text-primary);
+}
+.mapPane :global(.leaflet-popup-close-button) {
+    color: var(--text-tertiary) !important;
+}
+.mapPane :global(.leaflet-popup-close-button:hover) {
+    color: var(--text-primary) !important;
+    background: var(--bg-secondary-hover) !important;
+}
+
+.mapInnerWrap {
+    position: relative;
+    width: 100%;
+    height: 100%;
 }
 
 @media (max-width: 767px) {
