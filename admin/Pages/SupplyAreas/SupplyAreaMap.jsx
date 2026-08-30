@@ -140,6 +140,11 @@ function useDrawReady() {
     return ready
 }
 
+function getPaddedBounds(map) {
+    const b = map.getBounds().pad(0.1)
+    return { north: b.getNorth(), south: b.getSouth(), east: b.getEast(), west: b.getWest() }
+}
+
 function MapController({
     areas,
     selectedId,
@@ -154,7 +159,8 @@ function MapController({
     onCreated,
     onEdited,
     onGeometryCancel,
-    onBackgroundClick
+    onBackgroundClick,
+    onViewportChange
 }) {
     const map = useMap()
     const { TR } = useText()
@@ -166,8 +172,8 @@ function MapController({
     const editLayerRef = useRef(null)
     const editOriginalRef = useRef(null)
     const editControlRef = useRef(null)
-    const cbRef = useRef({ onSelect, onToggleArea, onCreated, onEdited, onGeometryCancel, onBackgroundClick, selectedId, geometryEditingId, drawing, toggleMode })
-    cbRef.current = { onSelect, onToggleArea, onCreated, onEdited, onGeometryCancel, onBackgroundClick, selectedId, geometryEditingId, drawing, toggleMode }
+    const cbRef = useRef({ onSelect, onToggleArea, onCreated, onEdited, onGeometryCancel, onBackgroundClick, onViewportChange, selectedId, geometryEditingId, drawing, toggleMode })
+    cbRef.current = { onSelect, onToggleArea, onCreated, onEdited, onGeometryCancel, onBackgroundClick, onViewportChange, selectedId, geometryEditingId, drawing, toggleMode }
 
     const removeEditControl = useCallback(() => {
         if (editControlRef.current) {
@@ -228,6 +234,25 @@ function MapController({
             cancel: TR('cancel')
         }, () => commitEdit(), () => cancelEdit())
     }, [map, stopEdit, TR, commitEdit, cancelEdit])
+
+    // Viewport tracking: emit padded bounds on mount and on moveend (debounced)
+    useEffect(() => {
+        if (!cbRef.current.onViewportChange) return
+        let timer = null
+        const emit = () => cbRef.current.onViewportChange?.(getPaddedBounds(map))
+        // initial viewport after mount
+        const initial = setTimeout(emit, 100)
+        const onMoveEnd = () => {
+            clearTimeout(timer)
+            timer = setTimeout(emit, 400)
+        }
+        map.on('moveend', onMoveEnd)
+        return () => {
+            clearTimeout(initial)
+            clearTimeout(timer)
+            map.off('moveend', onMoveEnd)
+        }
+    }, [map])
 
     // Clicking empty map closes area popup (when not drawing/group-editing/geometry-editing)
     // Guard against polygon clicks bubbling to map (they fire layer 'click' then map 'click')
@@ -471,6 +496,7 @@ export default function SupplyAreaMap({
     focusPoint, focusGroupPoint, testPoint, testLabel,
     selectedId, geometryEditingId, areaDraft, setAreaDraft, savingArea,
     onSelect, onStartAreaPropsEdit, onSaveAreaProps, onCancelAreaPropsEdit, onDeleteArea, onStartGeometryEdit,
+    onViewportChange,
     ...mapControllerProps
 }) {
     const { TR } = useText()
@@ -531,6 +557,7 @@ export default function SupplyAreaMap({
                 zoom={12}
                 style={{ height: '100%', width: '100%' }}
                 scrollWheelZoom
+                preferCanvas
             >
                 <TileLayer
                     key={tilesetId}
@@ -545,6 +572,7 @@ export default function SupplyAreaMap({
                     selectedId={selectedId}
                     geometryEditingId={geometryEditingId}
                     onSelect={onSelect}
+                    onViewportChange={onViewportChange}
                     {...mapControllerProps}
                 />
                 {selectedArea && popupPosition && (
