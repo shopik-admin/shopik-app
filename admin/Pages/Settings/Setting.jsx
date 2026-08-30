@@ -72,7 +72,7 @@ export default function Setting({ setting, onUpdate, onEditFull }) {
             await navigator.clipboard.writeText(`var(--${key})`)
             setCopied(true)
             setTimeout(() => setCopied(false), 1200)
-        } catch {}
+        } catch { }
     }
 
     function normalizeColor(val) {
@@ -87,8 +87,8 @@ export default function Setting({ setting, onUpdate, onEditFull }) {
                 <div className={styles.settingMain}>
                     <div className={styles.settingInfo}>
                         <div className={styles.settingKeyRow}>
-                            <span className={styles.settingKey}>{key}</span>
                             {onEditFull && <Button className={styles.gearBtn} onClick={() => onEditFull(setting)} title="Edit all fields" icon='edit' />}
+                            <span className={styles.settingKey}>{key}</span>
                         </div>
                         {error && <span className={styles.settingError}>{error}</span>}
                     </div>
@@ -111,8 +111,8 @@ export default function Setting({ setting, onUpdate, onEditFull }) {
                 <div className={styles.settingMain}>
                     <div className={styles.settingInfo}>
                         <div className={styles.settingKeyRow}>
-                            <span className={styles.settingKey}>{key}</span>
                             {onEditFull && <Button className={styles.gearBtn} onClick={() => onEditFull(setting)} title="Edit all fields" icon='edit' />}
+                            <span className={styles.settingKey}>{key}</span>
                         </div>
                         {error && <span className={styles.settingError}>{error}</span>}
                     </div>
@@ -151,8 +151,14 @@ export default function Setting({ setting, onUpdate, onEditFull }) {
                 <div className={styles.settingMain}>
                     <div className={styles.settingInfo}>
                         <div className={styles.settingKeyRow}>
-                            <span className={styles.settingKey}>{key}</span>
                             {onEditFull && <Button className={styles.gearBtn} onClick={() => onEditFull(setting)} title="Edit all fields" icon='edit' />}
+                            <span className={styles.settingKey}>{key}</span>
+                            {isThemeColor && (
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', marginInlineStart: '0.25rem' }}>
+                                    <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', fontFamily: 'monospace' }}>var(--{key})</span>
+                                    <Button icon={copied ? "check" : "copy"} mode="text" onClick={handleCopy} tooltip={copied ? "Copied!" : "Copy var(--" + key + ")"} style={{ padding: '0 2px' }} />
+                                </span>
+                            )}
                         </div>
                         {error && <span className={styles.settingError}>{error}</span>}
                     </div>
@@ -210,9 +216,6 @@ export default function Setting({ setting, onUpdate, onEditFull }) {
                                 )}
                             </span>
                         </div>
-                        {isThemeColor && !isEditing && (
-                            <Button icon={copied ? "check" : "copy"} mode="text" onClick={handleCopy} tooltip={copied ? "Copied!" : `Copy var(--${key})`} />
-                        )}
                         {isEditing ? (
                             <span style={{ display: 'inline-flex', gap: '0.35rem', flexShrink: 0 }}>
                                 <Button icon="check" className={styles.saveBtn} onClick={() => handleSave()} disabled={saving} stopPropagation />
@@ -256,8 +259,8 @@ export default function Setting({ setting, onUpdate, onEditFull }) {
             <div className={styles.settingMain}>
                 <div className={styles.settingInfo}>
                     <div className={styles.settingKeyRow}>
-                        <span className={styles.settingKey}>{key}</span>
                         {onEditFull && <Button className={styles.gearBtn} onClick={() => onEditFull(setting)} title="Edit all fields" icon='edit' />}
+                        <span className={styles.settingKey}>{key}</span>
                     </div>
                     {error && <span className={styles.settingError}>{error}</span>}
                 </div>

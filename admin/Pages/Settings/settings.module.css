@@ -462,6 +462,7 @@
     flex-direction: column;
     gap: 0.5rem;
     min-width: 20rem;
+    margin-top: 4px;
 }
 
 .configRow {

@@ -4,6 +4,7 @@ import Button from 'common/components/Button'
 import useApi from 'common/functions/useApi'
 import apiReq from 'common/functions/apiReq'
 import Input from 'common/components/Input'
+import Select from 'common/components/Select'
 import styles from './settings.module.css'
 import Card from 'common/components/Card'
 import Flex from 'common/components/Flex'
@@ -74,6 +75,58 @@ function SettingModalContent({ setting, defaultCategory, onSuccess, onClose }) {
                 value={formData.key}
                 onChange={(e) => setFormData({ ...formData, key: e.target.value })}
             />
+            <div className={styles.formGrid}>
+                <label className={styles.settingInfo}>
+                    <span className={styles.settingKey}>Form Type</span>
+                    <select
+                        className={styles.selectInput}
+                        value={formData.formType}
+                        onChange={(e) => setFormData({ ...formData, formType: e.target.value })}
+                    >
+                        {FORM_TYPES.map((ft) => (
+                            <option key={ft} value={ft}>{ft}</option>
+                        ))}
+                    </select>
+                </label>
+                <label className={styles.settingInfo}>
+                    <span className={styles.settingKey}>Render Type</span>
+                    <select
+                        className={styles.selectInput}
+                        value={formData.renderType}
+                        onChange={(e) => setFormData({ ...formData, renderType: e.target.value })}
+                    >
+                        {RENDER_TYPES.map((rt) => (
+                            <option key={rt} value={rt}>{rt}</option>
+                        ))}
+                    </select>
+                </label>
+            </div>
+            <div className={styles.formGrid}>
+                <Input
+                    label="Category"
+                    name="category"
+                    required
+                    value={formData.category}
+                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                />
+                <Input
+                    label="Sub Category"
+                    name="subCategory"
+                    required
+                    value={formData.subCategory}
+                    onChange={(e) => setFormData({ ...formData, subCategory: e.target.value })}
+                />
+            </div>
+            <label className={styles.settingInfo}>
+                <span className={styles.settingKey}>Domain *</span>
+                <Select
+                    options="domains"
+                    value={formData.domainId}
+                    onChange={(e) => setFormData({ ...formData, domainId: e.target.value })}
+                    required
+                    name="domainId"
+                />
+            </label>
             {isConfig ? (
                 <div>
                     <span className={styles.settingKey}>Value (config)</span>
@@ -102,56 +155,6 @@ function SettingModalContent({ setting, defaultCategory, onSuccess, onClose }) {
                     onChange={(e) => setFormData({ ...formData, value: e.target.value })}
                 />
             )}
-            <div className={styles.formGrid}>
-                <Input
-                    label="Category"
-                    name="category"
-                    required
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                />
-                <Input
-                    label="Sub Category"
-                    name="subCategory"
-                    required
-                    value={formData.subCategory}
-                    onChange={(e) => setFormData({ ...formData, subCategory: e.target.value })}
-                />
-            </div>
-            <Input
-                label="Domain ID"
-                name="domainId"
-                required
-                value={formData.domainId}
-                onChange={(e) => setFormData({ ...formData, domainId: e.target.value })}
-            />
-            <div className={styles.formGrid}>
-                <label className={styles.settingInfo}>
-                    <span className={styles.settingKey}>Form Type</span>
-                    <select
-                        className={styles.selectInput}
-                        value={formData.formType}
-                        onChange={(e) => setFormData({ ...formData, formType: e.target.value })}
-                    >
-                        {FORM_TYPES.map((ft) => (
-                            <option key={ft} value={ft}>{ft}</option>
-                        ))}
-                    </select>
-                </label>
-                <label className={styles.settingInfo}>
-                    <span className={styles.settingKey}>Render Type</span>
-                    <select
-                        className={styles.selectInput}
-                        value={formData.renderType}
-                        onChange={(e) => setFormData({ ...formData, renderType: e.target.value })}
-                    >
-                        {RENDER_TYPES.map((rt) => (
-                            <option key={rt} value={rt}>{rt}</option>
-                        ))}
-                    </select>
-                </label>
-            </div>
-
             {error && (
                 <div className={styles.settingError}>{error}</div>
             )}
@@ -164,7 +167,7 @@ function SettingModalContent({ setting, defaultCategory, onSuccess, onClose }) {
                     Cancel
                 </Button>
                 <Button type="submit" disabled={loading}>
-                    {loading ? 'Saving...' : isEdit ? 'Save Changes' : 'Add Setting'}
+                    {loading ? 'Saving...' : isEdit ? 'Save' : 'Add'}
                 </Button>
             </div>
         </form>
