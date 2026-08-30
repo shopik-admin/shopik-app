@@ -106,7 +106,7 @@ export default function SupplyAreas() {
                     // one final ring to catch remainder up to Israel edge
                 }
                 let skip = 0
-                const limit = 100
+                const limit = 200
                 while (true) {
                     const page = await apiReq('supply_area/read', { ring: { inner, outer }, skip, limit })
                     if (!Array.isArray(page) || page.length === 0) break
