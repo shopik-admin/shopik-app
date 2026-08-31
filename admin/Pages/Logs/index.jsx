@@ -9,7 +9,7 @@ export default function Logs({ }) {
         <DataManager
             apiRoute='log'
             actions={['export', 'refresh']}
-            defaultSort={{ updatedAt: -1 }}
+            defaultSort={{ createdAt: -1 }}
             onRowClick={row => openModal(<Log log={row} />, { title: `Log: Request #${row.requestId}` })}
             cols={[
                 { key: 'action' },
@@ -19,7 +19,6 @@ export default function Logs({ }) {
                 { key: 'duration', type: 'ms' },
                 { key: 'appVersion' },
                 { key: 'createdAt', type: 'datetime' },
-                { key: 'updatedAt', type: 'datetime' },
             ]}
         />
     </div>

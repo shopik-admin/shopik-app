@@ -64,7 +64,7 @@ export default function Setting({ setting, onUpdate, onEditFull }) {
     const isToggleType = formType === 'checkbox' || formType === 'switch' || renderType === 'boolean' || renderType === 'v-boolean'
     const isConfig = formType === 'config' || renderType === 'config'
     const isColor = formType === 'color' || renderType === 'color' || renderType === 'color-boolean'
-    const isThemeColor = category === 'Theme' && isColor
+    const isThemeColor = category === 'theme' && isColor
 
     async function handleCopy(e) {
         if (e) e.stopPropagation()

@@ -1,4 +1,3 @@
-import regex from '#common/functions/regex.js'
 import { CACHE_STRATEGIES } from '#common/constants.js'
 
 const DELIVERY_METHOD = {
@@ -25,23 +24,12 @@ const storeSchema = {
             type: Number,
             required: true
         },
-        zip: String,
         location: {
             type: { type: String, default: 'Point', enum: ['Point'] },
             coordinates: [Number]
         },
         accuracy: String
     },
-    phone: {
-        type: String,
-        required: true
-    },
-    email: {
-        type: String,
-        required: true,
-        match: regex.email
-    },
-    contactName: String,
     test: {
         type: Boolean,
         default: false
@@ -52,16 +40,9 @@ const storeSchema = {
         enum: Object.values(DELIVERY_METHOD),
         filter: true
     },
-    tag: {
-        type: String,
-        required: true,
-        uppercase: true,
-        filter: true
-    },
     mapImage: String,
     mapUrl: {
         type: String,
-        //  required: true
     }
 }
 

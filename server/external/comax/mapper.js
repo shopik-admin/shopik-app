@@ -58,6 +58,21 @@ export function mapItem(item) {
     }
 }
 
+export function mapBalance(item) {
+    return {
+        comaxId: item.ID != null ? String(item.ID) : '',
+        barcode: item.Barcode != null ? String(item.Barcode).trim() : null,
+        name: item.Name ?? null,
+        balance: Number(item.Balance) || 0,
+        balanceAvailable: item.BalanceAvailabale != null && item.BalanceAvailabale !== '' ? Number(item.BalanceAvailabale) : null,
+        error: item.ErrorMessage || null,
+    }
+}
+
+export function isInStock(b) {
+    return !b.error && b.balance > 0
+}
+
 export function mapPromotion(item) {
     return {
         comaxId: item.Kod != null ? String(item.Kod) : '',

@@ -26,8 +26,7 @@ export default defineConfig({
   base: '/',
   resolve: { alias },
   plugins: [react()],
-  define: { APP_VERSION: JSON.stringify(version) },
-
+  define: { APP_VERSION: JSON.stringify(version), CARTO_KEY: JSON.stringify(process.env.CARTO_KEY) },
   build: {
     outDir: '../build/admin',
     emptyOutDir: true,

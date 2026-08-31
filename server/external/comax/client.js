@@ -1,46 +1,42 @@
 const COMAX_URL = 'https://ws.comax.co.il/Comax_WebServices/items_service.asmx/Get_AllItemsDetailsBySearch'
+const COMAX_BALANCE_URL = 'https://ws.comax.co.il/Comax_WebServices/Items_Service.asmx/Get_AllItemsBalanceBySearch'
 const COMAX_PROMOTIONS_URL = 'https://ws.comax.co.il/Comax_WebServices/Promotions_Service.asmx/GetPromotionsDef'
 
-export async function fetchComax({ params, timeoutMs = 120000 }, { DL }) {
+async function fetchComaxXml({ url, params, timeoutMs = 120000, action }, { DL }) {
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), timeoutMs)
     let logPromise, log
     try {
-        const url = `${COMAX_URL}?${new URLSearchParams(params)}`
+        const fullUrl = `${url}?${new URLSearchParams(params)}`
         const logData = {
-            action: 'comax_fetch_products',
+            action,
             direction: DL.Log.constants.DIRECTION.OUT,
-            data: {
-                request: {
-                    url,
-                    params
-                }
-            }
+            data: { request: { url: fullUrl, params } }
         }
         log = DL.Log.start(logData)
         log.actor({ type: DL.Log.constants.ACTOR.API })
-        const response = await fetch(url, { signal: controller.signal })
-
-        if (!response.ok)
-            throw new Error(`Comax HTTP ${response.status}: ${response.statusText}`)
-
+        const response = await fetch(fullUrl, { signal: controller.signal })
+        if (!response.ok) throw new Error(`Comax HTTP ${response.status}: ${response.statusText}`)
         const xml = await response.text()
         logPromise = log.success(`xml: ${xml.length} characters`)
         return xml
     } catch (error) {
-        if (logPromise) {
-            const errorData = {
-                message: error.message,
-                stack: error.stack
-            }
-            logPromise = log.error(errorData)
+        if (log) {
+            logPromise = log.error({ message: error.message, stack: error.stack })
         }
         throw error
     } finally {
-        if (logPromise)
-            await logPromise
+        if (logPromise) await logPromise
         clearTimeout(timer)
     }
+}
+
+export async function fetchComax({ params, timeoutMs = 120000 }, { DL }) {
+    return fetchComaxXml({ url: COMAX_URL, params, timeoutMs, action: 'comax_fetch_products' }, { DL })
+}
+
+export async function fetchComaxBalance({ params, timeoutMs = 120000 }, { DL }) {
+    return fetchComaxXml({ url: COMAX_BALANCE_URL, params, timeoutMs, action: 'comax_fetch_balance' }, { DL })
 }
 
 export async function fetchComaxPromotions({ params, timeoutMs = 120000 }, { DL }) {
@@ -83,7 +79,7 @@ export async function fetchComaxPromotions({ params, timeoutMs = 120000 }, { DL 
         logPromise = log.success(`promotions count: ${promotions.length}`)
         return promotions
     } catch (error) {
-        if (logPromise) {
+        if (log) {
             const errorData = {
                 message: error.message,
                 stack: error.stack

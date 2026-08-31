@@ -52,10 +52,12 @@ const settingSchema = {
     category: {
         type: String,
         required: true,
+        lowercase: true
     },
     subCategory: {
         type: String,
         required: true,
+        lowercase: true
     },
     formType: {
         type: String,

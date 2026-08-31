@@ -8,6 +8,7 @@
         "ip": "כתובת IP",
         "requestId": "מזהה בקשה",
         "active": "פעיל",
+        "preview": "תצוגה מקדימה",
         "add": "הוספה",
         "address": "כתובת",
         "address.building": "בניין",
@@ -168,6 +169,9 @@
         "status": "סטטוס",
         "store_tag_info": "משמש ליצירת תג הזמנה",
         "storeId": "מזהה חנות",
+        "add store": "הוספת חנות",
+        "edit store": "עריכת חנות",
+        "send": "שמור",
         "storeSum": "סכום חנות",
         "stores": "חנויות",
         "street": "רחוב",
@@ -440,6 +444,11 @@
         "hidden": "מוסתר",
         "addresses.city": "עיר",
         "addresses.street": "רחוב",
-        "secondPhone": "טלפון נוסף"
+        "secondPhone": "טלפון נוסף",
+        "comax_products_import": "יבוא מוצרים",
+        "comax_products_sync": "סנכרון לאתר",
+        "comax_products_stock_sync": "יבוא מלאי",
+        "StockStoreID": "מספר מחסן לסנכרון מלאי (מחסן ראשי)",
+        "OrderStoreID": "מספר מחסן לתעודות משלוח (מחסן אונליין)"
     }
 }

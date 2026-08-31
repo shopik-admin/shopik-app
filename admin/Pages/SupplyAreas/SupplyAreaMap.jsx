@@ -14,15 +14,16 @@ const SNAP_THRESHOLD_PX = 20
 const TILESET_STORAGE_KEY = 'supplyMapTileset'
 
 // All basemaps are free to use (attribution required) — Hebrew labels forced via lang=he where supported (CARTO)
+
 const TILESETS = {
     light: {
         label: 'supply_map_minimal',
-        url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png?lang=he',
+        url: `https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png?lang=he&key=${CARTO_KEY}`,
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
     },
     dark: {
         label: 'supply_map_dark',
-        url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png?lang=he',
+        url: `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png?lang=he&key=${CARTO_KEY}`,
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
     },
     osm: {
@@ -604,7 +605,7 @@ export default function SupplyAreaMap({
                                         {(selectedArea.stores || []).length ? (
                                             (selectedArea.stores || []).map(s => {
                                                 const st = stores.find(x => x.id === s.storeId)
-                                                return <span key={s.storeId} className={styles.areaPopupTag}>{st ? `${st.name} (${st.tag})` : s.storeId}</span>
+                                                return <span key={s.storeId} className={styles.areaPopupTag}>{st ? `${st.name}` : s.storeId}</span>
                                             })
                                         ) : (
                                             <span className={styles.areaPopupEmpty}><Text size="none">supply_no_stores_assigned</Text></span>
@@ -641,7 +642,6 @@ export default function SupplyAreaMap({
                             <Popup>
                                 <div>
                                     <strong>{store.name}</strong>
-                                    {store.tag && <span> ({store.tag})</span>}
                                     <div className={styles.popupSubtle}>
                                         {[a.city, a.street, a.building].filter(Boolean).join(', ')}
                                     </div>
