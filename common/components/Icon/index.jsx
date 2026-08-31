@@ -7,9 +7,9 @@ import {
     LuListChecks, LuHeadset, LuCircleHelp, LuClipboard, LuClipboardList, LuFileText, LuUsers,
     LuTable, LuKeyRound, LuCalendar, LuSheet, LuRefreshCw, LuX, LuCheck, LuCircleCheck, LuCalendarClock,
     LuSmartphone, LuMonitorSmartphone, LuUndo2, LuReceipt, LuUnfoldVertical, LuFoldVertical,
-    LuLoader, LuCopy, LuShare, LuCircle, LuGithub, LuPlay, LuPause, LuShoppingCart,
+    LuLoader, LuCopy, LuShare, LuCircle, LuGithub, LuPlay, LuPause, LuShoppingCart, LuMapPin,
     LuShoppingBag, LuArrowUpDown, LuCode, LuPackage, LuStore, LuGlobe, LuPercent, LuTicket,
-    LuSun, LuMoon, LuCloudUpload, LuMap, LuClock, LuTruck, LuCreditCard, LuBarcode,
+    LuSun, LuMoon, LuCloudUpload, LuMap, LuClock, LuTruck, LuCreditCard, LuBarcode, LuAlignLeft,
     LuListPlus, LuNotebookPen, LuPanelRightClose, LuPanelRightOpen, LuCalendarPlus, LuSlidersHorizontal
 } from 'react-icons/lu'
 import { BsFileEarmarkExcel } from 'react-icons/bs'
@@ -23,7 +23,7 @@ const iconsList = {
     right: LuChevronRight,
     download: LuDownload,
     settings: LuSettings,
-    menu: LuMenu,
+    menu: LuAlignLeft,// LuMenu,
     search: LuSearch,
     options: LuEllipsis,
     person: LuUser,
@@ -95,7 +95,8 @@ const iconsList = {
     listPlus: LuListPlus,
     heartPlus: TbHeartPlus,
     note: LuNotebookPen,
-    filter: LuSlidersHorizontal
+    filter: LuSlidersHorizontal,
+    location: LuMapPin
 }
 
 /**

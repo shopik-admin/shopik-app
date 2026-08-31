@@ -9,6 +9,16 @@
     width: 100%;
     z-index: 999;
 
+    .menuButton {
+        padding: 0;
+
+        svg {
+            font-size: 24px !important;
+            width: 24px;
+            height: 24px;
+        }
+    }
+
     @media screen and (min-width: 650px) {
         inset-inline-start: var(--sidebarWidth);
         width: calc(100vw - var(--sidebarWidth));

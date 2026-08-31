@@ -76,7 +76,7 @@
         border-inline-end: 1px solid rgba(255, 255, 255, 0.06);
         box-shadow: var(--shadow-md);
         width: var(--sidebarWidth);
-        inset-inline-start: 0;
+        inset-inline-start: -10px;
         background-color: var(--bg-brand-primary);
         top: 0;
         position: fixed;

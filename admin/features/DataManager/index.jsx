@@ -5,12 +5,14 @@ import DataLoader from './DataLoader'
 import DataTable from './DataTable'
 import FilterBar from './FilterBar'
 
-export default function DataManager({ actions, rowActions, cols = [], onRowClick, ...props }) {
+export default function DataManager({ children, actions, rowActions, cols = [], onRowClick, ...props }) {
 
     return <DataProvider className={styles.dataManager} {...props}>
         <FilterBar actions={actions} cols={cols} />
-        <DataLoader />
-        <DataTable cols={cols} rowActions={rowActions} onRowClick={onRowClick} />
-        <DataCount />
+        {children || <>
+            <DataLoader />
+            <DataTable cols={cols} rowActions={rowActions} onRowClick={onRowClick} />
+            <DataCount />
+        </>}
     </DataProvider>
 }

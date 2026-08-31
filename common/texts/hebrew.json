@@ -440,6 +440,7 @@
         "hidden": "מוסתר",
         "addresses.city": "עיר",
         "addresses.street": "רחוב",
-        "secondPhone": "טלפון נוסף"
+        "secondPhone": "טלפון נוסף",
+        "ops-page": "הזמנות"
     }
 }
