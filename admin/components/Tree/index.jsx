@@ -9,7 +9,8 @@ function TreeNode({
     selected,
     onSelect,
     onEditClick,
-    onAddClick
+    onAddClick,
+    onDeleteClick
 }) {
     const hasChildren = node.children?.length > 0
     const [expanded, setExpanded] = useState(true)
@@ -48,9 +49,21 @@ function TreeNode({
                     onClick={() => onSelect(node)}
                 >
                     {node.name}
-                    <Flex gap={10}>
+                    <Flex gap={4}>
                         <Button icon='edit' mode='text' className={styles.addBtn} preventDefault stopPropagation onClick={() => onEditClick?.(node)} />
                         <Button icon='add' mode='text' className={styles.editBtn} preventDefault stopPropagation onClick={() => onAddClick?.(node)} />
+                        {onDeleteClick && (
+                            <Button
+                                icon='trash'
+                                mode='text'
+                                className={styles.deleteBtn}
+                                preventDefault
+                                stopPropagation
+                                onClick={() => onDeleteClick?.(node)}
+                                disabled={hasChildren}
+                                tooltip={hasChildren ? 'role_delete_button_disabled_tooltip' : ''}
+                            />
+                        )}
                     </Flex>
                 </Flex>
             </div>
@@ -63,6 +76,7 @@ function TreeNode({
                         onSelect={onSelect}
                         onEditClick={onEditClick}
                         onAddClick={onAddClick}
+                        onDeleteClick={onDeleteClick}
                     />
                 </div>
             )}
@@ -76,6 +90,7 @@ export default function Tree({
     onSelect,
     onEditClick,
     onAddClick,
+    onDeleteClick,
 }) {
     return (
         <div className={styles.tree}>
@@ -87,6 +102,7 @@ export default function Tree({
                     onSelect={onSelect}
                     onEditClick={onEditClick}
                     onAddClick={onAddClick}
+                    onDeleteClick={onDeleteClick}
                 />
             ))}
         </div>

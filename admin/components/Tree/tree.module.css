@@ -136,3 +136,18 @@
         }
     }
 }
+
+.addBtn,
+.editBtn {
+    &:hover {
+        background-color: var(--bg-brand-primary-hover);
+        color: var(--fg-white);
+    }
+}
+
+.deleteBtn:enabled {
+    &:hover {
+        background-color: var(--bg-error-primary);
+        color: var(--fg-white);
+    }
+}

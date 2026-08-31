@@ -6,6 +6,7 @@ export default [
     'admin:read',
     'role:create',
     'role:update',
+    'role:delete',
     'role:read',
     'role:id',
     'product:create',

@@ -8,11 +8,27 @@
 }
 
 .roles {
-    flex: 0 0 20rem;
+    flex: 0 0 24rem;
     overflow: auto;
     padding: 1rem;
     border-inline-end: 1px solid var(--border-primary);
     background: var(--bg-primary);
+}
+
+.rolesHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+}
+
+.rolesTitle {
+    color: var(--text-primary);
+    font-size: 1rem;
+}
+
+.addRootRoleBtn {
+    color: var(--text-brand);
 }
 
 .permissionList {

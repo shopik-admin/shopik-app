@@ -14,13 +14,17 @@ export default async function tree({ }, { DL, _admin }) {
     if (_admin.isSuperAdmin)
         role.permissions = allPermissions
 
-    const children = await DL.Role.read({ parentIds: _admin.roleId }, {
-        _id: 0,
-        name: 1,
-        parentId: 1,
-        id: 1,
-        permissions: 1
-    })
+    const children = await DL.Role.read(
+        { parentIds: _admin.roleId },
+        {
+            _id: 0,
+            name: 1,
+            parentId: 1,
+            id: 1,
+            permissions: 1
+        },
+        { limit: 0 }
+    )
 
     const tree = {
         ...role,
