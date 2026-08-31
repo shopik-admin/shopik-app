@@ -4,7 +4,8 @@ export default async function register(payload, { DL, utils, external }) {
     const name = utils.extractFields.getName(payload)
     if (name) payload.name = name
 
-    const allowed = ['idNum', 'phone', 'name', 'email', 'getOffers']
+    const allowed = ['idNum', 'phone', 'name', 'email', 'getOffers', 'domainId']
+    const domainId = payload.domainId
     const filtered = {}
     for (const key of allowed) {
         if (payload[key] !== undefined) filtered[key] = payload[key]
@@ -26,7 +27,7 @@ export default async function register(payload, { DL, utils, external }) {
         otp,
         payload: filtered
     })
-    await external.sms.otp(filtered.phone, otp)
+    await external.sms.otp(filtered.phone, otp, { domainId })
 
     return { user: filtered, token }
 }

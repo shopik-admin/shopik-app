@@ -318,28 +318,25 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 1.8rem;
-    height: 1.8rem;
-    border-radius: var(--radius-full);
-    border: none;
-    font-size: 0.85rem;
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px;
+    min-height: 36px;
+    padding: 0 !important;
+    border-radius: var(--radius-full) !important;
+    border: none !important;
+    font-size: 20px;
     cursor: pointer;
     transition: transform 0.1s ease;
 }
 
 .saveBtn {
-    background: var(--bg-success-primary);
-    color: var(--text-white);
+    color: var(--text-white) !important;
 }
 
 .cancelBtn {
-    background: var(--bg-primary-alt);
-    color: var(--text-secondary);
-}
-
-.saveBtn:hover,
-.cancelBtn:hover {
-    transform: scale(1.05);
+    background: var(--bg-primary-alt) !important;
+    color: var(--text-secondary) !important;
 }
 
 /* Modal / Overlay styling */
@@ -457,6 +454,23 @@
     min-height: 15rem;
     color: var(--text-tertiary);
     font-size: 1rem;
+}
+
+/* Config editor */
+.configEditor {
+    display: flex;
+    direction: ltr;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-width: 20rem;
+    margin-top: 4px;
+}
+
+.configRow {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 0.5rem;
+    align-items: center;
 }
 
 /* Responsive Styles matching Permissions layout */
