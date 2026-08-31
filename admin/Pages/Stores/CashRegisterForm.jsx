@@ -21,7 +21,10 @@ export default function CashRegisterForm({ storeId }) {
         const payload = {
             storeId,
             active: vals.active === 'on' || vals.active === true || vals.active === 'true',
-            data: { StoreID: vals.StoreID || undefined }
+            data: {
+                StockStoreID: vals.StockStoreID || undefined,
+                OrderStoreID: vals.OrderStoreID || undefined
+            }
         }
         if (vals.active === undefined) payload.active = existing ? existing.active : true
         if (existing?.id) await apiReq('cash_register/update', { id: existing.id, ...payload })
@@ -29,23 +32,12 @@ export default function CashRegisterForm({ storeId }) {
         callReq()
     }
 
-    async function handleSync() {
-        setSyncState({ loading: true })
-        try {
-            const res = await apiReq('cash_register/sync', { storeId })
-            setSyncState({ success: `סונכרן: ${res?.updated ?? 0} מוצרים` })
-        } catch (e) {
-            setSyncState({ error: e?.message || 'שגיאת סנכרון' })
-        } finally {
-            setSyncState(s => ({ ...s, loading: false }))
-        }
-    }
-
     if (loading) return <Flex justifyContent='center' style={{ padding: 24 }}><Loader /></Flex>
 
     return <Flex col gap={16} style={{ minWidth: 360 }}>
         <Form key={key} className={styles.form} onChange={() => setSyncState({})} action={handleSubmit} submitText='שמור'>
-            <Input name='StoreID' label='StoreID (Comax)' defaultValue={existing?.data?.StoreID || ''} />
+            <Input name='StockStoreID' label='StockStoreID' defaultValue={existing?.data?.StockStoreID || ''} />
+            <Input name='OrderStoreID' label='OrderStoreID' defaultValue={existing?.data?.OrderStoreID || ''} />
             <Input name='active' label='פעיל' type='switch' defaultValue={existing ? existing.active : false} />
         </Form>
         {syncState.error && <div style={{ color: 'var(--danger, #c00)', fontSize: 13, textAlign: 'center' }}>{syncState.error}</div>}

@@ -34,9 +34,9 @@ export default async function syncStockForStores({ storeId: onlyStoreId } = {}, 
 
     const details = []
     for (const reg of registers) {
-        const comaxStoreId = (reg.data?.StoreID || '').trim() || process.env.COMAX_STORE_ID || ''
+        const comaxStoreId = (reg.data?.StockStoreID || '').trim() || process.env.COMAX_STORE_ID || ''
         if (!comaxStoreId) {
-            const msg = 'missing StoreID — set cash_register.data.StoreID or COMAX_STORE_ID env'
+            const msg = 'missing StockStoreID — set cash_register.data.StockStoreID or COMAX_STORE_ID env'
             const logSkip = DL.Log.start({ action: 'comax_sync_stock', direction: DL.Log.constants.DIRECTION.OUT, data: { request: { storeId: reg.storeId } } })
             logSkip.actor({ type: DL.Log.constants.ACTOR.API })
             await logSkip.error({ storeId: reg.storeId, message: msg }).catch(() => {})

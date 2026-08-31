@@ -2,11 +2,10 @@ import { CACHE_STRATEGIES } from '#common/constants.js'
 
 const cashRegisterSchema = {
     type: { type: String, default: 'comax', enum: ['comax'] },
-    storeId: { type: String, required: true, unique: true },
+    storeId: { type: String, required: true, unique: true, filter: true },
     data: {
-        StoreID: String,
-        GeneratePrt: String,
-        ChkAllBarKod: Boolean,
+        StockStoreID: String,
+        OrderStoreID: String
     }
 }
 
