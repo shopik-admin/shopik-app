@@ -1,4 +1,6 @@
 import classNames from 'common/functions/classNames'
+import { useLists } from 'common/features/Lists'
+import { useNavigate } from 'react-router'
 import Flex from 'common/components/Flex'
 import Icon from 'common/components/Icon'
 import Text from 'common/components/Text'
@@ -6,11 +8,19 @@ import styles from './ops.module.css'
 
 export default function OrderCard({ order = {} }) {
     const
-        { deliveryMethod, status } = order,
+        { deliveryMethod, status, storeId } = order,
         windowTime = formatTimeHM(order.window),
-        done = status == 'done'
+        done = status == 'done',
+        { stores } = useLists(),
+        store = stores.find(s => s.value == storeId),
+        address = deliveryMethod == 'pickup' ? store?.address : order.address,
+        navigate = useNavigate()
 
-    return <Flex col className={classNames(
+    function onOrderCardClick() {
+        navigate(`/ops-order/${order.id}`)
+    }
+
+    return <Flex col onClick={onOrderCardClick} className={classNames(
         styles.orderCard,
         [styles.danger, windowTime.minutes <= 10],
         [styles.warning, windowTime.minutes > 10 && windowTime.minutes < 60],
@@ -28,11 +38,11 @@ export default function OrderCard({ order = {} }) {
         <Flex className={styles.row} alignItems='center' justifyContent='space-between' >
             <Flex gap={5} alignItems='center' >
                 <Icon name='stores' />
-                <Text size='s'>store name</Text>
+                <Text size='s'>{store?.text}</Text>
             </Flex>
             <Flex gap={5} alignItems='center' >
                 <Icon name='location' />
-                <Text size='s'>store location</Text>
+                <Text size='s'>{address?.street} {address?.building}, {address?.city}</Text>
             </Flex>
             <Flex gap={5} alignItems='center' >
                 <Icon name='time' />
@@ -54,27 +64,29 @@ export default function OrderCard({ order = {} }) {
                 <Icon name='checkEmpty' />
                 <Text bold>{status}</Text>
             </Flex>
-            <Text size='s'>שם המלקט</Text>
+            {order.picker?.name && <Text size='s'>{order.picker.name}</Text>}
         </Flex>
     </Flex>
 }
 
 function formatDayWindow(w) {
     if (!w) return ''
-    if (w.date && w.start != null && w.end != null) {
-        const d = new Date(w.date)
-        const day = d.toLocaleDateString('he-IL', { weekday: 'short' })
-        return `${day} ${w.start}-${w.end}`
+    const time = w.start != null && w.end != null ? ` ${w.start}-${w.end}` : ''
+
+    if (w.date) {
+        const d = new Date(w.date), today = new Date()
+        today.setHours(0, 0, 0, 0); d.setHours(0, 0, 0, 0)
+        const diff = Math.round((d - today) / 86400000)
+        const day = diff === 0 ? 'היום' : diff === 1 ? 'מחר' : d.toLocaleDateString('he-IL', { weekday: 'short' })
+        return day + time
     }
-    if (w.start != null && w.end != null) return `${w.start}-${w.end}`
-    if (w.date) return w.date
-    return ''
+    return w.start != null && w.end != null ? `${w.start}-${w.end}` : ''
 }
 
 function formatTimeHM(w) {
     if (!w?.endTimestamp) return { text: '--:--', minutes: 0 }
 
-    const diffMs = Date.now() - new Date(w.endTimestamp).getTime()
+    const diffMs = new Date(w.endTimestamp).getTime() - Date.now()
     if (diffMs < 0) return { text: '00:00', minutes: 0 } // Handle future dates if necessary
 
     const totalMinutes = Math.floor(diffMs / (1000 * 60))

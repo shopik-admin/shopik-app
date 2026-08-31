@@ -1,0 +1,8 @@
+.orderPreview {
+    .startPickingBtn {
+        width: 300px;
+        margin: auto;
+        height: 48px;
+        font-size: 16px;
+    }
+}

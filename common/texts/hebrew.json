@@ -450,6 +450,7 @@
         "comax_products_sync": "סנכרון לאתר",
         "comax_products_stock_sync": "יבוא מלאי",
         "StockStoreID": "מספר מחסן לסנכרון מלאי (מחסן ראשי)",
-        "OrderStoreID": "מספר מחסן לתעודות משלוח (מחסן אונליין)"
+        "OrderStoreID": "מספר מחסן לתעודות משלוח (מחסן אונליין)",
+        "start picking": "התחל ליקוט"
     }
 }

@@ -2,15 +2,15 @@ import classNames from 'common/functions/classNames'
 import styles from './icon.module.css'
 import {
     LuPlus, LuPencil, LuTrash2, LuChevronLeft, LuChevronRight, LuChevronUp, LuChevronDown,
-    LuDownload, LuSettings, LuMenu, LuSearch, LuEllipsis, LuUser, LuContact, LuMonitor,
+    LuDownload, LuSettings, LuSearch, LuEllipsis, LuUser, LuContact, LuMonitor,
     LuBell, LuLogOut, LuLayoutGrid, LuLayoutDashboard, LuBuilding, LuBuilding2, LuReplace,
     LuListChecks, LuHeadset, LuCircleHelp, LuClipboard, LuClipboardList, LuFileText, LuUsers,
-    LuTable, LuKeyRound, LuCalendar, LuSheet, LuRefreshCw, LuX, LuCheck, LuCircleCheck, LuCalendarClock,
+    LuTable, LuKeyRound, LuCalendar, LuRefreshCw, LuX, LuCheck, LuCircleCheck, LuCalendarClock,
     LuSmartphone, LuMonitorSmartphone, LuUndo2, LuReceipt, LuUnfoldVertical, LuFoldVertical,
     LuLoader, LuCopy, LuShare, LuCircle, LuGithub, LuPlay, LuPause, LuShoppingCart, LuMapPin,
     LuShoppingBag, LuArrowUpDown, LuCode, LuPackage, LuStore, LuGlobe, LuPercent, LuTicket,
     LuSun, LuMoon, LuCloudUpload, LuMap, LuClock, LuTruck, LuCreditCard, LuBarcode, LuAlignLeft,
-    LuListPlus, LuNotebookPen, LuPanelRightClose, LuPanelRightOpen, LuCalendarPlus, LuSlidersHorizontal
+    LuListPlus, LuNotebookPen, LuPanelRightClose, LuPanelRightOpen, LuCalendarPlus, LuSlidersHorizontal, LuBoxes
 } from 'react-icons/lu'
 import { BsFileEarmarkExcel } from 'react-icons/bs'
 import { TbHeartPlus } from 'react-icons/tb'

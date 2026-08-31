@@ -13,7 +13,7 @@ export default function Menu({ }) {
         pages = usePages()
 
     return <div className={classNames(styles.menu, [styles.mini, mini])}>
-        {pages.map((page, i) => <Fragment key={page.path}>
+        {pages.filter(p => !p.notInMenu).map((page, i) => <Fragment key={page.path}>
             {(!i || page.section != pages[i - 1].section) ? <Text className={styles.sectiontitle}>{page.section}</Text> : null}
             <NavLink end key={page.path}
                 to={page.path}

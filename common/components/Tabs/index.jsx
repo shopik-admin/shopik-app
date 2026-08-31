@@ -56,6 +56,7 @@ export default function Tabs({
             {options.map((opt, i) => {
                 const text = getText(opt)
                 const value = getValue(opt)
+                const isDisabled = typeof opt === 'object' && !!opt.disabled
 
                 const isActive = currentValue === value
 
@@ -64,8 +65,12 @@ export default function Tabs({
                         key={value ?? i}
                         mode='text'
                         icon={opt.icon}
-                        className={`${styles.tab} ${isActive ? styles.active : ''}`}
+                        disabled={isDisabled}
+                        aria-disabled={isDisabled}
+                        className={`${styles.tab} ${isActive ? styles.active : ''} ${isDisabled ? styles.disabled : ''}`}
+                        tooltip={opt.tooltip}
                         onClick={() => {
+                            if (isDisabled) return
                             onChange?.(value)
                         }}
                     >

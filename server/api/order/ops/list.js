@@ -114,7 +114,7 @@ export default async function list(payload, { DL, _admin }) {
         finalSum: 1,
         comment: 1,
         leaveOrderAtDoor: 1,
-        shipmentId: 1
+        shipmentId: 1,
     }
 
     // search via DL layer if provided

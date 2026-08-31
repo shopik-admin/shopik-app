@@ -12,10 +12,11 @@ import Logs from 'Pages/Logs'
 import Sales from 'Pages/Sales'
 import Coupons from 'Pages/Coupons'
 import ComaxProducts from 'Pages/ComaxProducts'
-import ComaxSales from 'Pages/ComaxSales'
 import SupplyAreas from 'Pages/SupplyAreas'
+import ComaxSales from 'Pages/ComaxSales'
 import Windows from 'Pages/Windows'
 import Ops from 'Pages/Ops'
+import OpsOrder from 'Pages/Ops/OpsOrder'
 
 const pages = [
     { key: 'dashboard', name: 'Dashboard', path: '/', section: 'main', icon: 'desktop', component: Dashboard,/*  permission: 'dashboard:read' */ },
@@ -32,6 +33,7 @@ const pages = [
     { key: 'supply-areas', name: 'Supply Areas', path: '/supply-areas', section: 'management', icon: 'map', component: SupplyAreas, permission: 'supply_area:read' },
     { key: 'windows', name: 'Windows', path: '/windows', section: 'management', icon: 'calendar', component: Windows, permission: 'order_window_template:read' },
     { key: 'ops', name: 'ops-page', path: '/ops', section: 'operations', icon: 'orders', component: Ops, permission: ['order:read', 'order:pick', 'order:ship'] },
+    { key: 'ops-order', name: 'ops-order', path: '/ops-order/:orderId', section: 'operations', icon: 'orders', component: OpsOrder, permission: ['order:read', 'order:pick', 'order:ship'], notInMenu: true },
 
     { key: 'comax-products', name: 'Comax Products', path: '/comax-products', section: 'comax', icon: 'products', component: ComaxProducts, permission: 'comax_product:read' },
     { key: 'comax-sales', name: 'Comax Sales', path: '/comax-sales', section: 'comax', icon: 'sale', component: ComaxSales, permission: 'comax_sale:read' },
