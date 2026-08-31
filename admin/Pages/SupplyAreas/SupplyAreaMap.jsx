@@ -140,6 +140,11 @@ function useDrawReady() {
     return ready
 }
 
+function getPaddedBounds(map) {
+    const b = map.getBounds().pad(0.1)
+    return { north: b.getNorth(), south: b.getSouth(), east: b.getEast(), west: b.getWest() }
+}
+
 function MapController({
     areas,
     selectedId,
@@ -154,7 +159,8 @@ function MapController({
     onCreated,
     onEdited,
     onGeometryCancel,
-    onBackgroundClick
+    onBackgroundClick,
+    onViewportChange
 }) {
     const map = useMap()
     const { TR } = useText()
@@ -166,8 +172,8 @@ function MapController({
     const editLayerRef = useRef(null)
     const editOriginalRef = useRef(null)
     const editControlRef = useRef(null)
-    const cbRef = useRef({ onSelect, onToggleArea, onCreated, onEdited, onGeometryCancel, onBackgroundClick, selectedId, geometryEditingId, drawing, toggleMode })
-    cbRef.current = { onSelect, onToggleArea, onCreated, onEdited, onGeometryCancel, onBackgroundClick, selectedId, geometryEditingId, drawing, toggleMode }
+    const cbRef = useRef({ onSelect, onToggleArea, onCreated, onEdited, onGeometryCancel, onBackgroundClick, onViewportChange, selectedId, geometryEditingId, drawing, toggleMode })
+    cbRef.current = { onSelect, onToggleArea, onCreated, onEdited, onGeometryCancel, onBackgroundClick, onViewportChange, selectedId, geometryEditingId, drawing, toggleMode }
 
     const removeEditControl = useCallback(() => {
         if (editControlRef.current) {
@@ -228,6 +234,13 @@ function MapController({
             cancel: TR('cancel')
         }, () => commitEdit(), () => cancelEdit())
     }, [map, stopEdit, TR, commitEdit, cancelEdit])
+
+    // Viewport tracking: emit padded bounds once on mount (background rings cover rest)
+    useEffect(() => {
+        if (!cbRef.current.onViewportChange) return
+        const t = setTimeout(() => cbRef.current.onViewportChange?.(getPaddedBounds(map)), 10)
+        return () => clearTimeout(t)
+    }, [map])
 
     // Clicking empty map closes area popup (when not drawing/group-editing/geometry-editing)
     // Guard against polygon clicks bubbling to map (they fire layer 'click' then map 'click')
@@ -290,32 +303,49 @@ function MapController({
         })
     }, [selectedId, servedAreaIds, groupAreaIds, draftAreaIds, toggleMode])
 
-    // Refresh snapping targets (existing area vertices)
+    // Refresh snapping targets (existing area vertices) — bucketed grid for O(1) lookup
     useEffect(() => {
-        const points = []
+        const grid = new Map()
+        const keyFor = (lat, lng) => `${Math.floor(lat * 100)}_${Math.floor(lng * 100)}`
         areas.forEach(area =>
             area.location?.coordinates?.forEach(ring =>
-                ring.forEach(([lng, lat]) => points.push(L.latLng(lat, lng)))
+                ring.forEach(([lng, lat]) => {
+                    const p = L.latLng(lat, lng)
+                    const k = keyFor(lat, lng)
+                    if (!grid.has(k)) grid.set(k, [])
+                    grid.get(k).push(p)
+                })
             )
         )
-        snapTargetsRef.current = points
+        snapTargetsRef.current = grid
     }, [areas])
 
     // Snap vertices to nearby existing-area vertices within threshold (in screen px).
     const snapInPlace = useCallback((rings) => {
-        if (!rings?.length || !snapTargetsRef.current.length) return false
+        if (!rings?.length || !snapTargetsRef.current.size) return false
 
         let changed = false
+        const keyFor = (lat, lng) => `${Math.floor(lat * 100)}_${Math.floor(lng * 100)}`
         rings.forEach(ring => ring.forEach(point => {
             const containerPoint = map.latLngToContainerPoint(point)
             let best = null
             let bestDist = SNAP_THRESHOLD_PX
 
-            for (const target of snapTargetsRef.current) {
-                const dist = containerPoint.distanceTo(map.latLngToContainerPoint(target))
-                if (dist <= bestDist) {
-                    bestDist = dist
-                    best = target
+            const baseLat = Math.floor(point.lat * 100)
+            const baseLng = Math.floor(point.lng * 100)
+            for (let dLat = -1; dLat <= 1; dLat++) {
+                for (let dLng = -1; dLng <= 1; dLng++) {
+                    const cell = snapTargetsRef.current.get(`${baseLat + dLat}_${baseLng + dLng}`)
+                    if (!cell) continue
+                    for (const target of cell) {
+                        // skip self (0 distance but also same point if editing polygon's own vertex)
+                        if (target.lat === point.lat && target.lng === point.lng) continue
+                        const dist = containerPoint.distanceTo(map.latLngToContainerPoint(target))
+                        if (dist <= bestDist) {
+                            bestDist = dist
+                            best = target
+                        }
+                    }
                 }
             }
             if (best) {
@@ -471,6 +501,7 @@ export default function SupplyAreaMap({
     focusPoint, focusGroupPoint, testPoint, testLabel,
     selectedId, geometryEditingId, areaDraft, setAreaDraft, savingArea,
     onSelect, onStartAreaPropsEdit, onSaveAreaProps, onCancelAreaPropsEdit, onDeleteArea, onStartGeometryEdit,
+    onViewportChange,
     ...mapControllerProps
 }) {
     const { TR } = useText()
@@ -531,6 +562,7 @@ export default function SupplyAreaMap({
                 zoom={12}
                 style={{ height: '100%', width: '100%' }}
                 scrollWheelZoom
+                preferCanvas
             >
                 <TileLayer
                     key={tilesetId}
@@ -545,6 +577,7 @@ export default function SupplyAreaMap({
                     selectedId={selectedId}
                     geometryEditingId={geometryEditingId}
                     onSelect={onSelect}
+                    onViewportChange={onViewportChange}
                     {...mapControllerProps}
                 />
                 {selectedArea && popupPosition && (

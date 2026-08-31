@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState, useEffect, useRef, useCallback } from 'react'
 import useApi from 'common/functions/useApi'
 import apiReq from 'common/functions/apiReq'
 import Button from 'common/components/Button'
@@ -13,11 +13,136 @@ import styles from './supplyAreas.module.css'
 
 const toMessage = (err) => (typeof err === 'string' ? err : err?.message || 'something went wrong')
 
+const ISRAEL_BOUNDS = { west: 34.2, south: 29.5, east: 35.9, north: 33.4 }
+const MAX_RINGS = 10
+function padBounds(bounds, ratio = 0.5) {
+    const latSpan = bounds.north - bounds.south
+    const lngSpan = bounds.east - bounds.west
+    const latPad = latSpan * ratio
+    const lngPad = lngSpan * ratio
+    return {
+        north: Math.min(ISRAEL_BOUNDS.north, bounds.north + latPad),
+        south: Math.max(ISRAEL_BOUNDS.south, bounds.south - latPad),
+        east: Math.min(ISRAEL_BOUNDS.east, bounds.east + lngPad),
+        west: Math.max(ISRAEL_BOUNDS.west, bounds.west - lngPad)
+    }
+}
+function boundsCoversOuter(outer) {
+    return outer.north >= ISRAEL_BOUNDS.north && outer.south <= ISRAEL_BOUNDS.south
+        && outer.east >= ISRAEL_BOUNDS.east && outer.west <= ISRAEL_BOUNDS.west
+}
+
+function mergeById(prev, incoming) {
+    const map = new Map(prev.map(a => [a.id, a]))
+    let changed = false
+    for (const a of incoming) {
+        if (!map.has(a.id)) changed = true
+        else {
+            const prevA = map.get(a.id)
+            if (JSON.stringify(prevA) !== JSON.stringify(a)) changed = true
+        }
+        map.set(a.id, a)
+    }
+    if (!changed && incoming.length === 0) return prev
+    if (map.size === prev.length && !changed) return prev
+    return [...map.values()]
+}
+
 export default function SupplyAreas() {
     const { TR } = useText()
-    const { data: areas = [], callReq, setData, loading } = useApi('supply_area/read', { limit: 0 })
+    const [areas, setAreas] = useState([])
+    const [loading, setLoading] = useState(true)
+    const [bgLoading, setBgLoading] = useState(false)
+    const viewportBoundsRef = useRef(null)
+    const bgRunningRef = useRef(false)
     const { data: stores = [] } = useApi('store/read')
     const { data: groups = [], callReq: refetchGroups } = useApi('area_group/read', { limit: 0 })
+
+    // No full collection refetch — mutations patch single ids (see handleGeometryCommit/handleDeleteAreaPopup/handleMapCreated)
+    const patchArea = useCallback((updated) => {
+        if (!updated?.id) return
+        setAreas(prev => {
+            const idx = prev.findIndex(a => a.id === updated.id)
+            if (idx === -1) return [...prev, updated]
+            const next = [...prev]
+            next[idx] = updated
+            return next
+        })
+    }, [])
+    const removeArea = useCallback((id) => {
+        setAreas(prev => prev.filter(a => a.id !== id))
+    }, [])
+
+    const viewportFetchedRef = useRef(false)
+    const fetchViewport = useCallback(async (bounds) => {
+        if (viewportFetchedRef.current) return
+        viewportFetchedRef.current = true
+        viewportBoundsRef.current = bounds
+        try {
+            const data = await apiReq('supply_area/read', { bounds, limit: 0, select: { id: 1, name: 1, location: 1, stores: 1 } })
+            if (Array.isArray(data)) {
+                setAreas(prev => {
+                    if (prev.length === 0) return data
+                    return mergeById(prev, data)
+                })
+            }
+        } catch (_) {}
+        setLoading(false)
+    }, [])
+
+    const startBackgroundFetch = useCallback(async () => {
+        // return
+        if (bgRunningRef.current) return
+        bgRunningRef.current = true
+        setBgLoading(true)
+        try {
+            const initial = viewportBoundsRef.current
+            if (!initial) return
+            let inner = initial
+            let outer = padBounds(inner, 0.3)
+            for (let ringIdx = 0; ringIdx < MAX_RINGS; ringIdx++) {
+                // Stop if outer already covers Israel
+                if (boundsCoversOuter(outer) && ringIdx > 0) {
+                    // one final ring to catch remainder up to Israel edge
+                }
+                let skip = 0
+                const limit = 200
+                while (true) {
+                    const page = await apiReq('supply_area/read', { ring: { inner, outer }, skip, limit, select: { id: 1, name: 1, location: 1, stores: 1 } })
+                    if (!Array.isArray(page) || page.length === 0) break
+                    setAreas(prev => mergeById(prev, page))
+                    if (page.length < limit) break
+                    skip += limit
+                    await new Promise(r => setTimeout(r, 60))
+                }
+                if (boundsCoversOuter(outer)) break
+                // expand for next ring; keep constant pad
+                const nextOuter = padBounds(outer, 0.3)
+                // if outer didn't grow (already at Israel bounds) stop
+                if (nextOuter.north === outer.north && nextOuter.south === outer.south && nextOuter.east === outer.east && nextOuter.west === outer.west) break
+                inner = outer
+                outer = nextOuter
+                await new Promise(r => setTimeout(r, 40))
+                // even if ring was empty, continue expanding until Israel covered (sparse areas)
+            }
+        } finally {
+            setBgLoading(false)
+            bgRunningRef.current = false
+        }
+    }, [])
+
+    const handleViewportChange = useCallback((bounds) => {
+        fetchViewport(bounds)
+    }, [fetchViewport])
+
+    // Kick off background streaming once first viewport has delivered data
+    const hasStartedBgRef = useRef(false)
+    useEffect(() => {
+        if (!hasStartedBgRef.current && areas.length > 0 && !loading) {
+            hasStartedBgRef.current = true
+            startBackgroundFetch()
+        }
+    }, [areas.length, loading, startBackgroundFetch])
 
     const [selectedId, setSelectedId] = useState(null)
     const [areaDraft, setAreaDraft] = useState(null) // { id, name, storeIds }
@@ -123,7 +248,7 @@ export default function SupplyAreas() {
         setError(null)
         apiReq('supply_area/update', { id, name: (name || '').trim(), stores: storeIds })
             .then(updated => {
-                setData(prev => prev.map(a => a.id === id ? { ...a, name: updated.name, stores: updated.stores } : a))
+                setAreas(prev => prev.map(a => a.id === id ? { ...a, name: updated.name, stores: updated.stores } : a))
                 setAreaDraft(null)
             })
             .catch(err => setError(toMessage(err)))
@@ -139,16 +264,17 @@ export default function SupplyAreas() {
         setGeometryEditingId(null)
         setError(null)
         apiReq('supply_area/update', { id, location: geometry })
-            .then(() => callReq())
+            .then(updated => { if (updated?.id) patchArea(updated) })
             .catch(err => setError(toMessage(err)))
     }
     function handleGeometryCancel() { setGeometryEditingId(null) }
     function handleDeleteAreaPopup() {
         if (!selectedArea) return
         if (!window.confirm(`${TR('supply_delete_area_confirm')} "${selectedArea.name}"?`)) return
+        const deletedId = selectedArea.id
         setError(null)
-        apiReq('supply_area/delete', { id: selectedArea.id })
-            .then(() => { callReq(); setSelectedId(null); setAreaDraft(null); setGeometryEditingId(null) })
+        apiReq('supply_area/delete', { id: deletedId })
+            .then(() => { removeArea(deletedId); setSelectedId(null); setAreaDraft(null); setGeometryEditingId(null) })
             .catch(err => setError(toMessage(err)))
     }
 
@@ -206,14 +332,14 @@ export default function SupplyAreas() {
         setSavingGroup(true)
         setError(null)
         try {
-            // Auto-assign store to member areas if not already assigned
+            // Auto-assign store to member areas if not already assigned — patch single ids
             const areasNeedingStore = areas.filter(a => areaIds.includes(a.id) && !a.stores?.some(s => s.storeId === storeId))
             if (areasNeedingStore.length) {
-                await Promise.all(areasNeedingStore.map(area => {
+                const updatedAreas = await Promise.all(areasNeedingStore.map(area => {
                     const storeIds = [...new Set([...(area.stores || []).map(s => s.storeId), storeId])]
                     return apiReq('supply_area/update', { id: area.id, stores: storeIds })
                 }))
-                callReq()
+                updatedAreas.forEach(u => { if (u?.id) patchArea(u) })
             }
             await apiReq(id ? 'area_group/update' : 'area_group/create', { ...(id ? { id } : {}), name: name.trim(), storeId, areaIds })
             refetchGroups()
@@ -290,8 +416,8 @@ export default function SupplyAreas() {
         setError(null)
         apiReq('supply_area/create', { location: geometry })
             .then(created => {
-                callReq()
-                setSelectedId(created.id)
+                if (created?.id) patchArea(created)
+                if (created?.id) setSelectedId(created.id)
             })
             .catch(err => setError(toMessage(err)))
     }
@@ -566,6 +692,9 @@ export default function SupplyAreas() {
                 </div>
 
                 <div className={styles.mapPane}>
+                    {loading && !areas.length ? (
+                        <div style={{ position: 'absolute', inset: 0, zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.7)', color: '#64748b' }}>Loading areas…</div>
+                    ) : null}
                     <SupplyAreaMap
                         areas={areas}
                         stores={stores}
@@ -595,7 +724,11 @@ export default function SupplyAreas() {
                         onCancelAreaPropsEdit={handleCancelAreaPropsEdit}
                         onDeleteArea={handleDeleteAreaPopup}
                         onStartGeometryEdit={handleStartGeometryEdit}
+                        onViewportChange={handleViewportChange}
                     />
+                    {bgLoading && areas.length > 0 ? (
+                        <div style={{ position: 'absolute', bottom: 8, right: 60, background: 'rgba(255,255,255,0.9)', padding: '4px 8px', borderRadius: 6, fontSize: 11, color: '#64748b' }}>Loading all areas… {areas.length}</div>
+                    ) : null}
                 </div>
             </Flex>
         </Flex>

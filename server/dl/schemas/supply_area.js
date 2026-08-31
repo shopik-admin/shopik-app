@@ -18,6 +18,7 @@ const supplyAreaSchema = {
         }
     },
     stores: [{
+        _id: false,
         storeId: {
             type: String,
             required: true,

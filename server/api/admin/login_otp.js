@@ -1,6 +1,6 @@
 import uid from '#common/functions/uid.js'
 
-export default async function login_otp({ idNum }, { DL, external }) {
+export default async function login_otp({ idNum, domainId }, { DL, external }) {
     const admin = await DL.Admin.readOne({ idNum })
     if (!admin)
         throw { status: 400, message: 'invalid id number' }
@@ -16,7 +16,7 @@ export default async function login_otp({ idNum }, { DL, external }) {
         token,
         otp
     })
-    await external.sms.otp(admin.phone, otp)
+    await external.sms.otp(admin.phone, otp, { domainId })
 
     return { token }
 }
