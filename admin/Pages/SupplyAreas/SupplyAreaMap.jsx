@@ -10,7 +10,6 @@ import Flex from 'common/components/Flex'
 import StoreListEditor from './StoreListEditor'
 import styles from './supplyAreas.module.css'
 
-const ISRAEL_CENTER = [31.7683, 35.2137]
 const SNAP_THRESHOLD_PX = 20
 const TILESET_STORAGE_KEY = 'supplyMapTileset'
 
@@ -554,11 +553,12 @@ export default function SupplyAreaMap({
     const activeFlyPoint = useMemo(() => {
         return testPoint || focusGroupPoint || focusPoint || null
     }, [testPoint, focusGroupPoint, focusPoint])
+    const center = storePins.map(store => [...store.address?.location?.coordinates].reverse())?.[0]
 
     return (
-        <div className={styles.mapInnerWrap}>
+        center && <div className={styles.mapInnerWrap}>
             <MapContainer
-                center={ISRAEL_CENTER}
+                center={center}
                 zoom={12}
                 style={{ height: '100%', width: '100%' }}
                 scrollWheelZoom
@@ -594,6 +594,7 @@ export default function SupplyAreaMap({
                                 <>
                                     <div className={styles.areaPopupHeader}>
                                         <strong className={styles.areaPopupTitle}>{selectedArea.name || <Text size="none">no_name</Text>}</strong>
+                                        <span>vertices: {selectedArea.location.coordinates?.[0].length}</span>
                                         <Flex gap={6} className={styles.areaPopupActions}>
                                             <Button size="s" icon="edit" onClick={onStartAreaPropsEdit}></Button>
                                             <Button size="s" icon="trash" mode="outline" className={styles.deleteButton} onClick={onDeleteArea}></Button>
