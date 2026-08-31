@@ -22,8 +22,7 @@ export default function Stores({ }) {
                 { name: 'name', required: true },
                 { name: 'address.city', required: true },
                 { name: 'address.street', required: true },
-                { name: 'address.building', type: 'number', required: true },
-                { name: 'status', type: 'select', options: ['active', 'preview'] },
+                { name: 'address.building', type: 'number', required: true }
             ]}
         />
     </div>
