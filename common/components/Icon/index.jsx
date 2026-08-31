@@ -96,7 +96,9 @@ const iconsList = {
     heartPlus: TbHeartPlus,
     note: LuNotebookPen,
     filter: LuSlidersHorizontal,
-    location: LuMapPin
+    location: LuMapPin,
+    stockSync: LuBoxes,
+    stock: LuBoxes
 }
 
 /**

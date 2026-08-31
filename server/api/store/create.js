@@ -5,14 +5,11 @@ export default async function create(payload, { DL, utils, external }) {
 
     payload.address = await external.geocode.address(address)
 
-    const tagExists = await DL.Store.count({ tag: payload.tag })
-    if (tagExists) throw { status: 400, message: 'tag already exists' }
-
     const created = await DL.Store.create(payload)
     return created
 }
 
 create.config = {
-    required: ['tag'],
+    required: [],
     permissions: ['store:create']
 } 

@@ -3,12 +3,11 @@ import classNames from 'common/functions/classNames'
 import Icon from 'common/components/Icon'
 import { useText } from 'common/texts/TextProvider'
 import { WINDOWS_PAGE } from 'common/constants.js'
-import { resizeGuard } from './windowCard.jsx'
 import styles from './weekly.module.css'
 
 const { HOUR_PX } = WINDOWS_PAGE
 
-export default function DayColumn({ day, children, disabled, onAddWindow }) {
+export default function DayColumn({ day, children, disabled, resizeGuardRef, onAddWindow }) {
     const { TR } = useText()
     const { setNodeRef, isOver } = useDroppable({
         id: `day-${day}`,
@@ -38,9 +37,9 @@ export default function DayColumn({ day, children, disabled, onAddWindow }) {
             }}
             onClick={e => {
                 if (e.target !== e.currentTarget) return
-                if (Date.now() - resizeGuard.lastEnd < 300) return
+                if (resizeGuardRef && Date.now() - resizeGuardRef.current.lastEnd < 300) return
                 const rect = e.currentTarget.getBoundingClientRect()
-                const h = Math.max(0, Math.min(22, Math.floor((e.clientY - rect.top) / HOUR_PX)))
+                const h = Math.max(0, Math.min(23, Math.floor((e.clientY - rect.top) / HOUR_PX)))
                 onAddWindow?.(day, h)
             }}
         >

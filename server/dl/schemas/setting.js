@@ -13,7 +13,8 @@ const constants = {
         DATE: 'date',
         INFO: 'info',
         LINK: 'link',
-        CSS: 'css'
+        CSS: 'css',
+        CONFIG: 'config'
     },
     renderType: {
         STRING: 'string',
@@ -33,7 +34,8 @@ const constants = {
         COLOR_BOOLEAN: 'color-boolean',
         NIS: 'nis',
         COIN: 'coin',
-        MR: 'mr'
+        MR: 'mr',
+        CONFIG: 'config'
     }
 }
 
@@ -42,10 +44,7 @@ const settingSchema = {
         type: String,
         required: true
     },
-    value: {
-        type: String,
-        required: true,
-    },
+    value: {},
     domainId: {
         type: String,
         required: true
@@ -53,10 +52,12 @@ const settingSchema = {
     category: {
         type: String,
         required: true,
+        lowercase: true
     },
     subCategory: {
         type: String,
         required: true,
+        lowercase: true
     },
     formType: {
         type: String,

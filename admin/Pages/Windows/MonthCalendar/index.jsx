@@ -13,7 +13,7 @@ import { useModal } from 'common/components/Modal'
 import { useText } from 'common/texts/TextProvider'
 import styles from './month.module.css'
 
-export default function MonthCalendar({ onGoToDay }) {
+export default function MonthCalendar({ onGoToDay, stores = [] }) {
     const { TR } = useText()
     const [month, setMonth] = useState(currentMonth())
 
@@ -22,7 +22,6 @@ export default function MonthCalendar({ onGoToDay }) {
     const rangeTo = cells[cells.length - 1].date
 
     const { data: specialDays = [], loading, callReq } = useApi('special_day/read', {}, { hold: true })
-    const { data: stores = [] } = useApi('store/read', { limit: 0 })
     const { openModal, closeModal } = useModal()
 
     useEffect(() => {

@@ -1,5 +1,5 @@
 import geocode from './geocode.js'
-import smsFactory from './sms.js'
+import smsFactory from './sms/index.js'
 import comaxFactory from './comax/index.js'
 import hypFactory from './hyp/index.js'
 

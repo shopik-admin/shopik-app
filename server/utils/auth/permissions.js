@@ -67,5 +67,10 @@ export default [
     'payment:create',
     'transaction:read',
     'payment_transaction:read',
-    'order:payment'
+    'order:payment',
+    'cash_register:create',
+    'cash_register:read',
+    'cash_register:update',
+    'cash_register:id',
+    'cash_register:sync'
 ]

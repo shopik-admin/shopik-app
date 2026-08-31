@@ -25,6 +25,10 @@ export async function updateOrderAddress({ DL, utils, address, order, select = D
 
     const updatedOrder = await DL.Order.updateOne({ id: order.id }, update, { select })
 
+    if (order.userId) {
+        await DL.redis?.del(`user_store:${order.userId}`).catch(() => {})
+    }
+
     const storeChanged = update.storeId && update.storeId !== order.storeId
     const oldData = { address: order.address }
     const newData = { address: update.address }

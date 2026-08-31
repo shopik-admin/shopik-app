@@ -1,15 +1,16 @@
+import { CACHE_STRATEGIES } from '#common/constants.js'
+
 const cashRegisterSchema = {
-    enabled: { type: Boolean, default: true },
-    type: { type: String }, // comax, nibit, etc.
+    type: { type: String, default: 'comax', enum: ['comax'] },
+    storeId: { type: String, required: true, unique: true, filter: true },
     data: {
-        PriceListID: String,
-        CustomerID: String,
-        LoginID: String,
-        LoginPassword: String,
-        StoreID: String,
-        GeneratePrt: String,
-        ChkAllBarKod: Boolean,
+        StockStoreID: String,
+        OrderStoreID: String
     }
+}
+
+export const meta = {
+    cacheStrategy: CACHE_STRATEGIES.HASHSET
 }
 
 export default cashRegisterSchema

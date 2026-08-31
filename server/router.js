@@ -46,6 +46,10 @@ export default function router(app, bootData) {
     validateApi()
     app.use('/api', async (req, res, next) => {
         const { headers, body = {}, files, ip } = req
+        // Domain middleware - ensure every payload has domainId (default for now)
+        if (body && typeof body === 'object' && !Array.isArray(body) && body.domainId == null) {
+            body.domainId = 'default'
+        }
         const platform = utils.getPlatform(req)
         const route = req.path.replace(/^\/api\/?/, '').replace(/\/$/, '')
         const apiFunction = apiRoutes[route]

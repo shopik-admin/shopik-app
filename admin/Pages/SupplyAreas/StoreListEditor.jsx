@@ -32,7 +32,6 @@ function SortableStore({ store, index, onRemove }) {
         >
             <span className={styles.storeOrder}>{index + 1}</span>
             <span className={styles.storeName}>{store.name}</span>
-            <span className={styles.storeTag}>{store.tag}</span>
             <button
                 type="button"
                 className={styles.removeStore}
@@ -45,36 +44,35 @@ function SortableStore({ store, index, onRemove }) {
     )
 }
 
-export default function StoreListEditor({ stores = [], areaStores = [], onChange }) {
+export default function StoreListEditor({ stores = [], storeIds = [], onChange }) {
     const { TR } = useText()
 
     const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
-    const assignedIds = useMemo(() => areaStores.map(s => s.storeId), [areaStores])
     const assignedStores = useMemo(() =>
-        assignedIds.map(id => stores.find(s => s.id === id)).filter(Boolean),
-        [stores, assignedIds]
+        storeIds.map(id => stores.find(s => s.id === id)).filter(Boolean),
+        [stores, storeIds]
     )
     const availableStores = useMemo(() =>
-        stores.filter(s => !assignedIds.includes(s.id)),
-        [stores, assignedIds]
+        stores.filter(s => !storeIds.includes(s.id)),
+        [stores, storeIds]
     )
 
     function handleDragEnd({ active, over }) {
         if (!over || active.id === over.id) return
-        const oldIndex = assignedIds.indexOf(active.id)
-        const newIndex = assignedIds.indexOf(over.id)
+        const oldIndex = storeIds.indexOf(active.id)
+        const newIndex = storeIds.indexOf(over.id)
         if (oldIndex < 0 || newIndex < 0) return
-        onChange(arrayMove(assignedIds, oldIndex, newIndex))
+        onChange(arrayMove(storeIds, oldIndex, newIndex))
     }
 
     function handleAdd(storeId) {
-        if (!storeId || assignedIds.includes(storeId)) return
-        onChange([...assignedIds, storeId])
+        if (!storeId || storeIds.includes(storeId)) return
+        onChange([...storeIds, storeId])
     }
 
     function handleRemove(storeId) {
-        onChange(assignedIds.filter(id => id !== storeId))
+        onChange(storeIds.filter(id => id !== storeId))
     }
 
     return (
@@ -87,7 +85,7 @@ export default function StoreListEditor({ stores = [], areaStores = [], onChange
                 <div className={styles.empty}><Text>supply_no_stores_assigned</Text></div>
             ) : (
                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                    <SortableContext items={assignedIds} strategy={verticalListSortingStrategy}>
+                    <SortableContext items={storeIds} strategy={verticalListSortingStrategy}>
                         <ul className={styles.storeList}>
                             {assignedStores.map((store, i) => (
                                 <SortableStore key={store.id} store={store} index={i} onRemove={handleRemove} />
@@ -105,7 +103,7 @@ export default function StoreListEditor({ stores = [], areaStores = [], onChange
                 >
                     <option value="" disabled>{TR('supply_add_store')}</option>
                     {availableStores.map(store => (
-                        <option key={store.id} value={store.id}>{store.name} ({store.tag})</option>
+                        <option key={store.id} value={store.id}>{store.name}</option>
                     ))}
                 </select>
             </Flex>

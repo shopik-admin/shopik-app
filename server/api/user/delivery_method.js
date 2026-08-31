@@ -105,6 +105,7 @@ export default async function deliveryMethod(payload, { DL, utils, _user }) {
     })
 
     await DL.redis?.del(`user_auth:${_user.id}`)
+    await DL.redis?.del(`user_store:${_user.id}`).catch(() => {})
 
     return { user, order: updatedOrder }
 }

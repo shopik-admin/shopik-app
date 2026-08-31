@@ -4,27 +4,30 @@ import Button from 'common/components/Button'
 import useApi from 'common/functions/useApi'
 import apiReq from 'common/functions/apiReq'
 import Input from 'common/components/Input'
+import Select from 'common/components/Select'
 import styles from './settings.module.css'
 import Card from 'common/components/Card'
 import Flex from 'common/components/Flex'
 import Setting from './Setting.jsx'
+import ConfigEditor from './ConfigEditor.jsx'
 
 const FORM_TYPES = [
     'text', 'checkbox', 'switch', 'color', 'select',
-    'file', 'image', 'textarea', 'date', 'info', 'link', 'css'
+    'file', 'image', 'textarea', 'date', 'info', 'link', 'css', 'config'
 ]
 
 const RENDER_TYPES = [
     'string', 'tr', 'image', 'color', 'list', 'field', 'name', 'id',
     'address', 'date', 'time', 'datetime', 'boolean', 'v-boolean',
-    'color-boolean', 'nis', 'coin', 'mr'
+    'color-boolean', 'nis', 'coin', 'mr', 'config'
 ]
 
 function SettingModalContent({ setting, defaultCategory, onSuccess, onClose }) {
     const isEdit = !!setting
+    const initialIsConfig = setting?.formType === 'config' || setting?.renderType === 'config'
     const [formData, setFormData] = useState({
         key: setting?.key || '',
-        value: setting?.value || '',
+        value: setting?.value !== undefined ? setting.value : (initialIsConfig ? {} : ''),
         category: setting?.category || defaultCategory || 'General',
         subCategory: setting?.subCategory || 'General',
         domainId: setting?.domainId || 'default',
@@ -54,6 +57,15 @@ function SettingModalContent({ setting, defaultCategory, onSuccess, onClose }) {
         }
     }
 
+    const isConfig = formData.formType === 'config' || formData.renderType === 'config'
+    const isColor = formData.formType === 'color'
+
+    function normalizeColorValue(val) {
+        if (val && typeof val === 'object' && ('light' in val || 'dark' in val)) return val
+        if (typeof val === 'string' && val) return { light: val, dark: val }
+        return { light: '#000000', dark: '#ffffff' }
+    }
+
     return (
         <form onSubmit={handleSubmit} className={styles.modalForm}>
             <Input
@@ -62,36 +74,6 @@ function SettingModalContent({ setting, defaultCategory, onSuccess, onClose }) {
                 required
                 value={formData.key}
                 onChange={(e) => setFormData({ ...formData, key: e.target.value })}
-            />
-            <Input
-                label="Value"
-                name="value"
-                required
-                value={formData.value}
-                onChange={(e) => setFormData({ ...formData, value: e.target.value })}
-            />
-            <div className={styles.formGrid}>
-                <Input
-                    label="Category"
-                    name="category"
-                    required
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                />
-                <Input
-                    label="Sub Category"
-                    name="subCategory"
-                    required
-                    value={formData.subCategory}
-                    onChange={(e) => setFormData({ ...formData, subCategory: e.target.value })}
-                />
-            </div>
-            <Input
-                label="Domain ID"
-                name="domainId"
-                required
-                value={formData.domainId}
-                onChange={(e) => setFormData({ ...formData, domainId: e.target.value })}
             />
             <div className={styles.formGrid}>
                 <label className={styles.settingInfo}>
@@ -119,7 +101,60 @@ function SettingModalContent({ setting, defaultCategory, onSuccess, onClose }) {
                     </select>
                 </label>
             </div>
-
+            <div className={styles.formGrid}>
+                <Input
+                    label="Category"
+                    name="category"
+                    required
+                    value={formData.category}
+                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                />
+                <Input
+                    label="Sub Category"
+                    name="subCategory"
+                    required
+                    value={formData.subCategory}
+                    onChange={(e) => setFormData({ ...formData, subCategory: e.target.value })}
+                />
+            </div>
+            <label className={styles.settingInfo}>
+                <span className={styles.settingKey}>Domain *</span>
+                <Select
+                    options="domains"
+                    value={formData.domainId}
+                    onChange={(e) => setFormData({ ...formData, domainId: e.target.value })}
+                    required
+                    name="domainId"
+                />
+            </label>
+            {isConfig ? (
+                <div>
+                    <span className={styles.settingKey}>Value (config)</span>
+                    <ConfigEditor
+                        value={typeof formData.value === 'object' && formData.value !== null && !Array.isArray(formData.value) ? formData.value : {}}
+                        onChange={(next) => setFormData({ ...formData, value: next })}
+                    />
+                </div>
+            ) : isColor ? (
+                <div className={styles.formGrid}>
+                    <label className={styles.settingInfo}>
+                        <span className={styles.settingKey}>Light</span>
+                        <input type="color" className={styles.inlineColorInput} value={normalizeColorValue(formData.value).light} onChange={(e) => setFormData({ ...formData, value: { ...normalizeColorValue(formData.value), light: e.target.value } })} />
+                    </label>
+                    <label className={styles.settingInfo}>
+                        <span className={styles.settingKey}>Dark</span>
+                        <input type="color" className={styles.inlineColorInput} value={normalizeColorValue(formData.value).dark} onChange={(e) => setFormData({ ...formData, value: { ...normalizeColorValue(formData.value), dark: e.target.value } })} />
+                    </label>
+                </div>
+            ) : (
+                <Input
+                    label="Value"
+                    name="value"
+                    required
+                    value={typeof formData.value === 'object' ? JSON.stringify(formData.value) : formData.value ?? ''}
+                    onChange={(e) => setFormData({ ...formData, value: e.target.value })}
+                />
+            )}
             {error && (
                 <div className={styles.settingError}>{error}</div>
             )}
@@ -132,7 +167,7 @@ function SettingModalContent({ setting, defaultCategory, onSuccess, onClose }) {
                     Cancel
                 </Button>
                 <Button type="submit" disabled={loading}>
-                    {loading ? 'Saving...' : isEdit ? 'Save Changes' : 'Add Setting'}
+                    {loading ? 'saving' : isEdit ? 'Save' : 'Add'}
                 </Button>
             </div>
         </form>
@@ -238,15 +273,10 @@ export default function Settings() {
         <Flex tag={Card} className={`${styles.settingsContainer} ${styles[mobileView]}`}>
             {/* Category Sidebar List (Not a tree, based on category schema) */}
             <div className={styles.categoriesSidebar}>
-                {/*  <div className={styles.sidebarHeaderRow}>
-                       <h3 className={styles.sidebarHeader}>Settings</h3>  
-                       <button
-                        type="button"
-                        className={styles.addButton}
-                        onClick={() => handleAddModal()}
-                        icon='add'
-                    />  
-                </div> */}
+                <div className={styles.sidebarHeaderRow}>
+                    <h3 className={styles.sidebarHeader}>Settings</h3>
+                    <Button size="s" icon="add" onClick={() => handleAddModal()} title="Add Setting" />
+                </div>
 
                 <ul className={styles.categoryList}>
                     {categories.map((cat) => {
@@ -276,13 +306,10 @@ export default function Settings() {
                     Back to categories
                 </Button>
 
-                {selectedCategory && (
+                {selectedCategory ? (
                     <>
                         <div className={styles.categoryTitleRow}>
                             <h2 className={styles.categoryTitle}>{selectedCategory}</h2>
-                            <Button size="s" icon='add' onClick={() => handleAddModal(selectedCategory)}>
-                                Add Setting
-                            </Button>
                         </div>
 
                         {Object.keys(activeCategorySettings).length === 0 ? (
@@ -307,10 +334,13 @@ export default function Settings() {
                             </div>
                         )}
                     </>
-                )}
-
-                {loading && categories.length === 0 && (
+                ) : loading ? (
                     <div className={styles.emptyState}>Loading settings...</div>
+                ) : (
+                    <div className={styles.emptyState} style={{ flexDirection: 'column', gap: '1rem' }}>
+                        <span>No settings yet</span>
+                        <Button icon="add" onClick={() => handleAddModal()}>Add Setting</Button>
+                    </div>
                 )}
             </div>
         </Flex>

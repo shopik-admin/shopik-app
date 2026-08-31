@@ -10,20 +10,20 @@ import Flex from 'common/components/Flex'
 import StoreListEditor from './StoreListEditor'
 import styles from './supplyAreas.module.css'
 
-const ISRAEL_CENTER = [31.7683, 35.2137]
 const SNAP_THRESHOLD_PX = 20
 const TILESET_STORAGE_KEY = 'supplyMapTileset'
 
 // All basemaps are free to use (attribution required) — Hebrew labels forced via lang=he where supported (CARTO)
+
 const TILESETS = {
     light: {
         label: 'supply_map_minimal',
-        url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png?lang=he',
+        url: `https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png?lang=he&key=${CARTO_KEY}`,
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
     },
     dark: {
         label: 'supply_map_dark',
-        url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png?lang=he',
+        url: `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png?lang=he&key=${CARTO_KEY}`,
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
     },
     osm: {
@@ -140,6 +140,11 @@ function useDrawReady() {
     return ready
 }
 
+function getPaddedBounds(map) {
+    const b = map.getBounds().pad(0.1)
+    return { north: b.getNorth(), south: b.getSouth(), east: b.getEast(), west: b.getWest() }
+}
+
 function MapController({
     areas,
     selectedId,
@@ -154,7 +159,8 @@ function MapController({
     onCreated,
     onEdited,
     onGeometryCancel,
-    onBackgroundClick
+    onBackgroundClick,
+    onViewportChange
 }) {
     const map = useMap()
     const { TR } = useText()
@@ -166,8 +172,8 @@ function MapController({
     const editLayerRef = useRef(null)
     const editOriginalRef = useRef(null)
     const editControlRef = useRef(null)
-    const cbRef = useRef({ onSelect, onToggleArea, onCreated, onEdited, onGeometryCancel, onBackgroundClick, selectedId, geometryEditingId, drawing, toggleMode })
-    cbRef.current = { onSelect, onToggleArea, onCreated, onEdited, onGeometryCancel, onBackgroundClick, selectedId, geometryEditingId, drawing, toggleMode }
+    const cbRef = useRef({ onSelect, onToggleArea, onCreated, onEdited, onGeometryCancel, onBackgroundClick, onViewportChange, selectedId, geometryEditingId, drawing, toggleMode })
+    cbRef.current = { onSelect, onToggleArea, onCreated, onEdited, onGeometryCancel, onBackgroundClick, onViewportChange, selectedId, geometryEditingId, drawing, toggleMode }
 
     const removeEditControl = useCallback(() => {
         if (editControlRef.current) {
@@ -228,6 +234,13 @@ function MapController({
             cancel: TR('cancel')
         }, () => commitEdit(), () => cancelEdit())
     }, [map, stopEdit, TR, commitEdit, cancelEdit])
+
+    // Viewport tracking: emit padded bounds once on mount (background rings cover rest)
+    useEffect(() => {
+        if (!cbRef.current.onViewportChange) return
+        const t = setTimeout(() => cbRef.current.onViewportChange?.(getPaddedBounds(map)), 10)
+        return () => clearTimeout(t)
+    }, [map])
 
     // Clicking empty map closes area popup (when not drawing/group-editing/geometry-editing)
     // Guard against polygon clicks bubbling to map (they fire layer 'click' then map 'click')
@@ -290,32 +303,49 @@ function MapController({
         })
     }, [selectedId, servedAreaIds, groupAreaIds, draftAreaIds, toggleMode])
 
-    // Refresh snapping targets (existing area vertices)
+    // Refresh snapping targets (existing area vertices) — bucketed grid for O(1) lookup
     useEffect(() => {
-        const points = []
+        const grid = new Map()
+        const keyFor = (lat, lng) => `${Math.floor(lat * 100)}_${Math.floor(lng * 100)}`
         areas.forEach(area =>
             area.location?.coordinates?.forEach(ring =>
-                ring.forEach(([lng, lat]) => points.push(L.latLng(lat, lng)))
+                ring.forEach(([lng, lat]) => {
+                    const p = L.latLng(lat, lng)
+                    const k = keyFor(lat, lng)
+                    if (!grid.has(k)) grid.set(k, [])
+                    grid.get(k).push(p)
+                })
             )
         )
-        snapTargetsRef.current = points
+        snapTargetsRef.current = grid
     }, [areas])
 
     // Snap vertices to nearby existing-area vertices within threshold (in screen px).
     const snapInPlace = useCallback((rings) => {
-        if (!rings?.length || !snapTargetsRef.current.length) return false
+        if (!rings?.length || !snapTargetsRef.current.size) return false
 
         let changed = false
+        const keyFor = (lat, lng) => `${Math.floor(lat * 100)}_${Math.floor(lng * 100)}`
         rings.forEach(ring => ring.forEach(point => {
             const containerPoint = map.latLngToContainerPoint(point)
             let best = null
             let bestDist = SNAP_THRESHOLD_PX
 
-            for (const target of snapTargetsRef.current) {
-                const dist = containerPoint.distanceTo(map.latLngToContainerPoint(target))
-                if (dist <= bestDist) {
-                    bestDist = dist
-                    best = target
+            const baseLat = Math.floor(point.lat * 100)
+            const baseLng = Math.floor(point.lng * 100)
+            for (let dLat = -1; dLat <= 1; dLat++) {
+                for (let dLng = -1; dLng <= 1; dLng++) {
+                    const cell = snapTargetsRef.current.get(`${baseLat + dLat}_${baseLng + dLng}`)
+                    if (!cell) continue
+                    for (const target of cell) {
+                        // skip self (0 distance but also same point if editing polygon's own vertex)
+                        if (target.lat === point.lat && target.lng === point.lng) continue
+                        const dist = containerPoint.distanceTo(map.latLngToContainerPoint(target))
+                        if (dist <= bestDist) {
+                            bestDist = dist
+                            best = target
+                        }
+                    }
                 }
             }
             if (best) {
@@ -432,7 +462,6 @@ function AreaEditForm({ areaDraft, setAreaDraft, stores, savingArea, onCancel, o
     const [localName, setLocalName] = useState(areaDraft.name)
     // Sync when switching to a different area (id changes), but not on every keystroke
     useEffect(() => { setLocalName(areaDraft.name) }, [areaDraft.id])
-    const areaStoresForEditor = useMemo(() => (areaDraft.storeIds || []).map(id => ({ storeId: id })), [areaDraft.storeIds])
     const handleSave = () => {
         // Commit local name to parent draft before save
         const toSave = { ...areaDraft, name: localName }
@@ -456,7 +485,7 @@ function AreaEditForm({ areaDraft, setAreaDraft, stores, savingArea, onCancel, o
             </div>
             <StoreListEditor
                 stores={stores}
-                areaStores={areaStoresForEditor}
+                storeIds={areaDraft.storeIds || []}
                 onChange={ids => setAreaDraft(prev => ({ ...prev, storeIds: ids }))}
             />
             <Flex gap={8} justifyContent="end" style={{ marginTop: 8 }}>
@@ -472,6 +501,7 @@ export default function SupplyAreaMap({
     focusPoint, focusGroupPoint, testPoint, testLabel,
     selectedId, geometryEditingId, areaDraft, setAreaDraft, savingArea,
     onSelect, onStartAreaPropsEdit, onSaveAreaProps, onCancelAreaPropsEdit, onDeleteArea, onStartGeometryEdit,
+    onViewportChange,
     ...mapControllerProps
 }) {
     const { TR } = useText()
@@ -521,13 +551,19 @@ export default function SupplyAreaMap({
         return Array.isArray(c) && c.length === 2
     })
 
+    const activeFlyPoint = useMemo(() => {
+        return testPoint || focusGroupPoint || focusPoint || null
+    }, [testPoint, focusGroupPoint, focusPoint])
+    const center = storePins.map(store => [...store.address?.location?.coordinates].reverse())?.[0]
+
     return (
-        <div style={{ position: 'relative', top: '16px', right: '10px', height: '99%' }}>
+        center && <div className={styles.mapInnerWrap}>
             <MapContainer
-                center={ISRAEL_CENTER}
+                center={center}
                 zoom={12}
                 style={{ height: '100%', width: '100%' }}
                 scrollWheelZoom
+                preferCanvas
             >
                 <TileLayer
                     key={tilesetId}
@@ -542,6 +578,7 @@ export default function SupplyAreaMap({
                     selectedId={selectedId}
                     geometryEditingId={geometryEditingId}
                     onSelect={onSelect}
+                    onViewportChange={onViewportChange}
                     {...mapControllerProps}
                 />
                 {selectedArea && popupPosition && (
@@ -558,6 +595,7 @@ export default function SupplyAreaMap({
                                 <>
                                     <div className={styles.areaPopupHeader}>
                                         <strong className={styles.areaPopupTitle}>{selectedArea.name || <Text size="none">no_name</Text>}</strong>
+                                        <span>vertices: {selectedArea.location.coordinates?.[0].length}</span>
                                         <Flex gap={6} className={styles.areaPopupActions}>
                                             <Button size="s" icon="edit" onClick={onStartAreaPropsEdit}></Button>
                                             <Button size="s" icon="trash" mode="outline" className={styles.deleteButton} onClick={onDeleteArea}></Button>
@@ -567,7 +605,7 @@ export default function SupplyAreaMap({
                                         {(selectedArea.stores || []).length ? (
                                             (selectedArea.stores || []).map(s => {
                                                 const st = stores.find(x => x.id === s.storeId)
-                                                return <span key={s.storeId} className={styles.areaPopupTag}>{st ? `${st.name} (${st.tag})` : s.storeId}</span>
+                                                return <span key={s.storeId} className={styles.areaPopupTag}>{st ? `${st.name}` : s.storeId}</span>
                                             })
                                         ) : (
                                             <span className={styles.areaPopupEmpty}><Text size="none">supply_no_stores_assigned</Text></span>
@@ -604,7 +642,6 @@ export default function SupplyAreaMap({
                             <Popup>
                                 <div>
                                     <strong>{store.name}</strong>
-                                    {store.tag && <span> ({store.tag})</span>}
                                     <div className={styles.popupSubtle}>
                                         {[a.city, a.street, a.building].filter(Boolean).join(', ')}
                                     </div>
@@ -621,9 +658,7 @@ export default function SupplyAreaMap({
                         <Popup>{testLabel}</Popup>
                     </Marker>
                 )}
-                <FlyToPoint point={focusPoint} />
-                <FlyToPoint point={focusGroupPoint} />
-                <FlyToPoint point={testPoint} />
+                <FlyToPoint point={activeFlyPoint} />
             </MapContainer>
             <div className={styles.tilePicker}>
                 {Object.entries(TILESETS).map(([id, ts]) => (

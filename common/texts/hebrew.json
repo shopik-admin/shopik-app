@@ -8,6 +8,7 @@
         "ip": "כתובת IP",
         "requestId": "מזהה בקשה",
         "active": "פעיל",
+        "preview": "תצוגה מקדימה",
         "add": "הוספה",
         "address": "כתובת",
         "address.building": "בניין",
@@ -168,6 +169,9 @@
         "status": "סטטוס",
         "store_tag_info": "משמש ליצירת תג הזמנה",
         "storeId": "מזהה חנות",
+        "add store": "הוספת חנות",
+        "edit store": "עריכת חנות",
+        "send": "שמור",
         "storeSum": "סכום חנות",
         "stores": "חנויות",
         "street": "רחוב",
@@ -319,8 +323,8 @@
         "refresh_tooltip": "רענון נתונים",
         "you have unsaved changes to the weekly plan. discard them?": "יש שינויים שלא נשמרו בתוכנית השבועית. להתעלם?",
         "windows": "חלונות הזמנה",
+        "saving": "שומר...",
         "supply_key": "מזהה",
-        "supply_saving": "שומר...",
         "supply_save_changes": "שמור שינויים",
         "supply_create_area": "צור אזור",
         "supply_new_supply_area": "אזור אספקה חדש",
@@ -441,6 +445,11 @@
         "addresses.city": "עיר",
         "addresses.street": "רחוב",
         "secondPhone": "טלפון נוסף",
-        "ops-page": "הזמנות"
+        "ops-page": "הזמנות",
+        "comax_products_import": "יבוא מוצרים",
+        "comax_products_sync": "סנכרון לאתר",
+        "comax_products_stock_sync": "יבוא מלאי",
+        "StockStoreID": "מספר מחסן לסנכרון מלאי (מחסן ראשי)",
+        "OrderStoreID": "מספר מחסן לתעודות משלוח (מחסן אונליין)"
     }
 }
