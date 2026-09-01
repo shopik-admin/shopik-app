@@ -138,7 +138,7 @@ export default function Permissions() {
                     setSelected(null)
                 callReq()
             })
-            .catch((error) => openModal(<Text>{error?.message || error}</Text>, { title: TR('delete role') }))
+            .catch((error) => openModal(<Text>{error?.message || error}</Text>, { title: 'delete role' }))
     }
 
     function createUpdatePermission(type, defaults) {
@@ -158,8 +158,8 @@ export default function Permissions() {
             }}
         />, {
             title: type == 'add' ?
-                (hasParent ? `${TR('add role under')} ${defaults.name}` : TR('add role')) :
-                TR('update role')
+                (hasParent ? `${TR('add role under')} ${defaults.name}` : 'add role') :
+                'update role'
         })
     }
 
@@ -168,9 +168,7 @@ export default function Permissions() {
             {/* Roles Sidebar Tree */}
             <div className={styles.roles}>
                 <div className={styles.rolesHeader}>
-                    <Text bold className={styles.rolesTitle}>
-                        {TR('roles')}
-                    </Text>
+                    <Text bold className={styles.rolesTitle}>roles</Text>
                     {isSuperAdmin && (
                         <Button
                             icon='add'
