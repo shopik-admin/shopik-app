@@ -5,6 +5,7 @@ import Checkbox from 'common/components/Checkbox'
 import Flex from 'common/components/Flex'
 import Form from 'common/components/Form'
 import Input from 'common/components/Input'
+import Select from 'common/components/Select'
 import Text from 'common/components/Text'
 import { useText } from 'common/texts/TextProvider'
 import { formatHourRange } from '../dates.js'
@@ -111,8 +112,7 @@ export default function SpecialDayModal({ special, date, stores = [], onDone, on
 
             <div className={styles.scopeRow}>
                 <Text size="s">stores</Text>
-                <select
-                    className={styles.select}
+                <Select
                     name="storeIds"
                     multiple
                     size={Math.min(6, Math.max(3, stores.length + 1))}
@@ -127,12 +127,11 @@ export default function SpecialDayModal({ special, date, stores = [], onDone, on
                         }
                     }}
                     style={{ minWidth: '200px', height: 'auto' }}
-                >
-                    <option value="_all">{TR('windows_all_stores') || 'All stores'}</option>
-                    {(stores || []).map(s => (
-                        <option key={s.id} value={s.id}>{s.name}</option>
-                    ))}
-                </select>
+                    options={[
+                        { value: '_all', text: TR('windows_all_stores') || 'All stores' },
+                        ...(stores || []).map(s => ({ value: s.id, text: s.name }))
+                    ]}
+                />
             </div>
 
             <Checkbox
@@ -144,27 +143,21 @@ export default function SpecialDayModal({ special, date, stores = [], onDone, on
             </Checkbox>
 
             <Flex gap={8} alignItems="center">
-                <select
-                    className={styles.select}
+                <Select
                     name="start"
                     value={fullDay ? '' : start}
                     onChange={e => setStart(Number(e.target.value))}
                     disabled={fullDay}
-                >
-                    {fullDay && <option value="">-</option>}
-                    {!fullDay && HOURS.map(h => <option key={h.value} value={h.value}>{h.text}</option>)}
-                </select>
+                    options={fullDay ? [{ value: '', text: '-' }] : HOURS}
+                />
                 <span><Text size="none">windows_until</Text></span>
-                <select
-                    className={styles.select}
+                <Select
                     name="end"
                     value={fullDay ? '' : end}
                     onChange={e => setEnd(Number(e.target.value))}
                     disabled={fullDay}
-                >
-                    {fullDay && <option value="">-</option>}
-                    {!fullDay && HOURS.slice(1).map(h => <option key={h.value} value={h.value}>{h.text}</option>)}
-                </select>
+                    options={fullDay ? [{ value: '', text: '-' }] : HOURS.slice(1)}
+                />
             </Flex>
 
             <Text size="s" mode="sub">

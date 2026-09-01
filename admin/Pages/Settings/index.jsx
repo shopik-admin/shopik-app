@@ -78,27 +78,19 @@ function SettingModalContent({ setting, defaultCategory, onSuccess, onClose }) {
             <div className={styles.formGrid}>
                 <label className={styles.settingInfo}>
                     <span className={styles.settingKey}>Form Type</span>
-                    <select
-                        className={styles.selectInput}
+                    <Select
                         value={formData.formType}
                         onChange={(e) => setFormData({ ...formData, formType: e.target.value })}
-                    >
-                        {FORM_TYPES.map((ft) => (
-                            <option key={ft} value={ft}>{ft}</option>
-                        ))}
-                    </select>
+                        options={FORM_TYPES}
+                    />
                 </label>
                 <label className={styles.settingInfo}>
                     <span className={styles.settingKey}>Render Type</span>
-                    <select
-                        className={styles.selectInput}
+                    <Select
                         value={formData.renderType}
                         onChange={(e) => setFormData({ ...formData, renderType: e.target.value })}
-                    >
-                        {RENDER_TYPES.map((rt) => (
-                            <option key={rt} value={rt}>{rt}</option>
-                        ))}
-                    </select>
+                        options={RENDER_TYPES}
+                    />
                 </label>
             </div>
             <div className={styles.formGrid}>

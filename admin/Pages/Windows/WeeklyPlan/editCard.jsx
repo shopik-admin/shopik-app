@@ -1,4 +1,5 @@
 import Icon from 'common/components/Icon'
+import Select from 'common/components/Select'
 import Text from 'common/components/Text'
 import { useText } from 'common/texts/TextProvider'
 import { WINDOWS_PAGE } from 'common/constants.js'
@@ -45,27 +46,25 @@ export default function EditCard({ win, storeGroups = [], onChange, onDelete, on
     return <div className={styles.editCard} data-editcard="" onClick={e => e.stopPropagation()}>
         <div className={styles.editRow}>
             <span><Text size="none">windows_from</Text></span>
-            <select
+            <Select
                 className={styles.editSelect}
+                options={START_HOURS}
                 value={win.start}
                 onChange={e => {
                     const start = Number(e.target.value)
                     onChange({ start: start < win.end ? start : win.start })
                 }}
-            >
-                {START_HOURS.map(h => <option key={h.value} value={h.value}>{h.text}</option>)}
-            </select>
+            />
             <span><Text size="none">windows_to</Text></span>
-            <select
+            <Select
                 className={styles.editSelect}
+                options={HOURS.slice(1)}
                 value={win.end}
                 onChange={e => {
                     const end = Number(e.target.value)
                     onChange({ end: end > win.start ? end : win.end })
                 }}
-            >
-                {HOURS.slice(1).map(h => <option key={h.value} value={h.value}>{h.text}</option>)}
-            </select>
+            />
         </div>
 
         <div className={styles.editRow}>

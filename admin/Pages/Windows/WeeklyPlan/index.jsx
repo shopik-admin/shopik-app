@@ -5,6 +5,7 @@ import apiReq from 'common/functions/apiReq'
 import Button from 'common/components/Button'
 import Flex from 'common/components/Flex'
 import Loader from 'common/components/Loader'
+import Select from 'common/components/Select'
 import Text from 'common/components/Text'
 import classNames from 'common/functions/classNames'
 import { useText } from 'common/texts/TextProvider'
@@ -228,18 +229,17 @@ export default function WeeklyPlan({ onDirtyChange, stores = [], areaGroups = []
         <Flex gap={10} alignItems="end" wrap className={styles.toolbar}>
             <label className={styles.selectWrap}>
                 <Text size="s">windows_template</Text>
-                <select
-                    className={styles.select}
+                <Select
                     value={choice}
                     onChange={e => setChoice(e.target.value)}
-                >
-                    <option value="master">{TR('windows_master_option')}</option>
-                    {(stores || []).map(s => (
-                        <option key={s.id} value={s.id}>
-                            {s.name}{templates.some(t => t.storeId === s.id) ? '' : TR('windows_no_template_suffix')}
-                        </option>
-                    ))}
-                </select>
+                    options={[
+                        { value: 'master', text: TR('windows_master_option') },
+                        ...(stores || []).map(s => ({
+                            value: s.id,
+                            text: `${s.name}${templates.some(t => t.storeId === s.id) ? '' : TR('windows_no_template_suffix')}`
+                        }))
+                    ]}
+                />
             </label>
 
             {choice !== 'master' && !selected && (

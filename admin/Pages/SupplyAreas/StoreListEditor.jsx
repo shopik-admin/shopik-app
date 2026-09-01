@@ -14,6 +14,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import Flex from 'common/components/Flex'
+import Select from 'common/components/Select'
 import Text from 'common/components/Text'
 import { useText } from 'common/texts/TextProvider'
 import styles from './supplyAreas.module.css'
@@ -95,18 +96,13 @@ export default function StoreListEditor({ stores = [], storeIds = [], onChange }
                 </DndContext>
             )}
 
-            <Flex gap={8} className={styles.addStore}>
-                <select
-                    className={styles.storeSelect}
-                    value=""
-                    onChange={(e) => handleAdd(e.target.value)}
-                >
-                    <option value="" disabled>{TR('supply_add_store')}</option>
-                    {availableStores.map(store => (
-                        <option key={store.id} value={store.id}>{store.name}</option>
-                    ))}
-                </select>
-            </Flex>
+            <Select
+                onChange={(e) => handleAdd(e.target.value)}
+                options={[
+                    { value: '', text: TR('supply_add_store'), disabled: true },
+                    ...availableStores.map(store => ({ value: store.id, text: store.name }))
+                ]}
+            />
         </div>
     )
 }
