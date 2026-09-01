@@ -8,22 +8,27 @@ export default function Text({ className = '', children, text = children, size =
         Txt = tag || sizes[size],
         txt = typeof text != 'string' ? text : (TR?.(text) || text)
 
-    return size == 'none' ? txt : <Txt
-        className={classNames(
-            className,
-            styles.text,
-            styles[size],
-            [styles.bold, bold],
-            [styles[mode], mode],
-            [styles.italic, italic],
-            [styles.center, center],
-            [styles.underline, underline],
-            [styles.lineThrough, lineThrough],
-            [styles.ellipsis, ellipsis && ellipsis != '0'],
-        )}
-        style={{ WebkitLineClamp: ellipsis, ...style }}
-        {...props}
-    >{txt}</Txt>
+    return size == 'none' ? txt : <bdi style={{
+        display: 'flex',
+        justifyContent: 'center'
+    }}>
+        <Txt
+            className={classNames(
+                className,
+                styles.text,
+                styles[size],
+                [styles.bold, bold],
+                [styles[mode], mode],
+                [styles.italic, italic],
+                [styles.center, center],
+                [styles.underline, underline],
+                [styles.lineThrough, lineThrough],
+                [styles.ellipsis, ellipsis && ellipsis != '0'],
+            )}
+            style={{ WebkitLineClamp: ellipsis, ...style }}
+            {...props}
+        >{txt}</Txt>
+    </bdi>
 }
 
 const sizes = {

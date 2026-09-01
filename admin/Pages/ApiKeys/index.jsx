@@ -92,7 +92,6 @@ export default function ApiKeys() {
     const keys = Array.isArray(rawData) ? rawData : []
     const [selected, setSelected] = useState(null)
     const [selectedPermissions, setSelectedPermissions] = useState([])
-    const [active, setActive] = useState(true)
     const [changes, setChanges] = useState(false)
     const [formState, setFormState] = useState({})
     const [mobileView, setMobileView] = useState('list')
@@ -110,7 +109,6 @@ export default function ApiKeys() {
             const full = keys.find(k => k.id === selected.id) || selected
             setSelected(prev => full)
             setSelectedPermissions(full.permissions || [])
-            setActive(full.active !== false)
             setChanges(false)
             setFormState({})
         }
@@ -122,9 +120,8 @@ export default function ApiKeys() {
         if (!original) return
         const origPerms = original.permissions || []
         const permChanged = selectedPermissions.length !== origPerms.length || selectedPermissions.some(p => !origPerms.includes(p))
-        const activeChanged = active !== (original.active !== false)
-        setChanges(permChanged || activeChanged)
-    }, [selectedPermissions, active, selected, keys])
+        setChanges(permChanged)
+    }, [selectedPermissions, selected, keys])
 
     function handleSelect(key) {
         setSelected(key)
@@ -145,7 +142,7 @@ export default function ApiKeys() {
     function onSubmit() {
         if (!selected) return
         setFormState({ loading: true })
-        apiReq('api_key/update', { id: selected.id, permissions: selectedPermissions, active })
+        apiReq('api_key/update', { id: selected.id, permissions: selectedPermissions })
             .then(updated => {
                 callReq()
                 setSelected(updated)
@@ -155,14 +152,19 @@ export default function ApiKeys() {
             .catch(error => setFormState({ error: error?.message || 'Failed to save' }))
     }
 
-    function handleDelete() {
-        if (!selected) return
-        apiReq('api_key/delete', { id: selected.id })
+    function handleDeleteKey(key) {
+        apiReq('api_key/delete', { id: key.id })
             .then(() => {
-                setSelected(null)
+                if (selected?.id === key.id) setSelected(null)
                 callReq()
             })
             .catch(error => openModal(<Text>{error?.message || 'Delete failed'}</Text>, { title: 'Error' }))
+    }
+
+    function handleToggleActive(key) {
+        apiReq('api_key/update', { id: key.id, active: !key.active })
+            .then(() => callReq())
+            .catch(error => openModal(<Text>{error?.message || 'Toggle failed'}</Text>, { title: 'Error' }))
     }
 
     function openCreate() {
@@ -202,14 +204,33 @@ export default function ApiKeys() {
                         {keys.map(k => (
                             <li
                                 key={k.id}
-                                className={`${styles.keyItem} ${selected?.id === k.id ? styles.selected : ''}`}
+                                className={`${styles.keyItem} ${selected?.id === k.id ? styles.selected : ''} ${k.active === false ? styles.disabled : ''}`}
                                 onClick={() => handleSelect(k)}
                             >
                                 <Flex col gap={2} style={{ minWidth: 0 }}>
                                     <span className={styles.keyName}>{k.name}</span>
                                     <span className={styles.keyMeta}>{k.domainId} · {k.keyPrefix}… · {k.active === false ? 'disabled' : 'active'}</span>
                                 </Flex>
-                                {!k.active && <Text style={{ fontSize: '0.7rem', color: 'var(--text-error-primary)' }}>off</Text>}
+                                <Flex gap={4} className={styles.keyActions}>
+                                    <Button
+                                        icon={k.active === false ? 'play' : 'pause'}
+                                        mode="text"
+                                        className={k.active === false ? styles.toggleBtnOff : styles.toggleBtn}
+                                        preventDefault
+                                        stopPropagation
+                                        onClick={() => handleToggleActive(k)}
+                                        title={k.active === false ? 'Enable' : 'Disable'}
+                                    />
+                                    <ConfirmButton
+                                        q={`Delete "${k.name}"?`}
+                                        onOk={() => handleDeleteKey(k)}
+                                        icon="trash"
+                                        mode="text"
+                                        className={styles.deleteBtn}
+                                        preventDefault
+                                        stopPropagation
+                                    />
+                                </Flex>
                             </li>
                         ))}
                     </ul>
@@ -223,22 +244,8 @@ export default function ApiKeys() {
                         <div className={styles.detailHeader}>
                             <div>
                                 <h3>{selected.name}</h3>
-                                <div className={styles.keySubtitle}>{selected.domainId} · {selected.keyPrefix}… · {selected.id}</div>
+                                <div className={styles.keySubtitle}>{selected.domainId} · {selected.keyPrefix}… · {selected.id} · {selected.active === false ? 'disabled' : 'active'}</div>
                             </div>
-
-                            <Flex gap={24}>
-                                <Flex gap={12} alignItems="center">
-                                    <Checkbox switchMode checked={active} onChange={e => setActive(e.target.checked)} />
-                                    <Text bold>Active</Text>
-                                </Flex>
-                                <ConfirmButton
-                                    q={`Delete "${selected.name}"?`}
-                                    onOk={handleDelete}
-                                    icon="trash"
-                                    mode="outline"
-                                    title="Delete API key"
-                                />
-                            </Flex>
                         </div>
 
 

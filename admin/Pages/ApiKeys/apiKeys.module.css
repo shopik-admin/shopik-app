@@ -42,10 +42,11 @@
     justify-content: space-between;
     gap: 0.5rem;
     padding: 0.65rem 0.75rem;
+    height: 4rem;
     border-radius: var(--radius-md);
     cursor: pointer;
     border: 1px solid transparent;
-    transition: background-color 0.15s ease, border-color 0.15s ease;
+    transition: background-color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
 }
 
 .keyItem:hover {
@@ -55,6 +56,42 @@
 .keyItem.selected {
     background: color-mix(in srgb, var(--text-brand) 14%, transparent);
     border-color: var(--text-brand);
+}
+
+.keyItem.disabled {
+    opacity: 0.6;
+    background: var(--bg-primary-alt);
+    border-style: dashed;
+}
+
+.keyActions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.keyItem:not(:hover):not(:has(dialog[open])) .keyActions button {
+    display: none;
+}
+
+.keyItem dialog button {
+    display: inline-flex !important;
+}
+
+.toggleBtn:hover {
+    background-color: var(--bg-brand-primary-hover) !important;
+    color: var(--text-white) !important;
+}
+
+.toggleBtnOff:hover {
+    background-color: var(--bg-brand-primary-hover) !important;
+    color: var(--text-white) !important;
+}
+
+.deleteBtn:hover {
+    background-color: var(--bg-error-primary) !important;
+    color: var(--text-white) !important;
 }
 
 .keyName {
