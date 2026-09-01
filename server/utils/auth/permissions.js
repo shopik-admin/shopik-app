@@ -21,6 +21,7 @@ export default [
     'setting:update',
     'setting:read',
     'setting:id',
+    'setting:delete',
     'log:read',
     'user:read',
     'store:create',
