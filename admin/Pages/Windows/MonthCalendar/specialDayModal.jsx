@@ -128,7 +128,7 @@ export default function SpecialDayModal({ special, date, stores = [], onDone, on
                     }}
                     style={{ minWidth: '200px', height: 'auto' }}
                     options={[
-                        { value: '_all', text: TR('windows_all_stores') || 'All stores' },
+                        { value: '_all', text: 'windows_all_stores' },
                         ...(stores || []).map(s => ({ value: s.id, text: s.name }))
                     ]}
                 />
