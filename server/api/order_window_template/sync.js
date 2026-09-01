@@ -78,10 +78,14 @@ export default async function sync(payload, { DL }) {
 
     // Preload active special days once for the whole range; generation skips
     // windows covered by them (read-time enforcement keeps existing rows intact).
-    const specialDays = await DL.SpecialDay.Model.find({
-        active: true,
-        date: { $gte: startDateStr, $lte: endDateStr }
-    }).select({ _id: 0, date: 1, storeIds: 1, start: 1, end: 1 }).lean()
+    const specialDays = await DL.SpecialDay.read(
+        {
+            active: true,
+            date: { $gte: startDateStr, $lte: endDateStr }
+        },
+        { _id: 0, date: 1, storeIds: 1, start: 1, end: 1 },
+        { limit: 0 }
+    )
     const specialMap = buildSpecialMap(specialDays)
 
     // 2. Bulk fetch all existing order windows for all stores within the date range

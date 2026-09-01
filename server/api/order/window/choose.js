@@ -33,12 +33,14 @@ export default async function choose(payload, { DL, _user, utils }) {
     if (windowDoc.active === false || windowDoc.disabled === true)
         throw { status: 400, message: 'window is unavailable' }
 
-    const activeSpecials = await DL.SpecialDay.Model.find({
-        active: true,
-        date: windowDoc.date
-    })
-        .select({ _id: 0, storeIds: 1, start: 1, end: 1 })
-        .lean()
+    const activeSpecials = await DL.SpecialDay.read(
+        {
+            active: true,
+            date: windowDoc.date
+        },
+        { _id: 0, storeIds: 1, start: 1, end: 1 },
+        { limit: 0 }
+    )
     const applicable = activeSpecials.filter(sd => !sd.storeIds?.length || sd.storeIds.includes(windowDoc.storeId))
     if (applicable.some(sd => overlapsWindow(sd, windowDoc)))
         throw { status: 400, message: 'window is unavailable' }
