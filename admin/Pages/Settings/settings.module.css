@@ -160,7 +160,6 @@
     background: var(--bg-primary);
     border: 1px solid var(--border-primary);
     border-radius: var(--radius-lg);
-    overflow: hidden;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
 }
 
@@ -171,11 +170,15 @@
 }
 
 .settingItem:last-child {
-    border-bottom: none;
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+
+.settingItem:first-child {
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
 }
 
 .settingItem:hover {
-    background-color: var(--bg-primary-hover);
+    background-color: var(--bg-secondary-hover);
 }
 
 .settingMain {
