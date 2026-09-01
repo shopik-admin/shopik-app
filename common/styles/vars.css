@@ -130,6 +130,14 @@
     /* Accent Colors (area groups) */
     --accent-group: #7C3AED;
     --accent-group-light: #8B5CF6;
+
+    /* Status Colors */
+    --success-color: #22C55E;
+    --success-bg: #F0FDF4;
+    --warning-color: #EAB308;
+    --warning-bg: #FEFCE8;
+    --danger-color: #EF4444;
+    --danger-bg: #FEF2F2;
 }
 
 [data-theme="dark"] {

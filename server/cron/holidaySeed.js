@@ -86,7 +86,7 @@ export default function startHolidaySeed(bootData) {
         } catch (e) {
             log.error('[HolidaySeed] Failed:', e?.message || e)
         } finally {
-            await release?.().catch(() => {})
+            await release?.().catch(() => { })
         }
     }, { timezone: process.env.TZ || 'Asia/Jerusalem' })
 

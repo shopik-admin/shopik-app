@@ -1,8 +1,54 @@
 .orderPreview {
+    height: calc(100dvh - 20px - var(--admin-header-height));
+    position: relative;
+
     .startPickingBtn {
         width: 300px;
+        max-width: calc(100% - 0px);
         margin: auto;
         height: 48px;
         font-size: 16px;
+    }
+
+    .footer {
+        position: sticky;
+        bottom: 0;
+        padding: 20px 0;
+        padding-bottom: calc(20px + env(safe-area-inset-bottom));
+    }
+
+
+
+    .intro {
+        background-color: var(--status-bg);
+        color: var(--status-color);
+        width: calc(100% + 32px);
+        position: relative;
+        right: -16px;
+        padding: 46px 16px;
+
+        svg {
+            position: relative;
+            top: 1px;
+        }
+
+        .subtitle {
+            color: var(--text-primary);
+        }
+
+        &.danger {
+            --status-color: var(--danger-color);
+            --status-bg: var(--danger-bg);
+        }
+
+        &.warning {
+            --status-color: var(--warning-color);
+            --status-bg: var(--warning-bg);
+        }
+
+        &.success {
+            --status-color: var(--success-color);
+            --status-bg: var(--success-bg);
+        }
     }
 }

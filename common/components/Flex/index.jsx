@@ -42,7 +42,7 @@ export default function Flex({
             styles[`ai-${alignItems || (center ? 'center' : '')}`],
             styles[`jc-${justifyContent || (center ? 'center' : '')}`]
         )}
-        style={{ gap, flexGrow: grow, flexShrink: shrink, ...style }}
+        style={{ gap: gap || undefined, flexGrow: grow ? 1 : undefined, flexShrink: shrink, ...style }}
         {...props}
     >
         {children}

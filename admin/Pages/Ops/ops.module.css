@@ -21,7 +21,6 @@
 
         &:first-child {
             svg {
-                transform: scaleX(-1);
                 color: var(--fg-brand-secondary);
                 width: 20px;
                 height: 20px;
@@ -44,18 +43,18 @@
 
 
     &.success {
-        --status-color: #22C55E;
-        --status-bg: #F0FDF4;
+        --status-color: var(--success-color);
+        --status-bg: var(--success-bg);
     }
 
     &.warning {
-        --status-color: #EAB308;
-        --status-bg: #FEFCE8;
+        --status-color: var(--warning-color);
+        --status-bg: var(--warning-bg);
     }
 
     &.danger {
-        --status-color: #EF4444;
-        --status-bg: #FEF2F2;
+        --status-color: var(--danger-color);
+        --status-bg: var(--danger-bg);
     }
 
     &.success,

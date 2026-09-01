@@ -101,7 +101,6 @@ body .Table_ table tr.Table_selected {
    ============================================================ */
 
 body .Button_ {
-    border: none;
     border-radius: var(--radius-full);
     padding: 10px;
     transition: background-color .2s, box-shadow .2s, transform .1s;

@@ -11,6 +11,7 @@ const LOCK_KEY = 'nightly-sync:lock'
 const LOCK_TTL_SECONDS = 60 * 60 * 4
 
 export default function startNightlySync(bootData) {
+
     const { DL, external } = bootData
     const schedule = process.env.NIGHTLY_SYNC_CRON || '0 2 * * *'
     const govSchedule = process.env.GOV_SYNC_CRON || '0 3 * * 0' // weekly Sunday 03:00
@@ -39,7 +40,7 @@ export default function startNightlySync(bootData) {
         } catch (e) {
             log.error('[NightlySync] Failed:', e?.message || e)
         } finally {
-            await release?.().catch(() => {})
+            await release?.().catch(() => { })
         }
     }, { timezone: process.env.TZ || 'Asia/Jerusalem' })
 
@@ -54,7 +55,7 @@ export default function startNightlySync(bootData) {
         } catch (e) {
             log.error('[GovSync] Failed:', e?.message || e)
         } finally {
-            await release?.().catch(() => {})
+            await release?.().catch(() => { })
         }
     }, { timezone: process.env.TZ || 'Asia/Jerusalem' })
 
