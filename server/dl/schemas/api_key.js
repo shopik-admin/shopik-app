@@ -7,8 +7,7 @@ const apiKeySchema = {
         trim: true,
         minlength: 3,
         maxlength: 100,
-        filter: true,
-        search: 5
+        filter: true
     },
     domainId: {
         type: String,
