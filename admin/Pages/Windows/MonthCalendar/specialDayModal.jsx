@@ -2,9 +2,11 @@ import { useMemo, useState } from 'react'
 import apiReq from 'common/functions/apiReq'
 import Button from 'common/components/Button'
 import Checkbox from 'common/components/Checkbox'
+import ConfirmButton from 'common/components/ConfirmButton'
 import Flex from 'common/components/Flex'
 import Form from 'common/components/Form'
 import Input from 'common/components/Input'
+import Select from 'common/components/Select'
 import Text from 'common/components/Text'
 import { useText } from 'common/texts/TextProvider'
 import { formatHourRange } from '../dates.js'
@@ -80,8 +82,6 @@ export default function SpecialDayModal({ special, date, stores = [], onDone, on
     }
 
     async function remove() {
-        if (!window.confirm(`${TR('windows_delete_special_confirm')} "${special?.name}"?${special?.source === 'hebcal' ? ` (${TR('windows_hebcal_restore_note')})` : ''}`))
-            return
         setSaving(true)
         try {
             await apiReq('special_day/delete', { id: special.id })
@@ -111,8 +111,7 @@ export default function SpecialDayModal({ special, date, stores = [], onDone, on
 
             <div className={styles.scopeRow}>
                 <Text size="s">stores</Text>
-                <select
-                    className={styles.select}
+                <Select
                     name="storeIds"
                     multiple
                     size={Math.min(6, Math.max(3, stores.length + 1))}
@@ -127,12 +126,11 @@ export default function SpecialDayModal({ special, date, stores = [], onDone, on
                         }
                     }}
                     style={{ minWidth: '200px', height: 'auto' }}
-                >
-                    <option value="_all">{TR('windows_all_stores') || 'All stores'}</option>
-                    {(stores || []).map(s => (
-                        <option key={s.id} value={s.id}>{s.name}</option>
-                    ))}
-                </select>
+                    options={[
+                        { value: '_all', text: 'windows_all_stores' },
+                        ...(stores || []).map(s => ({ value: s.id, text: s.name }))
+                    ]}
+                />
             </div>
 
             <Checkbox
@@ -144,27 +142,21 @@ export default function SpecialDayModal({ special, date, stores = [], onDone, on
             </Checkbox>
 
             <Flex gap={8} alignItems="center">
-                <select
-                    className={styles.select}
+                <Select
                     name="start"
                     value={fullDay ? '' : start}
                     onChange={e => setStart(Number(e.target.value))}
                     disabled={fullDay}
-                >
-                    {fullDay && <option value="">-</option>}
-                    {!fullDay && HOURS.map(h => <option key={h.value} value={h.value}>{h.text}</option>)}
-                </select>
+                    options={fullDay ? [{ value: '', text: '-' }] : HOURS}
+                />
                 <span><Text size="none">windows_until</Text></span>
-                <select
-                    className={styles.select}
+                <Select
                     name="end"
                     value={fullDay ? '' : end}
                     onChange={e => setEnd(Number(e.target.value))}
                     disabled={fullDay}
-                >
-                    {fullDay && <option value="">-</option>}
-                    {!fullDay && HOURS.slice(1).map(h => <option key={h.value} value={h.value}>{h.text}</option>)}
-                </select>
+                    options={fullDay ? [{ value: '', text: '-' }] : HOURS.slice(1)}
+                />
             </Flex>
 
             <Text size="s" mode="sub">
@@ -182,7 +174,15 @@ export default function SpecialDayModal({ special, date, stores = [], onDone, on
 
             <Flex gap={8} justifyContent="end" style={{ marginTop: 8 }}>
                 {special && (
-                    <Button mode="outline" icon="trash" onClick={remove} disabled={saving} type="button">delete</Button>
+                    <ConfirmButton
+                        q={`${TR('windows_delete_special_confirm')} "${special?.name}"?${special?.source === 'hebcal' ? ` (${TR('windows_hebcal_restore_note')})` : ''}`}
+                        onOk={remove}
+                        mode="outline"
+                        icon="trash"
+                        disabled={saving}
+                    >
+                        delete
+                    </ConfirmButton>
                 )}
                 <Button mode="outline" onClick={onClose} disabled={saving} type="button">cancel</Button>
                 <Button type="submit" loading={saving}>{special ? 'save' : 'windows_create'}</Button>

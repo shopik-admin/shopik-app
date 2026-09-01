@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect, useRef, useCallback } from 'react'
 import useApi from 'common/functions/useApi'
 import apiReq from 'common/functions/apiReq'
 import Button from 'common/components/Button'
+import ConfirmButton from 'common/components/ConfirmButton'
 import Input from 'common/components/Input'
 import Flex from 'common/components/Flex'
 import Card from 'common/components/Card'
@@ -270,7 +271,6 @@ export default function SupplyAreas() {
     function handleGeometryCancel() { setGeometryEditingId(null) }
     function handleDeleteAreaPopup() {
         if (!selectedArea) return
-        if (!window.confirm(`${TR('supply_delete_area_confirm')} "${selectedArea.name}"?`)) return
         const deletedId = selectedArea.id
         setError(null)
         apiReq('supply_area/delete', { id: deletedId })
@@ -389,8 +389,6 @@ export default function SupplyAreas() {
     function handleDeleteGroup() {
         const groupId = groupDraft?.id
         if (!groupId) return
-        const groupName = groups.find(g => g.id === groupId)?.name
-        if (!window.confirm(`${TR('supply_delete_group_confirm')} "${groupName}"?`)) return
         setError(null)
         apiReq('area_group/delete', { id: groupId })
             .then(() => {
@@ -608,7 +606,14 @@ export default function SupplyAreas() {
                                                                         <Text size="none">supply_group_hint</Text>
                                                                     </div>
                                                                     <Flex gap={8} justifyContent="space-between" alignItems="center">
-                                                                        <Button size="s" mode="outline" icon="trash" className={styles.deleteButton} onClick={handleDeleteGroup} />
+                                                                        <ConfirmButton
+                                                                            q={`${TR('supply_delete_group_confirm')} "${groups.find(g => g.id === groupDraft?.id)?.name}"?`}
+                                                                            onOk={handleDeleteGroup}
+                                                                            size="s"
+                                                                            mode="outline"
+                                                                            icon="trash"
+                                                                            className={styles.deleteButton}
+                                                                        />
                                                                         <Flex gap={8}>
                                                                             <Button size="s" mode="outline" onClick={handleCancelGroupDraft}>cancel</Button>
                                                                             <Button

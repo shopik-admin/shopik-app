@@ -4,7 +4,7 @@ import { validateSpecialDayShape, assertNoConflicts } from '#server/utils/data/s
 export default async function update(payload, { DL }) {
     const { id } = payload
 
-    const existing = await DL.SpecialDay.Model.findOne({ id }, { _id: 0 }).lean()
+    const existing = await DL.SpecialDay.readById(id)
     if (!existing) throw { status: 404, message: 'special day not found' }
 
     const candidate = {

@@ -1,3 +1,5 @@
+import { CACHE_STRATEGIES } from "#common/constants.js"
+
 const SPECIAL_SOURCE = {
     MANUAL: 'manual',
     HEBCAL: 'hebcal'
@@ -10,7 +12,8 @@ const specialDaySchema = {
     },
     date: {
         type: String,
-        required: true
+        required: true,
+        filter: true
     },
     storeIds: [String],
     start: Number,
@@ -25,12 +28,13 @@ const specialDaySchema = {
 
 const index = [
     { date: 1, storeIds: 1 },
-    { source: 1, date: 1 }
+    { active: 1, date: 1 }
 ]
 
 export const meta = {
     index,
-    constants: { SOURCE: SPECIAL_SOURCE }
+    constants: { SOURCE: SPECIAL_SOURCE },
+    cacheStrategy: CACHE_STRATEGIES.HASHSET
 }
 
 export default specialDaySchema

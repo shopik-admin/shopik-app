@@ -1,16 +1,20 @@
 import Button from 'common/components/Button'
+import ConfirmButton from 'common/components/ConfirmButton'
 import Icon from 'common/components/Icon'
 import Flex from 'common/components/Flex'
 import styles from './tree.module.css'
 import { useState } from 'react'
+import { useText } from 'common/texts/TextProvider'
 
 function TreeNode({
     node,
     selected,
     onSelect,
     onEditClick,
-    onAddClick
+    onAddClick,
+    onDeleteClick
 }) {
+    const { TR } = useText()
     const hasChildren = node.children?.length > 0
     const [expanded, setExpanded] = useState(true)
 
@@ -48,7 +52,20 @@ function TreeNode({
                     onClick={() => onSelect(node)}
                 >
                     {node.name}
-                    <Flex gap={10}>
+                    <Flex gap={4}>
+                        {onDeleteClick && (
+                            <ConfirmButton
+                                q={`${TR('delete role confirm')} "${node.name}"?`}
+                                onOk={() => onDeleteClick?.(node)}
+                                icon='trash'
+                                mode='text'
+                                className={styles.deleteBtn}
+                                preventDefault
+                                stopPropagation
+                                disabled={hasChildren}
+                                tooltip={hasChildren ? 'role_delete_button_disabled_tooltip' : ''}
+                            />
+                        )}
                         <Button icon='edit' mode='text' className={styles.addBtn} preventDefault stopPropagation onClick={() => onEditClick?.(node)} />
                         <Button icon='add' mode='text' className={styles.editBtn} preventDefault stopPropagation onClick={() => onAddClick?.(node)} />
                     </Flex>
@@ -63,6 +80,7 @@ function TreeNode({
                         onSelect={onSelect}
                         onEditClick={onEditClick}
                         onAddClick={onAddClick}
+                        onDeleteClick={onDeleteClick}
                     />
                 </div>
             )}
@@ -76,6 +94,7 @@ export default function Tree({
     onSelect,
     onEditClick,
     onAddClick,
+    onDeleteClick,
 }) {
     return (
         <div className={styles.tree}>
@@ -87,6 +106,7 @@ export default function Tree({
                     onSelect={onSelect}
                     onEditClick={onEditClick}
                     onAddClick={onAddClick}
+                    onDeleteClick={onDeleteClick}
                 />
             ))}
         </div>

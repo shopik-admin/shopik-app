@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useModal } from 'common/components/Modal'
+import { useUser } from 'features/User'
 import Button from 'common/components/Button'
 import useApi from 'common/functions/useApi'
 import apiReq from 'common/functions/apiReq'
@@ -22,17 +23,17 @@ const RENDER_TYPES = [
     'color-boolean', 'nis', 'coin', 'mr', 'config'
 ]
 
-function SettingModalContent({ setting, defaultCategory, onSuccess, onClose }) {
+function SettingModalContent({ setting, defaultCategory, defaultSubCategory, defaultFormType, defaultRenderType, onSuccess, onClose }) {
     const isEdit = !!setting
-    const initialIsConfig = setting?.formType === 'config' || setting?.renderType === 'config'
+    const initialIsConfig = setting?.formType === 'config' || setting?.renderType === 'config' || defaultFormType === 'config' || defaultRenderType === 'config'
     const [formData, setFormData] = useState({
         key: setting?.key || '',
         value: setting?.value !== undefined ? setting.value : (initialIsConfig ? {} : ''),
         category: setting?.category || defaultCategory || 'General',
-        subCategory: setting?.subCategory || 'General',
+        subCategory: setting?.subCategory || defaultSubCategory || 'General',
         domainId: setting?.domainId || 'default',
-        formType: setting?.formType || 'text',
-        renderType: setting?.renderType || 'string'
+        formType: setting?.formType || defaultFormType || 'text',
+        renderType: setting?.renderType || defaultRenderType || 'string'
     })
     const [error, setError] = useState(null)
     const [loading, setLoading] = useState(false)
@@ -78,27 +79,19 @@ function SettingModalContent({ setting, defaultCategory, onSuccess, onClose }) {
             <div className={styles.formGrid}>
                 <label className={styles.settingInfo}>
                     <span className={styles.settingKey}>Form Type</span>
-                    <select
-                        className={styles.selectInput}
+                    <Select
                         value={formData.formType}
                         onChange={(e) => setFormData({ ...formData, formType: e.target.value })}
-                    >
-                        {FORM_TYPES.map((ft) => (
-                            <option key={ft} value={ft}>{ft}</option>
-                        ))}
-                    </select>
+                        options={FORM_TYPES}
+                    />
                 </label>
                 <label className={styles.settingInfo}>
                     <span className={styles.settingKey}>Render Type</span>
-                    <select
-                        className={styles.selectInput}
+                    <Select
                         value={formData.renderType}
                         onChange={(e) => setFormData({ ...formData, renderType: e.target.value })}
-                    >
-                        {RENDER_TYPES.map((rt) => (
-                            <option key={rt} value={rt}>{rt}</option>
-                        ))}
-                    </select>
+                        options={RENDER_TYPES}
+                    />
                 </label>
             </div>
             <div className={styles.formGrid}>
@@ -180,6 +173,8 @@ export default function Settings() {
     const [selectedCategory, setSelectedCategory] = useState(null)
     const [mobileView, setMobileView] = useState('sidebar') // 'sidebar' or 'content'
     const { openModal, closeModal } = useModal()
+    const { isSuperAdmin, role: adminRole } = useUser()
+    const canDeleteSetting = isSuperAdmin || adminRole?.permissions?.includes('setting:delete')
 
     useEffect(() => {
         if (Array.isArray(rawSettings)) {
@@ -220,11 +215,21 @@ export default function Settings() {
         )
     }
 
-    function handleAddModal(defaultCat = '') {
+    function handleDelete(id) {
+        setSettings((prev) => prev.filter((s) => s.id !== id))
+    }
+
+    function handleAddModal(defaultCat = '', defaultSubCat = '', defaultFormType, defaultRenderType) {
         const targetCategory = defaultCat || selectedCategory || 'General'
+        const targetSubCategory = defaultSubCat || 'General'
+        const targetFormType = defaultFormType || 'text'
+        const targetRenderType = defaultRenderType || 'string'
         openModal(
             <SettingModalContent
                 defaultCategory={targetCategory}
+                defaultSubCategory={targetSubCategory}
+                defaultFormType={targetFormType}
+                defaultRenderType={targetRenderType}
                 onClose={closeModal}
                 onSuccess={(created) => {
                     callReq()
@@ -318,7 +323,10 @@ export default function Settings() {
                             <div className={styles.sectionsList}>
                                 {Object.entries(activeCategorySettings).map(([subCat, subCatSettings]) => (
                                     <div key={subCat} className={styles.subCategoryGroup}>
-                                        <h4 className={styles.subCategoryHeader}>{subCat}</h4>
+                                        <div className={styles.subCategoryHeaderRow}>
+                                            <h4 className={styles.subCategoryHeader}>{subCat}</h4>
+                                            <Button icon="add" className={styles.subCategoryAddBtn} onClick={() => { const last = subCatSettings[subCatSettings.length - 1]; handleAddModal(selectedCategory, subCat, last?.formType, last?.renderType) }} title={`Add setting to ${subCat}`} />
+                                        </div>
                                         <div className={styles.insetGroupCard}>
                                             {subCatSettings.map((setting) => (
                                                 <Setting
@@ -326,6 +334,7 @@ export default function Settings() {
                                                     setting={setting}
                                                     onUpdate={handleSettingUpdate}
                                                     onEditFull={handleEditModal}
+                                                    onDelete={canDeleteSetting ? handleDelete : undefined}
                                                 />
                                             ))}
                                         </div>

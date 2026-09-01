@@ -11,6 +11,8 @@ import Card from 'common/components/Card'
 import Flex from 'common/components/Flex'
 import Text from 'common/components/Text'
 import Tree from 'components/Tree'
+import { useText } from 'common/texts/TextProvider'
+import { useUser } from 'features/User'
 
 function findFirst(nodes) {
     for (const node of nodes) {
@@ -49,6 +51,9 @@ export default function Permissions() {
     const [changes, setChanges] = useState(false)
     const [formState, setFormState] = useState()
     const { openModal, closeModal } = useModal()
+    const { TR } = useText()
+    const { roleId, isSuperAdmin, role: adminRole } = useUser()
+    const canDeleteRoles = isSuperAdmin || adminRole?.permissions?.includes('role:delete')
 
     // Track mobile view state: 'tree' (list of roles) or 'form' (permissions)
     const [mobileView, setMobileView] = useState('tree')
@@ -124,9 +129,20 @@ export default function Permissions() {
             .catch((error) => setFormState({ error }))
     }
 
+    function deleteRole(node) {
+        apiReq('role/delete', { id: node.id })
+            .then(() => {
+                if (selected?.id === node.id)
+                    setSelected(null)
+                callReq()
+            })
+            .catch((error) => openModal(<Text>{error?.message || error}</Text>, { title: 'delete role' }))
+    }
+
     function createUpdatePermission(type, defaults) {
+        const hasParent = Boolean(defaults?.name)
         const form = [{ name: 'name' }]
-        if (type == 'add')
+        if (type == 'add' && defaults?.id)
             form.push({ name: 'parentId', type: 'hidden', value: defaults.id })
 
         openModal(<DataForm
@@ -140,7 +156,8 @@ export default function Permissions() {
             }}
         />, {
             title: type == 'add' ?
-                `add role under the role ${defaults.name}` : 'update role'
+                (hasParent ? `${TR('add role under')} ${defaults.name}` : 'add role') :
+                'update role'
         })
     }
 
@@ -148,12 +165,24 @@ export default function Permissions() {
         <Flex tag={Card} className={`${styles.permissions} ${styles[mobileView]}`}>
             {/* Roles Sidebar Tree */}
             <div className={styles.roles}>
+                <div className={styles.rolesHeader}>
+                    <Text bold className={styles.rolesTitle}>roles</Text>
+                    {isSuperAdmin && (
+                        <Button
+                            icon='add'
+                            mode='text'
+                            className={styles.addRootRoleBtn}
+                            onClick={() => createUpdatePermission('add', { id: roleId })}
+                        />
+                    )}
+                </div>
                 <Tree
                     nodes={children}
                     selected={selected}
                     onSelect={handleSelectRole}
                     onEditClick={(node) => createUpdatePermission('edit', node)}
                     onAddClick={(node) => createUpdatePermission('add', node)}
+                    onDeleteClick={canDeleteRoles ? deleteRole : undefined}
                 />
             </div>
 

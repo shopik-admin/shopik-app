@@ -1,12 +1,13 @@
 import Checkbox from 'common/components/Checkbox'
 import Button from 'common/components/Button'
+import ConfirmButton from 'common/components/ConfirmButton'
 import render from 'common/functions/render'
 import apiReq from 'common/functions/apiReq'
 import { useState, useEffect, useRef } from 'react'
 import styles from './settings.module.css'
 import ConfigEditor from './ConfigEditor.jsx'
 
-export default function Setting({ setting, onUpdate, onEditFull }) {
+export default function Setting({ setting, onUpdate, onEditFull, onDelete }) {
     const { id, key, value: initialValue, renderType, formType, category } = setting
     const [isEditing, setIsEditing] = useState(false)
     const [value, setValue] = useState(initialValue ?? '')
@@ -81,6 +82,19 @@ export default function Setting({ setting, onUpdate, onEditFull }) {
         return { light: '#000000', dark: '#ffffff' }
     }
 
+    async function handleDelete() {
+        setSaving(true)
+        setError(null)
+        try {
+            await apiReq('setting/delete', { id })
+            onDelete?.(id)
+        } catch (err) {
+            setError(err?.message || 'Failed to delete setting')
+        } finally {
+            setSaving(false)
+        }
+    }
+
     if (isToggleType) {
         return (
             <div className={styles.settingItem}>
@@ -88,6 +102,7 @@ export default function Setting({ setting, onUpdate, onEditFull }) {
                     <div className={styles.settingInfo}>
                         <div className={styles.settingKeyRow}>
                             {onEditFull && <Button className={styles.gearBtn} onClick={() => onEditFull(setting)} title="Edit all fields" icon='edit' />}
+                            {onDelete && <ConfirmButton q={`Delete "${key}"?`} onOk={handleDelete} icon="trash" className={styles.deleteBtn} title="Delete setting" disabled={saving} />}
                             <span className={styles.settingKey}>{key}</span>
                         </div>
                         {error && <span className={styles.settingError}>{error}</span>}
@@ -112,6 +127,7 @@ export default function Setting({ setting, onUpdate, onEditFull }) {
                     <div className={styles.settingInfo}>
                         <div className={styles.settingKeyRow}>
                             {onEditFull && <Button className={styles.gearBtn} onClick={() => onEditFull(setting)} title="Edit all fields" icon='edit' />}
+                            {onDelete && <ConfirmButton q={`Delete "${key}"?`} onOk={handleDelete} icon="trash" className={styles.deleteBtn} title="Delete setting" disabled={saving} />}
                             <span className={styles.settingKey}>{key}</span>
                         </div>
                         {error && <span className={styles.settingError}>{error}</span>}
@@ -152,6 +168,7 @@ export default function Setting({ setting, onUpdate, onEditFull }) {
                     <div className={styles.settingInfo}>
                         <div className={styles.settingKeyRow}>
                             {onEditFull && <Button className={styles.gearBtn} onClick={() => onEditFull(setting)} title="Edit all fields" icon='edit' />}
+                            {onDelete && <ConfirmButton q={`Delete "${key}"?`} onOk={handleDelete} icon="trash" className={styles.deleteBtn} title="Delete setting" disabled={saving} />}
                             <span className={styles.settingKey}>{key}</span>
                             {isThemeColor && (
                                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', marginInlineStart: '0.25rem' }}>
@@ -260,6 +277,7 @@ export default function Setting({ setting, onUpdate, onEditFull }) {
                 <div className={styles.settingInfo}>
                     <div className={styles.settingKeyRow}>
                         {onEditFull && <Button className={styles.gearBtn} onClick={() => onEditFull(setting)} title="Edit all fields" icon='edit' />}
+                        {onDelete && <ConfirmButton q={`Delete "${key}"?`} onOk={handleDelete} icon="trash" className={styles.deleteBtn} title="Delete setting" disabled={saving} />}
                         <span className={styles.settingKey}>{key}</span>
                     </div>
                     {error && <span className={styles.settingError}>{error}</span>}

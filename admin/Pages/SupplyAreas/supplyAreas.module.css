@@ -372,20 +372,6 @@
     }
 }
 
-.addStore {
-    margin-top: .25rem;
-}
-
-.storeSelect {
-    flex: 1;
-    padding: .45rem .6rem;
-    border: 1px solid var(--border-primary);
-    border-radius: var(--radius-md);
-    background: var(--bg-primary);
-    color: var(--text-primary);
-    font-size: .85rem;
-}
-
 .testResult {
     height: 36px;
     box-sizing: border-box;
@@ -667,11 +653,13 @@
     color: var(--fg-error-primary) !important;
     border-color: var(--border-error) !important;
 }
+
 .deleteButton:hover {
     background: var(--bg-error-secondary) !important;
     border-color: var(--border-error) !important;
     color: var(--fg-error-primary) !important;
 }
+
 .deleteButton svg {
     color: var(--fg-error-primary);
 }
@@ -685,18 +673,22 @@
     background: var(--bg-primary);
     color: var(--text-primary);
     border: 1px solid var(--border-primary);
-    box-shadow: 0 3px 14px rgba(0,0,0,0.22);
+    box-shadow: 0 3px 14px rgba(0, 0, 0, 0.22);
 }
+
 .mapPane :global(.leaflet-popup-tip) {
     background: var(--bg-primary);
     border: 1px solid var(--border-primary);
 }
+
 .mapPane :global(.leaflet-popup-content) {
     color: var(--text-primary);
 }
+
 .mapPane :global(.leaflet-popup-close-button) {
     color: var(--text-tertiary) !important;
 }
+
 .mapPane :global(.leaflet-popup-close-button:hover) {
     color: var(--text-primary) !important;
     background: var(--bg-secondary-hover) !important;
