@@ -128,10 +128,10 @@ export default async function sync(payload, { DL }) {
         // restricted window can never become invisible to everyone.
         let validGroupIds
         try {
-            validGroupIds = new Set(await DL.AreaGroup.Model.find(
-                { storeId, active: true },
-                { _id: 0, id: 1 }
-            ).lean().then(groups => groups.map(g => g.id)))
+            validGroupIds = new Set(await DL.AreaGroup.Model.distinct(
+                'id',
+                { storeId, active: true }
+            ))
         } catch {
             validGroupIds = new Set()
         }
