@@ -70,5 +70,10 @@ export default [
     'cash_register:read',
     'cash_register:update',
     'cash_register:id',
-    'cash_register:sync'
+    'cash_register:sync',
+    'api_key:create',
+    'api_key:read',
+    'api_key:update',
+    'api_key:delete',
+    'api_key:id'
 ]
