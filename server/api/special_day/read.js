@@ -17,13 +17,14 @@ export default async function read(payload, { DL }) {
         ? payload.toDate
         : formatDate(end)
 
-    return DL.SpecialDay.Model.find({
-        active: true,
-        date: { $gte: fromDate, $lte: toDate }
-    })
-        .select({ _id: 0, id: 1, name: 1, date: 1, storeIds: 1, start: 1, end: 1, source: 1, createdBy: 1 })
-        .sort({ date: 1, start: 1 })
-        .lean()
+    return DL.SpecialDay.read(
+        {
+            active: true,
+            date: { $gte: fromDate, $lte: toDate }
+        },
+        { _id: 0 },
+        { sort: { date: 1, start: 1 } }
+    )
 }
 
 read.config = {
