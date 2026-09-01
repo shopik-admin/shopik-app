@@ -50,8 +50,6 @@ function TreeNode({
                 >
                     {node.name}
                     <Flex gap={4}>
-                        <Button icon='edit' mode='text' className={styles.addBtn} preventDefault stopPropagation onClick={() => onEditClick?.(node)} />
-                        <Button icon='add' mode='text' className={styles.editBtn} preventDefault stopPropagation onClick={() => onAddClick?.(node)} />
                         {onDeleteClick && (
                             <Button
                                 icon='trash'
@@ -64,6 +62,8 @@ function TreeNode({
                                 tooltip={hasChildren ? 'role_delete_button_disabled_tooltip' : ''}
                             />
                         )}
+                        <Button icon='edit' mode='text' className={styles.addBtn} preventDefault stopPropagation onClick={() => onEditClick?.(node)} />
+                        <Button icon='add' mode='text' className={styles.editBtn} preventDefault stopPropagation onClick={() => onAddClick?.(node)} />
                     </Flex>
                 </Flex>
             </div>
