@@ -6,6 +6,7 @@ import 'leaflet-draw/dist/leaflet.draw.css'
 import Text from 'common/components/Text'
 import { useText } from 'common/texts/TextProvider'
 import Button from 'common/components/Button'
+import ConfirmButton from 'common/components/ConfirmButton'
 import Flex from 'common/components/Flex'
 import StoreListEditor from './StoreListEditor'
 import styles from './supplyAreas.module.css'
@@ -598,7 +599,14 @@ export default function SupplyAreaMap({
                                         <span>vertices: {selectedArea.location.coordinates?.[0].length}</span>
                                         <Flex gap={6} className={styles.areaPopupActions}>
                                             <Button size="s" icon="edit" onClick={onStartAreaPropsEdit}></Button>
-                                            <Button size="s" icon="trash" mode="outline" className={styles.deleteButton} onClick={onDeleteArea}></Button>
+                                            <ConfirmButton
+                                                q={`${TR('supply_delete_area_confirm')} "${selectedArea.name}"?`}
+                                                onOk={onDeleteArea}
+                                                size="s"
+                                                icon="trash"
+                                                mode="outline"
+                                                className={styles.deleteButton}
+                                            />
                                         </Flex>
                                     </div>
                                     <div className={styles.areaPopupStores}>

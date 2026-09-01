@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import apiReq from 'common/functions/apiReq'
 import Button from 'common/components/Button'
 import Checkbox from 'common/components/Checkbox'
+import ConfirmButton from 'common/components/ConfirmButton'
 import Flex from 'common/components/Flex'
 import Form from 'common/components/Form'
 import Input from 'common/components/Input'
@@ -81,8 +82,6 @@ export default function SpecialDayModal({ special, date, stores = [], onDone, on
     }
 
     async function remove() {
-        if (!window.confirm(`${TR('windows_delete_special_confirm')} "${special?.name}"?${special?.source === 'hebcal' ? ` (${TR('windows_hebcal_restore_note')})` : ''}`))
-            return
         setSaving(true)
         try {
             await apiReq('special_day/delete', { id: special.id })
@@ -175,7 +174,15 @@ export default function SpecialDayModal({ special, date, stores = [], onDone, on
 
             <Flex gap={8} justifyContent="end" style={{ marginTop: 8 }}>
                 {special && (
-                    <Button mode="outline" icon="trash" onClick={remove} disabled={saving} type="button">delete</Button>
+                    <ConfirmButton
+                        q={`${TR('windows_delete_special_confirm')} "${special?.name}"?${special?.source === 'hebcal' ? ` (${TR('windows_hebcal_restore_note')})` : ''}`}
+                        onOk={remove}
+                        mode="outline"
+                        icon="trash"
+                        disabled={saving}
+                    >
+                        delete
+                    </ConfirmButton>
                 )}
                 <Button mode="outline" onClick={onClose} disabled={saving} type="button">cancel</Button>
                 <Button type="submit" loading={saving}>{special ? 'save' : 'windows_create'}</Button>

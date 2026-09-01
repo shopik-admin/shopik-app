@@ -130,8 +130,6 @@ export default function Permissions() {
     }
 
     function deleteRole(node) {
-        if (!window.confirm(`${TR('delete role confirm')} "${node.name}"?`)) return
-
         apiReq('role/delete', { id: node.id })
             .then(() => {
                 if (selected?.id === node.id)

@@ -2,7 +2,8 @@ import { useState } from 'react'
 import useApi from 'common/functions/useApi'
 import Flex from 'common/components/Flex'
 import Tabs from 'common/components/Tabs'
-import { useText } from 'common/texts/TextProvider'
+import Confirm from 'common/components/Confirm'
+import { useModal } from 'common/components/Modal'
 import DailyGrid from './DailyGrid'
 import WeeklyPlan from './WeeklyPlan'
 import MonthCalendar from './MonthCalendar'
@@ -15,7 +16,7 @@ const TABS = [
 ]
 
 export default function Windows() {
-    const { TR } = useText()
+    const { openModal, closeModal } = useModal()
     const [tab, setTab] = useState('daily')
     const [dailyDate, setDailyDate] = useState(undefined)
     const [weeklyDirty, setWeeklyDirty] = useState(false)
@@ -24,8 +25,17 @@ export default function Windows() {
     const { data: areaGroups = [] } = useApi('area_group/read', { limit: 0 })
 
     function handleTabChange(newTab) {
-        if (newTab !== tab && weeklyDirty && !window.confirm(TR('windows_unsaved_confirm')))
+        if (newTab !== tab && weeklyDirty) {
+            openModal(
+                <Confirm
+                    q={'windows_unsaved_confirm'}
+                    onOk={() => { closeModal(); setWeeklyDirty(false); setTab(newTab) }}
+                    onCancel={closeModal}
+                />,
+                { title: 'confirm' }
+            )
             return
+        }
         setWeeklyDirty(false)
         setTab(newTab)
     }
