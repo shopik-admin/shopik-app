@@ -1,3 +1,18 @@
+const allowedFields = [
+    'id',
+    'barcode',
+    'name',
+    'amount',
+    'finalAmount',
+    'price',
+    'totalSum',
+    'regularSum',
+    'saleSum',
+    'saleIds',
+    'missing',
+    'replacedBy',
+    'unit'
+]
 export default function filterClientOrder(order) {
     if (!order) return null
 
@@ -10,7 +25,6 @@ export default function filterClientOrder(order) {
     if (filtered.cart && Array.isArray(filtered.cart)) {
         filtered.cart = filtered.cart.map(item => {
             const clientItem = {}
-            const allowedFields = ['id', 'barcode', 'name', 'amount', 'finalAmount', 'price', 'totalSum', 'regularSum', 'saleSum', 'saleIds', 'missing', 'replacedBy', 'unit']
             for (const key of Object.keys(item)) {
                 if (key.startsWith('admin') || key.startsWith('internal')) continue
                 if (allowedFields.includes(key)) {

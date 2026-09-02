@@ -3,17 +3,23 @@ import Button from 'common/components/Button'
 import Image from 'common/components/Image'
 import Flex from 'common/components/Flex'
 import Text from 'common/components/Text'
+import Icon from 'common/components/Icon'
 import classNames from 'common/functions/classNames'
 import { round3 } from 'common/functions/calcOrder/utils.js'
+import { getProductImageUrl } from 'common/functions/productImageUrl.js'
+import { useState, useEffect } from 'react'
 
 export function ProductImage({ product, size = 'm' }) {
-    const { images } = product || {}
-    const mainImage = images?.product?.find(i => i.main === true) || images?.[0] || null
-    const src = mainImage?.sizes[size] || ''
+    const [failed, setFailed] = useState(false)
+    useEffect(() => { setFailed(false) }, [product?.id, size])
+    const src = product?.id ? getProductImageUrl(product.id, size) : ''
+    if (failed || !src) {
+        return <Flex center className={classNames(styles.productImage, styles[size])} style={{ background: '#f5f5f5', borderRadius: 'var(--radius-3xl)' }}><Icon name="image" size={32} style={{ opacity: 0.35 }} /></Flex>
+    }
 
     return <Image
         className={classNames(styles.productImage, styles[size])}
-        src={src} alt={product.name} />
+        src={src} alt={product.name} loading="eager" onError={() => setFailed(true)} />
 }
 
 export function ProductInfo(props) {

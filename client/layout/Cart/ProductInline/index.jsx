@@ -21,7 +21,7 @@ export default function ProductInline({ remove = true, note = true, product, sal
             const cachedSales = getSalesCache()
             const filteredSales = Object.fromEntries(Object.entries(cachedSales).filter(([, v]) => v && typeof v === 'object' && ('kind' in v || 'price' in v)))
             const effectiveSales = Object.keys(filteredSales).length ? filteredSales : cachedSales
-            const neededIds = [...new Set((order?.cart || []).flatMap(i => i.saleIds || []))]
+            const neededIds = [...new Set((order?.cart || []).map(i => i.saleIds[0] || []))]
             const missing = neededIds.filter(id => !effectiveSales[id])
             if (!missing.length) {
                 const updatedOrder = calcOrder({
@@ -57,9 +57,7 @@ export default function ProductInline({ remove = true, note = true, product, sal
         const effectiveSales = Object.keys(filteredSales).length ? filteredSales : mergedSales
         const neededIds = [...new Set([...(order?.cart || []).flatMap(i => i.saleIds || []), ...(product.saleIds || [])])]
         const missing = neededIds.filter(id => !effectiveSales[id])
-        // Skip optimistic if unit step info missing (legacy cart items) — server will correct it
-        const hasUnitInfo = product?.unit?.step != null || product?.unit?.minAmount != null
-        if (!missing.length && hasUnitInfo) {
+        if (!missing.length) {
             const optimisticOrder = calcOrder({
                 order: order || {},
                 product,
@@ -69,8 +67,6 @@ export default function ProductInline({ remove = true, note = true, product, sal
                 user
             })
             setOrder(optimisticOrder)
-        } else if (!hasUnitInfo) {
-            console.log('skip optimistic - missing unit info, waiting for server')
         } else {
             console.log('skip optimistic - missing sales', missing)
         }
