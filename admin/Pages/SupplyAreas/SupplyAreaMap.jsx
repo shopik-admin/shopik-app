@@ -13,19 +13,21 @@ import styles from './supplyAreas.module.css'
 
 const SNAP_THRESHOLD_PX = 20
 const TILESET_STORAGE_KEY = 'supplyMapTileset'
+const snapKeyFor = (lat, lng) => `${Math.floor(lat * 100)}_${Math.floor(lng * 100)}`
 
 // All basemaps are free to use (attribution required) — Hebrew labels forced via lang=he where supported (CARTO)
 
+const ATTR_CARTO = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
 const TILESETS = {
     light: {
         label: 'supply_map_minimal',
         url: `https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png?lang=he&key=${CARTO_KEY}`,
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        attribution: ATTR_CARTO,
     },
     dark: {
         label: 'supply_map_dark',
         url: `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png?lang=he&key=${CARTO_KEY}`,
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        attribution: ATTR_CARTO,
     },
     osm: {
         label: 'supply_map_standard',
@@ -308,13 +310,12 @@ function MapController({
     // Refresh snapping targets (existing area vertices + edges) — bucketed grid for vertices + flat edge list
     useEffect(() => {
         const grid = new Map()
-        const keyFor = (lat, lng) => `${Math.floor(lat * 100)}_${Math.floor(lng * 100)}`
         const edges = []
         areas.forEach(area =>
             area.location?.coordinates?.forEach(ring => {
                 ring.forEach(([lng, lat]) => {
                     const p = L.latLng(lat, lng)
-                    const k = keyFor(lat, lng)
+                    const k = snapKeyFor(lat, lng)
                     if (!grid.has(k)) grid.set(k, [])
                     grid.get(k).push(p)
                 })
@@ -330,7 +331,7 @@ function MapController({
         snapEdgesRef.current = edges
     }, [areas])
 
-    // Find nearest snap target (vertex or edge projection) within SNAP_THRESHOLD_PX, or null.
+    // Find nearest snap target — vertices win over edges. If any vertex within threshold, snap to vertex; otherwise try edge projection.
     const findSnapLatLng = useCallback((latlng) => {
         const hasVertices = snapTargetsRef.current.size > 0
         const hasEdges = snapEdgesRef.current.length > 0
@@ -340,15 +341,15 @@ function MapController({
         let best = null
         let bestDist = SNAP_THRESHOLD_PX
 
-        // Vertex snap (bucketed)
+        // Vertex snap (bucketed) — strongest priority
         if (hasVertices) {
             const baseLat = Math.floor(latlng.lat * 100)
             const baseLng = Math.floor(latlng.lng * 100)
             for (let dLat = -1; dLat <= 1; dLat++) {
                 for (let dLng = -1; dLng <= 1; dLng++) {
-                    const cell = snapTargetsRef.current.get(`${baseLat + dLat}_${baseLng + dLng}`)
-                    if (!cell) continue
-                    for (const target of cell) {
+                    const bucket = snapTargetsRef.current.get(`${baseLat + dLat}_${baseLng + dLng}`)
+                    if (!bucket) continue
+                    for (const target of bucket) {
                         if (target.lat === latlng.lat && target.lng === latlng.lng) continue
                         const dist = cursorPt.distanceTo(map.latLngToContainerPoint(target))
                         if (dist <= bestDist) {
@@ -358,12 +359,18 @@ function MapController({
                     }
                 }
             }
+            if (best) return best
         }
 
-        // Edge snap: project cursor onto each segment (in container-pixel space)
+        // Edge snap: project cursor onto each segment (in container-pixel space for hit-test) — only if no vertex within threshold
+        // Snapped point is interpolated in geographic (lat/lng) space so it lies *exactly* on the stored segment.
         if (hasEdges) {
+            let edgeBest = null
+            let edgeBestDist = SNAP_THRESHOLD_PX
+            let edgeBestT = 0
+            let edgeBestA = null
+            let edgeBestB = null
             for (const [a, b] of snapEdgesRef.current) {
-                // Skip zero-length edges
                 if (a.lat === b.lat && a.lng === b.lng) continue
                 const aPt = map.latLngToContainerPoint(a)
                 const bPt = map.latLngToContainerPoint(b)
@@ -377,14 +384,20 @@ function MapController({
                 const projY = aPt.y + tClamped * dy
                 const projPt = L.point(projX, projY)
                 const dist = cursorPt.distanceTo(projPt)
-                // Prefer vertex over edge if distances equal — keep earlier vertex win (use < not <=)
-                if (dist < bestDist) {
-                    const projLatLng = map.containerPointToLatLng(projPt)
-                    // Avoid snapping to self if projection equals cursor (within epsilon)
-                    if (projLatLng.lat === latlng.lat && projLatLng.lng === latlng.lng) continue
-                    bestDist = dist
-                    best = projLatLng
+                if (dist < edgeBestDist) {
+                    edgeBestDist = dist
+                    edgeBestT = tClamped
+                    edgeBestA = a
+                    edgeBestB = b
                 }
+            }
+            if (edgeBestA && edgeBestB) {
+                // Interpolate in lat/lng space — guarantees the snapped point is exactly colinear with the stored edge
+                const lat = edgeBestA.lat + edgeBestT * (edgeBestB.lat - edgeBestA.lat)
+                const lng = edgeBestA.lng + edgeBestT * (edgeBestB.lng - edgeBestA.lng)
+                const projLatLng = L.latLng(lat, lng)
+                if (projLatLng.lat === latlng.lat && projLatLng.lng === latlng.lng) return null
+                return projLatLng
             }
         }
 
@@ -408,12 +421,6 @@ function MapController({
 
         return changed
     }, [findSnapLatLng])
-
-    const snapLayer = useCallback((layer) => {
-        const rings = layer.getLatLngs?.()
-        if (!rings?.length) return
-        if (snapInPlace(rings)) layer.redraw()
-    }, [snapInPlace])
 
     // Live snap while dragging a vertex (in place, so dragging away again unsnaps)
     const onEditVertex = useCallback((e) => {
@@ -459,7 +466,8 @@ function MapController({
                 drawHandlerRef.current = null
             }
 
-            snapLayer(layer)
+            const rings = layer.getLatLngs?.()
+            if (rings?.length && snapInPlace(rings)) layer.redraw()
             map.removeLayer(layer)
             cbRef.current.onCreated?.(layer.toGeoJSON().geometry)
         }
@@ -471,7 +479,7 @@ function MapController({
             map.off(L.Draw.Event.CREATED, onCreated)
             map.off(L.Draw.Event.EDITVERTEX, onEditVertex)
         }
-    }, [map, drawReady, onEditVertex, snapLayer])
+    }, [map, drawReady, onEditVertex, snapInPlace])
 
     // "New Area" mode: programmatic polygon draw handler with live snap to nearby vertices/edges
     useEffect(() => {
@@ -577,7 +585,7 @@ export default function SupplyAreaMap({
     selectedId, geometryEditingId, areaDraft, setAreaDraft, savingArea,
     onSelect, onStartAreaPropsEdit, onSaveAreaProps, onCancelAreaPropsEdit, onDeleteArea, onStartGeometryEdit,
     onViewportChange,
-    ...mapControllerProps
+    toggleMode, drawing, onToggleArea, onCreated, onEdited, onGeometryCancel, onBackgroundClick,
 }) {
     const { TR } = useText()
 
@@ -621,15 +629,16 @@ export default function SupplyAreaMap({
 
     const tileset = TILESETS[tilesetId] || TILESETS.osm
 
-    const storePins = stores.filter(store => {
-        const c = store.address?.location?.coordinates
+    const storePins = useMemo(() => stores.filter(s => {
+        const c = s.address?.location?.coordinates
         return Array.isArray(c) && c.length === 2
-    })
+    }), [stores])
 
-    const activeFlyPoint = useMemo(() => {
-        return testPoint || focusGroupPoint || focusPoint || null
-    }, [testPoint, focusGroupPoint, focusPoint])
-    const center = storePins.map(store => [...store.address?.location?.coordinates].reverse())?.[0]
+    const activeFlyPoint = useMemo(() => testPoint || focusGroupPoint || focusPoint || null, [testPoint, focusGroupPoint, focusPoint])
+    const center = useMemo(() => {
+        const c = storePins[0]?.address?.location?.coordinates
+        return c ? [c[1], c[0]] : null
+    }, [storePins])
 
     return (
         center && <div className={styles.mapInnerWrap}>
@@ -652,9 +661,15 @@ export default function SupplyAreaMap({
                     draftAreaIds={draftAreaIds}
                     selectedId={selectedId}
                     geometryEditingId={geometryEditingId}
+                    toggleMode={toggleMode}
+                    drawing={drawing}
                     onSelect={onSelect}
+                    onToggleArea={onToggleArea}
+                    onCreated={onCreated}
+                    onEdited={onEdited}
+                    onGeometryCancel={onGeometryCancel}
+                    onBackgroundClick={onBackgroundClick}
                     onViewportChange={onViewportChange}
-                    {...mapControllerProps}
                 />
                 {selectedArea && popupPosition && (
                     <Popup
