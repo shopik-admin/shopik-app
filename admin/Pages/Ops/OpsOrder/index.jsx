@@ -1,17 +1,18 @@
-import useApi from '#common/functions/useApi.js'
-import { useParams } from 'react-router'
+import { DeliveryMethodTag, formatWindow } from '../orderUtils'
+import classNames from 'common/functions/classNames'
+import Button from 'common/components/Button'
+import Loader from 'common/components/Loader'
+import render from 'common/functions/render'
+import useApi from 'common/functions/useApi'
+import apiReq from 'common/functions/apiReq'
 import styles from './opsOrder.module.css'
-import Loader from '#common/components/Loader/index.jsx'
-import Text from '#common/components/Text/index.jsx'
-import { useState } from 'react'
-import Flex from '#common/components/Flex/index.jsx'
-import Button from '#common/components/Button/index.jsx'
+import Text from 'common/components/Text'
+import Icon from 'common/components/Icon'
+import Flex from 'common/components/Flex'
+import { useParams } from 'react-router'
 import { useUser } from 'features/User'
-import apiReq from '#common/functions/apiReq.js'
-import { DeliveryMethodTag, formatDayWindow, formatTimeHM } from '../orderUtils'
-import classNames from '#common/functions/classNames.js'
-import Icon from '#common/components/Icon/index.jsx'
-import render from '#common/functions/render.js'
+import { useState } from 'react'
+import Tabs from '#common/components/Tabs/index.jsx'
 
 const STEPS = {
     PREVIEW: 0,
@@ -62,14 +63,15 @@ export default function OpsOrder({ }) {
 }
 
 function OrderPreview({ order = {}, claimOrder, isMine, cantPick, setStep }) {
-    const windowTime = formatTimeHM(order.window)
+    const windowTime = formatWindow(order.window)
+
     return <Flex col className={styles.orderPreview}>
-        <Flex grow col gap={20}>
+        <Flex grow col gap={30}>
             <Flex alignItems='center' justifyContent='space-between'>
                 <DeliveryMethodTag deliveryMethod={order.deliveryMethod} />
                 <Text bold>{order.number}</Text>
             </Flex>
-            <Flex gap={5} className={classNames(styles.intro, [styles.success, order])}>
+            <Flex gap={5} className={classNames(styles.intro, styles[windowTime.isLate ? 'danger' : windowTime.isAlmostLate ? 'warning' : 'success'])}>
                 <Icon name='time' size={24} />
                 <Flex col gap={10} grow>
                     <Flex alignItems='center' justifyContent='space-between' grow>
@@ -80,9 +82,9 @@ function OrderPreview({ order = {}, claimOrder, isMine, cantPick, setStep }) {
                 </Flex>
             </Flex>
             <Flex col gap={25} className={styles.priviewRows}>
-                <PriviewRow icon='user' label='customer_name' value={order.phone} />
+                <PriviewRow icon='user' label='customer_name' value={order.phone || '0500000000'} />
                 <PriviewRow icon='location' label='customer_address' value={render({ type: 'address', value: order.address })} />
-                <PriviewRow icon='time' label='order_window' value={windowTime.text} />
+                <PriviewRow icon='time' label='order_window' value={windowTime.dayText} />
                 <PriviewRow icon='replace' label='replace_and_missing' value={order.window?.replace} />
                 <PriviewRow icon='note' label='pick_notes' value={order.comments} />
             </Flex>
@@ -95,18 +97,30 @@ function OrderPreview({ order = {}, claimOrder, isMine, cantPick, setStep }) {
 }
 
 function PriviewRow({ icon, label, value }) {
-    return <Flex gap={10}>
+    return <Flex gap={10} alignItems={value ? 'start' : 'center'} className={styles.priviewRow}>
         <Icon name={icon} size={24} />
-        <Flex col gap={5}>
+        <Flex col gap={5} >
             <Text size='l' bold>{label}</Text>
-            <Text >{value}</Text>
+            {value ? <Text >{value}</Text> : null}
         </Flex>
     </Flex>
 }
 
 function OrderPick({ order = {}, setStep }) {
-    return <Flex>
-        <Text>pick</Text>
+    const [tab, setTab] = useState()
+    return <Flex col className={styles.orderPick}>
+        <Tabs
+            className={styles.tabs}
+            onChange={setTab}
+            active={tab}
+            options={[
+                { text: 'to_pick', badge: 31 },
+                { text: 'wait_pick', badge: 0 },
+                { text: 'done_pick', badge: 5 },
+            ]} />
+        <Flex className={styles.cartList}>
+            {order.cart.map(product => product.name)}
+        </Flex>
     </Flex>
 }
 

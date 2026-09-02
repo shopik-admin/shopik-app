@@ -1,6 +1,9 @@
 .orderPreview {
     height: calc(100dvh - 20px - var(--admin-header-height));
     position: relative;
+    padding-top: 20px;
+
+
 
     .startPickingBtn {
         width: 300px;
@@ -18,14 +21,13 @@
     }
 
 
-
     .intro {
         background-color: var(--status-bg);
         color: var(--status-color);
         width: calc(100% + 32px);
         position: relative;
         right: -16px;
-        padding: 46px 16px;
+        padding: 46px 30px;
 
         svg {
             position: relative;
@@ -50,5 +52,20 @@
             --status-color: var(--success-color);
             --status-bg: var(--success-bg);
         }
+    }
+
+    .priviewRow {
+        padding: 0 16px;
+    }
+}
+
+.orderPick {
+    .tabs {
+        position: sticky;
+        top: calc(var(--admin-header-height));
+    }
+
+    .cartList {
+        margin-block: 20px;
     }
 }

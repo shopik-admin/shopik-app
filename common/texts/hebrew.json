@@ -454,6 +454,16 @@
         "start picking": "התחל ליקוט",
         "view order": "לצפיה בהזמנה",
         "time_to_pick_title": "זמן סיום ליקוט",
-        "time_to_pick_subtitle": "זמן נותר לסיום"
+        "time_to_pick_subtitle": "זמן נותר לסיום",
+        "delivery_method": "דר",
+        "order_window": "חלון אספקה",
+        "customer_name": "שם לקוח",
+        "customer_address": "כתובת למשלוח",
+        "pick_notes": "הערות למלקט",
+        "replace_and_missing": "החלפות וחוסרים",
+        "order_number": "מספר הזמנה",
+        "to_pick": "לליקוט",
+        "wait_pick": "בבדיקה",
+        "done_pick": "טופל"
     }
 }

@@ -1,0 +1,10 @@
+.badge {
+    color: var(--text-brand-secondary);
+    border: 1px solid #B9D7D4;
+    background-color: #F1F7F6;
+    border-radius: 100px;
+    padding: 2px 6px;
+    min-width: 22px;
+    min-height: 22px;
+    font-size: 12px;
+}

@@ -1,7 +1,9 @@
-import { useLists } from 'common/features/Lists'
 import classNames from 'common/functions/classNames'
+import { useLists } from 'common/features/Lists'
 import styles from './tabs.module.css'
 import Button from '../Button'
+import Badge from '../Badge'
+import Text from '../Text'
 import Flex from '../Flex'
 
 export default function Tabs({
@@ -60,23 +62,22 @@ export default function Tabs({
 
                 const isActive = currentValue === value
 
-                return (
-                    <Button
-                        key={value ?? i}
-                        mode='text'
-                        icon={opt.icon}
-                        disabled={isDisabled}
-                        aria-disabled={isDisabled}
-                        className={`${styles.tab} ${isActive ? styles.active : ''} ${isDisabled ? styles.disabled : ''}`}
-                        tooltip={opt.tooltip}
-                        onClick={() => {
-                            if (isDisabled) return
-                            onChange?.(value)
-                        }}
-                    >
-                        {text}
-                    </Button>
-                )
+                return <Button
+                    key={value ?? i}
+                    mode='text'
+                    icon={opt.icon}
+                    disabled={isDisabled}
+                    aria-disabled={isDisabled}
+                    className={`${styles.tab} ${isActive ? styles.active : ''} ${isDisabled ? styles.disabled : ''}`}
+                    tooltip={opt.tooltip}
+                    onClick={() => {
+                        if (isDisabled) return
+                        onChange?.(value)
+                    }}
+                >
+                    <Text size='none'>{text}</Text>
+                    <Badge>{opt.badge}</Badge>
+                </Button>
             })}
         </Flex>
     )

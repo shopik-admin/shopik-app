@@ -5,12 +5,12 @@ import Flex from 'common/components/Flex'
 import Icon from 'common/components/Icon'
 import Text from 'common/components/Text'
 import styles from './ops.module.css'
-import { DeliveryMethodTag, formatDayWindow, formatTimeHM } from './orderUtils'
+import { DeliveryMethodTag, formatWindow } from './orderUtils'
 
 export default function OrderCard({ order = {} }) {
     const
         { deliveryMethod, status, storeId } = order,
-        windowTime = formatTimeHM(order.window),
+        windowTime = formatWindow(order.window),
         done = status == 'done',
         { stores } = useLists(),
         store = stores.find(s => s.value == storeId),
@@ -46,7 +46,7 @@ export default function OrderCard({ order = {} }) {
             </Flex>
             <Flex gap={5} alignItems='center' >
                 <Icon name='time' />
-                <Text size='s'>{formatDayWindow(order.window)}</Text>
+                <Text size='s'>{windowTime.dayText}</Text>
             </Flex>
         </Flex>
         <Flex className={styles.row} justifyContent='space-around'>
