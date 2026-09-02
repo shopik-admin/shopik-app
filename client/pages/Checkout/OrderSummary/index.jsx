@@ -13,22 +13,13 @@ import WindowOptions from 'features/Order/WindowOptions'
 import Addresses, { AddressForm } from 'pages/Account/Addresses'
 import { useText } from 'common/texts/TextProvider'
 import { CouponCollapse } from './CouponSection'
-import { calcShipping } from '#common/functions/shipping.js'
+import { calcShipping, extractShippingConfig } from '#common/functions/shipping.js'
 import {
     LuMapPinHouse,
     LuClock,
     LuPencil,
     LuCreditCard
 } from 'react-icons/lu'
-
-function getShippingConfigFromSettings(settings) {
-    if (!settings || typeof settings !== 'object') return null
-    if (settings.shipping && typeof settings.shipping === 'object' && ('total' in settings.shipping || 'freeFrom' in settings.shipping)) return settings.shipping
-    for (const cat of Object.values(settings)) {
-        if (cat && typeof cat === 'object' && cat.shipping && typeof cat.shipping === 'object') return cat.shipping
-    }
-    return null
-}
 
 export default function OrderSummary({ onPayment, paying, showPayBtn = true }) {
     const { order = {} } = useOrder()
@@ -52,7 +43,7 @@ export default function OrderSummary({ onPayment, paying, showPayBtn = true }) {
 
     // Real financial calculations from order
     const { settings } = useAppData() || {}
-    const shippingConfig = useMemo(() => getShippingConfigFromSettings(settings), [settings])
+    const shippingConfig = useMemo(() => extractShippingConfig(settings), [settings])
     const cart = order.cart || []
     const subtotal = order.sum ?? order.subtotal ?? cart.reduce((acc, item) => acc + ((item.price || 0) * (item.amount || 1)), 0)
     const shipping = order.shipping ?? calcShipping({ sum: subtotal, deliveryMethod: order.deliveryMethod, shippingConfig })
@@ -61,12 +52,15 @@ export default function OrderSummary({ onPayment, paying, showPayBtn = true }) {
         : Number(shippingConfig?.total ?? 0)
     const isFreeShipping = Number(shipping) === 0 && originalShipping > 0 && subtotal > 0
     const deliveryFee = shipping
+    const hasCoupon = !!(order?.coupons && order.coupons.length)
     const totalSavings = (() => {
         const before = order.sumNoCoupon ?? order.sum ?? subtotal
-        const after = order.sum ?? subtotal
+        const after = hasCoupon ? (order.finalSum ?? order.sum ?? subtotal) : (order.sum ?? subtotal)
         return Math.max(0, Number(before || 0) - Number(after || 0))
     })()
-    const total = order.sumWithShipping ?? (subtotal + Number(shipping || 0))
+    const total = hasCoupon && order.finalSumWithShipping != null
+        ? order.finalSumWithShipping
+        : (order.sumWithShipping ?? (subtotal + Number(shipping || 0)))
 
     return (
         <Flex col gap={15} className={styles.orderSummaryWrapper}>

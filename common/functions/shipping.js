@@ -38,4 +38,13 @@ export function getRemainingToFreeShipping({ sum = 0, deliveryMethod = 'delivery
     return Math.max(0, Math.round(threshold - Number(sum || 0)))
 }
 
+export function extractShippingConfig(settings) {
+    if (!settings || typeof settings !== 'object') return null
+    if (settings.shipping && typeof settings.shipping === 'object' && ('total' in settings.shipping || 'freeFrom' in settings.shipping)) return settings.shipping
+    for (const cat of Object.values(settings)) {
+        if (cat && typeof cat === 'object' && cat.shipping && typeof cat.shipping === 'object') return cat.shipping
+    }
+    return null
+}
+
 export default calcShipping

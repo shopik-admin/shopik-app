@@ -13,16 +13,7 @@ import apiReq from '#common/functions/apiReq.js'
 import { useNavigate } from 'react-router'
 import { useMemo } from 'react'
 import { useAppData } from 'App'
-import { calcShipping } from '#common/functions/shipping.js'
-
-function getShippingConfigFromSettings(settings) {
-    if (!settings || typeof settings !== 'object') return null
-    if (settings.shipping && typeof settings.shipping === 'object' && ('total' in settings.shipping || 'freeFrom' in settings.shipping)) return settings.shipping
-    for (const cat of Object.values(settings)) {
-        if (cat && typeof cat === 'object' && cat.shipping && typeof cat.shipping === 'object') return cat.shipping
-    }
-    return null
-}
+import { calcShipping, extractShippingConfig } from '#common/functions/shipping.js'
 
 export default function Cart({ }) {
     const
@@ -33,18 +24,22 @@ export default function Cart({ }) {
 
     const { cartOpen, setCartOpen } = useCart()
     const { settings } = useAppData() || {}
-    const shippingConfig = useMemo(() => getShippingConfigFromSettings(settings), [settings])
+    const shippingConfig = useMemo(() => extractShippingConfig(settings), [settings])
 
     const sum = order?.sum ?? 0
     const shipping = order?.shipping ?? calcShipping({ sum, deliveryMethod: order?.deliveryMethod, shippingConfig })
     const sumWithShipping = order?.sumWithShipping ?? (sum + Number(shipping || 0))
+    const finalSumWithShipping = order?.finalSumWithShipping
+    const hasCoupon = !!(order?.coupons && order.coupons.length)
+    const displayTotal = hasCoupon && finalSumWithShipping != null ? finalSumWithShipping : sumWithShipping
     const originalShipping = order?.deliveryMethod === 'pickup'
         ? Number(shippingConfig?.pickupTotal ?? shippingConfig?.total ?? 0)
         : Number(shippingConfig?.total ?? 0)
     const isFreeShipping = Number(shipping) === 0 && originalShipping > 0 && sum > 0
     const savings = (() => {
         const before = order?.sumNoCoupon ?? order?.sum ?? 0
-        const after = order?.sum ?? 0
+        // include coupon discount in savings when coupon present
+        const after = hasCoupon ? (order?.finalSum ?? order?.sum ?? 0) : (order?.sum ?? 0)
         return Math.max(0, before - after)
     })()
 
@@ -129,7 +124,7 @@ export default function Cart({ }) {
             </Flex>
             <Button icon='cart' onClick={goToCheckout}>
                 <Text>to_pay</Text>
-                <Text>{render({ type: 'coin', value: sumWithShipping })}</Text>
+                <Text>{render({ type: 'coin', value: displayTotal })}</Text>
             </Button>
         </Flex>
     </Flex >

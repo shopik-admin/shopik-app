@@ -5,7 +5,9 @@ import { Link } from 'react-router'
 import calcOrder from 'common/functions/calcOrder/cart.js'
 import apiReq from 'common/functions/apiReq.js'
 import { useOrder } from 'features/Order/OrderProvider'
-import { useRef } from 'react'
+import { useAppData } from 'App'
+import { useMemo, useRef } from 'react'
+import { extractShippingConfig } from '#common/functions/shipping.js'
 import {
     ProductImage,
     ProductInfo,
@@ -35,6 +37,8 @@ export default function ProductCard(props) {
 
 export function ProductButton({ product, size = 'm', sales = {} }) {
     const { order, setOrder } = useOrder()
+    const { settings } = useAppData() || {}
+    const shippingConfig = useMemo(() => extractShippingConfig(settings), [settings])
     const latestRequest = useRef(0)
     const amount = order?.cart?.find(item => item.id === product.id)?.amount || 0
 
@@ -45,7 +49,8 @@ export function ProductButton({ product, size = 'm', sales = {} }) {
             order: order || {},
             product,
             amount: newAmount,
-            sales: { ...order?.sales, ...sales }
+            sales: { ...order?.sales, ...sales },
+            shippingConfig
         })
         setOrder(optimisticOrder)
 

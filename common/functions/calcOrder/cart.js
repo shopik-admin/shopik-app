@@ -124,12 +124,26 @@ export function calcOrder({ order, product, amount, unitKey, sales, shippingConf
     const sumNoCoupon = calcResult.totals.sumBeforeDiscounts
 
     // Preserve existing coupons: if order has coupons, finalSum should be reduced
+    // For percent coupons, discount scales with new sum; for fixed sum, keep absolute
     let resolvedFinalSum = finalSum
     let resolvedFinalShipping = shipping
     let resolvedFinalSumWithShipping = sumWithShipping
     if (order.coupons && order.coupons.length) {
-        // coupons store absolute discount; apply to sum to get finalSum
-        const totalCouponDiscount = order.coupons.reduce((acc, c) => acc + Number(c.discount || 0), 0)
+        const oldSum = Number(order.sum || 0)
+        let totalCouponDiscount = 0
+        for (const c of order.coupons) {
+            const storedDiscount = Number(c.discount || 0)
+            if (c.percent) {
+                const rate = oldSum > 0 ? storedDiscount / oldSum : 0
+                let newDiscount = rate > 0 ? round2(finalSum * rate) : storedDiscount
+                // cap by maxSum if present
+                if (c.maxSum != null && c.maxSum !== undefined) newDiscount = Math.min(newDiscount, Number(c.maxSum))
+                newDiscount = Math.min(newDiscount, finalSum)
+                totalCouponDiscount += newDiscount
+            } else {
+                totalCouponDiscount += Math.min(storedDiscount, finalSum)
+            }
+        }
         resolvedFinalSum = Math.max(0, round2(finalSum - totalCouponDiscount))
         resolvedFinalShipping = shipping
         resolvedFinalSumWithShipping = round2(resolvedFinalSum + resolvedFinalShipping)

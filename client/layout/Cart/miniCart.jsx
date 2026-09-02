@@ -8,17 +8,8 @@ import classNames from 'common/functions/classNames'
 import { useCart } from './CartProvider'
 import { useOrder } from 'features/Order/OrderProvider'
 import { useAppData } from 'App'
-import { calcShipping, getRemainingToFreeShipping } from '#common/functions/shipping.js'
+import { getRemainingToFreeShipping, extractShippingConfig } from '#common/functions/shipping.js'
 import styles from './cart.module.css'
-
-function getShippingConfigFromSettings(settings) {
-    if (!settings || typeof settings !== 'object') return null
-    if (settings.shipping && typeof settings.shipping === 'object' && ('total' in settings.shipping || 'freeFrom' in settings.shipping)) return settings.shipping
-    for (const cat of Object.values(settings)) {
-        if (cat && typeof cat === 'object' && cat.shipping && typeof cat.shipping === 'object') return cat.shipping
-    }
-    return null
-}
 
 export default function MiniCart({
     isOpen: controlledIsOpen,
@@ -36,10 +27,12 @@ export default function MiniCart({
     const { TR } = useText?.() || {}
     const { order } = useOrder()
     const { settings } = useAppData() || {}
-    const shippingConfig = useMemo(() => getShippingConfigFromSettings(settings), [settings])
-    // sum pre-coupon per spec, pay amount is sumWithShipping
+    const shippingConfig = useMemo(() => extractShippingConfig(settings), [settings])
+    // sum pre-coupon per spec; if coupon present, show discounted total
     const sum = order?.sum ?? 0
-    const total = order?.sumWithShipping ?? (order?.shipping != null ? (sum + Number(order.shipping || 0)) : sum)
+    const hasCoupon = !!(order?.coupons && order.coupons.length)
+    const sumWithShipping = order?.sumWithShipping ?? (order?.shipping != null ? (sum + Number(order.shipping || 0)) : sum)
+    const total = hasCoupon && order?.finalSumWithShipping != null ? order.finalSumWithShipping : sumWithShipping
     const itemCount = order?.cart?.length
 
     const handleToggle = (e) => {
