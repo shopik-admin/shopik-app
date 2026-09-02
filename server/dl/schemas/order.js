@@ -176,6 +176,8 @@ export const cartSchema = [{
             type: String,
             enum: Object.values(productConstants.BASE_UNIT)
         },
+        minAmount: Number,
+        step: Number,
         units: Number, // count of units ordered (e.g. 2 watermelons)
         option: unitOptionSchema
     },

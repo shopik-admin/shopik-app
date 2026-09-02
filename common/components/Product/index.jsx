@@ -4,6 +4,7 @@ import Image from 'common/components/Image'
 import Flex from 'common/components/Flex'
 import Text from 'common/components/Text'
 import classNames from 'common/functions/classNames'
+import { round3 } from 'common/functions/calcOrder/utils.js'
 
 export function ProductImage({ product, size = 'm' }) {
     const { images } = product || {}
@@ -27,20 +28,29 @@ export function ProductInfo(props) {
 export function ProductButton({ product, amount = 0, onUpdateAmount, size = 'm', sales = {} }) {
     // Presentational stepper — caller provides amount and update handler
     // If no handler provided, button is disabled / hidden
+    const minAmount = product?.unit?.minAmount || 1
+    const step = product?.unit?.step || 1
+
     if (!amount) {
         return <Flex className={classNames(styles.productButton, styles[size])} >
             <Button
                 icon='add' preventDefault stopPropagation
-                onClick={() => onUpdateAmount?.(1)}
+                onClick={() => onUpdateAmount?.(round3(minAmount) || 1)}
                 disabled={!onUpdateAmount}
             >add_to_cart</Button>
         </Flex >
     }
 
+    const handleInc = () => onUpdateAmount?.(round3(amount + step))
+    const handleDec = () => {
+        const next = round3(amount - step)
+        onUpdateAmount?.(next <= 0 ? 0 : next)
+    }
+
     return <Flex className={classNames(styles.productButton, styles[size], styles.stepper)}>
-        <Button icon='add' preventDefault stopPropagation onClick={() => onUpdateAmount?.(amount + 1)} disabled={!onUpdateAmount} />
+        <Button icon='add' preventDefault stopPropagation onClick={handleInc} disabled={!onUpdateAmount} />
         <Text size='m' bold className={styles.amount}>{amount}</Text>
-        <Button preventDefault stopPropagation onClick={() => onUpdateAmount?.(amount - 1)} disabled={!onUpdateAmount}>-</Button>
+        <Button preventDefault stopPropagation onClick={handleDec} disabled={!onUpdateAmount}>-</Button>
     </Flex>
 }
 

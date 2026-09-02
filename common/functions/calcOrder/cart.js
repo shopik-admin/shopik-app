@@ -11,9 +11,9 @@ export function buildCartProduct({ product, amount, unitKey, domainId, existingS
     const domainPrice = domainId ? product.prices?.find(p => p.domainId === domainId)?.price : undefined
     const price = domainPrice ?? product.prices?.[0]?.price ?? product.price ?? 0
 
-    let option, unit, units
+    let option, units
+    const unit = product?.unit
     if (unitKey) {
-        unit = product?.unit
         option = unit?.options.find(o => o.key === unitKey) || null
         if (!option)
             throw { status: 400, message: 'Unit option does not exist' }
@@ -37,6 +37,8 @@ export function buildCartProduct({ product, amount, unitKey, domainId, existingS
         unit: {
             type: unit?.type || 'item',
             baseUnit: unit?.baseUnit || 'unit',
+            minAmount: unit?.minAmount || 1,
+            step: unit?.step || 1,
             units,
             option
         },
