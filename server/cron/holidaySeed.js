@@ -4,6 +4,7 @@ import log from '#server/utils/log.js'
 import { acquireLock } from '#server/utils/redisLock.js'
 import { SPECIAL_DAY_EREV_START } from '#common/constants.js'
 import { overlapsSpecialDay } from '#common/functions/specialDay.js'
+import uid from '#common/functions/uid.js'
 
 // Yamim Tovim observed in Israel (CHAG flag): Rosh Hashana x2, Yom Kippur,
 // Sukkot I, Shmini Atzeret/Simchat Torah, Pesach I + VII, Shavuot.
@@ -43,26 +44,34 @@ export async function seedHolidays(DL) {
         }
     }
 
-    let seeded = 0
+    const dates = [...new Set(candidates.map(c => c.date))]
+    const allSameDates = dates.length
+        ? await DL.SpecialDay.Model.find({ active: true, date: { $in: dates } })
+            .select({ _id: 0, date: 1, storeIds: 1, start: 1, end: 1 })
+            .lean()
+        : []
+    const byDate = new Map()
+    for (const doc of allSameDates) {
+        if (!byDate.has(doc.date)) byDate.set(doc.date, [])
+        byDate.get(doc.date).push(doc)
+    }
+
+    const toInsert = []
     for (const candidate of candidates) {
         // Idempotent: skip when any active all-store closure already overlaps
         // this range — including admin-created replacements (never overwritten).
-        const sameDate = await DL.SpecialDay.Model.find({
-            active: true,
-            date: candidate.date
-        })
-            .select({ _id: 0, storeIds: 1, start: 1, end: 1 })
-            .lean()
+        const sameDate = byDate.get(candidate.date) || []
         const globalSameDate = sameDate.filter(sd => !sd.storeIds?.length)
 
         if (globalSameDate.some(existing => overlapsSpecialDay(candidate, existing)))
             continue
 
-        await DL.SpecialDay.create(candidate)
-        seeded++
+        toInsert.push({ id: uid(), ...candidate })
     }
 
-    return { seeded, total: candidates.length }
+    if (toInsert.length) await DL.SpecialDay.bulkWrite({ docs: toInsert })
+
+    return { seeded: toInsert.length, total: candidates.length }
 }
 
 const LOCK_KEY = 'holiday-seed:lock'

@@ -47,12 +47,14 @@ export default async function options(payload, { DL, _user, utils }) {
     if (!windows?.length) return windows
 
     // Special-day closures are enforced at read time (no mutation of generated rows)
-    const specialDays = await DL.SpecialDay.Model.find({
-        active: true,
-        date: { $gte: dateFrom, $lte: dateTo }
-    })
-        .select({ _id: 0, date: 1, storeIds: 1, start: 1, end: 1, name: 1 })
-        .lean()
+    const specialDays = await DL.SpecialDay.read(
+        {
+            active: true,
+            date: { $gte: dateFrom, $lte: dateTo }
+        },
+        { _id: 0, date: 1, storeIds: 1, start: 1, end: 1, name: 1 },
+        { limit: 0 }
+    )
     // filter by scope in-memory via specialDaysFor (global storeIds handling)
     const specialMap = buildSpecialMap(specialDays)
 

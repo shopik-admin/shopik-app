@@ -155,6 +155,12 @@
         "reset": "איפוס",
         "roleId": "תפקיד",
         "roleName": "תפקיד",
+        "roles": "תפקידים",
+        "add role": "הוספת תפקיד",
+        "add role under": "הוספת תפקיד תחת",
+        "update role": "עריכת תפקיד",
+        "delete role": "מחיקת תפקיד",
+        "delete role confirm": "למחוק את התפקיד",
         "from": "מתוך",
         "rows": "שורות",
         "sales": "מבצעים",
@@ -464,6 +470,7 @@
         "order_number": "מספר הזמנה",
         "to_pick": "לליקוט",
         "wait_pick": "בבדיקה",
-        "done_pick": "טופל"
+        "done_pick": "טופל",
+        "role_delete_button_disabled_tooltip": "לא ניתן למחוק תפקיד אב"
     }
 }

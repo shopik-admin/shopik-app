@@ -86,13 +86,22 @@
     border-radius: var(--radius-md);
     transition: color .15s ease;
 
-    &:hover {
+    &:hover,
+    &:has(dialog[open]) {
         color: var(--text-primary);
     }
 
-    &:not(:hover) {
+    &:not(:hover):not(:has(dialog[open])) {
         button {
             display: none;
+        }
+    }
+
+    /* Popover/Confirm buttons are inside a <dialog> that lives under .label
+       in the DOM — they must never be hidden by the rule above */
+    dialog {
+        button {
+            display: inline-flex !important;
         }
     }
 }
@@ -134,5 +143,20 @@
             width: 1px;
             background: var(--bg-primary);
         }
+    }
+}
+
+.addBtn,
+.editBtn {
+    &:hover {
+        background-color: var(--bg-brand-primary-hover);
+        color: var(--fg-white);
+    }
+}
+
+.deleteBtn:enabled {
+    &:hover {
+        background-color: var(--bg-error-primary);
+        color: var(--fg-white);
     }
 }

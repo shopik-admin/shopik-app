@@ -50,7 +50,7 @@ label.cb {
 
     &.switch {
         .checkboxCircle {
-            background: var(--btnColor);
+            background: var(--bg-disabled);
             position: absolute;
             inset-inline-end: 0;
             width: 50px;
@@ -80,7 +80,7 @@ label.cb {
 
         &.checked {
             .checkboxCircle {
-                background: #44d756;
+                background: var(--bg-brand-primary);
 
                 &::after {
                     inset-inline-start: 21px;
@@ -99,7 +99,7 @@ label.cb {
 
         margin-inline-start: 0;
         transition: .2s;
-        background-color: var(--btnColor);
+        background-color: var(--bg-disabled);
         padding: 5px 7px !important;
 
         &:hover {
@@ -111,7 +111,7 @@ label.cb {
         }
 
         &.checked {
-            background-color: var(--color1);
+            background-color: var(--bg-error-primary);
             color: white;
         }
     }

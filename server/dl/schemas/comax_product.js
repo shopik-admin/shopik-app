@@ -33,6 +33,14 @@ const comaxProductSchema = {
     width: Number,
     length: Number,
     weight: Number,
+
+    // raw Comax weight/size indicators → used to derive product.unit
+    Size: String,
+    SwWeighable: Boolean,
+    Content: Number,
+    ContentUnit: String,
+    ContentMeasure: Number,
+    QtyType: String,
     calories: Number,
     carbohydrates: Number,
     protein: Number,

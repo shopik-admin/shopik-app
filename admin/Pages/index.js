@@ -17,6 +17,7 @@ import ComaxSales from 'Pages/ComaxSales'
 import Windows from 'Pages/Windows'
 import Ops from 'Pages/Ops'
 import OpsOrder from 'Pages/Ops/OpsOrder'
+import ApiKeys from 'Pages/ApiKeys'
 
 const pages = [
     { key: 'dashboard', name: 'Dashboard', path: '/', section: 'main', icon: 'desktop', component: Dashboard,/*  permission: 'dashboard:read' */ },
@@ -40,6 +41,7 @@ const pages = [
 
     { key: 'logs', name: 'Logs', path: '/logs', section: 'system', icon: 'log', component: Logs, permission: 'log:read' },
     { key: 'permissions', name: 'permissions', path: '/permissions', section: 'system', icon: 'key', component: Permissions, permission: 'permission:read' },
+    { key: 'api-keys', name: 'API Keys', path: '/api-keys', section: 'system', icon: 'key', component: ApiKeys, permission: 'api_key:read' },
     { key: 'settings', name: 'Settings', path: '/settings', section: 'system', icon: 'settings', component: Settings, permission: 'setting:read' },
 ]
 

@@ -67,11 +67,11 @@ export function groupsSignature(areaGroups = []) {
  */
 export async function findUserGroupIds(DL, storeId, areaId) {
     if (!storeId || !areaId) return []
-    const groups = await DL.AreaGroup.Model.find(
-        { storeId, active: true, areaIds: areaId },
-        { _id: 0, id: 1 }
-    ).lean()
-    return groups.map(g => g.id)
+    const groupsIds = await DL.AreaGroup.Model.distinct(
+        'id',
+        { storeId, active: true, areaIds: areaId }
+    )
+    return groupsIds
 }
 
 /**

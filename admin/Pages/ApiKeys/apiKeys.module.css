@@ -1,4 +1,4 @@
-.permissions {
+.apiKeys {
     display: flex;
     height: 100%;
     min-height: 32rem;
@@ -7,7 +7,7 @@
     border-radius: var(--radius-lg);
 }
 
-.roles {
+.keys {
     flex: 0 0 24rem;
     overflow: auto;
     padding: 1rem;
@@ -15,23 +15,100 @@
     background: var(--bg-primary);
 }
 
-.rolesHeader {
+.keysHeader {
     display: flex;
     align-items: center;
     justify-content: space-between;
     margin-bottom: 0.75rem;
 }
 
-.rolesTitle {
+.keysTitle {
     color: var(--text-primary);
     font-size: 1rem;
 }
 
-.addRootRoleBtn {
-    color: var(--text-brand);
+.keyList {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    list-style: none;
+    padding: 0;
+    margin: 0;
 }
 
-.permissionList {
+.keyItem {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.65rem 0.75rem;
+    height: 4rem;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: background-color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+}
+
+.keyItem:hover {
+    background: var(--bg-primary-alt);
+}
+
+.keyItem.selected {
+    background: color-mix(in srgb, var(--text-brand) 14%, transparent);
+    border-color: var(--text-brand);
+}
+
+.keyItem.disabled {
+    opacity: 0.6;
+    background: var(--bg-primary-alt);
+    border-style: dashed;
+}
+
+.keyActions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.keyItem:not(:hover):not(:has(dialog[open])) .keyActions button {
+    display: none;
+}
+
+.keyItem dialog button {
+    display: inline-flex !important;
+}
+
+.toggleBtn:hover {
+    background-color: var(--bg-brand-primary-hover) !important;
+    color: var(--text-white) !important;
+}
+
+.toggleBtnOff:hover {
+    background-color: var(--bg-brand-primary-hover) !important;
+    color: var(--text-white) !important;
+}
+
+.deleteBtn:hover {
+    background-color: var(--bg-error-primary) !important;
+    color: var(--text-white) !important;
+}
+
+.keyName {
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.keyMeta {
+    font-size: var(--text-xs);
+    color: var(--text-tertiary);
+    white-space: nowrap;
+}
+
+.keyDetail {
     position: relative;
     display: flex;
     flex-direction: column;
@@ -41,14 +118,19 @@
     background: var(--bg-primary);
 
     h3 {
-        margin: 0 0 1.25rem;
+        margin: 0 0 0.25rem;
         color: var(--text-primary);
         font-size: 1.125rem;
         font-weight: var(--font-weight-semibold);
     }
 }
 
-/* Mobile Header Back Button (Hidden on Desktop) */
+.keySubtitle {
+    color: var(--text-tertiary);
+    font-size: var(--text-sm);
+    margin-bottom: 1rem;
+}
+
 .backButton {
     display: none !important;
     align-items: center;
@@ -63,7 +145,20 @@
     width: fit-content;
 }
 
-/* Categories Container styling */
+.detailHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.activeToggle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
 .categoriesContainer {
     display: flex;
     flex-direction: column;
@@ -90,7 +185,6 @@
     font-size: 1rem;
 }
 
-/* Indented Action List */
 .actionList {
     display: flex;
     flex-direction: column;
@@ -122,7 +216,6 @@
     }
 }
 
-/* Active Permission State (Checked) */
 .actionList li.active {
     border-color: var(--text-brand);
     background: color-mix(in srgb, var(--text-brand) 14%, transparent);
@@ -130,24 +223,12 @@
     color: var(--text-primary);
 }
 
-/* Checkbox alignment */
 .checkboxLabel {
     display: flex;
     align-items: center;
     gap: 0.75rem;
     width: 100%;
     cursor: pointer;
-}
-
-.checkboxInput {
-    accent-color: var(--text-brand);
-    width: 1rem;
-    height: 1rem;
-}
-
-.noPermissions {
-    margin: 0;
-    color: var(--text-tertiary);
 }
 
 .form {
@@ -165,35 +246,72 @@
     }
 }
 
-/* --- Mobile Breakpoint Rules --- */
+.emptyState {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    padding: 2rem;
+    color: var(--text-tertiary);
+}
+
+.createForm {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.keyDisplay {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 1rem;
+    background: var(--bg-primary-alt);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-primary);
+}
+
+.keyValue {
+    font-family: monospace;
+    word-break: break-all;
+    background: var(--bg-primary);
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-primary);
+    font-size: 0.85rem;
+}
+
+.warning {
+    color: var(--text-warning, var(--text-error-primary));
+    font-size: var(--text-sm);
+}
+
 @media (max-width: 767px) {
     .backButton {
         display: inline-flex !important;
     }
 
-    /* When mobileView is 'tree', hide the permissions details panel completely */
-    .permissions.tree .permissionList {
+    .apiKeys.list .keyDetail {
         display: none;
     }
 
-    .permissions.tree .roles {
+    .apiKeys.list .keys {
         flex: 1;
         width: 100%;
         border-inline-end: none;
     }
 
-    /* When mobileView is 'form', hide the sidebar tree list completely */
-    .permissions.form .roles {
+    .apiKeys.detail .keys {
         display: none;
     }
 
-    .permissions.form .permissionList {
+    .apiKeys.detail .keyDetail {
         display: flex;
         width: 100%;
     }
 
     .form :global(.Form_footer) button {
         width: 100% !important;
-        /* Full width footer button for mobile fingers */
     }
 }

@@ -6,6 +6,7 @@ export default [
     'admin:read',
     'role:create',
     'role:update',
+    'role:delete',
     'role:read',
     'role:id',
     'product:create',
@@ -20,6 +21,7 @@ export default [
     'setting:update',
     'setting:read',
     'setting:id',
+    'setting:delete',
     'log:read',
     'user:read',
     'store:create',
@@ -72,5 +74,10 @@ export default [
     'cash_register:read',
     'cash_register:update',
     'cash_register:id',
-    'cash_register:sync'
+    'cash_register:sync',
+    'api_key:create',
+    'api_key:read',
+    'api_key:update',
+    'api_key:delete',
+    'api_key:id'
 ]
