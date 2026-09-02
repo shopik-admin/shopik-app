@@ -596,11 +596,11 @@ export default function SupplyAreaMap({
                                 <>
                                     <div className={styles.areaPopupHeader}>
                                         <strong className={styles.areaPopupTitle}>{selectedArea.name || <Text size="none">no_name</Text>}</strong>
-                                        <span>vertices: {selectedArea.location.coordinates?.[0].length}</span>
+                                        <span>vertices: {selectedArea.location.coordinates?.[0].length - 1}</span>
                                         <Flex gap={6} className={styles.areaPopupActions}>
                                             <Button size="s" icon="edit" onClick={onStartAreaPropsEdit}></Button>
                                             <ConfirmButton
-                                                q={`${TR('supply_delete_area_confirm')} "${selectedArea.name}"?`}
+                                                q={`${TR('supply_delete_area_confirm')}${selectedArea.name ? ` "${selectedArea.name}"` : ''}?`}
                                                 onOk={onDeleteArea}
                                                 size="s"
                                                 icon="trash"
