@@ -169,7 +169,8 @@ function MapController({
     const groupRef = useRef(null)
     const layersRef = useRef(new Map())
     const drawHandlerRef = useRef(null)
-    const snapTargetsRef = useRef([])
+    const snapTargetsRef = useRef(new Map())
+    const snapEdgesRef = useRef([])
     const editLayerRef = useRef(null)
     const editOriginalRef = useRef(null)
     const editControlRef = useRef(null)
@@ -304,44 +305,52 @@ function MapController({
         })
     }, [selectedId, servedAreaIds, groupAreaIds, draftAreaIds, toggleMode])
 
-    // Refresh snapping targets (existing area vertices) — bucketed grid for O(1) lookup
+    // Refresh snapping targets (existing area vertices + edges) — bucketed grid for vertices + flat edge list
     useEffect(() => {
         const grid = new Map()
         const keyFor = (lat, lng) => `${Math.floor(lat * 100)}_${Math.floor(lng * 100)}`
+        const edges = []
         areas.forEach(area =>
-            area.location?.coordinates?.forEach(ring =>
+            area.location?.coordinates?.forEach(ring => {
                 ring.forEach(([lng, lat]) => {
                     const p = L.latLng(lat, lng)
                     const k = keyFor(lat, lng)
                     if (!grid.has(k)) grid.set(k, [])
                     grid.get(k).push(p)
                 })
-            )
+                for (let i = 0; i < ring.length - 1; i++) {
+                    const [lng1, lat1] = ring[i]
+                    const [lng2, lat2] = ring[i + 1]
+                    if (lng1 === lng2 && lat1 === lat2) continue
+                    edges.push([L.latLng(lat1, lng1), L.latLng(lat2, lng2)])
+                }
+            })
         )
         snapTargetsRef.current = grid
+        snapEdgesRef.current = edges
     }, [areas])
 
-    // Snap vertices to nearby existing-area vertices within threshold (in screen px).
-    const snapInPlace = useCallback((rings) => {
-        if (!rings?.length || !snapTargetsRef.current.size) return false
+    // Find nearest snap target (vertex or edge projection) within SNAP_THRESHOLD_PX, or null.
+    const findSnapLatLng = useCallback((latlng) => {
+        const hasVertices = snapTargetsRef.current.size > 0
+        const hasEdges = snapEdgesRef.current.length > 0
+        if (!latlng || (!hasVertices && !hasEdges)) return null
 
-        let changed = false
-        const keyFor = (lat, lng) => `${Math.floor(lat * 100)}_${Math.floor(lng * 100)}`
-        rings.forEach(ring => ring.forEach(point => {
-            const containerPoint = map.latLngToContainerPoint(point)
-            let best = null
-            let bestDist = SNAP_THRESHOLD_PX
+        const cursorPt = map.latLngToContainerPoint(latlng)
+        let best = null
+        let bestDist = SNAP_THRESHOLD_PX
 
-            const baseLat = Math.floor(point.lat * 100)
-            const baseLng = Math.floor(point.lng * 100)
+        // Vertex snap (bucketed)
+        if (hasVertices) {
+            const baseLat = Math.floor(latlng.lat * 100)
+            const baseLng = Math.floor(latlng.lng * 100)
             for (let dLat = -1; dLat <= 1; dLat++) {
                 for (let dLng = -1; dLng <= 1; dLng++) {
                     const cell = snapTargetsRef.current.get(`${baseLat + dLat}_${baseLng + dLng}`)
                     if (!cell) continue
                     for (const target of cell) {
-                        // skip self (0 distance but also same point if editing polygon's own vertex)
-                        if (target.lat === point.lat && target.lng === point.lng) continue
-                        const dist = containerPoint.distanceTo(map.latLngToContainerPoint(target))
+                        if (target.lat === latlng.lat && target.lng === latlng.lng) continue
+                        const dist = cursorPt.distanceTo(map.latLngToContainerPoint(target))
                         if (dist <= bestDist) {
                             bestDist = dist
                             best = target
@@ -349,15 +358,56 @@ function MapController({
                     }
                 }
             }
-            if (best) {
-                point.lat = best.lat
-                point.lng = best.lng
+        }
+
+        // Edge snap: project cursor onto each segment (in container-pixel space)
+        if (hasEdges) {
+            for (const [a, b] of snapEdgesRef.current) {
+                // Skip zero-length edges
+                if (a.lat === b.lat && a.lng === b.lng) continue
+                const aPt = map.latLngToContainerPoint(a)
+                const bPt = map.latLngToContainerPoint(b)
+                const dx = bPt.x - aPt.x
+                const dy = bPt.y - aPt.y
+                const len2 = dx * dx + dy * dy
+                if (len2 === 0) continue
+                const t = ((cursorPt.x - aPt.x) * dx + (cursorPt.y - aPt.y) * dy) / len2
+                const tClamped = Math.max(0, Math.min(1, t))
+                const projX = aPt.x + tClamped * dx
+                const projY = aPt.y + tClamped * dy
+                const projPt = L.point(projX, projY)
+                const dist = cursorPt.distanceTo(projPt)
+                // Prefer vertex over edge if distances equal — keep earlier vertex win (use < not <=)
+                if (dist < bestDist) {
+                    const projLatLng = map.containerPointToLatLng(projPt)
+                    // Avoid snapping to self if projection equals cursor (within epsilon)
+                    if (projLatLng.lat === latlng.lat && projLatLng.lng === latlng.lng) continue
+                    bestDist = dist
+                    best = projLatLng
+                }
+            }
+        }
+
+        return best
+    }, [map])
+
+    // Snap vertices to nearby existing-area vertex OR edge within threshold (in screen px).
+    const snapInPlace = useCallback((rings) => {
+        if (!rings?.length) return false
+        if (!snapTargetsRef.current.size && !snapEdgesRef.current.length) return false
+
+        let changed = false
+        rings.forEach(ring => ring.forEach(point => {
+            const snapped = findSnapLatLng(point)
+            if (snapped && (snapped.lat !== point.lat || snapped.lng !== point.lng)) {
+                point.lat = snapped.lat
+                point.lng = snapped.lng
                 changed = true
             }
         }))
 
         return changed
-    }, [map])
+    }, [findSnapLatLng])
 
     const snapLayer = useCallback((layer) => {
         const rings = layer.getLatLngs?.()
@@ -423,7 +473,7 @@ function MapController({
         }
     }, [map, drawReady, onEditVertex, snapLayer])
 
-    // "New Area" mode: programmatic polygon draw handler
+    // "New Area" mode: programmatic polygon draw handler with live snap to nearby vertices/edges
     useEffect(() => {
         if (!drawReady) return
 
@@ -439,9 +489,31 @@ function MapController({
             allowIntersection: false,
             shapeOptions: { color: '#3b82f6', weight: 2 }
         })
+
+        // Snap the actual vertex that gets added on click/tap (vertex or edge)
+        const origAddVertex = handler.addVertex.bind(handler)
+        handler.addVertex = function (latlng) {
+            const snapped = findSnapLatLng(latlng)
+            return origAddVertex(snapped ? L.latLng(snapped.lat, snapped.lng) : latlng)
+        }
+
         handler.enable()
         drawHandlerRef.current = handler
         stopEdit()
+
+        // Live snap of the guide / mouse-marker while moving (runs after handler's own mousemove)
+        function onDrawMouseMove() {
+            const cur = handler._currentLatLng
+            if (!cur) return
+            const snapped = findSnapLatLng(cur)
+            if (!snapped || (snapped.lat === cur.lat && snapped.lng === cur.lng)) return
+            const snapLatLng = L.latLng(snapped.lat, snapped.lng)
+            handler._currentLatLng = snapLatLng
+            handler._mouseMarker.setLatLng(snapLatLng)
+            handler._updateGuide(map.latLngToLayerPoint(snapLatLng))
+            handler._updateTooltip(snapLatLng)
+        }
+        map.on('mousemove', onDrawMouseMove)
 
         function onDrawStop() {
             drawHandlerRef.current = null
@@ -449,11 +521,13 @@ function MapController({
         map.on(L.Draw.Event.DRAWSTOP, onDrawStop)
 
         return () => {
+            map.off('mousemove', onDrawMouseMove)
             map.off(L.Draw.Event.DRAWSTOP, onDrawStop)
             handler.disable()
             if (drawHandlerRef.current === handler) drawHandlerRef.current = null
+            handler.addVertex = origAddVertex
         }
-    }, [map, drawReady, drawing, stopEdit])
+    }, [map, drawReady, drawing, stopEdit, findSnapLatLng])
 
     return null
 }
