@@ -69,7 +69,7 @@ export default function Products() {
                 : products.map(p => <ProductCard
                     key={p.id}
                     product={p}
-                    sales={p.saleIds.reduce((acc, sId) => ({ [sId]: sales[sId], ...acc }), {})}
+                    sales={p.saleIds.reduce((acc, sId) => sales[sId] ? { ...acc, [sId]: sales[sId] } : acc, {})}
                 >{p.name}</ProductCard>)}
         </div>
         {!loading && hasMore && <div ref={sentinelRef} className={styles.sentinel} />}

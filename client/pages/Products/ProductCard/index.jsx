@@ -49,25 +49,20 @@ export function ProductButton({ product, size = 'm', sales = {} }) {
         const currentRequest = ++latestRequest.current
         if (sales && Object.keys(sales).length) setSalesCache(sales)
         const cachedSales = getSalesCache()
-        const mergedSales = { ...cachedSales, ...(order?.sales && typeof order.sales === 'object' && !Array.isArray(order.sales) ? order.sales : {}), ...sales }
-        const filteredSales = Object.fromEntries(Object.entries(mergedSales).filter(([, v]) => v && typeof v === 'object' && ('kind' in v || 'benefit' in v || 'price' in v || 'amount' in v)))
-        const effectiveSales = Object.keys(filteredSales).length ? filteredSales : { ...cachedSales, ...sales }
         // Check if we have all needed saleIds for optimistic calc
         const neededIds = [...new Set([...(order?.cart || []).flatMap(i => i.saleIds || []), ...(product.saleIds || [])])]
-        const missing = neededIds.filter(id => !effectiveSales[id])
-        let didOptimistic = false
+        const missing = neededIds.filter(id => !cachedSales[id])
         if (!missing.length) {
             console.log({ sales, product, newAmount })
             const optimisticOrder = calcOrder({
                 order: order || {},
                 product,
                 amount: newAmount,
-                sales: effectiveSales,
+                sales: cachedSales,
                 shippingConfig,
                 user
             })
             setOrder(optimisticOrder)
-            didOptimistic = true
         } else {
             console.log('skip optimistic - missing sales', missing)
         }

@@ -18,10 +18,10 @@ export default function ProductInline({ remove = true, note = true, product, sal
 
     function handleRemove() {
         if (product) {
-            const cachedSales = getSalesCache()
-            const filteredSales = Object.fromEntries(Object.entries(cachedSales).filter(([, v]) => v && typeof v === 'object' && ('kind' in v || 'price' in v)))
-            const effectiveSales = Object.keys(filteredSales).length ? filteredSales : cachedSales
-            const neededIds = [...new Set((order?.cart || []).map(i => i.saleIds[0] || []))]
+            const effectiveSales = getSalesCache()
+            // need all saleIds for remaining cart after removal (excluding removed product)
+            const remainingCart = (order?.cart || []).filter(i => i.id !== product.id)
+            const neededIds = [...new Set(remainingCart.flatMap(i => i.saleIds || []))]
             const missing = neededIds.filter(id => !effectiveSales[id])
             if (!missing.length) {
                 const updatedOrder = calcOrder({
@@ -51,10 +51,7 @@ export default function ProductInline({ remove = true, note = true, product, sal
     function handleUpdateAmount(newAmount) {
         const currentRequest = ++latestRequest.current
         if (sales && Object.keys(sales).length) setSalesCache(sales)
-        const cachedSales = getSalesCache()
-        const mergedSales = { ...cachedSales, ...(sales || {}) }
-        const filteredSales = Object.fromEntries(Object.entries(mergedSales).filter(([, v]) => v && typeof v === 'object' && ('kind' in v || 'price' in v)))
-        const effectiveSales = Object.keys(filteredSales).length ? filteredSales : mergedSales
+        const effectiveSales = getSalesCache()
         const neededIds = [...new Set([...(order?.cart || []).flatMap(i => i.saleIds || []), ...(product.saleIds || [])])]
         const missing = neededIds.filter(id => !effectiveSales[id])
         if (!missing.length) {
