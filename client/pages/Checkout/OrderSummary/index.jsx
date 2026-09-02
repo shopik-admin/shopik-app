@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import Flex from 'common/components/Flex'
 import Text from 'common/components/Text'
 import Card from 'common/components/Card'
@@ -34,7 +34,14 @@ export default function OrderSummary({ onPayment, paying, showPayBtn = true, mis
     const [windowOpen, setWindowOpen] = useState(false)
     const [nameOpen, setNameOpen] = useState(false)
 
-    // Auto-open collapses for missing fields (one-by-one via missingFields array) + focus first missing
+    // Refs for focusing missing fields directly 
+    const nameFirstRef = useRef(null)
+    const emailRef = useRef(null)
+    const secondPhoneRef = useRef(null)
+    const cityRef = useRef(null)
+    const windowRef = useRef(null)
+
+    // Auto-open collapses for missing fields + focus first missing via refs
     useEffect(() => {
         if (!missingFields?.length) return
         const needName = missingFields.includes('name') || missingFields.includes('email') || missingFields.includes('phone') || missingFields.includes('secondPhone')
@@ -45,34 +52,36 @@ export default function OrderSummary({ onPayment, paying, showPayBtn = true, mis
         if (needWindow) setWindowOpen(true)
 
         const first = missingFields[0]
-        const selectorMap = {
-            name: 'input[name="name.first"]',
-            email: 'input[name="email"]',
-            phone: 'input[name="secondPhone"]',
-            secondPhone: 'input[name="secondPhone"]',
-            address: 'input[name="city"]',
-            window: null
-        }
-        const sel = selectorMap[first]
         const doFocus = () => {
-            if (sel) {
-                const el = document.querySelector(sel)
-                if (el) {
-                    el.focus?.()
-                    try { el.scrollIntoView?.({ behavior: 'smooth', block: 'center' }) } catch { }
-                    return
-                }
+            if (first === 'name' && nameFirstRef.current) {
+                nameFirstRef.current.focus()
+                try { nameFirstRef.current.scrollIntoView?.({ behavior: 'smooth', block: 'center' }) } catch { }
+                return
             }
-            if (first === 'address') {
-                const el2 = document.querySelector('input[name="city"]') || document.querySelector('[data-address-autocomplete] input') || document.querySelector('input[placeholder*="עיר"]')
-                if (el2) {
-                    el2.focus?.()
-                    try { el2.scrollIntoView?.({ behavior: 'smooth', block: 'center' }) } catch { }
-                }
+            if (first === 'email' && emailRef.current) {
+                emailRef.current.focus()
+                try { emailRef.current.scrollIntoView?.({ behavior: 'smooth', block: 'center' }) } catch { }
+                return
+            }
+            if ((first === 'phone' || first === 'secondPhone') && secondPhoneRef.current) {
+                secondPhoneRef.current.focus()
+                try { secondPhoneRef.current.scrollIntoView?.({ behavior: 'smooth', block: 'center' }) } catch { }
+                return
+            }
+            if (first === 'address' && cityRef.current) {
+                cityRef.current.focus()
+                try { cityRef.current.scrollIntoView?.({ behavior: 'smooth', block: 'center' }) } catch { }
+                return
+            }
+            if (first === 'window' && windowRef.current) {
+                try { windowRef.current.scrollIntoView?.({ behavior: 'smooth', block: 'center' }) } catch { }
             }
         }
-        const t = setTimeout(doFocus, 400)
-        return () => clearTimeout(t)
+        // Collapse animation ~300ms, wait a bit longer so input is mounted/visible
+        const t = setTimeout(doFocus, 450)
+        // retry once in case autocomplete mounts async
+        const t2 = setTimeout(doFocus, 900)
+        return () => { clearTimeout(t); clearTimeout(t2) }
     }, [missingFields])
 
     const displayName = (() => {
@@ -113,7 +122,6 @@ export default function OrderSummary({ onPayment, paying, showPayBtn = true, mis
     const total = hasCoupon && order.finalSumWithShipping != null
         ? order.finalSumWithShipping
         : (order.sumWithShipping ?? (subtotal + Number(shipping || 0)))
-    console.log('order:', order)
     return (
         <Flex col gap={15} className={styles.orderSummaryWrapper}>
             <Text size='xxl' bold className={styles.title}>
@@ -159,6 +167,9 @@ export default function OrderSummary({ onPayment, paying, showPayBtn = true, mis
                                 initialPhone={order?.phone || user?.phone || ''}
                                 initialSecondPhone={order?.secondPhone || user?.secondPhone || ''}
                                 missingFields={missingFields}
+                                nameFirstRef={nameFirstRef}
+                                emailRef={emailRef}
+                                secondPhoneRef={secondPhoneRef}
                                 onDone={() => setNameOpen(false)}
                             />
                         </div>
@@ -198,7 +209,7 @@ export default function OrderSummary({ onPayment, paying, showPayBtn = true, mis
                             {addresses.length > 0 ? (
                                 <Addresses action={{ onClick: () => setAddressOpen(false) }} />
                             ) : (
-                                <AddressForm onDone={() => setAddressOpen(false)} />
+                                <AddressForm onDone={() => setAddressOpen(false)} cityRef={cityRef} />
                             )}
                         </div>
                     </Collapse>
@@ -233,7 +244,7 @@ export default function OrderSummary({ onPayment, paying, showPayBtn = true, mis
                             </Flex>
                         }
                     >
-                        <div className={styles.collapseContent}>
+                        <div ref={windowRef} className={styles.collapseContent}>
                             {windowOpen && <WindowOptions />}
                         </div>
                     </Collapse>
@@ -312,7 +323,7 @@ export default function OrderSummary({ onPayment, paying, showPayBtn = true, mis
     )
 }
 
-function NameForm({ initialName, initialEmail, initialPhone, initialSecondPhone, missingFields = [], onDone }) {
+function NameForm({ initialName, initialEmail, initialPhone, initialSecondPhone, missingFields = [], nameFirstRef, emailRef, secondPhoneRef, onDone }) {
     const user = useUser()
     const { setOrder } = useOrder()
     const [formState, setFormState] = useState({})
@@ -343,7 +354,6 @@ function NameForm({ initialName, initialEmail, initialPhone, initialSecondPhone,
         }
     }
 
-    const isMissing = (f) => missingFields.includes(f)
     return (
         <Form action={handleSubmit} {...formState} submitText={initialName?.first ? 'user_details_update' : 'user_details_save'}>
             <Flex col gap={10}>
@@ -355,11 +365,11 @@ function NameForm({ initialName, initialEmail, initialPhone, initialSecondPhone,
                     </Flex>
                 ) : null}
                 <Flex gap={10}>
-                    <Input name='name.first' defaultValue={initialName?.first || ''} required label='שם פרטי' placeholder='שם פרטי' autoFocus={isMissing('name')} />
+                    <Input ref={nameFirstRef} name='name.first' defaultValue={initialName?.first || ''} required label='שם פרטי' placeholder='שם פרטי' />
                     <Input name='name.last' defaultValue={initialName?.last || ''} required label='שם משפחה' placeholder='שם משפחה' />
                 </Flex>
-                <Input name='email' type='email' defaultValue={initialEmail || ''} required label='אימייל' placeholder='אימייל' autoFocus={isMissing('email') && !isMissing('name')} />
-                <Input name='secondPhone' type='tel' defaultValue={initialSecondPhone || ''} label='טלפון נוסף' placeholder='טלפון נוסף' autoFocus={isMissing('secondPhone') || isMissing('phone')} />
+                <Input ref={emailRef} name='email' type='email' defaultValue={initialEmail || ''} required label='אימייל' placeholder='אימייל' />
+                <Input ref={secondPhoneRef} name='secondPhone' type='tel' defaultValue={initialSecondPhone || ''} label='טלפון נוסף' placeholder='טלפון נוסף' />
             </Flex>
         </Form>
     )

@@ -58,7 +58,6 @@ export default function Checkout() {
         // Client-side pre-validation: if we already know fields are missing, open them and don't hit server
         const localMissing = getLocalMissing()
         if (localMissing.length) {
-            setPayError({ message: `Missing required fields: ${localMissing.join(', ')}`, missingFields: localMissing, code: 'MISSING_FIELDS' })
             setMissingFields(localMissing)
             return
         }
@@ -140,9 +139,9 @@ export default function Checkout() {
                         </>
                     )}
 
-                    {payError && (
+                    {payError && !payError?.missingFields && (
                         <Text mode='sub' className={styles.payError}>
-                            {payError?.missingFields ? `missing_fields: ${payError.missingFields.join(', ')}` : (payError?.message || payError || 'payment_failed_generic')}
+                            {(payError?.message || payError || 'payment_failed_generic')}
                         </Text>
                     )}
                 </Flex>

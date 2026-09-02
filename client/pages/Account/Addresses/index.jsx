@@ -12,7 +12,7 @@ import Title from '#common/components/Title/index.jsx'
 import { useOrder } from 'features/Order/OrderProvider'
 import AddressAutocomplete from 'common/components/AddressAutocomplete'
 
-export function AddressForm({ initialData, onDone }) {
+export function AddressForm({ initialData, onDone, cityRef }) {
     const [formState, setFormState] = useState()
     const { onLogin } = useUser()
     const { setOrder } = useOrder()
@@ -54,7 +54,7 @@ export function AddressForm({ initialData, onDone }) {
         <Form action={handleSubmit} {...formState} submitText={initialData?.addressId ? 'עדכן כתובת' : 'הוסף כתובת'} autoComplete="off">
             <input type="text" style={{ display: 'none' }} autoComplete="off" tabIndex={-1} aria-hidden="true" />
             <input type="password" style={{ display: 'none' }} autoComplete="off" tabIndex={-1} aria-hidden="true" />
-            <AddressAutocomplete value={autocomplete} onChange={setAutocomplete} required />
+            <AddressAutocomplete value={autocomplete} onChange={setAutocomplete} required cityRef={cityRef} />
             <Flex gap={16}>
                 <Input name='floor' defaultValue={initialData?.floor} />
                 <Input name='entrance' defaultValue={initialData?.entrance} />
