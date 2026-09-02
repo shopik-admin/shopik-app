@@ -11,13 +11,15 @@ import { useOrder } from 'features/Order/OrderProvider'
 import WindowOptions from 'features/Order/WindowOptions'
 import Addresses, { AddressForm } from 'pages/Account/Addresses'
 import { useText } from 'common/texts/TextProvider'
+import { CouponCollapse } from './CouponSection'
 import {
-    IoLocationOutline,
-    IoTimeOutline,
-    IoPricetagOutline,
-    IoPencilOutline,
-    IoCardOutline
-} from 'react-icons/io5'
+    LuMapPinHouse,
+    LuClock,
+    LuTags,
+    LuTicketPercent,
+    LuPencil,
+    LuCreditCard
+} from 'react-icons/lu'
 
 export default function OrderSummary({ onPayment, paying, showPayBtn = true }) {
     const { order = {} } = useOrder()
@@ -26,9 +28,6 @@ export default function OrderSummary({ onPayment, paying, showPayBtn = true }) {
 
     const [addressOpen, setAddressOpen] = useState(false)
     const [windowOpen, setWindowOpen] = useState(false)
-    const [couponOpen, setCouponOpen] = useState(true)
-
-    const [couponCode, setCouponCode] = useState(order?.coupon || 'ROSH55')
 
     // Get active address from user state or order fallback
     const activeAddress = addresses.find(a => a.active) || addresses[0]
@@ -67,7 +66,7 @@ export default function OrderSummary({ onPayment, paying, showPayBtn = true }) {
                             <Flex alignItems='center' justifyContent='space-between' width='100%'>
                                 <Flex alignItems='center' gap={12}>
                                     <div className={styles.iconCircle}>
-                                        <IoLocationOutline className={styles.rowIcon} />
+                                        <LuMapPinHouse className={styles.rowIcon} />
                                     </div>
                                     <Text bold size='s' className={styles.rowText}>
                                         {addressText}
@@ -82,7 +81,7 @@ export default function OrderSummary({ onPayment, paying, showPayBtn = true }) {
                                     }}
                                     aria-label={TR?.('edit_address')}
                                 >
-                                    <IoPencilOutline />
+                                    <LuPencil />
                                 </button>
                             </Flex>
                         }
@@ -106,7 +105,7 @@ export default function OrderSummary({ onPayment, paying, showPayBtn = true }) {
                             <Flex alignItems='center' justifyContent='space-between' width='100%'>
                                 <Flex alignItems='center' gap={12}>
                                     <div className={styles.iconCircle}>
-                                        <IoTimeOutline className={styles.rowIcon} />
+                                        <LuClock className={styles.rowIcon} />
                                     </div>
                                     <Text bold size='s' className={styles.rowText}>
                                         {deliveryTimeText}
@@ -121,7 +120,7 @@ export default function OrderSummary({ onPayment, paying, showPayBtn = true }) {
                                     }}
                                     aria-label={TR?.('edit_delivery_time')}
                                 >
-                                    <IoPencilOutline />
+                                    <LuPencil />
                                 </button>
                             </Flex>
                         }
@@ -131,33 +130,8 @@ export default function OrderSummary({ onPayment, paying, showPayBtn = true }) {
                         </div>
                     </Collapse>
 
-                    {/* 3. Coupon Collapse Item */}
-                    <Collapse
-                        open={couponOpen}
-                        onToggle={setCouponOpen}
-                        className={styles.summaryCollapse}
-                        title={
-                            <Flex alignItems='center' gap={12}>
-                                <div className={styles.iconCircle}>
-                                    <IoPricetagOutline className={styles.rowIcon} />
-                                </div>
-                                <Text bold size='s' className={styles.rowText}>
-                                    coupons_especially_for_you
-                                </Text>
-                            </Flex>
-                        }
-                    >
-                        <Flex alignItems='center' justifyContent='space-between' className={styles.couponInputRow}>
-                            <button type='button' className={styles.editCouponBtn}>
-                                <Text size='s' bold className={styles.editCouponText}>edit_coupon</Text>
-                            </button>
-
-                            <div className={styles.couponPill}>
-                                <IoPricetagOutline className={styles.couponPillIcon} />
-                                <span className={styles.couponCode}>{couponCode}</span>
-                            </div>
-                        </Flex>
-                    </Collapse>
+                    {/* 3. Coupon Collapse Item — only shown if user/coupon returns relevant coupons */}
+                    <CouponCollapse defaultOpen={true} />
 
                     <div className={styles.divider} />
 
@@ -215,7 +189,7 @@ export default function OrderSummary({ onPayment, paying, showPayBtn = true }) {
                                 <Loader size={16} />
                             ) : (
                                 <>
-                                    <IoCardOutline className={styles.payIcon} />
+                                    <LuCreditCard className={styles.payIcon} />
                                     <Text size='l' bold className={styles.payBtnText}>to_payment_btn</Text>
                                 </>
                             )}

@@ -5,13 +5,8 @@ export default async function coupon(payload, { DL, _user, utils }) {
     const now = new Date()
     const coupons = await DL.Coupon.read({
         status: DL.Coupon.constants.STATUS.ACTIVE,
-        active: true,
         start: { $lte: now },
         end: { $gte: now },
-        $or: [
-            { dynamic: false, whitelist: _user.id },
-            { dynamic: true }
-        ]
     })
 
     const eligibleCoupons = []
@@ -28,6 +23,8 @@ export default async function coupon(payload, { DL, _user, utils }) {
             benefit: coupon.benefit,
             minSum: coupon.minSum,
             maxSum: coupon.maxSum,
+            start: coupon.start,
+            end: coupon.end,
         })
     }
 
