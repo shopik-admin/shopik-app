@@ -2,6 +2,12 @@
     width: 100%;
 }
 
+.divider {
+    height: 1px;
+    background-color: var(--border-secondary, #dde4e2);
+    margin: 4px 0;
+}
+
 .loadingWrap {
     padding: 16px 0;
 }
@@ -24,11 +30,11 @@
     border: 1.5px dashed #b6d5d1;
     border-radius: 16px;
     background: #ffffff;
-    padding: 14px 12px 10px;
+    padding: 10px;
     display: flex;
     flex-direction: column;
     align-items: stretch;
-    gap: 8px;
+    gap: 10px;
     text-align: center;
     transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
     min-height: 170px;
@@ -152,11 +158,12 @@
 
 /* Input row — matches screenshot: ערוך קופון | pill input | RiCoupon2Line */
 .inputRow {
+    border: none;
+    border-bottom: 1px solid var(--border-secondary);
     display: flex;
     align-items: center;
-    justify-content: flex-start;
-    gap: 12px;
-    padding-top: 4px;
+    gap: 10px;
+    padding: 20px 15px;
     flex-wrap: nowrap;
     width: 100%;
 }
@@ -172,8 +179,8 @@
 .editLabel {
     color: #195855;
     text-decoration: none;
-    font-weight: 700;
-    font-size: 13px;
+    font-weight: 700 !important;
+    font-size: var(--text-sm);
     white-space: nowrap;
 }
 
@@ -206,9 +213,10 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    gap: 10px;
     border: 1.5px solid #d1d5db;
     border-radius: 9999px;
-    padding: 9px 18px;
+    padding: 10px;
     background: #ffffff;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
     min-width: 160px;
@@ -224,8 +232,35 @@
     color: #374151;
 }
 
+.pillClearBtn {
+    background: #f3f4f6;
+    border: none;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #6b7280;
+    flex-shrink: 0;
+    font-size: 14px;
+}
+
+.pillClearBtn:hover {
+    background: #e5e7eb;
+    color: #374151;
+}
+
+.outsideActions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
 .couponRowIcon {
-    font-size: 22px;
+    font-size: 24px;
     color: #195855;
     flex-shrink: 0;
 }

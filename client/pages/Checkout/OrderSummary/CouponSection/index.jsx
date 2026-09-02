@@ -5,9 +5,8 @@ import Loader from 'common/components/Loader'
 import apiReq from 'common/functions/apiReq'
 import { useOrder } from 'features/Order/OrderProvider'
 import Collapse from 'common/components/Collapse'
-import { IoCloseOutline, IoCheckmarkCircleOutline } from 'react-icons/io5'
+import { IoCheckmarkCircleOutline } from 'react-icons/io5'
 import { LuTicketPercent, LuTag, LuTags } from 'react-icons/lu'
-import { RiCoupon2Line } from 'react-icons/ri'
 import styles from './couponSection.module.css'
 import summaryStyles from '../orderSummary.module.css'
 
@@ -48,13 +47,13 @@ function RegularCouponCard({ coupon, isApplied, isLoading, onApply, onRemove }) 
                     <LuTag className={styles.cardIcon} />
                 </div>
                 <Text bold size='l' className={styles.discountValue}>{discountLabel} הנחה</Text>
-                {minSumLabel && <Text size='s' mode='sub' className={styles.minSum}>{minSumLabel}</Text>}
+                {minSumLabel && <Text size='m' mode='sub' className={styles.minSum}>{minSumLabel}</Text>}
             </div>
 
             <div className={styles.cardBody}>
-                <Text bold size='s' className={styles.cardName}>{coupon.name}</Text>
+                <Text bold size='m' className={styles.cardName}>{coupon.name}</Text>
                 {coupon.description && (
-                    <Text size='s' mode='sub' className={styles.cardDesc}>{coupon.description}</Text>
+                    <Text size='m' mode='sub' className={styles.cardDesc}>{coupon.description}</Text>
                 )}
             </div>
 
@@ -73,9 +72,9 @@ function RegularCouponCard({ coupon, isApplied, isLoading, onApply, onRemove }) 
 
             {expiryLabel && (
                 <div className={styles.cardFooter}>
-                    <Text size='s' mode='sub' className={styles.expiry}>{expiryLabel}</Text>
+                    <Text size='m' mode='sub' className={styles.expiry}>{expiryLabel}</Text>
                     {coupon.maxSum && (
-                        <Text size='s' mode='sub' className={styles.expiry}>עד ₪{Number(coupon.maxSum).toFixed(0)}</Text>
+                        <Text size='m' mode='sub' className={styles.expiry}>עד ₪{Number(coupon.maxSum).toFixed(0)}</Text>
                     )}
                 </div>
             )}
@@ -231,17 +230,7 @@ export default function CouponSection() {
             )}
 
             <div className={styles.inputRow}>
-                {appliedCode && !isEditing ? (
-                    <button
-                        type='button'
-                        className={styles.editLabelBtn}
-                        onClick={() => setIsEditing(true)}
-                    >
-                        <Text size='s' bold className={styles.editLabel}>ערוך קופון</Text>
-                    </button>
-                ) : (
-                    <div className={styles.editLabelSpacer} />
-                )}
+                <LuTicketPercent className={styles.couponRowIcon} />
 
                 {isEditing ? (
                     <div className={styles.inputPillWrap}>
@@ -269,29 +258,22 @@ export default function CouponSection() {
                         />
                         {inputLoading ? (
                             <Loader size={14} />
-                        ) : inputValue ? (
-                            <button
-                                type='button'
-                                className={styles.clearBtn}
-                                onClick={() => {
-                                    if (appliedCode && inputValue.trim().toLowerCase() === appliedCode) {
-                                        handleRemoveCode(inputValue)
-                                    } else {
-                                        setInputValue('')
-                                        setInputError(null)
-                                    }
-                                }}
-                                aria-label='clear'
-                            >
-                                <IoCloseOutline />
-                            </button>
                         ) : null}
+                    </div>
+                ) : (
+                    <div className={styles.couponPillDisplay} onClick={() => setIsEditing(true)} role='button' tabIndex={0}>
+                        <span className={styles.couponPillText}>{appliedCode.toUpperCase()}</span>
+                    </div>
+                )}
+
+                {isEditing ? (
+                    <div className={styles.outsideActions}>
                         {!inputLoading && inputValue && appliedCode !== inputValue.trim().toLowerCase() && (
                             <button type='button' className={styles.applyBtn} onClick={() => handleApplyCode(inputValue)}>
                                 החל
                             </button>
                         )}
-                        {appliedCode && inputValue.trim().toLowerCase() === appliedCode && !inputLoading && (
+                        {appliedCode && !inputLoading && inputValue.trim().toLowerCase() === appliedCode && (
                             <button type='button' className={styles.removeBtn} onClick={() => handleRemoveCode(inputValue)}>
                                 הסר
                             </button>
@@ -302,17 +284,21 @@ export default function CouponSection() {
                             </button>
                         )}
                     </div>
+                ) : null}
+
+                {appliedCode && !isEditing ? (
+                    <button
+                        type='button'
+                        className={styles.editLabelBtn}
+                        onClick={() => setIsEditing(true)}
+                    >
+                        <Text size='m' bold className={styles.editLabel}>ערוך קופון</Text>
+                    </button>
                 ) : (
-                    <div className={styles.couponPillDisplay} onClick={() => setIsEditing(true)} role='button' tabIndex={0}>
-                        <span className={styles.couponPillText}>{appliedCode.toUpperCase()}</span>
-                    </div>
+                    !isEditing && <div className={styles.editLabelSpacer} />
                 )}
-                <RiCoupon2Line className={styles.couponRowIcon} />
             </div>
             {inputError && <Text size='s' mode='error' className={styles.inputError}>{inputError}</Text>}
-            {appliedCode && !isEditing && (
-                <Text size='s' mode='sub' className={styles.appliedHint}>קופון פעיל: {appliedCode.toUpperCase()}</Text>
-            )}
         </Flex>
     )
 }
@@ -337,9 +323,26 @@ export function useAvailableCoupons() {
 // Wrapper that includes the Collapse header — always visible so manual coupon entry works.
 // Grid of personalized coupons is shown only when GET returns relevant coupons; input stays visible in all cases.
 export function CouponCollapse({ defaultOpen = true }) {
+    const { order = {}, setOrder } = useOrder()
+    const appliedCode = (order.coupons?.[0]?.code || '').toLowerCase()
     const [open, setOpen] = useState(defaultOpen)
+    const [cardLoadingCode, setCardLoadingCode] = useState(null)
     const [coupons, setCoupons] = useState(null)
     const [loading, setLoading] = useState(true)
+    const [inputValue, setInputValue] = useState(appliedCode ? appliedCode.toUpperCase() : '')
+    const [inputLoading, setInputLoading] = useState(false)
+    const [inputError, setInputError] = useState(null)
+    const [isEditing, setIsEditing] = useState(!appliedCode)
+
+    useEffect(() => {
+        const code = (order.coupons?.[0]?.code || '').toLowerCase()
+        if (code) setInputValue(code.toUpperCase())
+    }, [appliedCode])
+
+    useEffect(() => {
+        if (appliedCode) setIsEditing(false)
+        else setIsEditing(true)
+    }, [appliedCode])
 
     useEffect(() => {
         let cancelled = false
@@ -353,68 +356,6 @@ export function CouponCollapse({ defaultOpen = true }) {
             .finally(() => { if (!cancelled) setLoading(false) })
         return () => { cancelled = true }
     }, [])
-
-    if (loading) {
-        return (
-            <Collapse
-                open={open}
-                onToggle={setOpen}
-                className={summaryStyles.summaryCollapse}
-                title={
-                    <Flex alignItems='center' gap={12}>
-                        <div className={summaryStyles.iconCircle}>
-                            <LuTicketPercent className={summaryStyles.rowIcon} />
-                        </div>
-                        <Text bold size='s' className={summaryStyles.rowText}>coupons_especially_for_you</Text>
-                    </Flex>
-                }
-            >
-                <Flex center className={styles.loadingWrap}><Loader size={18} /></Flex>
-            </Collapse>
-        )
-    }
-    // Always render the collapse — input must stay visible even when no personalized coupons.
-    // Grid is shown only if GET returned relevant coupons; input is shown in all cases.
-
-    return (
-        <Collapse
-            open={open}
-            onToggle={setOpen}
-            className={summaryStyles.summaryCollapse}
-            title={
-                <Flex alignItems='center' gap={12}>
-                    <div className={summaryStyles.iconCircle}>
-                        <LuTags className={summaryStyles.rowIcon} />
-                    </div>
-                    <Text bold size='s' className={summaryStyles.rowText}>coupons_especially_for_you</Text>
-                </Flex>
-            }
-        >
-            <CouponSectionInner coupons={coupons} />
-        </Collapse>
-    )
-}
-
-// Inner version that receives pre-fetched coupons — avoids double fetch when used via CouponCollapse
-function CouponSectionInner({ coupons: initialCoupons }) {
-    const { order = {}, setOrder } = useOrder()
-    const appliedCode = (order.coupons?.[0]?.code || '').toLowerCase()
-    const [coupons] = useState(initialCoupons)
-    const [inputValue, setInputValue] = useState(appliedCode ? appliedCode.toUpperCase() : '')
-    const [inputLoading, setInputLoading] = useState(false)
-    const [inputError, setInputError] = useState(null)
-    const [cardLoadingCode, setCardLoadingCode] = useState(null)
-    const [isEditing, setIsEditing] = useState(!appliedCode)
-
-    useEffect(() => {
-        const code = (order.coupons?.[0]?.code || '').toLowerCase()
-        if (code) setInputValue(code.toUpperCase())
-    }, [appliedCode])
-
-    useEffect(() => {
-        if (appliedCode) setIsEditing(false)
-        else setIsEditing(true)
-    }, [appliedCode])
 
     async function handleApplyCode(codeRaw) {
         const code = (codeRaw || '').trim().toLowerCase()
@@ -434,6 +375,7 @@ function CouponSectionInner({ coupons: initialCoupons }) {
             setInputError(msg)
         } finally { setInputLoading(false); setCardLoadingCode(null) }
     }
+
     async function handleRemoveCode(codeRaw) {
         const code = (codeRaw || appliedCode || '').trim().toLowerCase()
         if (!code) return
@@ -448,6 +390,121 @@ function CouponSectionInner({ coupons: initialCoupons }) {
             setInputError(msg)
         } finally { setInputLoading(false); setCardLoadingCode(null) }
     }
+
+    if (loading) {
+        return (
+            <Collapse
+                open={open}
+                onToggle={setOpen}
+                className={summaryStyles.summaryCollapse}
+                title={
+                    <Flex alignItems='center' gap={12}>
+                        <div className={summaryStyles.iconCircle}>
+                            <LuTicketPercent className={summaryStyles.rowIcon} />
+                        </div>
+                        <Text bold size='m' className={summaryStyles.rowText}>coupons_especially_for_you</Text>
+                    </Flex>
+                }
+            >
+                <Flex center className={styles.loadingWrap}><Loader size={18} /></Flex>
+            </Collapse>
+        )
+    }
+    // Always render the collapse — input must stay visible even when no personalized coupons.
+    // Grid is shown only if GET returned relevant coupons; input is shown in all cases.
+
+    return (<>
+        <Collapse
+            open={open}
+            onToggle={setOpen}
+            className={summaryStyles.summaryCollapse}
+            title={
+                <Flex alignItems='center' gap={12}>
+                    <div className={summaryStyles.iconCircle}>
+                        <LuTags className={summaryStyles.rowIcon} />
+                    </div>
+                    <Text bold size='m' className={summaryStyles.rowText}>coupons_especially_for_you</Text>
+                </Flex>
+            }
+        >
+            <CouponSectionInner
+                coupons={coupons}
+                handleApplyCode={handleApplyCode}
+                handleRemoveCode={handleRemoveCode}
+                cardLoadingCode={cardLoadingCode}
+                appliedCode={appliedCode}
+            />
+        </Collapse>
+
+        <div className={styles.inputRow}>
+            <LuTicketPercent className={styles.couponRowIcon} />
+
+            {isEditing ? (
+                <div className={styles.inputPillWrap}>
+                    <input
+                        id='checkout-coupon-input-inner'
+                        className={styles.couponInput}
+                        value={inputValue}
+                        onChange={e => { setInputValue(e.target.value.toUpperCase()); setInputError(null) }}
+                        onKeyDown={e => {
+                            if (e.key === 'Enter') {
+                                e.preventDefault()
+                                if (appliedCode && inputValue.trim().toLowerCase() === appliedCode) handleRemoveCode(inputValue)
+                                else handleApplyCode(inputValue)
+                            }
+                            if (e.key === 'Escape' && appliedCode) setIsEditing(false)
+                        }}
+                        placeholder='הזן קוד קופון'
+                        disabled={inputLoading}
+                        autoComplete='off'
+                        spellCheck={false}
+                        autoFocus
+                    />
+                    {inputLoading ? <Loader size={14} /> : null}
+                </div>
+            ) : (
+                <div className={styles.couponPillDisplay} onClick={() => setIsEditing(true)} role='button' tabIndex={0}>
+                    <span className={styles.couponPillText}>{appliedCode.toUpperCase()}</span>
+                </div>
+            )}
+
+            {isEditing ? (
+                <div className={styles.outsideActions}>
+                    {!inputLoading && inputValue && appliedCode !== inputValue.trim().toLowerCase() && (
+                        <button type='button' className={styles.applyBtn} onClick={() => handleApplyCode(inputValue)}>החל</button>
+                    )}
+                    {appliedCode && !inputLoading && inputValue.trim().toLowerCase() === appliedCode && (
+                        <button type='button' className={styles.removeBtn} onClick={() => handleRemoveCode(inputValue)}>הסר</button>
+                    )}
+                    {appliedCode && (
+                        <button type='button' className={styles.cancelEditBtn} onClick={() => setIsEditing(false)}>
+                            ביטול
+                        </button>
+                    )}
+                </div>
+            ) : null}
+
+            {appliedCode && !isEditing ? (
+                <button type='button' className={styles.editLabelBtn} onClick={() => setIsEditing(true)}>
+                    <Text size='m' bold className={styles.editLabel}>ערוך קופון</Text>
+                </button>
+            ) : null}
+        </div>
+        {inputError && <Text size='s' mode='error' className={styles.inputError}>{inputError}</Text>}
+    </>
+    )
+}
+
+// Inner version that receives pre-fetched coupons — avoids double fetch when used via CouponCollapse
+function CouponSectionInner({
+    coupons: initialCoupons,
+    handleApplyCode,
+    handleRemoveCode,
+    cardLoadingCode,
+    appliedCode
+}) {
+    const [coupons] = useState(initialCoupons)
+
     function handleCardApply(coupon) {
         if (appliedCode === coupon.code.toLowerCase()) handleRemoveCode(coupon.code)
         else handleApplyCode(coupon.code)
@@ -468,55 +525,6 @@ function CouponSectionInner({ coupons: initialCoupons }) {
                     ))}
                 </div>
             )}
-            <div className={styles.inputRow}>
-                <LuTicketPercent className={styles.couponRowIcon} />
-
-                {isEditing ? (
-                    <div className={styles.inputPillWrap}>
-                        <input
-                            id='checkout-coupon-input-inner'
-                            className={styles.couponInput}
-                            value={inputValue}
-                            onChange={e => { setInputValue(e.target.value.toUpperCase()); setInputError(null) }}
-                            onKeyDown={e => {
-                                if (e.key === 'Enter') {
-                                    e.preventDefault()
-                                    if (appliedCode && inputValue.trim().toLowerCase() === appliedCode) handleRemoveCode(inputValue)
-                                    else handleApplyCode(inputValue)
-                                }
-                                if (e.key === 'Escape' && appliedCode) setIsEditing(false)
-                            }}
-                            placeholder='הזן קוד קופון'
-                            disabled={inputLoading}
-                            autoComplete='off'
-                            spellCheck={false}
-                            autoFocus
-                        />
-                        {inputLoading ? <Loader size={14} /> : inputValue ? (
-                            <button type='button' className={styles.clearBtn} onClick={() => {
-                                if (appliedCode && inputValue.trim().toLowerCase() === appliedCode) handleRemoveCode(inputValue)
-                                else { setInputValue(''); setInputError(null) }
-                            }} aria-label='clear'><IoCloseOutline /></button>
-                        ) : null}
-                        {!inputLoading && inputValue && appliedCode !== inputValue.trim().toLowerCase() && (
-                            <button type='button' className={styles.applyBtn} onClick={() => handleApplyCode(inputValue)}>החל</button>
-                        )}
-                        {appliedCode && inputValue.trim().toLowerCase() === appliedCode && !inputLoading && (
-                            <button type='button' className={styles.removeBtn} onClick={() => handleRemoveCode(inputValue)}>הסר</button>
-                        )}
-                        {appliedCode && (
-                            <button type='button' className={styles.cancelEditBtn} onClick={() => setIsEditing(false)}>
-                                ביטול
-                            </button>
-                        )}
-                    </div>
-                ) : (
-                    <div className={styles.couponPillDisplay} onClick={() => setIsEditing(true)} role='button' tabIndex={0}>
-                        <span className={styles.couponPillText}>{appliedCode.toUpperCase()}</span>
-                    </div>
-                )}
-            </div>
-            {inputError && <Text size='s' mode='error' className={styles.inputError}>{inputError}</Text>}
         </Flex>
     )
 }

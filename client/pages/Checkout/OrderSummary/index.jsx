@@ -15,8 +15,6 @@ import { CouponCollapse } from './CouponSection'
 import {
     LuMapPinHouse,
     LuClock,
-    LuTags,
-    LuTicketPercent,
     LuPencil,
     LuCreditCard
 } from 'react-icons/lu'
@@ -46,7 +44,7 @@ export default function OrderSummary({ onPayment, paying, showPayBtn = true }) {
     const subtotal = order.sum ?? order.subtotal ?? cart.reduce((acc, item) => acc + ((item.price || 0) * (item.amount || 1)), 0)
     const deliveryFee = order.deliveryFee ?? order.delivery ?? 29.0
     const totalSavings = order.savings ?? order.discount ?? 0
-    const total = order.total ?? order.finalSum ?? (subtotal + deliveryFee - (totalSavings > 0 ? totalSavings : 0))
+    const total = order.sum ?? order.finalSum ?? (subtotal + deliveryFee - (totalSavings > 0 ? totalSavings : 0))
 
     return (
         <Flex col gap={15} className={styles.orderSummaryWrapper}>
@@ -55,7 +53,7 @@ export default function OrderSummary({ onPayment, paying, showPayBtn = true }) {
             </Text>
 
             <Card className={styles.summaryCard}>
-                <Flex col gap={8}>
+                <Flex col>
                     {/* 1. Address Collapse Item */}
                     <Collapse
                         open={addressOpen}
@@ -68,7 +66,7 @@ export default function OrderSummary({ onPayment, paying, showPayBtn = true }) {
                                     <div className={styles.iconCircle}>
                                         <LuMapPinHouse className={styles.rowIcon} />
                                     </div>
-                                    <Text bold size='s' className={styles.rowText}>
+                                    <Text bold size='m' className={styles.rowText}>
                                         {addressText}
                                     </Text>
                                 </Flex>
@@ -107,7 +105,7 @@ export default function OrderSummary({ onPayment, paying, showPayBtn = true }) {
                                     <div className={styles.iconCircle}>
                                         <LuClock className={styles.rowIcon} />
                                     </div>
-                                    <Text bold size='s' className={styles.rowText}>
+                                    <Text bold size='m' className={styles.rowText}>
                                         {deliveryTimeText}
                                     </Text>
                                 </Flex>
@@ -133,39 +131,35 @@ export default function OrderSummary({ onPayment, paying, showPayBtn = true }) {
                     {/* 3. Coupon Collapse Item — only shown if user/coupon returns relevant coupons */}
                     <CouponCollapse defaultOpen={true} />
 
-                    <div className={styles.divider} />
-
                     {/* Financial Breakdown */}
                     <Flex col gap={8} className={styles.breakdown}>
-                        <Flex alignItems='center' justifyContent='space-between'>
-                            <Text mode='sub' size='s'>
+                        <Flex alignItems='center' justifyContent='space-between' className={styles.subtotalRow}>
+                            <Text mode='sub' size='m'>
                                 subtotal_text
                             </Text>
-                            <Text mode='sub' size='s' bold>
+                            <Text size='m' bold>
                                 {render({ type: 'coin', value: subtotal })}
                             </Text>
                         </Flex>
 
-                        <Flex alignItems='center' justifyContent='space-between'>
-                            <Text mode='sub' size='s'>
+                        <Flex alignItems='center' justifyContent='space-between' className={styles.subtotalRow}>
+                            <Text mode='sub' size='m'>
                                 handling_and_delivery
                             </Text>
-                            <Text mode='sub' size='s' bold>
+                            <Text size='m' bold>
                                 {render({ type: 'coin', value: deliveryFee })}
                             </Text>
                         </Flex>
 
-                        <Flex alignItems='center' justifyContent='space-between' className={styles.savingsRow}>
-                            <Text size='s' bold className={styles.savingsText}>
+                        <Flex alignItems='center' justifyContent='space-between' className={styles.subtotalRow}>
+                            <Text size='m' bold className={styles.savingsText}>
                                 total_saved_in_purchase
                             </Text>
-                            <Text size='s' bold className={styles.savingsText}>
+                            <Text size='m' bold className={styles.savingsText}>
                                 {render({ type: 'coin', value: totalSavings })}
                             </Text>
                         </Flex>
                     </Flex>
-
-                    <div className={styles.divider} />
 
                     {/* Total Amount Row */}
                     <Flex alignItems='center' justifyContent='space-between' className={styles.totalRow}>
