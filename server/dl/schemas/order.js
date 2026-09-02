@@ -220,7 +220,7 @@ const orderSchema = {
     pickBy: Date,
     shipBy: Date,
     phone: String,
-    phoneB: String,
+    secondPhone: String,
     email: String,
     name: {
         first: String,
@@ -470,6 +470,7 @@ const methods = Order => ({
 const defaultSelect = {
     _id: 0,
     id: 1,
+    number: 1,
     status: 1,
     sum: 1,
     sumWithShipping: 1,

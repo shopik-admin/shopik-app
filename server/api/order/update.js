@@ -1,6 +1,6 @@
 import diff from '#common/functions/diff.js'
 
-const USER_DETAILS_FIELDS = ['name', 'phone', 'phoneB', 'email', 'comment']
+const USER_DETAILS_FIELDS = ['name', 'phone', 'secondPhone', 'email', 'comment']
 const CAPTURE_STATUSES = ['packed']
 
 async function tryCapture({ DL, external, utils, _admin, order }) {

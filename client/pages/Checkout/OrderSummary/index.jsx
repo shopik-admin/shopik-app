@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import Flex from 'common/components/Flex'
 import Text from 'common/components/Text'
 import Card from 'common/components/Card'
@@ -14,26 +14,78 @@ import Addresses, { AddressForm } from 'pages/Account/Addresses'
 import { useText } from 'common/texts/TextProvider'
 import { CouponCollapse } from './CouponSection'
 import { calcShipping, extractShippingConfig } from '#common/functions/shipping.js'
+import Input from 'common/components/Input'
+import Form from 'common/components/Form'
 import {
     LuMapPinHouse,
     LuClock,
     LuPencil,
-    LuCreditCard
+    LuCreditCard,
+    LuUserRound
 } from 'react-icons/lu'
 
-export default function OrderSummary({ onPayment, paying, showPayBtn = true }) {
-    const { order = {} } = useOrder()
-    const { addresses = [] } = useUser()
+export default function OrderSummary({ onPayment, paying, showPayBtn = true, missingFields = [] }) {
+    const { order = {}, setOrder } = useOrder()
+    const user = useUser()
+    const { addresses = [] } = user || {}
     const { TR } = useText() || {}
 
     const [addressOpen, setAddressOpen] = useState(false)
     const [windowOpen, setWindowOpen] = useState(false)
+    const [nameOpen, setNameOpen] = useState(false)
+
+    // Auto-open collapses for missing fields (one-by-one via missingFields array) + focus first missing
+    useEffect(() => {
+        if (!missingFields?.length) return
+        const needName = missingFields.includes('name') || missingFields.includes('email') || missingFields.includes('phone') || missingFields.includes('secondPhone')
+        const needAddress = missingFields.includes('address')
+        const needWindow = missingFields.includes('window')
+        if (needName) setNameOpen(true)
+        if (needAddress) setAddressOpen(true)
+        if (needWindow) setWindowOpen(true)
+
+        const first = missingFields[0]
+        const selectorMap = {
+            name: 'input[name="name.first"]',
+            email: 'input[name="email"]',
+            phone: 'input[name="secondPhone"]',
+            secondPhone: 'input[name="secondPhone"]',
+            address: 'input[name="city"]',
+            window: null
+        }
+        const sel = selectorMap[first]
+        const doFocus = () => {
+            if (sel) {
+                const el = document.querySelector(sel)
+                if (el) {
+                    el.focus?.()
+                    try { el.scrollIntoView?.({ behavior: 'smooth', block: 'center' }) } catch { }
+                    return
+                }
+            }
+            if (first === 'address') {
+                const el2 = document.querySelector('input[name="city"]') || document.querySelector('[data-address-autocomplete] input') || document.querySelector('input[placeholder*="עיר"]')
+                if (el2) {
+                    el2.focus?.()
+                    try { el2.scrollIntoView?.({ behavior: 'smooth', block: 'center' }) } catch { }
+                }
+            }
+        }
+        const t = setTimeout(doFocus, 400)
+        return () => clearTimeout(t)
+    }, [missingFields])
+
+    const displayName = (() => {
+        const n = order?.name?.first ? order.name : user?.name
+        if (n?.first || n?.last) return `${n.first || ''} ${n.last || ''}`.trim()
+        return TR?.('name') || 'שם מלא'
+    })()
 
     // Get active address from user state or order fallback
-    const activeAddress = addresses.find(a => a.active) || addresses[0]
+    const activeAddress = addresses.find(a => a.active) || addresses[0] || order?.address
     const addressText = activeAddress
         ? `${activeAddress.street} ${activeAddress.building}${activeAddress.apartment ? ' דירה ' + activeAddress.apartment : ''}, ${activeAddress.city}`
-        : (order.address || TR?.('address') || 'כתובת אספקה')
+        : 'no_address_selected'
 
     // Get active window from order state
     const activeWindow = order.window
@@ -61,15 +113,57 @@ export default function OrderSummary({ onPayment, paying, showPayBtn = true }) {
     const total = hasCoupon && order.finalSumWithShipping != null
         ? order.finalSumWithShipping
         : (order.sumWithShipping ?? (subtotal + Number(shipping || 0)))
-
+    console.log('order:', order)
     return (
         <Flex col gap={15} className={styles.orderSummaryWrapper}>
             <Text size='xxl' bold className={styles.title}>
-                order_summary_title
+                {TR?.('order_summary_title').replace('{orderNumber}', order?.number || '')}
             </Text>
 
             <Card className={styles.summaryCard}>
                 <Flex col>
+                    {/* 0. Name Collapse Item */}
+                    <Collapse
+                        open={nameOpen}
+                        onToggle={setNameOpen}
+                        showChevron={false}
+                        className={styles.summaryCollapse}
+                        title={
+                            <Flex alignItems='center' justifyContent='space-between' width='100%'>
+                                <Flex alignItems='center' gap={12}>
+                                    <div className={styles.iconCircle}>
+                                        <LuUserRound className={styles.rowIcon} />
+                                    </div>
+                                    <Text bold size='m' className={styles.rowText}>
+                                        {displayName}
+                                    </Text>
+                                </Flex>
+                                <button
+                                    type='button'
+                                    className={styles.editBtn}
+                                    onClick={(e) => {
+                                        e.stopPropagation()
+                                        setNameOpen(prev => !prev)
+                                    }}
+                                    aria-label={TR?.('edit_name') || 'edit name'}
+                                >
+                                    <LuPencil />
+                                </button>
+                            </Flex>
+                        }
+                    >
+                        <div className={styles.collapseContent}>
+                            <NameForm
+                                initialName={order?.name?.first ? order.name : user?.name}
+                                initialEmail={order?.email || user?.email || ''}
+                                initialPhone={order?.phone || user?.phone || ''}
+                                initialSecondPhone={order?.secondPhone || user?.secondPhone || ''}
+                                missingFields={missingFields}
+                                onDone={() => setNameOpen(false)}
+                            />
+                        </div>
+                    </Collapse>
+
                     {/* 1. Address Collapse Item */}
                     <Collapse
                         open={addressOpen}
@@ -215,5 +309,58 @@ export default function OrderSummary({ onPayment, paying, showPayBtn = true }) {
                 </Flex>
             </Card>
         </Flex>
+    )
+}
+
+function NameForm({ initialName, initialEmail, initialPhone, initialSecondPhone, missingFields = [], onDone }) {
+    const user = useUser()
+    const { setOrder } = useOrder()
+    const [formState, setFormState] = useState({})
+
+    async function handleSubmit(data) {
+        setFormState({ loading: true, error: '' })
+        try {
+            const payload = {}
+            if (data['name.first'] !== undefined) payload['name.first'] = data['name.first']
+            if (data['name.last'] !== undefined) payload['name.last'] = data['name.last']
+            if (data.email !== undefined) payload.email = data.email
+            if (data.secondPhone !== undefined && String(data.secondPhone).trim() !== '') payload.secondPhone = String(data.secondPhone).trim()
+            const res = await user.userEdit(payload)
+            const updatedName = res?.user?.name || { first: data['name.first'], last: data['name.last'] }
+            const updatedEmail = res?.user?.email || data.email
+            const updatedSecondPhone = res?.user?.secondPhone || data.secondPhone
+            setOrder(prev => ({
+                ...(prev || {}),
+                name: updatedName?.first || updatedName?.last ? updatedName : prev?.name,
+                email: updatedEmail || prev?.email,
+                secondPhone: updatedSecondPhone || prev?.secondPhone
+            }))
+            setFormState({ loading: false })
+            onDone?.()
+        } catch (err) {
+            setFormState({ error: err?.message || String(err), loading: false })
+            throw err
+        }
+    }
+
+    const isMissing = (f) => missingFields.includes(f)
+    return (
+        <Form action={handleSubmit} {...formState} submitText={initialName?.first ? 'user_details_update' : 'user_details_save'}>
+            <Flex col gap={10}>
+                {/* Phone as info only */}
+                {initialPhone ? (
+                    <Flex gap={6} alignItems='center'>
+                        <Text size='s' mode='sub'>טלפון:</Text>
+                        <Text size='m' bold>{initialPhone}</Text>
+                    </Flex>
+                ) : null}
+                <Flex gap={10}>
+                    <Input name='name.first' defaultValue={initialName?.first || ''} required label='שם פרטי' placeholder='שם פרטי' autoFocus={isMissing('name')} />
+                    <Input name='name.last' defaultValue={initialName?.last || ''} required label='שם משפחה' placeholder='שם משפחה' />
+                </Flex>
+                <Input name='email' type='email' defaultValue={initialEmail || ''} required label='אימייל' placeholder='אימייל' autoFocus={isMissing('email') && !isMissing('name')} />
+                <Input name='secondPhone' type='tel' defaultValue={initialSecondPhone || ''} label='טלפון נוסף' placeholder='טלפון נוסף' autoFocus={isMissing('secondPhone') || isMissing('phone')} />
+            </Flex>
+        </Form>
     )
 }
