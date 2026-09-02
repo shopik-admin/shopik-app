@@ -31,6 +31,13 @@ export function mapItem(item) {
         length: Number(item.Length) || undefined,
         weight: Number(item.Weight) || undefined,
 
+        Size: item.Size != null ? String(item.Size).trim() || null : null,
+        SwWeighable: item.SwWeighable === true || item.SwWeighable === 1 || item.SwWeighable === 'true' || item.SwWeighable === '1',
+        Content: item.Content != null && item.Content !== '' ? Number(item.Content) : undefined,
+        ContentUnit: item.ContentUnit != null ? String(item.ContentUnit).trim() || null : null,
+        ContentMeasure: item.ContentMeasure != null && item.ContentMeasure !== '' ? Number(item.ContentMeasure) : undefined,
+        QtyType: item.QtyType != null ? String(item.QtyType).trim() || null : null,
+
         calories: Number(item.Energia) || undefined,
         carbohydrates: Number(item.Pahmemot) || undefined,
         protein: Number(item.Helbonim) || undefined,

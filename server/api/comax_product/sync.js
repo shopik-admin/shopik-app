@@ -2,6 +2,36 @@ import buildCategories from './build_categories.js'
 import enqueueChangedImages from '#server/services/image/enqueue.js'
 import log from '#server/utils/log.js'
 
+function isWeightProduct(comax) {
+    if (comax.SwWeighable) return true
+    // const size = String(comax.Size ?? '').trim().toLowerCase()
+    // if (!size) return false
+    // const norm = size.replace(/["'`׳״]/g, '').replace(/\s+/g, '')
+    // // ק"ג variants: קג, קילו, kg
+    // if (norm.includes('קג') || norm.includes('קילו') || norm.includes('kg')) return true
+    return false
+}
+
+function buildUnit(comax, DL) {
+    const isWeight = isWeightProduct(comax)
+    if (isWeight) {
+        return {
+            type: DL.Product.constants.UNIT.WEIGHT,
+            baseUnit: DL.Product.constants.BASE_UNIT.KG,
+            minAmount: 0.5,
+            step: 0.5,
+            options: []
+        }
+    }
+    return {
+        type: DL.Product.constants.UNIT.ITEM,
+        baseUnit: DL.Product.constants.BASE_UNIT.UNIT,
+        minAmount: 1,
+        step: 1,
+        options: []
+    }
+}
+
 function buildProduct(comax, DL) {
     const category = {}
     if (comax.subGroup) {
@@ -29,7 +59,8 @@ function buildProduct(comax, DL) {
         status,
         nutrients: {
             alcohol: comax.alcohol
-        }
+        },
+        unit: buildUnit(comax, DL)
     }
 }
 
@@ -61,7 +92,12 @@ export default async function syncComax(payload, { DL }) {
             subGroup: 1,
             price: 1,
             showInWeb: 1,
-            archived: 1
+            archived: 1,
+            Size: 1,
+            SwWeighable: 1,
+            ContentUnit: 1,
+            Content: 1,
+            ContentMeasure: 1
         },
         { limit: 0 }
     )

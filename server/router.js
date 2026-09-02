@@ -51,7 +51,7 @@ export default function router(app, bootData) {
             body.domainId = 'default'
         }
         const platform = utils.getPlatform(req)
-        const route = req.path.replace(/^\/api\/?/, '').replace(/\/$/, '')
+        const route = req.path.replace(/^api\/?/, '').replace(/\/$/, '')
         const apiFunction = apiRoutes[route]
         const requestId = uid(16)
         let actorId,
@@ -85,20 +85,28 @@ export default function router(app, bootData) {
             }
 
             let _admin
+            let _user
+            let apiKeyActor = null
+            try {
+                if (utils?.auth?.verifyApiKey) {
+                    apiKeyActor = await utils.auth.verifyApiKey(req, bootData)
+                }
+            } catch (e) {
+                throw e
+            }
             const { permissions = [], auth } = apiFunction.config || {}
 
-            const isAdmin = permissions.length || platform.includes('admin')
-            if (isAdmin && auth != 'none') {
-                const adminRequired = permissions.length || auth === 'required'
-                try {
-                    _admin = await utils.auth.getAdmin(req, bootData)
-                    actorId = _admin.id
-                    actorType = DL.Log.constants.ACTOR.ADMIN
-                    actorName = `${_admin.name?.first ?? ''} ${_admin.name?.last ?? ''}`
-                } catch (e) {
-                    if (adminRequired) throw e
+            if (apiKeyActor) {
+                if (route.startsWith('api_key/')) {
+                    throw { status: 403, message: 'API keys cannot manage API keys' }
                 }
-
+                if (body && typeof body === 'object' && !Array.isArray(body)) {
+                    body.domainId = apiKeyActor.domainId
+                }
+                _admin = apiKeyActor
+                actorId = apiKeyActor.id
+                actorType = DL.Log.constants.ACTOR.API
+                actorName = apiKeyActor.name
                 if (permissions.length) {
                     let hasPermission
                     if (typeof permissions === 'string') {
@@ -109,17 +117,43 @@ export default function router(app, bootData) {
                     if (!hasPermission)
                         throw { status: 403, message: 'Forbidden' }
                 }
-            }
+            } else {
+                const isAdmin = permissions.length || platform.includes('admin')
+                if (isAdmin && auth != 'none') {
+                    const adminRequired = permissions.length || auth === 'required'
+                    try {
+                        _admin = await utils.auth.getAdmin(req, bootData)
+                        actorId = _admin.id
+                        actorType = DL.Log.constants.ACTOR.ADMIN
+                        actorName = `${_admin.name?.first ?? ''} ${_admin.name?.last ?? ''}`
+                    } catch (e) {
+                        if (adminRequired) throw e
+                    }
 
-            let _user
-            if (!isAdmin && auth != 'none') { // figure out which requires more definitions default required / lax
-                try {
-                    _user = await utils.auth.getUser(req, bootData)
-                    actorId = _user.id
-                    actorType = DL.Log.constants.ACTOR.USER
-                    actorName = `${_user?.name?.first ?? ''} ${_user?.name?.last ?? ''}`
-                } catch (e) {
-                    if (auth != 'lax') throw e
+                    if (permissions.length) {
+                        let hasPermission
+                        if (typeof permissions === 'string') {
+                            hasPermission = _admin.hasPermission(permissions)
+                        } else if (Array.isArray(permissions)) {
+                            hasPermission = permissions.every(p => _admin.hasPermission(p))
+                        }
+                        if (!hasPermission)
+                            throw { status: 403, message: 'Forbidden' }
+                    }
+                }
+
+                if (!_admin && auth != 'none') {
+                    const isAdminRoute = permissions.length || platform.includes('admin')
+                    if (!isAdminRoute) {
+                        try {
+                            _user = await utils.auth.getUser(req, bootData)
+                            actorId = _user.id
+                            actorType = DL.Log.constants.ACTOR.USER
+                            actorName = `${_user?.name?.first ?? ''} ${_user?.name?.last ?? ''}`
+                        } catch (e) {
+                            if (auth != 'lax') throw e
+                        }
+                    }
                 }
             }
 
@@ -215,7 +249,7 @@ export default function router(app, bootData) {
                         name: actorName
                     })
                 }
-                try { await requestLogPromise } catch {}
+                try { await requestLogPromise } catch { }
             }
         }
     })
