@@ -35,7 +35,9 @@ const productSchema = {
         type: String,
         required: true,
         trim: true,
-        search: 10,
+        search: 30,
+        searchPrefixBoost: 100,
+        searchFuzzy: 3,
         filter: true
     },
     description: String,
@@ -67,7 +69,6 @@ const productSchema = {
         unique: true,
         required: true,
         trim: true,
-        search: 5,
         filter: true
     },
     scannableBarcodes: {
@@ -82,7 +83,9 @@ const productSchema = {
     label: {
         type: String,
         trim: true,
-        search: 5,
+        search: 8,
+        searchPrefixBoost: 15,
+        searchFuzzy: 1,
         filter: true
     },
     producer: {
@@ -121,7 +124,6 @@ const productSchema = {
         }]
     },
     saleIds: [String],
-    saleSort: {},
     sortOrder: {
         type: Number,
         min: 0,
@@ -131,7 +133,7 @@ const productSchema = {
     limit: Number,
     keywords: {
         type: [{ trim: true, type: String }],
-        search: 1,
+        search: 2,
         filter: true
     },
     googleCategory: String,
@@ -159,7 +161,7 @@ const productSchema = {
         id: String,
         title: {
             type: String,
-            search: 3,
+            search: 5,
             filter: true
         },
         pathIds: { type: [String], index: true, filter: true }
@@ -222,10 +224,16 @@ const defaultSelectOne = {
     totalSalesUnits: 1
 }
 
+const defaultSort = {
+    sortOrder: -1,
+    totalSalesUnits: -1,
+}
+
 export const meta = {
     constants,
     defaultSelect,
     defaultSelectOne,
+    defaultSort,
     index: [{ storeIds: 1 }]
 }
 

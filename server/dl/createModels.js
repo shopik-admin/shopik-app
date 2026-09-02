@@ -67,6 +67,8 @@ async function loadSchemaFile(filePath) {
 
 function getSchemaFields(schema) {
     const searchFields = {}
+    const searchPrefixFields = {}
+    const searchFuzzyFields = {}
     const filterFields = new Set()
     const userEditableFields = new Set()
 
@@ -74,6 +76,8 @@ function getSchemaFields(schema) {
 
     return {
         searchFields,
+        searchPrefixFields,
+        searchFuzzyFields,
         filterFields,
         userEditableFields
     }
@@ -88,12 +92,18 @@ function getSchemaFields(schema) {
         if (!node || typeof node !== 'object') return
 
         const isLeaf = typeof node.search === 'number' ||
+            typeof node.searchPrefixBoost === 'number' ||
+            typeof node.searchFuzzy === 'number' ||
             node.filter === true ||
             node.userEditable === true
 
         if (isLeaf) {
             if (typeof node.search === 'number')
                 searchFields[prefix] = node.search
+            if (typeof node.searchPrefixBoost === 'number')
+                searchPrefixFields[prefix] = node.searchPrefixBoost
+            if (typeof node.searchFuzzy === 'number')
+                searchFuzzyFields[prefix] = node.searchFuzzy
 
             if (node.filter === true)
                 filterFields.add(prefix)
@@ -114,20 +124,36 @@ function getSchemaFields(schema) {
 async function ensureSearchIndex(
     Model,
     fields,
+    prefixFields = {},
     type = 'autocomplete'
 ) {
     try {
         const name = Model.getSearchIndexName()
 
+        // Dual-type for any field with searchPrefixBoost: autocomplete (edgeGram keyword) + string
+        // Recommended by Atlas when you need both autocomplete and exact/prefix text ranking on same field
+        const indexFields = {}
+        for (const field of Object.keys(fields)) {
+            if (prefixFields[field] != null) {
+                indexFields[field] = [
+                    {
+                        type: 'autocomplete',
+                        tokenization: 'edgeGram',
+                        minGrams: 2,
+                        maxGrams: 20,
+                        analyzer: 'lucene.keyword'
+                    },
+                    { type: 'string' }
+                ]
+            } else {
+                indexFields[field] = { type }
+            }
+        }
+
         const definition = {
             mappings: {
                 dynamic: false,
-                fields: Object.fromEntries(
-                    Object.keys(fields).map(field => [
-                        field,
-                        { type }
-                    ])
-                )
+                fields: indexFields
             }
         }
 
@@ -286,14 +312,18 @@ async function createModelFromSchema(schemaPath) {
 
     const {
         searchFields,
+        searchPrefixFields,
+        searchFuzzyFields,
         filterFields,
         userEditableFields
     } = getSchemaFields(schema)
 
     if (Object.keys(searchFields).length) {
         Model.getSearchIndexName = () => `${collectionName}_search`
-        await ensureSearchIndex(Model, searchFields)
+        await ensureSearchIndex(Model, searchFields, searchPrefixFields)
         Model.searchFields = searchFields
+        Model.searchPrefixFields = searchPrefixFields
+        Model.searchFuzzyFields = searchFuzzyFields
     }
 
     if (filterFields.size)

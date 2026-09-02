@@ -9,31 +9,71 @@ const separatorRegex = /[-,/\\]/g
  * @returns {Object} The $search object ready to be used in a query pipeline.
  */
 function buildSearchQuery(Model, query) {
-    // Construct the index name based on the collection's actual name
     const indexName = Model.getSearchIndexName()
 
-    const shouldClauses = Object.entries(Model.searchFields).flatMap(([path, boost]) => [{
-        autocomplete: {
-            query,
-            path,
-            score: {
-                boost: {
-                    value: boost * 2 // Uses the weight defined in Model.searchFields (e.g., 'name': 10)
+    // Schema-driven tiered ranking:
+    // - search: autocomplete boost (e.g. name:30, label:8)
+    // - searchPrefixBoost: sequential prefix boost on dual-type field (edgeGram keyword) (e.g. name:100, label:15)
+    // - searchFuzzy: typo-tolerant autocomplete (e.g. name:3, label:1)
+    // Product schema now defines all tiers explicitly; other models fallback to generic.
+    const shouldClauses = []
+
+    // Prefix boosts (sequential = field starts with query) — highest tier
+    if (Model.searchPrefixFields) {
+        for (const [path, boost] of Object.entries(Model.searchPrefixFields)) {
+            shouldClauses.push({
+                autocomplete: {
+                    query,
+                    path,
+                    tokenOrder: 'sequential',
+                    score: { boost: { value: boost } }
                 }
+            })
+        }
+    }
+
+    // Regular autocomplete per search field — generic models double-weight autocomplete vs fuzzy (boost*2 / boost)
+    const hasPrefixForWeight = Model.searchPrefixFields && Object.keys(Model.searchPrefixFields).length > 0
+    for (const [path, boost] of Object.entries(Model.searchFields || {})) {
+        const autocompleteBoost = hasPrefixForWeight ? boost : boost * 2
+        shouldClauses.push({
+            autocomplete: {
+                query,
+                path,
+                score: { boost: { value: autocompleteBoost } }
+            }
+        })
+    }
+
+    // Fuzzy — explicit per-field if defined (product: name:3, label:1), otherwise generic fallback for other models
+    if (Model.searchFuzzyFields && Object.keys(Model.searchFuzzyFields).length) {
+        for (const [path, boost] of Object.entries(Model.searchFuzzyFields)) {
+            shouldClauses.push({
+                autocomplete: {
+                    query,
+                    path,
+                    fuzzy: { maxEdits: 1, prefixLength: 2 },
+                    score: { boost: { value: boost } }
+                }
+            })
+        }
+    } else if (Model.searchFields) {
+        // Generic fuzzy for non-product models that don't define searchFuzzy
+        const hasFuzzy = Model.searchFuzzyFields && Object.keys(Model.searchFuzzyFields).length > 0
+        const hasPrefix = Model.searchPrefixFields && Object.keys(Model.searchPrefixFields).length > 0
+        if (!hasFuzzy && !hasPrefix) {
+            for (const [path, boost] of Object.entries(Model.searchFields)) {
+                shouldClauses.push({
+                    autocomplete: {
+                        query,
+                        path,
+                        fuzzy: { maxEdits: 1, prefixLength: 2 },
+                        score: { boost: { value: boost } }
+                    }
+                })
             }
         }
-    }, {
-        autocomplete: {
-            query,
-            path,
-            fuzzy: { maxEdits: 1, prefixLength: 2 },
-            score: {
-                boost: {
-                    value: boost // Uses the weight defined in Model.searchFields (e.g., 'name': 10)
-                }
-            }
-        }
-    }])
+    }
 
     return {
         $search: {

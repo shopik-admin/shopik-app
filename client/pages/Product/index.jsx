@@ -51,7 +51,7 @@ export default function Product() {
             <Breadcrumbs path={categoryPath ? `products/${categoryPath}` : 'products'} />
             <Flex gap={40} wrap className={styles.body}>
 
-                <Flex className={styles.gallery} col gap={10} alignItems='center' flexGrow={1}>
+                <Flex className={styles.gallery} col gap={10} alignItems='center'>
                     <div className={styles.mainImageWrapper}>
                         <Image
                             src={mainImage}
