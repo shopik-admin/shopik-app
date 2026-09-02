@@ -1,5 +1,6 @@
 import { applySales } from './applySales.js'
 import { round2, round3, SALE_KINDS, safeGet } from './utils.js'
+import { calcShipping } from '../shipping.js'
 
 function getSaleKind(kind, amount) {
     if (kind === SALE_KINDS.PRICE && amount > 1) {
@@ -69,7 +70,7 @@ function normalizeProduct(cartProduct, salesMap) {
     }
 }
 
-function computeTotals(processedProducts) {
+function computeTotals(processedProducts, { shippingConfig, deliveryMethod } = {}) {
     let sumBeforeDiscounts = 0
     let sumAfterSales = 0
     const cart = []
@@ -93,17 +94,25 @@ function computeTotals(processedProducts) {
     const salesDiscount = round2(sumBeforeDiscounts - sumBeforeCoupon)
     const productsSave = round2(sumBeforeDiscounts - sum)
 
+    // Shipping based on sum (pre-coupon) per spec: if sum >= freeFrom => free
+    const shipping = calcShipping({ sum, deliveryMethod, shippingConfig })
+    const sumWithShipping = round2(sum + shipping)
+    const sumNoCouponWithShipping = round2(sumBeforeDiscounts + shipping)
+
     return {
         sumBeforeDiscounts,
         sumBeforeCoupon,
         sum,
         salesDiscount,
         productsSave,
+        shipping,
+        sumWithShipping,
+        sumNoCouponWithShipping,
         cart
     }
 }
 
-export function calcOrderSum({ cart, sales }) {
+export function calcOrderSum({ cart, sales, shippingConfig, deliveryMethod }) {
     const products = cart.map(p => normalizeProduct(p, sales))
 
     const uniqueSales = Object.values(products.reduce((acc, p) => {
@@ -112,7 +121,7 @@ export function calcOrderSum({ cart, sales }) {
     }, {}))
 
     const { processedProducts, saleDetails } = applySales({ products, sales: uniqueSales })
-    const totals = computeTotals(processedProducts)
+    const totals = computeTotals(processedProducts, { shippingConfig, deliveryMethod })
 
     return {
         processedCart: totals.cart,

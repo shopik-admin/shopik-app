@@ -465,6 +465,12 @@ const defaultSelect = {
     id: 1,
     status: 1,
     sum: 1,
+    sumWithShipping: 1,
+    shipping: 1,
+    finalSum: 1,
+    finalSumWithShipping: 1,
+    finalShipping: 1,
+    sumNoCoupon: 1,
     websiteCart: 1,
     cart: 1,
     coupons: 1,
@@ -473,7 +479,7 @@ const defaultSelect = {
     address: 1,
     storeId: 1,
     window: 1,
-    address: 1
+    domainId: 1
 }
 
 const index = [

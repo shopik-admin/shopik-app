@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import Flex from 'common/components/Flex'
 import Text from 'common/components/Text'
 import Card from 'common/components/Card'
@@ -8,16 +8,27 @@ import render from '#common/functions/render.js'
 import styles from './orderSummary.module.css'
 import { useUser } from 'features/User'
 import { useOrder } from 'features/Order/OrderProvider'
+import { useAppData } from 'App'
 import WindowOptions from 'features/Order/WindowOptions'
 import Addresses, { AddressForm } from 'pages/Account/Addresses'
 import { useText } from 'common/texts/TextProvider'
 import { CouponCollapse } from './CouponSection'
+import { calcShipping } from '#common/functions/shipping.js'
 import {
     LuMapPinHouse,
     LuClock,
     LuPencil,
     LuCreditCard
 } from 'react-icons/lu'
+
+function getShippingConfigFromSettings(settings) {
+    if (!settings || typeof settings !== 'object') return null
+    if (settings.shipping && typeof settings.shipping === 'object' && ('total' in settings.shipping || 'freeFrom' in settings.shipping)) return settings.shipping
+    for (const cat of Object.values(settings)) {
+        if (cat && typeof cat === 'object' && cat.shipping && typeof cat.shipping === 'object') return cat.shipping
+    }
+    return null
+}
 
 export default function OrderSummary({ onPayment, paying, showPayBtn = true }) {
     const { order = {} } = useOrder()
@@ -40,11 +51,22 @@ export default function OrderSummary({ onPayment, paying, showPayBtn = true }) {
         : (order.deliveryWindow || `${TR?.('day-2') || 'יום שלישי'}, 10:00-12:00`)
 
     // Real financial calculations from order
+    const { settings } = useAppData() || {}
+    const shippingConfig = useMemo(() => getShippingConfigFromSettings(settings), [settings])
     const cart = order.cart || []
     const subtotal = order.sum ?? order.subtotal ?? cart.reduce((acc, item) => acc + ((item.price || 0) * (item.amount || 1)), 0)
-    const deliveryFee = order.deliveryFee ?? order.delivery ?? 29.0
-    const totalSavings = order.savings ?? order.discount ?? 0
-    const total = order.sum ?? order.finalSum ?? (subtotal + deliveryFee - (totalSavings > 0 ? totalSavings : 0))
+    const shipping = order.shipping ?? calcShipping({ sum: subtotal, deliveryMethod: order.deliveryMethod, shippingConfig })
+    const originalShipping = order.deliveryMethod === 'pickup'
+        ? Number(shippingConfig?.pickupTotal ?? shippingConfig?.total ?? 0)
+        : Number(shippingConfig?.total ?? 0)
+    const isFreeShipping = Number(shipping) === 0 && originalShipping > 0 && subtotal > 0
+    const deliveryFee = shipping
+    const totalSavings = (() => {
+        const before = order.sumNoCoupon ?? order.sum ?? subtotal
+        const after = order.sum ?? subtotal
+        return Math.max(0, Number(before || 0) - Number(after || 0))
+    })()
+    const total = order.sumWithShipping ?? (subtotal + Number(shipping || 0))
 
     return (
         <Flex col gap={15} className={styles.orderSummaryWrapper}>
@@ -146,9 +168,16 @@ export default function OrderSummary({ onPayment, paying, showPayBtn = true }) {
                             <Text mode='sub' size='m'>
                                 handling_and_delivery
                             </Text>
-                            <Text size='m' bold>
-                                {render({ type: 'coin', value: deliveryFee })}
-                            </Text>
+                            {isFreeShipping ? (
+                                <Flex gap={6} alignItems='center'>
+                                    <Text size='m' bold style={{ textDecoration: 'line-through', opacity: 0.6 }}>{render({ type: 'coin', value: originalShipping })}</Text>
+                                    <Text size='m' bold>free_shipping</Text>
+                                </Flex>
+                            ) : (
+                                <Text size='m' bold>
+                                    {render({ type: 'coin', value: deliveryFee })}
+                                </Text>
+                            )}
                         </Flex>
 
                         <Flex alignItems='center' justifyContent='space-between' className={styles.subtotalRow}>
@@ -167,7 +196,7 @@ export default function OrderSummary({ onPayment, paying, showPayBtn = true }) {
                             total_to_pay
                         </Text>
                         <Text size='xxl' bold className={styles.totalAmount}>
-                            {typeof total === 'number' ? total.toFixed(2) : total}
+                            {render({ type: 'coin', value: total })}
                         </Text>
                     </Flex>
 

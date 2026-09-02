@@ -90,7 +90,7 @@ export function applyCalcToCart({ cart, calcResult }) {
     return cart
 }
 
-export function calcOrder({ order, product, amount, unitKey, sales }) {
+export function calcOrder({ order, product, amount, unitKey, sales, shippingConfig }) {
     let cart = (order.cart || []).map(item => ({ ...item }))
 
     if (amount === 0) {
@@ -111,18 +111,42 @@ export function calcOrder({ order, product, amount, unitKey, sales }) {
             cart.push(cartProduct)
         }
     }
-    const calcResult = calcOrderSum({ cart, sales: sales || {} })
-    console.log('calc', { cart, sales: sales || {} })
+    const deliveryMethod = order.deliveryMethod || 'delivery'
+    const calcResult = calcOrderSum({ cart, sales: sales || {}, shippingConfig, deliveryMethod })
     applyCalcToCart({ cart, calcResult })
+
+    const shipping = calcResult.totals.shipping
+    const sumWithShipping = calcResult.totals.sumWithShipping
+
+    // finalShipping based on sum (pre-coupon) per spec, so same as shipping for client
+    // Keep sumWithShipping for client charging; finalSum for coupon-discounted total
+    const finalSum = calcResult.totals.sum
+    const sumNoCoupon = calcResult.totals.sumBeforeDiscounts
+
+    // Preserve existing coupons: if order has coupons, finalSum should be reduced
+    let resolvedFinalSum = finalSum
+    let resolvedFinalShipping = shipping
+    let resolvedFinalSumWithShipping = sumWithShipping
+    if (order.coupons && order.coupons.length) {
+        // coupons store absolute discount; apply to sum to get finalSum
+        const totalCouponDiscount = order.coupons.reduce((acc, c) => acc + Number(c.discount || 0), 0)
+        resolvedFinalSum = Math.max(0, round2(finalSum - totalCouponDiscount))
+        resolvedFinalShipping = shipping
+        resolvedFinalSumWithShipping = round2(resolvedFinalSum + resolvedFinalShipping)
+    }
 
     return {
         ...order,
         cart,
         sales: calcResult.cartSaleDetails || sales,
         sum: calcResult.totals.sum,
-        sumNoCoupon: calcResult.totals.sumBeforeDiscounts,
-        finalSum: calcResult.totals.sum,
-        finalSumNoCoupon: calcResult.totals.sumBeforeDiscounts,
+        sumNoCoupon,
+        finalSum: resolvedFinalSum,
+        finalSumNoCoupon: sumNoCoupon,
+        shipping,
+        sumWithShipping,
+        finalShipping: resolvedFinalShipping,
+        finalSumWithShipping: resolvedFinalSumWithShipping,
         customerUpdatedAt: new Date()
     }
 }

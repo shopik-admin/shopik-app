@@ -1,5 +1,6 @@
 import diff from '#common/functions/diff.js'
 import filterClientOrder from '#server/utils/data/filterClientOrder.js'
+import { round2 } from '#common/functions/calcOrder/utils.js'
 
 export default async function remove(payload, { DL, _user, utils }) {
     const couponCode = (payload.couponCode || '').trim().toLowerCase()
@@ -14,6 +15,8 @@ export default async function remove(payload, { DL, _user, utils }) {
     const orderSum = cartOrder.sum || 0
     const sumNoCoupon = cartOrder.sumNoCoupon ?? orderSum
 
+    const shipping = cartOrder.shipping ?? 0
+    const sumWithShipping = round2(orderSum + shipping)
     const updatedOrder = {
         ...cartOrder,
         coupons: [],
@@ -21,6 +24,10 @@ export default async function remove(payload, { DL, _user, utils }) {
         sumNoCoupon,
         finalSum: orderSum,
         finalSumNoCoupon: sumNoCoupon,
+        shipping,
+        finalShipping: shipping,
+        sumWithShipping,
+        finalSumWithShipping: sumWithShipping,
         customerUpdatedAt: new Date()
     }
 

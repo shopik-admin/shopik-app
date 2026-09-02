@@ -1,5 +1,8 @@
 import { findClosestStore } from '#server/api/order/address/update.js'
 import { releaseWindowReservation } from '#server/utils/data/windowGroups.js'
+import getShippingConfig from '#server/utils/data/getShippingConfig.js'
+import { calcShipping } from '#common/functions/shipping.js'
+import { round2 } from '#common/functions/calcOrder/utils.js'
 
 async function storeNameById(DL, storeId) {
     if (!storeId) return null
@@ -48,6 +51,22 @@ export default async function deliveryMethod(payload, { DL, utils, _user }) {
             }
         }
     }
+
+    // Recompute shipping for new deliveryMethod (based on sum pre-coupon)
+    try {
+        const shippingConfig = await getShippingConfig(DL, order.domainId)
+        const sum = order.sum ?? 0
+        const shipping = calcShipping({ sum, deliveryMethod, shippingConfig })
+        const finalSum = order.finalSum ?? sum
+        orderChanges.shipping = shipping
+        orderChanges.finalShipping = shipping
+        orderChanges.sumWithShipping = round2(sum + shipping)
+        orderChanges.finalSumWithShipping = round2(finalSum + shipping)
+        if (order.sumNoCoupon != null) {
+            orderChanges.sumNoCouponWithShipping = round2(order.sumNoCoupon + shipping)
+            orderChanges.finalSumNoCouponWithShipping = round2((order.finalSumNoCoupon ?? order.sumNoCoupon) + shipping)
+        }
+    } catch {}
 
     const orderUpdate = { $set: orderChanges }
     if (order.storeId != orderChanges.storeId) {
