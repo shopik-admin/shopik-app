@@ -222,7 +222,7 @@ export default function ApiKeys() {
                                         title={k.active === false ? 'Enable' : 'Disable'}
                                     />
                                     <ConfirmButton
-                                        q={`Delete "${k.name}"?`}
+                                        q={<Text tag="bdi" size='l' bold center>Delete "{k.name}"?</Text>}
                                         onOk={() => handleDeleteKey(k)}
                                         icon="trash"
                                         mode="text"
