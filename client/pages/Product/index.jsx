@@ -1,7 +1,9 @@
 import { useState } from 'react'
+import { useEffect } from 'react'
 import { useParams } from 'react-router'
 import apiReq from '#common/functions/apiReq.js'
 import Loader from '#common/components/Loader'
+import { setSalesCache } from '#common/functions/salesCache.js'
 import Flex from '#common/components/Flex'
 import Image from '#common/components/Image'
 import Text from '#common/components/Text'
@@ -20,7 +22,9 @@ export default function Product() {
     const { productId } = useParams()
     const { loading, pageData } = usePage()
     const { data } = pageData
-    const { product, sale, categoryPath } = data
+    const { product, sale, sales, categoryPath } = data || {}
+    useEffect(() => { if (sales) setSalesCache(sales) }, [sales])
+    useEffect(() => { if (data?.sales) setSalesCache(data.sales) }, [data])
     const productImages = (product?.images?.product || []).filter(img => img?.sizes)
     const images = productImages.length
         ? productImages.map(img => img.sizes.l || img.sizes.xl)
@@ -110,7 +114,7 @@ export default function Product() {
                         </Flex>
                     )}
 
-                    <ProductButton product={product} />
+                    <ProductButton product={product} sales={sales || {}} />
                 </Flex>
             </Flex>
         </Flex>

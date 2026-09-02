@@ -6,6 +6,7 @@ import calcOrder from 'common/functions/calcOrder/cart.js'
 import apiReq from 'common/functions/apiReq.js'
 import { useOrder } from 'features/Order/OrderProvider'
 import { useAppData } from 'App'
+import { useUser } from 'features/User'
 import { useMemo, useRef } from 'react'
 import { extractShippingConfig } from '#common/functions/shipping.js'
 import {
@@ -16,6 +17,7 @@ import {
     getUnitPriceText,
     ProductButton as CommonProductButton
 } from 'common/components/Product'
+import { getSalesCache, setSalesCache } from '#common/functions/salesCache.js'
 
 // Re-export common presentational helpers for backward compatibility
 export { ProductImage, ProductInfo, ProductPrice, ProductBadges, getUnitPriceText }
@@ -39,27 +41,44 @@ export function ProductButton({ product, size = 'm', sales = {} }) {
     const { order, setOrder } = useOrder()
     const { settings } = useAppData() || {}
     const shippingConfig = useMemo(() => extractShippingConfig(settings), [settings])
+    const user = useUser()
     const latestRequest = useRef(0)
     const amount = order?.cart?.find(item => item.id === product.id)?.amount || 0
 
     const updateAmount = (newAmount) => {
         const currentRequest = ++latestRequest.current
-        console.log({ sales, product, newAmount })
-        const optimisticOrder = calcOrder({
-            order: order || {},
-            product,
-            amount: newAmount,
-            sales: { ...order?.sales, ...sales },
-            shippingConfig
-        })
-        setOrder(optimisticOrder)
+        if (sales && Object.keys(sales).length) setSalesCache(sales)
+        const cachedSales = getSalesCache()
+        const mergedSales = { ...cachedSales, ...(order?.sales && typeof order.sales === 'object' && !Array.isArray(order.sales) ? order.sales : {}), ...sales }
+        const filteredSales = Object.fromEntries(Object.entries(mergedSales).filter(([, v]) => v && typeof v === 'object' && ('kind' in v || 'benefit' in v || 'price' in v || 'amount' in v)))
+        const effectiveSales = Object.keys(filteredSales).length ? filteredSales : { ...cachedSales, ...sales }
+        // Check if we have all needed saleIds for optimistic calc
+        const neededIds = [...new Set([...(order?.cart || []).flatMap(i => i.saleIds || []), ...(product.saleIds || [])])]
+        const missing = neededIds.filter(id => !effectiveSales[id])
+        let didOptimistic = false
+        if (!missing.length) {
+            console.log({ sales, product, newAmount })
+            const optimisticOrder = calcOrder({
+                order: order || {},
+                product,
+                amount: newAmount,
+                sales: effectiveSales,
+                shippingConfig,
+                user
+            })
+            setOrder(optimisticOrder)
+            didOptimistic = true
+        } else {
+            console.log('skip optimistic - missing sales', missing)
+        }
 
         apiReq('order/cart/product', {
             id: product.id,
             amount: newAmount,
             domainId: order?.domainId
         })
-            .then(({ order }) => {
+            .then(({ order, sales: returnedSales }) => {
+                if (returnedSales) setSalesCache(returnedSales)
                 if (currentRequest === latestRequest.current && order) setOrder(order)
             })
             .catch(() => { })

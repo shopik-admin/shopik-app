@@ -60,6 +60,10 @@
     --radius-4xl: 24px;
     --radius-full: 9999px;
 
+    /* Spacing */
+    --spacing-md: 8px;
+    --spacing-lg: 12px;
+
     /* === LIGHT MODE COLORS === */
 
     /* Text Colors */

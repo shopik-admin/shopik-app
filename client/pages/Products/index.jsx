@@ -8,6 +8,7 @@ import Text from '#common/components/Text'
 import ProductCard from './ProductCard'
 import NotFound from 'pages/NotFound'
 import { usePage } from 'layout/Page'
+import { setSalesCache } from '#common/functions/salesCache.js'
 
 const LIMIT = 30
 
@@ -22,6 +23,8 @@ export default function Products() {
 
     const products = [...(data?.products || []), ...extra.flatMap(e => e.products)]
     const sales = extra.reduce((acc, e) => ({ ...acc, ...e.sales }), data?.sales || {})
+    useEffect(() => { if (sales && Object.keys(sales).length) setSalesCache(sales) }, [sales])
+    useEffect(() => { if (data?.sales) setSalesCache(data.sales) }, [data?.sales])
 
     useEffect(() => {
         ++latestRequest.current

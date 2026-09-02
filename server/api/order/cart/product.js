@@ -56,7 +56,7 @@ export default async function product(payload, { DL, _user, utils, cookies, setC
     }
 
     const shippingConfig = await getShippingConfig(DL, cartOrder.domainId || domainId)
-    const updatedOrder = calcOrder({ order: cartOrder, product, amount, unitKey, sales: salesMap, shippingConfig })
+    const updatedOrder = calcOrder({ order: cartOrder, product, amount, unitKey, sales: salesMap, shippingConfig, user: _user })
 
     const updateData = diff(originalOrder, updatedOrder)
     const nothingToUpdate = Object.keys(updateData).length === 0
@@ -70,7 +70,7 @@ export default async function product(payload, { DL, _user, utils, cookies, setC
         if (savedOrder) finalOrder = savedOrder
     }
 
-    return { order: filterClientOrder(finalOrder) }
+    return { order: filterClientOrder(finalOrder), sales: salesMap }
 }
 
 product.config = {

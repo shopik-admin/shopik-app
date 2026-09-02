@@ -1,5 +1,6 @@
 import { calcOrderSum } from './index.js'
 import { round2 } from './utils.js'
+import { isCouponEligible } from '../coupon.js'
 
 export const CART_PRODUCT_STATUS = {
     ADMIN_ADD: 'admin_add',
@@ -90,7 +91,7 @@ export function applyCalcToCart({ cart, calcResult }) {
     return cart
 }
 
-export function calcOrder({ order, product, amount, unitKey, sales, shippingConfig }) {
+export function calcOrder({ order, product, amount, unitKey, sales, shippingConfig, user }) {
     let cart = (order.cart || []).map(item => ({ ...item }))
 
     if (amount === 0) {
@@ -124,35 +125,62 @@ export function calcOrder({ order, product, amount, unitKey, sales, shippingConf
     const sumNoCoupon = calcResult.totals.sumBeforeDiscounts
 
     // Preserve existing coupons: if order has coupons, finalSum should be reduced
-    // For percent coupons, discount scales with new sum; for fixed sum, keep absolute
+    // Respect minSum via isCouponEligible and handle percent recalc
     let resolvedFinalSum = finalSum
     let resolvedFinalShipping = shipping
     let resolvedFinalSumWithShipping = sumWithShipping
+    let resolvedCoupons = order.coupons ? [...order.coupons] : []
     if (order.coupons && order.coupons.length) {
         const oldSum = Number(order.sum || 0)
         let totalCouponDiscount = 0
+        const stillEligible = []
         for (const c of order.coupons) {
+            // Build pseudo coupon for eligibility check (shared logic)
+            const pseudoCoupon = {
+                whitelist: c.whitelist,
+                blacklist: c.blacklist,
+                dynamic: c.minSum != null || !!c.condition,
+                minSum: c.minSum,
+                condition: c.condition,
+            }
+            const eligible = isCouponEligible(pseudoCoupon, user, finalSum).eligible
+            if (!eligible) {
+                // coupon no longer eligible (e.g., sum < minSum) – drop it
+                continue
+            }
             const storedDiscount = Number(c.discount || 0)
+            let newDiscount = 0
             if (c.percent) {
                 const rate = oldSum > 0 ? storedDiscount / oldSum : 0
-                let newDiscount = rate > 0 ? round2(finalSum * rate) : storedDiscount
-                // cap by maxSum if present
+                newDiscount = rate > 0 ? round2(finalSum * rate) : storedDiscount
                 if (c.maxSum != null && c.maxSum !== undefined) newDiscount = Math.min(newDiscount, Number(c.maxSum))
                 newDiscount = Math.min(newDiscount, finalSum)
-                totalCouponDiscount += newDiscount
             } else {
-                totalCouponDiscount += Math.min(storedDiscount, finalSum)
+                newDiscount = Math.min(storedDiscount, finalSum)
             }
+            // Update coupon entry discount to new calculated value for percent coupons
+            if (c.percent && newDiscount !== storedDiscount) {
+                // keep original entry but update discount for display
+                const updated = { ...c, discount: newDiscount }
+                stillEligible.push(updated)
+            } else {
+                stillEligible.push(c)
+            }
+            totalCouponDiscount += newDiscount
         }
         resolvedFinalSum = Math.max(0, round2(finalSum - totalCouponDiscount))
         resolvedFinalShipping = shipping
         resolvedFinalSumWithShipping = round2(resolvedFinalSum + resolvedFinalShipping)
+        // If some coupons became ineligible, we still keep them but discount is 0; alternatively filter them out
+        // For now keep all, but update discounts
+        resolvedCoupons = stillEligible
     }
 
     return {
         ...order,
         cart,
         sales: calcResult.cartSaleDetails || sales,
+        coupons: resolvedCoupons,
         sum: calcResult.totals.sum,
         sumNoCoupon,
         finalSum: resolvedFinalSum,
