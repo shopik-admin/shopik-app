@@ -106,6 +106,14 @@ const productSchema = {
             enum: Object.values(constants.BASE_UNIT),
             default: constants.BASE_UNIT.UNIT
         },
+        minAmount: {
+            type: Number,
+            default: 1
+        },
+        step: {
+            type: Number,
+            default: 1
+        },
         options: [{
             key: String, // small | medium | large
             name: String, // label, e.g. 'גדול (כ-10 ק"ג)'
