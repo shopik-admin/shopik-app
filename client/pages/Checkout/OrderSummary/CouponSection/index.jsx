@@ -35,13 +35,13 @@ function formatExpiry(end) {
 
 // Reusable card shell — used for regular coupons now, sale coupons later.
 // Keeps same outer structure (dashed border, footer, CTA) so both types sit in same grid.
-function RegularCouponCard({ coupon, isApplied, isLoading, onApply, onRemove }) {
+function RegularCouponCard({ coupon, isApplied, isActive = true, remainingToActivate = 0, isLoading, onApply, onRemove }) {
     const discountLabel = formatDiscount(coupon)
     const minSumLabel = formatMinSum(coupon.minSum)
     const expiryLabel = formatExpiry(coupon.end)
 
     return (
-        <div className={`${styles.couponCard} ${styles.regularCard} ${isApplied ? styles.applied : ''}`}>
+        <div className={`${styles.couponCard} ${styles.regularCard} ${isApplied ? styles.applied : ''} ${isApplied && !isActive ? styles.inactive : ''}`}>
             <div className={styles.cardTop}>
                 <div className={styles.cardIconCircle}>
                     <LuTag className={styles.cardIcon} />
@@ -59,12 +59,12 @@ function RegularCouponCard({ coupon, isApplied, isLoading, onApply, onRemove }) 
 
             <button
                 type='button'
-                className={`${styles.cardCta} ${isApplied ? styles.ctaApplied : ''}`}
+                className={`${styles.cardCta} ${isApplied ? styles.ctaApplied : ''} ${isApplied && !isActive ? styles.ctaInactive : ''}`}
                 onClick={isApplied ? onRemove : onApply}
                 disabled={isLoading}
             >
                 {isLoading ? <Loader size={14} /> : isApplied ? (
-                    <><IoCheckmarkCircleOutline /> מופעל</>
+                    isActive ? <><IoCheckmarkCircleOutline /> מופעל</> : <>לא פעיל</>
                 ) : (
                     <><LuTicketPercent /> החל קופון</>
                 )}
@@ -84,15 +84,15 @@ function RegularCouponCard({ coupon, isApplied, isLoading, onApply, onRemove }) 
 
 // Placeholder for future sale coupons — same shell, different inner content.
 // Keeping file structure ready so sale type can be plugged without layout shift.
-function SaleCouponCard({ coupon, isApplied, isLoading, onApply, onRemove }) {
+function SaleCouponCard({ coupon, isApplied, isActive, remainingToActivate, isLoading, onApply, onRemove }) {
     // For now renders same as regular if a sale coupon somehow arrives.
     // Intentionally separate component for future product-image layout.
-    return <RegularCouponCard coupon={coupon} isApplied={isApplied} isLoading={isLoading} onApply={onApply} onRemove={onRemove} />
+    return <RegularCouponCard coupon={coupon} isApplied={isApplied} isActive={isActive} remainingToActivate={remainingToActivate} isLoading={isLoading} onApply={onApply} onRemove={onRemove} />
 }
 
-function CouponCard({ coupon, isApplied, isLoading, onApply, onRemove }) {
-    if (coupon.sale) return <SaleCouponCard coupon={coupon} isApplied={isApplied} isLoading={isLoading} onApply={onApply} onRemove={onRemove} />
-    return <RegularCouponCard coupon={coupon} isApplied={isApplied} isLoading={isLoading} onApply={onApply} onRemove={onRemove} />
+function CouponCard({ coupon, isApplied, isActive, remainingToActivate, isLoading, onApply, onRemove }) {
+    if (coupon.sale) return <SaleCouponCard coupon={coupon} isApplied={isApplied} isActive={isActive} remainingToActivate={remainingToActivate} isLoading={isLoading} onApply={onApply} onRemove={onRemove} />
+    return <RegularCouponCard coupon={coupon} isApplied={isApplied} isActive={isActive} remainingToActivate={remainingToActivate} isLoading={isLoading} onApply={onApply} onRemove={onRemove} />
 }
 
 export default function CouponSection() {
@@ -212,20 +212,28 @@ export default function CouponSection() {
         )
     }
     const hasCoupons = coupons && coupons.length > 0
+    const appliedCoupon = order.coupons?.[0]
     return (
         <Flex col gap={12} className={styles.couponSection}>
             {hasCoupons && (
                 <div className={styles.couponGrid}>
-                    {coupons.map(c => (
-                        <CouponCard
-                            key={c.code}
-                            coupon={c}
-                            isApplied={appliedCode === c.code.toLowerCase()}
-                            isLoading={cardLoadingCode === c.code.toLowerCase() || (inputLoading && appliedCode !== c.code.toLowerCase() && false)}
-                            onApply={() => handleCardApply(c)}
-                            onRemove={() => handleRemoveCode(c.code)}
-                        />
-                    ))}
+                    {coupons.map(c => {
+                        const isApplied = appliedCode === c.code.toLowerCase()
+                        const isActive = isApplied ? (appliedCoupon?.isActive !== false) : true
+                        const remainingToActivate = isApplied && !isActive && appliedCoupon?.minSum ? Math.max(0, Math.round(Number(appliedCoupon.minSum) - Number(order.sum || 0))) : 0
+                        return (
+                            <CouponCard
+                                key={c.code}
+                                coupon={c}
+                                isApplied={isApplied}
+                                isActive={isActive}
+                                remainingToActivate={remainingToActivate}
+                                isLoading={cardLoadingCode === c.code.toLowerCase() || (inputLoading && appliedCode !== c.code.toLowerCase() && false)}
+                                onApply={() => handleCardApply(c)}
+                                onRemove={() => handleRemoveCode(c.code)}
+                            />
+                        )
+                    })}
                 </div>
             )}
 
@@ -298,6 +306,7 @@ export default function CouponSection() {
                     !isEditing && <div className={styles.editLabelSpacer} />
                 )}
             </div>
+
             {inputError && <Text size='s' mode='error' className={styles.inputError}>{inputError}</Text>}
         </Flex>
     )
@@ -436,60 +445,66 @@ export function CouponCollapse({ defaultOpen = true }) {
             />
         </Collapse>
 
-        <div className={styles.inputRow}>
-            <LuTicketPercent className={styles.couponRowIcon} />
+        <Flex col className={styles.inputSection}>
+            <Flex className={styles.inputRow}>
+                <LuTicketPercent className={styles.couponRowIcon} />
 
-            {isEditing ? (
-                <div className={styles.inputPillWrap}>
-                    <input
-                        id='checkout-coupon-input-inner'
-                        className={styles.couponInput}
-                        value={inputValue}
-                        onChange={e => { setInputValue(e.target.value.toUpperCase()); setInputError(null) }}
-                        onKeyDown={e => {
-                            if (e.key === 'Enter') {
-                                e.preventDefault()
-                                if (appliedCode && inputValue.trim().toLowerCase() === appliedCode) handleRemoveCode(inputValue)
-                                else handleApplyCode(inputValue)
-                            }
-                            if (e.key === 'Escape' && appliedCode) setIsEditing(false)
-                        }}
-                        placeholder='הזן קוד קופון'
-                        disabled={inputLoading}
-                        autoComplete='off'
-                        spellCheck={false}
-                        autoFocus
-                    />
-                    {inputLoading ? <Loader size={14} /> : null}
-                </div>
-            ) : (
-                <div className={styles.couponPillDisplay} onClick={() => setIsEditing(true)} role='button' tabIndex={0}>
-                    <span className={styles.couponPillText}>{appliedCode.toUpperCase()}</span>
-                </div>
+                {isEditing ? (
+                    <div className={styles.inputPillWrap}>
+                        <input
+                            id='checkout-coupon-input-inner'
+                            className={styles.couponInput}
+                            value={inputValue}
+                            onChange={e => { setInputValue(e.target.value.toUpperCase()); setInputError(null) }}
+                            onKeyDown={e => {
+                                if (e.key === 'Enter') {
+                                    e.preventDefault()
+                                    if (appliedCode && inputValue.trim().toLowerCase() === appliedCode) handleRemoveCode(inputValue)
+                                    else handleApplyCode(inputValue)
+                                }
+                                if (e.key === 'Escape' && appliedCode) setIsEditing(false)
+                            }}
+                            placeholder='הזן קוד קופון'
+                            disabled={inputLoading}
+                            autoComplete='off'
+                            spellCheck={false}
+                            autoFocus
+                        />
+                        {inputLoading ? <Loader size={14} /> : null}
+                    </div>
+                ) : (
+                    <div className={styles.couponPillDisplay} onClick={() => setIsEditing(true)} role='button' tabIndex={0}>
+                        <span className={styles.couponPillText}>{appliedCode.toUpperCase()}</span>
+                    </div>
+                )}
+
+                {isEditing ? (
+                    <div className={styles.outsideActions}>
+                        {!inputLoading && inputValue && appliedCode !== inputValue.trim().toLowerCase() && (
+                            <button type='button' className={styles.applyBtn} onClick={() => handleApplyCode(inputValue)}>החל</button>
+                        )}
+                        {appliedCode && !inputLoading && inputValue.trim().toLowerCase() === appliedCode && (
+                            <button type='button' className={styles.removeBtn} onClick={() => handleRemoveCode(inputValue)}>הסר</button>
+                        )}
+                        {appliedCode && (
+                            <button type='button' className={styles.cancelEditBtn} onClick={() => setIsEditing(false)}>
+                                ביטול
+                            </button>
+                        )}
+                    </div>
+                ) : null}
+
+                {appliedCode && !isEditing ? (
+                    <button type='button' className={styles.editLabelBtn} onClick={() => setIsEditing(true)}>
+                        <Text size='m' bold className={styles.editLabel}>ערוך קופון</Text>
+                    </button>
+                ) : null}
+            </Flex>
+
+            {order.coupons?.[0]?.isActive === false && order.coupons[0].minSum && (
+                <Text size='s' mode='error' className={styles.inactiveMsg}>קופון לא פעיל - הוסף עוד ₪{Math.max(0, Math.round(Number(order.coupons[0].minSum) - Number(order.sum || 0)))} להפעלה (מינ׳ ₪{order.coupons[0].minSum})</Text>
             )}
-
-            {isEditing ? (
-                <div className={styles.outsideActions}>
-                    {!inputLoading && inputValue && appliedCode !== inputValue.trim().toLowerCase() && (
-                        <button type='button' className={styles.applyBtn} onClick={() => handleApplyCode(inputValue)}>החל</button>
-                    )}
-                    {appliedCode && !inputLoading && inputValue.trim().toLowerCase() === appliedCode && (
-                        <button type='button' className={styles.removeBtn} onClick={() => handleRemoveCode(inputValue)}>הסר</button>
-                    )}
-                    {appliedCode && (
-                        <button type='button' className={styles.cancelEditBtn} onClick={() => setIsEditing(false)}>
-                            ביטול
-                        </button>
-                    )}
-                </div>
-            ) : null}
-
-            {appliedCode && !isEditing ? (
-                <button type='button' className={styles.editLabelBtn} onClick={() => setIsEditing(true)}>
-                    <Text size='m' bold className={styles.editLabel}>ערוך קופון</Text>
-                </button>
-            ) : null}
-        </div>
+        </Flex>
         {inputError && <Text size='s' mode='error' className={styles.inputError}>{inputError}</Text>}
     </>
     )
@@ -504,6 +519,8 @@ function CouponSectionInner({
     appliedCode
 }) {
     const [coupons] = useState(initialCoupons)
+    const { order } = useOrder()
+    const appliedCoupon = order.coupons?.[0]
 
     function handleCardApply(coupon) {
         if (appliedCode === coupon.code.toLowerCase()) handleRemoveCode(coupon.code)
@@ -513,16 +530,23 @@ function CouponSectionInner({
         <Flex col gap={12} className={styles.couponSection}>
             {coupons && coupons.length > 0 && (
                 <div className={styles.couponGrid}>
-                    {coupons.map(c => (
-                        <CouponCard
-                            key={c.code}
-                            coupon={c}
-                            isApplied={appliedCode === c.code.toLowerCase()}
-                            isLoading={cardLoadingCode === c.code.toLowerCase()}
-                            onApply={() => handleCardApply(c)}
-                            onRemove={() => handleRemoveCode(c.code)}
-                        />
-                    ))}
+                    {coupons.map(c => {
+                        const isApplied = appliedCode === c.code.toLowerCase()
+                        const isActive = isApplied ? (appliedCoupon?.isActive !== false) : true
+                        const remainingToActivate = isApplied && !isActive && appliedCoupon?.minSum ? Math.max(0, Math.round(Number(appliedCoupon.minSum) - Number(order.sum || 0))) : 0
+                        return (
+                            <CouponCard
+                                key={c.code}
+                                coupon={c}
+                                isApplied={isApplied}
+                                isActive={isActive}
+                                remainingToActivate={remainingToActivate}
+                                isLoading={cardLoadingCode === c.code.toLowerCase()}
+                                onApply={() => handleCardApply(c)}
+                                onRemove={() => handleRemoveCode(c.code)}
+                            />
+                        )
+                    })}
                 </div>
             )}
         </Flex>

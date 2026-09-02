@@ -3,9 +3,16 @@ import { cartSchema } from './order.js'
 const couponEntrySchema = {
     code: String,
     discount: Number,
+    appliedDiscount: Number,
+    originalDiscount: Number,
+    benefit: String,
     percent: Boolean,
     minSum: Number,
     maxSum: Number,
+    isActive: Boolean,
+    whitelist: [String],
+    blacklist: [String],
+    condition: Object,
     couponMessages: Object,
     checkOnPay: Boolean
 }

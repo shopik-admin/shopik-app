@@ -8,8 +8,14 @@ export function isCouponEligible(coupon, user, orderSum) {
     if (coupon.blacklist && coupon.blacklist.length > 0) {
         if (user && coupon.blacklist.includes(user.id)) return { eligible: false, reason: 'in blacklist' }
     }
+    // minSum applies regardless of dynamic flag - coupon is added but stays inactive until met
+    if (orderSum < (coupon.minSum ?? 0)) return {
+        eligible: false,
+        isMinSumBlock: true,
+        reason: 'order sum below minimum'
+    }
+
     if (!coupon.dynamic) return { eligible: true }
-    if (orderSum < (coupon.minSum ?? 0)) return { eligible: false, reason: 'order sum below minimum' }
     if (coupon.condition) {
         if (coupon.condition.orderRange) {
             const { start: rangeStart, end: rangeEnd } = coupon.condition.orderRange

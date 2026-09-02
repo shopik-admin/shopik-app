@@ -15,7 +15,7 @@ export default async function coupon(payload, { DL, _user, utils }) {
 
     for (const coupon of coupons) {
         const result = isCouponEligible(coupon, _user, orderSum)
-        if (!result.eligible) continue
+        if (!result.eligible && !result.isMinSumBlock) continue
 
         eligibleCoupons.push({
             code: coupon.code,

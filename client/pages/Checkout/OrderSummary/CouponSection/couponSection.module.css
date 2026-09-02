@@ -157,10 +157,14 @@
 }
 
 /* Input row — matches screenshot: ערוך קופון | pill input | RiCoupon2Line */
-.inputRow {
+
+.inputSection {
+    position: relative;
     border: none;
     border-bottom: 1px solid var(--border-secondary);
-    display: flex;
+}
+
+.inputRow {
     align-items: center;
     gap: 10px;
     padding: 20px 15px;
@@ -361,4 +365,24 @@
 
 .appliedHint {
     font-size: 12px;
+}
+
+.couponCard.inactive {
+    border-color: var(--border-error);
+    background: var(--bg-error-secondary);
+}
+
+.cardCta.ctaInactive {
+    background: var(--bg-error-secondary);
+    color: var(--text-error-primary);
+    border: 1px solid var(--border-error);
+}
+
+.inactiveMsg {
+    position: absolute;
+    bottom: 4px;
+    right: 50px;
+    color: var(--text-error-primary);
+    font-size: 12px;
+    font-weight: 600;
 }

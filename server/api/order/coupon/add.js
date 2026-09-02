@@ -24,17 +24,27 @@ export default async function add(payload, { DL, _user, utils }) {
     const sumNoCoupon = cartOrder.sumNoCoupon ?? orderSum
 
     const eligibilityResult = isCouponEligible(coupon, _user, orderSum)
-    if (!eligibilityResult.eligible) throw { status: 400, message: 'Coupon conditions not met', details: { reason: eligibilityResult.reason } }
+    // Allow adding coupon even if minSum not yet reached – it stays on order as inactive
 
-    const discount = calcOrderDiscount(coupon, orderSum)
+    if (!eligibilityResult.eligible && !eligibilityResult.isMinSumBlock) throw { status: 400, message: 'Coupon conditions not met', details: { reason: eligibilityResult.reason } }
+
+    const isActive = eligibilityResult.eligible
+    const discount = isActive ? calcOrderDiscount(coupon, orderSum) : 0
     const finalSum = Math.max(orderSum - discount, 0)
 
     const couponEntry = {
         code: coupon.code,
-        discount: Math.round(discount * 100) / 100,
+        discount: Math.round(calcOrderDiscount(coupon, orderSum) * 100) / 100,
+        appliedDiscount: Math.round(discount * 100) / 100,
         percent: coupon.benefit === 'percent',
+        benefit: coupon.benefit,
+        originalDiscount: coupon.discount,
         minSum: coupon.minSum,
         maxSum: coupon.maxSum,
+        whitelist: coupon.whitelist,
+        blacklist: coupon.blacklist,
+        condition: coupon.condition,
+        isActive,
         couponMessages: {
             sectionMessage: { text: coupon.description || coupon.name },
             checkOutMessage: {
