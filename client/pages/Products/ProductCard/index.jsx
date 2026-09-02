@@ -3,11 +3,10 @@ import Flex from 'common/components/Flex'
 import Text from 'common/components/Text'
 import { Link } from 'react-router'
 import calcOrder from 'common/functions/calcOrder/cart.js'
-import apiReq from 'common/functions/apiReq.js'
 import { useOrder } from 'features/Order/OrderProvider'
 import { useAppData } from 'App'
 import { useUser } from 'features/User'
-import { useMemo, useRef } from 'react'
+import { useMemo } from 'react'
 import { extractShippingConfig } from '#common/functions/shipping.js'
 import {
     ProductImage,
@@ -38,15 +37,13 @@ export default function ProductCard(props) {
 }
 
 export function ProductButton({ product, size = 'm', sales = {} }) {
-    const { order, setOrder } = useOrder()
+    const { order, setOrder, queueCartSync } = useOrder()
     const { settings } = useAppData() || {}
     const shippingConfig = useMemo(() => extractShippingConfig(settings), [settings])
     const user = useUser()
-    const latestRequest = useRef(0)
     const amount = order?.cart?.find(item => item.id === product.id)?.amount || 0
 
     const updateAmount = (newAmount) => {
-        const currentRequest = ++latestRequest.current
         if (sales && Object.keys(sales).length) setSalesCache(sales)
         const cachedSales = getSalesCache()
         // Check if we have all needed saleIds for optimistic calc
@@ -67,16 +64,7 @@ export function ProductButton({ product, size = 'm', sales = {} }) {
             console.log('skip optimistic - missing sales', missing)
         }
 
-        apiReq('order/cart/product', {
-            id: product.id,
-            amount: newAmount,
-            domainId: order?.domainId
-        })
-            .then(({ order, sales: returnedSales }) => {
-                if (returnedSales) setSalesCache(returnedSales)
-                if (currentRequest === latestRequest.current && order) setOrder(order)
-            })
-            .catch(() => { })
+        queueCartSync(product, newAmount)
     }
 
     return <CommonProductButton product={product} size={size} sales={sales} amount={amount} onUpdateAmount={updateAmount} />

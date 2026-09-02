@@ -1,7 +1,9 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState, useRef } from 'react'
 import { useAppData } from 'App'
 import apiReq from '#common/functions/apiReq.js'
 import { getSalesCache, setSalesCache } from '#common/functions/salesCache.js'
+
+export const CART_SYNC_DEBOUNCE_MS = 300
 
 const OrderContext = createContext()
 export const useOrder = () => useContext(OrderContext)
@@ -22,6 +24,37 @@ export default function OrderProvider({ children }) {
     const { order: serverOrder } = useAppData()
     const hasServerOrder = !!serverOrder
     const [order, setOrder] = useState(hasServerOrder ? serverOrder : {})
+    const orderRef = useRef(order)
+    useEffect(() => { orderRef.current = order }, [order])
+    const seqRef = useRef(0)
+    const timersRef = useRef(new Map())
+    const pendingRef = useRef(new Map())
+
+    const queueCartSync = (product, amount) => {
+        const id = product?.id
+        if (!id) return
+        pendingRef.current.set(id, { product, amount })
+        if (timersRef.current.has(id)) clearTimeout(timersRef.current.get(id))
+        const tid = setTimeout(() => {
+            const pending = pendingRef.current.get(id)
+            if (!pending) return
+            pendingRef.current.delete(id)
+            timersRef.current.delete(id)
+            const seq = ++seqRef.current
+            const domainId = orderRef.current?.domainId
+            apiReq('order/cart/product', { id: pending.product.id, amount: pending.amount, domainId })
+                .then(({ order: serverOrder, sales }) => {
+                    if (sales) setSalesCache(sales)
+                    if (seq === seqRef.current && serverOrder) setOrder(serverOrder)
+                }).catch(() => { })
+        }, CART_SYNC_DEBOUNCE_MS)
+        timersRef.current.set(id, tid)
+    }
+
+    useEffect(() => () => {
+        for (const tid of timersRef.current.values()) clearTimeout(tid)
+        timersRef.current.clear()
+    }, [])
 
     useEffect(() => {
         if (hasServerOrder) return
@@ -49,7 +82,7 @@ export default function OrderProvider({ children }) {
         }).catch(() => { })
     }, [order?.cart])
 
-    return <OrderContext value={{ order, setOrder }}>
+    return <OrderContext value={{ order, setOrder, queueCartSync }}>
         {children}
     </OrderContext>
 }   
