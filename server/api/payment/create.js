@@ -9,7 +9,7 @@ export default async function create(payload, info) {
     if (String(order.userId) !== String(_user.id)) throw { status: 403, message: 'Not your order' }
     if (order.status !== DL.Order.constants.ORDER_STATUS.CART) throw { status: 400, message: 'Order not in cart status' }
 
-    const amount = order.finalSumWithShippingAndHandling ?? order.finalSum ?? order.sum
+    const amount = order.finalSumWithShipping ?? order.finalSum ?? order.sum
     if (!amount || Number(amount) <= 0) throw { status: 400, message: 'Order amount must be > 0' }
 
     // TODO: add user details to order and return error if any fields are missing or invalid  
