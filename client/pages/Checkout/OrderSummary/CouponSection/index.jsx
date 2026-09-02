@@ -9,19 +9,22 @@ import { IoCheckmarkCircleOutline } from 'react-icons/io5'
 import { LuTicketPercent, LuTag, LuTags } from 'react-icons/lu'
 import styles from './couponSection.module.css'
 import summaryStyles from '../orderSummary.module.css'
+import { useText } from 'common/texts/TextProvider'
+import { round2 } from '#common/functions/calcOrder/utils.js'
 
-function formatDiscount(coupon) {
+function formatDiscount(coupon, TR) {
     if (!coupon) return ''
     if (coupon.benefit === 'percent') return `${coupon.discount}%`
     return `₪${Number(coupon.discount).toFixed(0)}`
 }
 
-function formatMinSum(minSum) {
+function formatMinSum(minSum, TR) {
     if (!minSum) return null
-    return `בקנייה מעל ₪${Number(minSum).toFixed(0)}`
+    const template = TR?.('coupon_min_above') || ''
+    return template.replace('{minSum}', Number(minSum).toFixed(0))
 }
 
-function formatExpiry(end) {
+function formatExpiry(end, TR) {
     if (!end) return null
     try {
         const d = new Date(end)
@@ -29,16 +32,20 @@ function formatExpiry(end) {
         const dd = String(d.getDate()).padStart(2, '0')
         const mm = String(d.getMonth() + 1).padStart(2, '0')
         const yy = d.getFullYear()
-        return `בתוקף עד: ${dd}.${mm}.${yy}`
+        const dateStr = `${dd}.${mm}.${yy}`
+        const template = TR?.('coupon_valid_until') || ''
+        return template.replace('{date}', dateStr)
     } catch { return null }
 }
 
 // Reusable card shell — used for regular coupons now, sale coupons later.
 // Keeps same outer structure (dashed border, footer, CTA) so both types sit in same grid.
 function RegularCouponCard({ coupon, isApplied, isActive = true, remainingToActivate = 0, isLoading, onApply, onRemove }) {
-    const discountLabel = formatDiscount(coupon)
-    const minSumLabel = formatMinSum(coupon.minSum)
-    const expiryLabel = formatExpiry(coupon.end)
+    const { TR } = useText() || {}
+    const discountLabel = formatDiscount(coupon, TR)
+    const minSumLabel = formatMinSum(coupon.minSum, TR)
+    const expiryLabel = formatExpiry(coupon.end, TR)
+    const discountSuffix = TR?.('coupon_discount_suffix') || ''
 
     return (
         <div className={`${styles.couponCard} ${styles.regularCard} ${isApplied ? styles.applied : ''} ${isApplied && !isActive ? styles.inactive : ''}`}>
@@ -46,7 +53,7 @@ function RegularCouponCard({ coupon, isApplied, isActive = true, remainingToActi
                 <div className={styles.cardIconCircle}>
                     <LuTag className={styles.cardIcon} />
                 </div>
-                <Text bold size='l' className={styles.discountValue}>{discountLabel} הנחה</Text>
+                <Text bold size='l' className={styles.discountValue}>{discountLabel}{discountSuffix}</Text>
                 {minSumLabel && <Text size='m' mode='sub' className={styles.minSum}>{minSumLabel}</Text>}
             </div>
 
@@ -64,9 +71,9 @@ function RegularCouponCard({ coupon, isApplied, isActive = true, remainingToActi
                 disabled={isLoading}
             >
                 {isLoading ? <Loader size={14} /> : isApplied ? (
-                    isActive ? <><IoCheckmarkCircleOutline /> מופעל</> : <>לא פעיל</>
+                    isActive ? <><IoCheckmarkCircleOutline /> <Text size='m' bold>{TR?.('coupon_active') || ''}</Text></> : <Text size='m' bold>{TR?.('coupon_inactive') || ''}</Text>
                 ) : (
-                    <><LuTicketPercent /> החל קופון</>
+                    <><LuTicketPercent /> <Text size='m' bold>{TR?.('coupon_apply') || ''}</Text></>
                 )}
             </button>
 
@@ -74,7 +81,7 @@ function RegularCouponCard({ coupon, isApplied, isActive = true, remainingToActi
                 <div className={styles.cardFooter}>
                     <Text size='m' mode='sub' className={styles.expiry}>{expiryLabel}</Text>
                     {coupon.maxSum && (
-                        <Text size='m' mode='sub' className={styles.expiry}>עד ₪{Number(coupon.maxSum).toFixed(0)}</Text>
+                        <Text size='m' mode='sub' className={styles.expiry}>{(TR?.('coupon_up_to') || '').replace('{maxSum}', Number(coupon.maxSum).toFixed(0))}</Text>
                     )}
                 </div>
             )}
@@ -97,6 +104,7 @@ function CouponCard({ coupon, isApplied, isActive, remainingToActivate, isLoadin
 
 export default function CouponSection() {
     const { order = {}, setOrder } = useOrder()
+    const { TR } = useText() || {}
     const appliedCode = (order.coupons?.[0]?.code || '').toLowerCase()
     const [coupons, setCoupons] = useState(null)
     const [loading, setLoading] = useState(true)
@@ -144,7 +152,7 @@ export default function CouponSection() {
 
     async function handleApplyCode(codeRaw) {
         const code = (codeRaw || '').trim().toLowerCase()
-        if (!code) { setInputError('נא להזין קוד קופון'); return }
+        if (!code) { setInputError(TR?.('coupon_enter_code') || ''); return }
         if (appliedCode === code) return
         setInputError(null)
         // if another coupon already applied, remove it first (server only allows one)
@@ -165,7 +173,7 @@ export default function CouponSection() {
             }
             setInputValue(code.toUpperCase())
         } catch (e) {
-            const msg = typeof e === 'string' ? e : (e?.message || e?.details?.reason || 'שגיאה בהפעלת הקופון')
+            const msg = typeof e === 'string' ? e : (e?.message || e?.details?.reason || TR?.('coupon_error_apply') || '')
             setInputError(msg)
         } finally {
             setInputLoading(false)
@@ -188,7 +196,7 @@ export default function CouponSection() {
             }
             setInputValue('')
         } catch (e) {
-            const msg = typeof e === 'string' ? e : (e?.message || 'שגיאה בהסרת הקופון')
+            const msg = typeof e === 'string' ? e : (e?.message || TR?.('coupon_error_remove') || '')
             setInputError(msg)
         } finally {
             setInputLoading(false)
@@ -220,7 +228,7 @@ export default function CouponSection() {
                     {coupons.map(c => {
                         const isApplied = appliedCode === c.code.toLowerCase()
                         const isActive = isApplied ? (appliedCoupon?.isActive !== false) : true
-                        const remainingToActivate = isApplied && !isActive && appliedCoupon?.minSum ? Math.max(0, Math.round(Number(appliedCoupon.minSum) - Number(order.sum || 0))) : 0
+                        const remainingToActivate = isApplied && !isActive && appliedCoupon?.minSum ? Math.max(0, round2(Number(appliedCoupon.minSum) - Number(order.sum || 0))) : 0
                         return (
                             <CouponCard
                                 key={c.code}
@@ -258,7 +266,7 @@ export default function CouponSection() {
                                 }
                                 if (e.key === 'Escape' && appliedCode) setIsEditing(false)
                             }}
-                            placeholder='הזן קוד קופון'
+                            placeholder={TR?.('coupon_placeholder') || ''}
                             disabled={inputLoading}
                             autoComplete='off'
                             spellCheck={false}
@@ -278,17 +286,17 @@ export default function CouponSection() {
                     <div className={styles.outsideActions}>
                         {!inputLoading && inputValue && appliedCode !== inputValue.trim().toLowerCase() && (
                             <button type='button' className={styles.applyBtn} onClick={() => handleApplyCode(inputValue)}>
-                                החל
+                                <Text size='s' bold>{TR?.('coupon_btn_apply') || ''}</Text>
                             </button>
                         )}
                         {appliedCode && !inputLoading && inputValue.trim().toLowerCase() === appliedCode && (
                             <button type='button' className={styles.removeBtn} onClick={() => handleRemoveCode(inputValue)}>
-                                הסר
+                                <Text size='s' bold>{TR?.('coupon_btn_remove') || ''}</Text>
                             </button>
                         )}
                         {appliedCode && (
                             <button type='button' className={styles.cancelEditBtn} onClick={() => setIsEditing(false)}>
-                                ביטול
+                                <Text size='s'>{TR?.('coupon_btn_cancel') || ''}</Text>
                             </button>
                         )}
                     </div>
@@ -300,13 +308,16 @@ export default function CouponSection() {
                         className={styles.editLabelBtn}
                         onClick={() => setIsEditing(true)}
                     >
-                        <Text size='m' bold className={styles.editLabel}>ערוך קופון</Text>
+                        <Text size='m' bold className={styles.editLabel}>{TR?.('edit_coupon') || ''}</Text>
                     </button>
                 ) : (
                     !isEditing && <div className={styles.editLabelSpacer} />
                 )}
             </div>
 
+            {order.coupons?.[0]?.isActive === false && order.coupons[0].minSum && (
+                <Text size='s' mode='error' className={styles.inactiveMsg}>{TR?.('coupon_min_sum_not_reached')?.replace('{remaining}', Math.max(0, round2(Number(order.coupons[0].minSum) - Number(order.sum || 0)))).replace('{minSum}', order.coupons[0].minSum)}</Text>
+            )}
             {inputError && <Text size='s' mode='error' className={styles.inputError}>{inputError}</Text>}
         </Flex>
     )
@@ -333,6 +344,7 @@ export function useAvailableCoupons() {
 // Grid of personalized coupons is shown only when GET returns relevant coupons; input stays visible in all cases.
 export function CouponCollapse({ defaultOpen = true }) {
     const { order = {}, setOrder } = useOrder()
+    const { TR } = useText() || {}
     const appliedCode = (order.coupons?.[0]?.code || '').toLowerCase()
     const [open, setOpen] = useState(defaultOpen)
     const [cardLoadingCode, setCardLoadingCode] = useState(null)
@@ -368,7 +380,7 @@ export function CouponCollapse({ defaultOpen = true }) {
 
     async function handleApplyCode(codeRaw) {
         const code = (codeRaw || '').trim().toLowerCase()
-        if (!code) { setInputError('נא להזין קוד קופון'); return }
+        if (!code) { setInputError(TR?.('coupon_enter_code') || ''); return }
         if (appliedCode === code) return
         setInputError(null)
         const isReplace = !!appliedCode
@@ -380,7 +392,7 @@ export function CouponCollapse({ defaultOpen = true }) {
             if (updated) setOrder(prev => ({ ...prev, ...updated }))
             setInputValue(code.toUpperCase())
         } catch (e) {
-            const msg = typeof e === 'string' ? e : (e?.message || e?.details?.reason || 'שגיאה בהפעלת הקופון')
+            const msg = typeof e === 'string' ? e : (e?.message || e?.details?.reason || TR?.('coupon_error_apply') || '')
             setInputError(msg)
         } finally { setInputLoading(false); setCardLoadingCode(null) }
     }
@@ -395,7 +407,7 @@ export function CouponCollapse({ defaultOpen = true }) {
             else setOrder(prev => ({ ...prev, coupons: [] }))
             setInputValue('')
         } catch (e) {
-            const msg = typeof e === 'string' ? e : (e?.message || 'שגיאה בהסרת הקופון')
+            const msg = typeof e === 'string' ? e : (e?.message || TR?.('coupon_error_remove') || '')
             setInputError(msg)
         } finally { setInputLoading(false); setCardLoadingCode(null) }
     }
@@ -411,7 +423,7 @@ export function CouponCollapse({ defaultOpen = true }) {
                         <div className={summaryStyles.iconCircle}>
                             <LuTicketPercent className={summaryStyles.rowIcon} />
                         </div>
-                        <Text bold size='m' className={summaryStyles.rowText}>coupons_especially_for_you</Text>
+                        <Text bold size='m' className={summaryStyles.rowText}>{TR?.('coupons_especially_for_you') || 'coupons_especially_for_you'}</Text>
                     </Flex>
                 }
             >
@@ -432,7 +444,7 @@ export function CouponCollapse({ defaultOpen = true }) {
                     <div className={summaryStyles.iconCircle}>
                         <LuTags className={summaryStyles.rowIcon} />
                     </div>
-                    <Text bold size='m' className={summaryStyles.rowText}>coupons_especially_for_you</Text>
+                    <Text bold size='m' className={summaryStyles.rowText}>{TR?.('coupons_especially_for_you') || 'coupons_especially_for_you'}</Text>
                 </Flex>
             }
         >
@@ -464,7 +476,7 @@ export function CouponCollapse({ defaultOpen = true }) {
                                 }
                                 if (e.key === 'Escape' && appliedCode) setIsEditing(false)
                             }}
-                            placeholder='הזן קוד קופון'
+                            placeholder={TR?.('coupon_placeholder') || ''}
                             disabled={inputLoading}
                             autoComplete='off'
                             spellCheck={false}
@@ -481,14 +493,14 @@ export function CouponCollapse({ defaultOpen = true }) {
                 {isEditing ? (
                     <div className={styles.outsideActions}>
                         {!inputLoading && inputValue && appliedCode !== inputValue.trim().toLowerCase() && (
-                            <button type='button' className={styles.applyBtn} onClick={() => handleApplyCode(inputValue)}>החל</button>
+                            <button type='button' className={styles.applyBtn} onClick={() => handleApplyCode(inputValue)}><Text size='s' bold>{TR?.('coupon_btn_apply') || ''}</Text></button>
                         )}
                         {appliedCode && !inputLoading && inputValue.trim().toLowerCase() === appliedCode && (
-                            <button type='button' className={styles.removeBtn} onClick={() => handleRemoveCode(inputValue)}>הסר</button>
+                            <button type='button' className={styles.removeBtn} onClick={() => handleRemoveCode(inputValue)}><Text size='s' bold>{TR?.('coupon_btn_remove') || ''}</Text></button>
                         )}
                         {appliedCode && (
                             <button type='button' className={styles.cancelEditBtn} onClick={() => setIsEditing(false)}>
-                                ביטול
+                                <Text size='s'>{TR?.('coupon_btn_cancel') || ''}</Text>
                             </button>
                         )}
                     </div>
@@ -496,13 +508,16 @@ export function CouponCollapse({ defaultOpen = true }) {
 
                 {appliedCode && !isEditing ? (
                     <button type='button' className={styles.editLabelBtn} onClick={() => setIsEditing(true)}>
-                        <Text size='m' bold className={styles.editLabel}>ערוך קופון</Text>
+                        <Text size='m' bold className={styles.editLabel}>{TR?.('edit_coupon') || ''}</Text>
                     </button>
                 ) : null}
             </Flex>
 
             {order.coupons?.[0]?.isActive === false && order.coupons[0].minSum && (
-                <Text size='s' mode='error' className={styles.inactiveMsg}>קופון לא פעיל - הוסף עוד ₪{Math.max(0, Math.round(Number(order.coupons[0].minSum) - Number(order.sum || 0)))} להפעלה (מינ׳ ₪{order.coupons[0].minSum})</Text>
+                <Text size='s' mode='error' className={styles.inactiveMsg}>{TR?.('coupon_min_sum_not_reached')
+                    ?.replace('{remaining}', Math.max(0, round2(Number(order.coupons[0].minSum) - Number(order.sum || 0))))
+                    .replace('{minSum}', order.coupons[0].minSum)}
+                </Text>
             )}
         </Flex>
         {inputError && <Text size='s' mode='error' className={styles.inputError}>{inputError}</Text>}
@@ -533,7 +548,7 @@ function CouponSectionInner({
                     {coupons.map(c => {
                         const isApplied = appliedCode === c.code.toLowerCase()
                         const isActive = isApplied ? (appliedCoupon?.isActive !== false) : true
-                        const remainingToActivate = isApplied && !isActive && appliedCoupon?.minSum ? Math.max(0, Math.round(Number(appliedCoupon.minSum) - Number(order.sum || 0))) : 0
+                        const remainingToActivate = isApplied && !isActive && appliedCoupon?.minSum ? Math.max(0, round2(Number(appliedCoupon.minSum) - Number(order.sum || 0))) : 0
                         return (
                             <CouponCard
                                 key={c.code}
