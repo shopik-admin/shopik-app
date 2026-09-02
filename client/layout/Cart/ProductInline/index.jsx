@@ -1,17 +1,13 @@
-import Flex from '#common/components/Flex/index.jsx'
-import { ProductButton, ProductImage, ProductInfo, ProductPrice } from 'pages/Products/ProductCard'
-import styles from './productInline.module.css'
-import Card from '#common/components/Card/index.jsx'
-import Button from '#common/components/Button/index.jsx'
-import { useState } from 'react'
-import classNames from '#common/functions/classNames.js'
+import CommonProductInline from 'common/components/ProductInline'
 import { useOrder } from 'features/Order/OrderProvider'
-import calcOrder from '#common/functions/calcOrder/cart.js'
+import calcOrder from 'common/functions/calcOrder/cart.js'
+import apiReq from 'common/functions/apiReq.js'
+import { useRef } from 'react'
 
-export default function ProductInline({ remove = true, note = true, ...props }) {
-    const { product } = props
+export default function ProductInline({ remove = true, note = true, product, sales, ...props }) {
     const { order = {}, setOrder } = useOrder()
-    const [noteOpen, setNoteOpen] = useState()
+    const latestRequest = useRef(0)
+    const amount = order?.cart?.find(item => item.id === product?.id)?.amount ?? product?.amount ?? 0
 
     function handleRemove() {
         if (product) {
@@ -21,21 +17,44 @@ export default function ProductInline({ remove = true, note = true, ...props }) 
                 amount: 0
             })
             setOrder(updatedOrder)
+            // keep server in sync for removal
+            apiReq('order/cart/product', {
+                id: product.id,
+                amount: 0,
+                domainId: order?.domainId
+            }).catch(() => { })
         }
     }
 
-    return <Flex tag={Card} gap={10} className={styles.productInline}>
-        <ProductImage {...props} size='s' />
-        <Flex col gap={5} justifyContent='space-around' grow={1}>
-            {remove && <Button icon='trash' mode='text' stopPropagation preventDefault onClick={handleRemove} className={styles.remove} />}
-            <ProductInfo {...props} size='s' />
-            <Flex alignItems='center' justifyContent='space-between'>
-                {note && <Button
-                    onClick={() => setNoteOpen(n => !n)}
-                    icon='note' mode='text' stopPropagation preventDefault
-                    className={classNames(styles.note, [styles.active, noteOpen])} />}
-                <ProductButton {...props} size='s' />
-            </Flex>
-        </Flex>
-    </Flex>
+    function handleUpdateAmount(newAmount) {
+        const currentRequest = ++latestRequest.current
+        const optimisticOrder = calcOrder({
+            order: order || {},
+            product,
+            amount: newAmount,
+            sales: { ...order?.sales, ...sales }
+        })
+        setOrder(optimisticOrder)
+
+        apiReq('order/cart/product', {
+            id: product.id,
+            amount: newAmount,
+            domainId: order?.domainId
+        })
+            .then(({ order: serverOrder }) => {
+                if (currentRequest === latestRequest.current && serverOrder) setOrder(serverOrder)
+            })
+            .catch(() => { })
+    }
+
+    return <CommonProductInline
+        product={product}
+        sales={sales}
+        remove={remove}
+        note={note}
+        amount={amount}
+        onRemove={remove ? handleRemove : undefined}
+        onUpdateAmount={handleUpdateAmount}
+        {...props}
+    />
 }

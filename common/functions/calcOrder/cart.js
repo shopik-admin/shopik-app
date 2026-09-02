@@ -26,7 +26,7 @@ export function buildCartProduct({ product, amount, unitKey, domainId, existingS
         name: product.name,
         barcode: product.barcode,
         amount: calculatedAmount,
-        finalAmount: calculatedAmount,
+        // finalAmount: calculatedAmount,
         price,
         totalPrice: round2(calculatedAmount * price),
         status: existingStatus || CART_PRODUCT_STATUS.CLIENT_ADD,

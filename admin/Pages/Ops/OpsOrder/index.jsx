@@ -13,6 +13,9 @@ import { useParams } from 'react-router'
 import { useUser } from 'features/User'
 import { useState } from 'react'
 import Tabs from '#common/components/Tabs/index.jsx'
+import ProductInline from 'common/components/ProductInline'
+import { useModal } from 'common/components/Modal'
+import ProductPickModal from './ProductPickModal'
 
 const STEPS = {
     PREVIEW: 0,
@@ -32,7 +35,7 @@ export default function OpsOrder({ }) {
     const [step, setStep] = useState(STEPS.PREVIEW)
     const StepComponent = stepRenderer[step] || null
     const { orderId } = useParams()
-    const { error, loading, data = [], setData } = useApi(`order/ops/read`, { id: orderId })
+    const { error, loading, data = [], setData } = useApi(`order/ops/read`, { filter: { id: orderId } })
     const order = data[0] || {}
     const { id } = useUser()
     const isMine = id == order.picker?.adminId,
@@ -51,15 +54,23 @@ export default function OpsOrder({ }) {
         setData([res.data])
         setStep(STEPS.PICK)
     }
-    return <div className={styles.opsOrder}>
-        {StepComponent ? <StepComponent
-            order={order}
-            claimOrder={claimOrder}
-            isMine={isMine}
-            cantPick={cantPick}
-            setStep={setStep}
-        /> : null}
-    </div>
+    function handlePicked(updatedOrder) {
+        if (updatedOrder) {
+            // server returns updated order doc directly, or wrapped in data
+            const newDoc = updatedOrder.cart ? updatedOrder : updatedOrder.data || updatedOrder
+            if (newDoc?.id) setData([newDoc])
+            else setData(prev => prev)
+        }
+    }
+
+    return StepComponent ? <StepComponent
+        order={order}
+        claimOrder={claimOrder}
+        isMine={isMine}
+        cantPick={cantPick}
+        setStep={setStep}
+        onPicked={handlePicked}
+    /> : null
 }
 
 function OrderPreview({ order = {}, claimOrder, isMine, cantPick, setStep }) {
@@ -106,20 +117,49 @@ function PriviewRow({ icon, label, value }) {
     </Flex>
 }
 
-function OrderPick({ order = {}, setStep }) {
+function OrderPick({ order = {}, setStep, onPicked }) {
     const [tab, setTab] = useState()
-    return <Flex col className={styles.orderPick}>
+    const { openModal, closeModal } = useModal()
+    const cart = order.cart || []
+    // to_pick = products with !finalAmount, done_pick = products with finalAmount, wait_pick not now
+    const toPickItems = cart.filter(p => !p.finalAmount)
+    const donePickItems = cart.filter(p => p.finalAmount)
+    const isDoneTab = tab === 'done_pick' || tab === 2
+    const isWaitTab = tab === 'wait_pick' || tab === 1
+    const displayed = isDoneTab ? donePickItems : isWaitTab ? [] : toPickItems
+
+    function handleProductClick(product) {
+        openModal(
+            <ProductPickModal product={product} orderId={order.id} onClose={() => closeModal()} onPicked={onPicked} />,
+            { fullScreen: true, className: styles.pickModal }
+        )
+    }
+
+    return <Flex grow col className={styles.orderPick}>
         <Tabs
             className={styles.tabs}
             onChange={setTab}
             active={tab}
             options={[
-                { text: 'to_pick', badge: 31 },
+                { text: 'to_pick', badge: toPickItems.length },
                 { text: 'wait_pick', badge: 0 },
-                { text: 'done_pick', badge: 5 },
+                { text: 'done_pick', badge: donePickItems.length },
             ]} />
-        <Flex className={styles.cartList}>
-            {order.cart.map(product => product.name)}
+        <Flex grow col gap={10} className={styles.cartList}>
+            {displayed.map(product => (
+                <ProductInline
+                    key={product.id || product.barcode}
+                    product={product}
+                    remove={false}
+                    note={false}
+                    admin
+                    onClick={() => handleProductClick(product)}
+                    style={{ cursor: 'pointer' }}
+                />
+            ))}
+        </Flex>
+        <Flex center gap={20} className={styles.footer}>
+            <Button onClick={() => setStep(STEPS.PICK)}>finish pick</Button>
         </Flex>
     </Flex>
 }

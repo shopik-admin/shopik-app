@@ -1,0 +1,330 @@
+.scanProduct {
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-primary);
+    min-height: 100%;
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border-tertiary);
+    position: relative;
+}
+
+.productSummary {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-tertiary);
+    background: #fff;
+}
+
+.summaryRow {
+    align-items: flex-start;
+}
+
+.topMeta {
+    color: var(--text-secondary);
+}
+
+.summaryName {
+    line-height: 1.3;
+    margin-top: 2px;
+}
+
+.thumb {
+    width: 72px;
+    height: 72px;
+    object-fit: contain;
+    border-radius: 8px;
+    flex-shrink: 0;
+    border: 1px solid var(--border-tertiary);
+    background: #fff;
+}
+
+.thumbPlaceholder {
+    width: 72px;
+    height: 72px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border-tertiary);
+    border-radius: 8px;
+    color: var(--text-tertiary);
+    background: var(--bg-secondary);
+}
+
+.pricePillSmall {
+    background: #f4f6f5;
+    border-radius: 999px;
+    padding: 4px 10px;
+    width: fit-content;
+    margin-top: 4px;
+}
+
+.notScannedRow {
+    padding: 12px 16px 4px;
+}
+
+.cameraWrap {
+    position: relative;
+    margin: 12px 16px;
+    border-radius: 16px;
+    overflow: hidden;
+    background: #000;
+    aspect-ratio: 4 / 3;
+    min-height: 260px;
+}
+
+.video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.corner {
+    position: absolute;
+    width: 28px;
+    height: 28px;
+    border-color: #fff;
+    border-style: solid;
+}
+
+.tl {
+    top: 16px;
+    left: 16px;
+    border-width: 3px 0 0 3px;
+    border-top-left-radius: 12px;
+}
+
+.tr {
+    top: 16px;
+    right: 16px;
+    border-width: 3px 3px 0 0;
+    border-top-right-radius: 12px;
+}
+
+.bl {
+    bottom: 16px;
+    left: 16px;
+    border-width: 0 0 3px 3px;
+    border-bottom-left-radius: 12px;
+}
+
+.br {
+    bottom: 16px;
+    right: 16px;
+    border-width: 0 3px 3px 0;
+    border-bottom-right-radius: 12px;
+}
+
+.scanningBadge {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.6);
+    color: #fff;
+    padding: 6px 12px;
+    border-radius: 999px;
+}
+
+.errorOverlay {
+    position: absolute;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(255, 255, 255, 0.95);
+    padding: 6px 12px;
+    border-radius: 8px;
+    max-width: 90%;
+    text-align: center;
+}
+
+.manualForm {
+    position: absolute;
+    bottom: 16px;
+    left: 16px;
+    right: 16px;
+    display: flex;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 8px;
+    border-radius: 12px;
+    pointer-events: auto;
+}
+
+.manualInput {
+    flex: 1;
+    border: 1px solid var(--border-primary);
+    border-radius: 999px;
+    padding: 8px 14px;
+    font-size: 14px;
+    outline: none;
+}
+
+.manualBtn {
+    border-radius: 999px;
+    height: 36px;
+}
+
+.actions {
+    padding: 16px;
+    padding-bottom: calc(16px + var(--safeBottom, 0px));
+}
+
+.missingBtn {
+    width: 100%;
+    height: 44px;
+    border-radius: 999px;
+    background: var(--bg-primary);
+}
+
+.successBlock {
+    padding: 18px 16px 8px;
+    text-align: center;
+}
+
+.successText {
+    color: #0a7a5a;
+}
+
+.checkCircle {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #0a7a5a;
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.amountRow {
+    margin: 16px;
+    border: 1px solid var(--border-tertiary);
+    border-radius: 999px;
+    overflow: hidden;
+    background: #fff;
+    height: 56px;
+}
+
+.orderedBox,
+.suppliedBox {
+    flex: 1;
+    padding: 6px 12px;
+    gap: 2px;
+}
+
+.orderedBox {
+    border-inline-end: 1px solid var(--border-tertiary);
+    background: #fff;
+}
+
+.suppliedBox {
+    background: #fff;
+    position: relative;
+}
+
+.suppliedBox.empty {
+    border: 1px solid transparent;
+    border-radius: 999px;
+}
+
+.suppliedBox.match {
+    background: #e6f4ef;
+    border: 1px solid #0a7a5a;
+    border-radius: 999px;
+}
+
+.suppliedBox.warning {
+    background: #fef9e6;
+    border: 1px solid #e6a600;
+    border-radius: 999px;
+}
+
+.suppliedBox.error {
+    background: #fdf0f0;
+    border: 1px solid #d93025;
+    border-radius: 999px;
+}
+
+.suppliedInput {
+    width: 60px;
+    text-align: center;
+    border: none;
+    background: transparent;
+    font-size: 16px;
+    font-weight: 600;
+    outline: none;
+}
+
+.suppliedInput::placeholder {
+    color: var(--text-tertiary);
+}
+
+.warningBlock {
+    padding: 8px 16px;
+    text-align: center;
+}
+
+.warningText {
+    justify-content: center;
+}
+
+.warningYellow {
+    color: #b78a00;
+}
+
+.warningRed {
+    color: #d93025;
+}
+
+.warnIconYellow {
+    color: #e6a600;
+}
+
+.errorIcon {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 2px solid #d93025;
+    color: #d93025;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.continueBtn {
+    width: 100%;
+    height: 48px;
+    border-radius: 999px;
+    background: #0a4742;
+    font-size: 16px;
+}
+
+.continueBtn:disabled {
+    background: #c5cfcc;
+    opacity: 1;
+    color: #fff;
+}
+
+@media (min-width: 650px) {
+    .scanProduct {
+        width: 420px;
+        max-width: 90vw;
+    }
+    .cameraWrap {
+        min-height: 320px;
+    }
+}

@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useRef, useState, } from 'react'
 import ReactDOM from 'react-dom'
 import './modal.css'
 import Text from '../Text'
+import Button from '../Button'
 
 const ModalContext = createContext(null)
 
@@ -98,17 +99,21 @@ function PortalModal({
         }
     }
 
+    const isFullScreen = !!options.fullScreen
     return ReactDOM.createPortal(
         <div
-            className={`overlay ${isOpen ? 'open' : ''}`}
+            className={`overlay ${isOpen ? 'open' : ''} ${isFullScreen ? 'fullScreen' : ''} ${options.overlayClassName || ''}`}
             onClick={handleClose}
             onTransitionEnd={handleOverlayTransitionEnd}
         >
             <div
-                className={`modal ${isOpen ? 'open' : ''} ${options.className || ''
+                className={`modal ${isOpen ? 'open' : ''} ${isFullScreen ? 'fullScreen' : ''} ${options.className || ''
                     }`}
                 onClick={(e) => e.stopPropagation()}
             >
+                {isFullScreen && (
+                    <Button icon="x" mode="text" className="modal-close" onClick={handleClose} aria-label="close" />
+                )}
                 {options.title && (
                     <div className="modal-header">
                         <Text size="h3">{options.title}</Text>

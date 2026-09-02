@@ -13,12 +13,7 @@
         font-size: 16px;
     }
 
-    .footer {
-        position: sticky;
-        bottom: 0;
-        padding: 20px 0;
-        padding-bottom: calc(20px + env(safe-area-inset-bottom));
-    }
+
 
 
     .intro {
@@ -59,13 +54,34 @@
     }
 }
 
+.footer {
+    position: fixed;
+    bottom: 0;
+    padding: 20px 0;
+    padding-bottom: calc(20px + env(safe-area-inset-bottom));
+    width: 100%;
+    inset-inline-start: 0;
+    background-color: var(--bg-primary);
+}
+
 .orderPick {
     .tabs {
         position: sticky;
         top: calc(var(--admin-header-height));
+        z-index: 2;
+        background: var(--bg-primary);
     }
 
     .cartList {
         margin-block: 20px;
     }
+}
+
+.pickModal {
+    padding: 0 !important;
+    overflow: hidden !important;
+}
+
+.pickModal :global(.modal-body) {
+    padding: 0;
 }
