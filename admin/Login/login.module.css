@@ -2,6 +2,7 @@
     --loginCardWidth: 480px;
     height: 100dvh;
     overflow: hidden;
+    background-color: var(--bg-page);
 
     .subTitle {
         font-size: var(--text-sm);
@@ -16,6 +17,7 @@
         max-width: 100vw;
         margin: auto;
         overflow: auto;
+        background-color: var(--bg-primary);
         /*  max-height: calc(100dvh - 250px); */
     }
 
@@ -44,11 +46,11 @@
         }
 
         .card {
-            width: 100%;
-            height: 100dvh;
+            width: calc(100vw - 40px);
+            /*  height: 100dvh;
             max-height: calc(100dvh - 100px);
             border-bottom-left-radius: 0;
-            border-bottom-right-radius: 0;
+            border-bottom-right-radius: 0; */
         }
     }
 }

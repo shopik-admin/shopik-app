@@ -13,6 +13,7 @@ export default function Tabs({
     active,
     defaultValue,
     onChange,
+    mode,
     ...props
 }) {
     const lists = useLists()
@@ -44,7 +45,7 @@ export default function Tabs({
     return (
         <Flex
             {...props}
-            className={classNames(styles.tabs, className)}
+            className={classNames(styles.tabs, className, styles[mode])}
             style={{ '--active-index': activeIndex !== -1 ? activeIndex : 0, ...style }}
         >
             {/* Moving indicator */}

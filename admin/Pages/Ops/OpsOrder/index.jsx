@@ -140,6 +140,7 @@ function OrderPick({ order = {}, setStep, onPicked }) {
             className={styles.tabs}
             onChange={setTab}
             active={tab}
+            mode='line'
             options={[
                 { text: 'to_pick', badge: toPickItems.length },
                 { text: 'wait_pick', badge: 0 },

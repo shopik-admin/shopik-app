@@ -40,6 +40,9 @@
 /* ============================================================
    Table (common/components/Table)
    ============================================================ */
+body {
+    background-color: var(--bg-primary);
+}
 
 body .Table_ {
     max-height: calc(100dvh - var(--admin-header-height) - 115px);

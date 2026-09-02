@@ -15,6 +15,7 @@ import Text from 'common/components/Text'
 import Card from 'common/components/Card'
 import Flex from 'common/components/Flex'
 import { useState } from 'react'
+import Logo from '#common/components/Logo/index.jsx'
 
 ReactDOM
     .createRoot(document.getElementById('root'))
@@ -47,6 +48,7 @@ export default function Login() {
     }
 
     return <Flex center col className={styles.login}>
+
         <Card className={styles.card}>
             <Text size='h1' bold>login_title</Text>
             <Text className={styles.subTitle}>login_subTitle</Text>
@@ -78,6 +80,7 @@ export default function Login() {
                 }
             </Form>
         </Card>
+        <Logo noLink />
         <ThemeToggle />
     </Flex>
 }
