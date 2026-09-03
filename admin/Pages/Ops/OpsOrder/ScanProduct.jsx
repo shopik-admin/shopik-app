@@ -7,6 +7,7 @@ import ProductInline from 'common/components/ProductInline'
 import styles from './scanProduct.module.css'
 import apiReq from 'common/functions/apiReq'
 import classNames from 'common/functions/classNames'
+import { isWeightProduct, getUnitLabel, formatAmount } from 'common/components/Product'
 
 export default function ScanProduct({ product = {}, orderId, onClose, onPicked, initialPhase, initialSupplied, initialBarcode }) {
     const videoRef = useRef(null)
@@ -19,23 +20,26 @@ export default function ScanProduct({ product = {}, orderId, onClose, onPicked, 
     const [manualMode, setManualMode] = useState(false)
     const [manualBarcode, setManualBarcode] = useState('')
     const [loading, setLoading] = useState(false)
-    const [phase, setPhase] = useState(initialPhase || 'scanning') // scanning | amount
+    const [phase, setPhase] = useState(initialPhase || 'scanning') // scanning | amount | weight
     const [scannedBarcode, setScannedBarcode] = useState(initialBarcode || '')
     const [supplied, setSupplied] = useState(initialSupplied != null ? String(initialSupplied) : '')
 
     const price = product.price ?? product.prices?.[0]?.price ?? 36
     const ordered = product.amount || 22
+    const weight = isWeightProduct(product)
+    const unitLabel = getUnitLabel(product)
+    const orderedLabel = formatAmount(product, ordered)
 
     const suppliedNum = supplied === '' ? null : Number(supplied)
     const isSuppliedEmpty = supplied === ''
     const isSuppliedValid = !isSuppliedEmpty && !isNaN(suppliedNum) && suppliedNum > 0
     const isMatch = isSuppliedValid && suppliedNum === ordered
-    // red if exceeds ordered significantly or exceeds limit; for now > ordered
+    // red if exceeds ordered significantly or exceeds limit; for now > ordered (allow small tolerance for weight)
     const isExceeds = isSuppliedValid && suppliedNum > ordered
     const isDifferent = isSuppliedValid && suppliedNum !== ordered && !isExceeds
     // yellow warning when different but not exceeds
     const isWarning = isDifferent
-    const isError = isExceeds
+    const isError = isExceeds && !weight // for weight allow exceeds (weighted items may vary)
     const canContinue = isSuppliedValid && !isError
 
     async function proceedWithFinalAmount() {
@@ -43,10 +47,11 @@ export default function ScanProduct({ product = {}, orderId, onClose, onPicked, 
         setLoading(true)
         setError('')
         try {
+            const action = weight ? 'weight' : 'scan'
             const res = await apiReq('order/ops/pick_item', {
                 id: orderId,
                 barcode: scannedBarcode || product.barcode,
-                action: 'scan',
+                action,
                 finalAmount: suppliedNum
             })
             if (res?.error) {
@@ -159,10 +164,11 @@ export default function ScanProduct({ product = {}, orderId, onClose, onPicked, 
         }
     }
 
-    if (phase === 'amount') {
+    if (phase === 'amount' || phase === 'weight') {
+        const isWeightPhase = weight || phase === 'weight'
         return <Flex col className={styles.scanProduct}>
             <Flex center className={styles.header}>
-                <Text size="m" bold>סריקת מוצר</Text>
+                <Text size="m" bold>{isWeightPhase ? 'שקילת מוצר' : 'סריקת מוצר'}</Text>
             </Flex>
 
             <Flex col className={styles.productSummary}>
@@ -178,15 +184,15 @@ export default function ScanProduct({ product = {}, orderId, onClose, onPicked, 
 
             <Flex col center gap={6} className={styles.successBlock}>
                 <Flex alignItems="center" gap={8}>
-                    <Text size="m" bold className={styles.successText}>מוצר נסרק בהצלחה!</Text>
+                    <Text size="m" bold className={styles.successText}>{isWeightPhase ? 'נא לשקול את המוצר' : 'מוצר נסרק בהצלחה!'}</Text>
                     <span className={styles.checkCircle}><Icon name="check" size={14} /></span>
                 </Flex>
-                <Text size="s" mode="sub">נא להזין כמות שסופקה</Text>
+                <Text size="s" mode="sub">{isWeightPhase ? `נא להזין משקל שסופק (${unitLabel})` : 'נא להזין כמות שסופקה'}</Text>
             </Flex>
 
             <Flex className={styles.amountRow} alignItems="stretch">
                 <Flex col center className={styles.orderedBox}>
-                    <Text size="m" bold>{ordered} <Text size="xs">יח'</Text></Text>
+                    <Text size="m" bold>{orderedLabel}</Text>
                     <Text size="xs" mode="sub">הוזמן</Text>
                 </Flex>
                 <Flex col center className={classNames(styles.suppliedBox, [styles.empty, isSuppliedEmpty], [styles.match, isMatch], [styles.warning, isWarning], [styles.error, isError])}>
@@ -195,10 +201,10 @@ export default function ScanProduct({ product = {}, orderId, onClose, onPicked, 
                         onChange={e => setSupplied(e.target.value.replace(/[^0-9.]/g, ''))}
                         placeholder="—"
                         className={styles.suppliedInput}
-                        inputMode="numeric"
+                        inputMode={weight ? 'decimal' : 'numeric'}
                         autoFocus
                     />
-                    <Text size="xs" mode="sub">סופק</Text>
+                    <Text size="xs" mode="sub">סופק{weight ? ` (${unitLabel})` : ''}</Text>
                 </Flex>
             </Flex>
 

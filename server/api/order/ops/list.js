@@ -133,6 +133,12 @@ export default async function list(payload, { DL, _admin }) {
         .limit(Math.min(Number(limit) || 25, 100))
         .lean()
 
+    // enrich cart items with product snapshot for old orders
+    try {
+        const { enrichOrders } = await import('#server/utils/data/enrichCart.js')
+        await enrichOrders(docs, DL)
+    } catch {}
+
     // Annotate isMine
     return docs.map(d => ({
         ...d,

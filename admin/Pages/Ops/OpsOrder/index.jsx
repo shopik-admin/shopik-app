@@ -11,9 +11,10 @@ import Icon from 'common/components/Icon'
 import Flex from 'common/components/Flex'
 import { useParams } from 'react-router'
 import { useUser } from 'features/User'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Tabs from '#common/components/Tabs/index.jsx'
 import ProductInline from 'common/components/ProductInline'
+import Stepper from 'common/components/Stepper'
 import { useModal } from 'common/components/Modal'
 import ProductPickModal from './ProductPickModal'
 
@@ -40,6 +41,13 @@ export default function OpsOrder({ }) {
     const { id } = useUser()
     const isMine = id == order.picker?.adminId,
         cantPick = !isMine && order.picker?.adminId
+
+    useEffect(() => {
+        if (loading || !order?.status) return
+        if (order.status === 'picked' && step === STEPS.PREVIEW) setStep(STEPS.PACK)
+        else if (order.status === 'packed' && step === STEPS.PREVIEW) setStep(STEPS.SHIP)
+        else if (order.status === 'picking' && step === STEPS.PREVIEW && isMine) setStep(STEPS.PICK)
+    }, [order.status, loading, isMine])
 
 
     if (loading) return <Loader />
@@ -119,14 +127,16 @@ function PriviewRow({ icon, label, value }) {
 
 function OrderPick({ order = {}, setStep, onPicked }) {
     const [tab, setTab] = useState()
+    const [completing, setCompleting] = useState(false)
     const { openModal, closeModal } = useModal()
     const cart = order.cart || []
-    // to_pick = products with !finalAmount, done_pick = products with finalAmount, wait_pick not now
-    const toPickItems = cart.filter(p => !p.finalAmount)
-    const donePickItems = cart.filter(p => p.finalAmount)
+    const isScanned = p => p.finalAmount != null || !!p.missing
+    const toPickItems = cart.filter(p => !isScanned(p))
+    const donePickItems = cart.filter(p => isScanned(p))
     const isDoneTab = tab === 'done_pick' || tab === 2
     const isWaitTab = tab === 'wait_pick' || tab === 1
     const displayed = isDoneTab ? donePickItems : isWaitTab ? [] : toPickItems
+    const allHandled = toPickItems.length === 0 && cart.length > 0
 
     function handleProductClick(product) {
         openModal(
@@ -135,11 +145,31 @@ function OrderPick({ order = {}, setStep, onPicked }) {
         )
     }
 
+    async function handleFinishPick() {
+        if (!allHandled || completing) return
+        setCompleting(true)
+        try {
+            const res = await apiReq('order/ops/pick_complete', { id: order.id })
+            if (res?.error) {
+                alert(res.error)
+                return
+            }
+            const updated = res?.data || res
+            if (updated?.id || updated?.cart) onPicked?.(updated)
+            setStep(STEPS.PACK)
+        } catch (e) {
+            alert(e.message || 'pick_complete failed')
+        } finally {
+            setCompleting(false)
+        }
+    }
+
     return <Flex grow col className={styles.orderPick}>
         <Tabs
             className={styles.tabs}
             onChange={setTab}
             active={tab}
+            mode='line'
             options={[
                 { text: 'to_pick', badge: toPickItems.length },
                 { text: 'wait_pick', badge: 0 },
@@ -159,14 +189,73 @@ function OrderPick({ order = {}, setStep, onPicked }) {
             ))}
         </Flex>
         <Flex center gap={20} className={styles.footer}>
-            <Button onClick={() => setStep(STEPS.PICK)}>finish pick</Button>
+            <Button disabled={!allHandled} loading={completing} onClick={handleFinishPick} className={styles.finishBtn}>finish pick</Button>
         </Flex>
     </Flex>
 }
 
-function OrderPack({ order = {} }) {
-    return <Flex>
-        <Text>pack</Text>
+function OrderPack({ order = {}, setStep, onPicked }) {
+    const [loading, setLoading] = useState(false)
+    const [regular, setRegular] = useState(order.bags?.regular ?? 0)
+    const [cold, setCold] = useState(order.bags?.cold ?? 0)
+    const [freeze, setFreeze] = useState(order.bags?.freeze ?? 0)
+
+    async function handleTransfer() {
+        if (loading) return
+        setLoading(true)
+        try {
+            const bags = {
+                regular: Number(regular) || 0,
+                cold: Number(cold) || 0,
+                freeze: Number(freeze) || 0,
+            }
+            const res = await apiReq('order/ops/pack', { id: order.id, bags })
+            if (res?.error) {
+                alert(res.error)
+                return
+            }
+            const updated = res?.data || res
+            if (updated?.id) onPicked?.(updated)
+            setStep(STEPS.SHIP)
+        } catch (e) {
+            alert(e.message || 'pack failed')
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    return <Flex grow col className={styles.orderPack}>
+        <Flex col gap={6} className={styles.packInstruction}>
+            <Text bold size="m">נא להזין כמות אריזות מדויקת בסיום האריזה</Text>
+        </Flex>
+
+        <Flex col gap={14} className={styles.packList}>
+            <Flex justifyContent="space-between" alignItems="center" className={styles.packRow}>
+                <Flex gap={8} alignItems="center">
+                    <Icon name="box" size={20} className={styles.packIcon} />
+                    <Text size="s">כמות אריזות</Text>
+                </Flex>
+                <Stepper value={regular} onChange={setRegular} />
+            </Flex>
+            <Flex justifyContent="space-between" alignItems="center" className={styles.packRow}>
+                <Flex gap={8} alignItems="center">
+                    <Icon name="snow" size={20} className={styles.packIcon} />
+                    <Text size="s">כמות צידניות</Text>
+                </Flex>
+                <Stepper value={cold} onChange={setCold} />
+            </Flex>
+            <Flex justifyContent="space-between" alignItems="center" className={styles.packRow}>
+                <Flex gap={8} alignItems="center">
+                    <Icon name="bag" size={20} className={styles.packIcon} />
+                    <Text size="s">כמות נלווים</Text>
+                </Flex>
+                <Stepper value={freeze} onChange={setFreeze} />
+            </Flex>
+        </Flex>
+
+        <Flex center className={styles.footer}>
+            <Button loading={loading} onClick={handleTransfer} className={styles.transferBtn}>העברה למשלוח</Button>
+        </Flex>
     </Flex>
 }
 

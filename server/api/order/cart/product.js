@@ -68,6 +68,9 @@ export default async function product(payload, { DL, _user, utils, cookies, setC
             ? await DL.Order.updateOne({ id: cartOrder.id }, update)
             : await DL.GuestCart.updateOne({ id: cartOrder.id }, update)
         if (savedOrder) finalOrder = savedOrder
+        else finalOrder = updatedOrder
+    } else {
+        finalOrder = updatedOrder
     }
 
     return { order: filterClientOrder(finalOrder), sales: salesMap }
