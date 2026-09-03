@@ -129,8 +129,7 @@ export default async function create(payload, info) {
             customer: {
                 name: _user.name,
                 phone: _user.phone,
-                email: _user.email,
-                idNum: _user.idNum
+                email: _user.email
             }
         })
     } catch (e) {

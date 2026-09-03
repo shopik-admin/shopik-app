@@ -109,17 +109,9 @@ const userSchema = {
     phone: {
         type: String,
         required: true,
-        unique: true,
         match: regex.mobilePhone,
         filter: true,
         userEditable: true
-    },
-    idNum: {
-        type: String,
-        required: true,
-        unique: true,
-        match: regex.idNum,
-        filter: true
     },
     secondPhone: {
         type: String,
@@ -200,7 +192,10 @@ const defaultSelect = {
 
 export const meta = {
     defaultSelect,
-    cacheStrategy: CACHE_STRATEGIES.VERSION
+    cacheStrategy: CACHE_STRATEGIES.VERSION,
+    index: [
+        [{ domainId: 1, phone: 1 }, { unique: true }]
+    ]
 }
 
 export default userSchema
