@@ -117,7 +117,12 @@ export function ProductButton({ product, amount = 0, onUpdateAmount, size = 'm',
         onUpdateAmount?.(next <= 0 ? 0 : next)
     }
 
-    return <Flex className={classNames(styles.productButton, styles[size], styles.stepper)}>
+    return <Flex
+        onClick={e => {
+            e.preventDefault()
+            e.stopPropagation()
+        }}
+        className={classNames(styles.productButton, styles[size], styles.stepper)}>
         <Button icon='add' preventDefault stopPropagation onClick={handleInc} disabled={!onUpdateAmount} />
         <Text size='m' bold className={styles.amount}>{displayAmount}</Text>
         <Button preventDefault stopPropagation onClick={handleDec} disabled={!onUpdateAmount}>-</Button>
