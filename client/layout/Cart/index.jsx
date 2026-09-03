@@ -14,6 +14,8 @@ import { useNavigate } from 'react-router'
 import { useMemo } from 'react'
 import { useAppData } from 'App'
 import { calcShipping, extractShippingConfig } from '#common/functions/shipping.js'
+import { extractLimits, getMinSumForMethod, getRemainingToMin } from '#common/functions/limits.js'
+import { useText } from 'common/texts/TextProvider'
 import events from 'common/features/events.js'
 import { useUser } from 'features/User'
 
@@ -27,9 +29,16 @@ export default function Cart({ }) {
 
     const { cartOpen, setCartOpen } = useCart()
     const { settings } = useAppData() || {}
+    const { TR } = useText() || {}
     const shippingConfig = useMemo(() => extractShippingConfig(settings), [settings])
+    console.log('settings', settings)
+    const limits = useMemo(() => extractLimits(settings), [settings])
 
     const sum = order?.sum ?? 0
+    // threshold uses post-sale pre-coupon total (sumBeforeCoupon == sum)
+    const minSumThreshold = getMinSumForMethod(limits, order?.deliveryMethod)
+    const minSumRemaining = getRemainingToMin({ sum, deliveryMethod: order?.deliveryMethod, limits })
+    const isBelowMinSum = minSumThreshold > 0 && minSumRemaining > 0
     const shipping = order?.shipping ?? calcShipping({ sum, deliveryMethod: order?.deliveryMethod, shippingConfig })
     const sumWithShipping = order?.sumWithShipping ?? (sum + Number(shipping || 0))
     const finalSumWithShipping = order?.finalSumWithShipping
@@ -47,6 +56,7 @@ export default function Cart({ }) {
     })()
 
     function goToCheckout() {
+        if (isBelowMinSum) return
         if (!user?.id) {
             events.emit('login-popover')
         } else if (!emptyCart) {
@@ -127,7 +137,10 @@ export default function Cart({ }) {
                     <Text size='l' bold>{render({ type: 'coin', value: savings })}</Text>
                 </Flex>
             </Flex>
-            <Button icon='cart' onClick={goToCheckout}>
+            {isBelowMinSum && !emptyCart && (
+                <Text size='s' mode='sub' className={styles.minSumNote}>{TR?.('minimum_order_sum') || 'minimum order sum:'} {render({ type: 'coin', value: minSumThreshold })}</Text>
+            )}
+            <Button icon='cart' onClick={goToCheckout} disabled={isBelowMinSum}>
                 <Text>to_pay</Text>
                 <Text>{render({ type: 'coin', value: displayTotal })}</Text>
             </Button>

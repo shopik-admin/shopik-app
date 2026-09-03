@@ -30,6 +30,6 @@ export default function ProductCard(props) {
 }
 
 export function ProductButton({ product, size = 'm', sales = {} }) {
-    const { amount, updateAmount } = useProductCart(product, sales)
-    return <CommonProductButton product={product} size={size} sales={sales} amount={amount} onUpdateAmount={updateAmount} />
+    const { amount, updateAmount, productMaxAmount } = useProductCart(product, sales)
+    return <CommonProductButton product={product} size={size} sales={sales} amount={amount} onUpdateAmount={updateAmount} maxAmount={productMaxAmount} />
 }

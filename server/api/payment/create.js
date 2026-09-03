@@ -14,6 +14,25 @@ export default async function create(payload, info) {
     const amount = order.finalSumWithShipping ?? order.finalSum ?? order.sum
     if (!amount || Number(amount) <= 0) throw { status: 400, message: 'Order amount must be > 0' }
 
+    // Enforce minSum / minSumPickup based on post-sale pre-coupon total (sumBeforeCoupon == order.sum)
+    try {
+        const limitsSetting = await DL.Setting.readOne({ key: 'limits' })
+        const raw = limitsSetting?.value
+        if (raw && typeof raw === 'object') {
+            const threshold = order.deliveryMethod === DL.Order.constants.DELIVERY_METHOD.PICKUP
+                ? Number(raw.minSumPickup ?? 0) || 0
+                : Number(raw.minSum ?? 0) || 0
+            if (threshold > 0) {
+                const sumForCheck = Number(order.sum ?? 0) || 0
+                if (sumForCheck < threshold) {
+                    throw { status: 400, message: `Minimum order sum not reached (min ${threshold})`, code: 'MIN_SUM_NOT_REACHED', threshold, sum: sumForCheck, minSum: threshold }
+                }
+            }
+        }
+    } catch (e) {
+        if (e?.code === 'MIN_SUM_NOT_REACHED') throw e
+    }
+
     // ---- Validate required order fields & auto-fill from _user ----
     const isNonEmpty = (v) => typeof v === 'string' && v.trim().length > 0
     const hasOrderName = order.name && isNonEmpty(order.name.first) && isNonEmpty(order.name.last)

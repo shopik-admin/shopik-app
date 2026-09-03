@@ -4,6 +4,7 @@ import { useAppData } from 'App'
 import { useUser } from 'features/User'
 import calcOrder from 'common/functions/calcOrder/cart.js'
 import { extractShippingConfig } from '#common/functions/shipping.js'
+import { extractLimits } from '#common/functions/limits.js'
 import { getSalesCache, setSalesCache } from '#common/functions/salesCache.js'
 
 export function useProductCart(product, sales = {}) {
@@ -12,8 +13,11 @@ export function useProductCart(product, sales = {}) {
     const shippingConfig = useMemo(() => extractShippingConfig(settings), [settings])
     const user = useUser()
     const amount = order?.cart?.find(item => item.id === product?.id)?.amount ?? product?.amount ?? 0
+    const limits = useMemo(() => extractLimits(settings), [settings])
+    const productMaxAmount = Number(limits?.productMaxAmount ?? 0) || 0
 
     const updateAmount = (newAmount) => {
+        if (productMaxAmount > 0 && Number(newAmount) > productMaxAmount) return
         if (sales && Object.keys(sales).length) setSalesCache(sales)
         const cachedSales = getSalesCache()
         const neededIds = [...new Set([...(order?.cart || []).flatMap(i => i.saleIds || []), ...(product.saleIds || [])])]
@@ -83,5 +87,5 @@ export function useProductCart(product, sales = {}) {
         return undefined
     })()
 
-    return { amount, updateAmount, remove, saleTotalAmount, effectiveSalesForChild, order }
+    return { amount, updateAmount, remove, saleTotalAmount, effectiveSalesForChild, order, productMaxAmount, limits }
 }

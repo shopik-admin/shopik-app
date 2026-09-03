@@ -192,12 +192,15 @@ export function ProductInfo(props) {
     </Flex>
 }
 
-export function ProductButton({ product, amount = 0, onUpdateAmount, size = 'm', sales = {} }) {
+export function ProductButton({ product, amount = 0, onUpdateAmount, size = 'm', sales = {}, maxAmount = 0 }) {
     // For weight, show amount with unit label (e.g. "1.5 ק\"ג"); for items show "2 יח'"
     // Presentational stepper — caller provides amount and update handler
     // If no handler provided, button is disabled / hidden
     const minAmount = product?.unit?.minAmount || 1
     const step = product?.unit?.step || 1
+    const max = Number(maxAmount ?? 0) || 0
+    const atMax = max > 0 && Number(amount ?? 0) >= max
+    const maxTitle = atMax ? `הגעת למגבלת כמות (${max})` : undefined
 
     if (!amount) {
         return <Flex className={classNames(styles.productButton, styles[size])} >
@@ -210,7 +213,11 @@ export function ProductButton({ product, amount = 0, onUpdateAmount, size = 'm',
     }
 
     const displayAmount = formatAmount(product, amount)
-    const handleInc = () => onUpdateAmount?.(round3(amount + step))
+    const handleInc = () => {
+        const next = round3(amount + step)
+        if (max > 0 && next > max) return
+        onUpdateAmount?.(next)
+    }
     const handleDec = () => {
         const next = round3(amount - step)
         onUpdateAmount?.(next <= 0 ? 0 : next)
@@ -222,7 +229,7 @@ export function ProductButton({ product, amount = 0, onUpdateAmount, size = 'm',
             e.stopPropagation()
         }}
         className={classNames(styles.productButton, styles[size], styles.stepper)}>
-        <Button icon='add' preventDefault stopPropagation onClick={handleInc} disabled={!onUpdateAmount} />
+        <Button icon='add' preventDefault stopPropagation onClick={handleInc} disabled={!onUpdateAmount || atMax} title={maxTitle} />
         <Text size='m' bold className={styles.amount}>{displayAmount}</Text>
         <Button preventDefault stopPropagation onClick={handleDec} disabled={!onUpdateAmount}>-</Button>
     </Flex>
