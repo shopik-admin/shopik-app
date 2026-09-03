@@ -98,6 +98,13 @@ export default function ScanProduct({ product = {}, orderId, onClose, onPicked, 
                 await videoRef.current.play()
             }
 
+            // lazy polyfill (Sec-ant/barcode-detector): keep native 0kb fast-path, load zxing-wasm only on Firefox/Safari
+            if (!('BarcodeDetector' in window)) {
+                try {
+                    await import('barcode-detector/polyfill')
+                } catch {}
+            }
+
             if ('BarcodeDetector' in window) {
                 try {
                     detectorRef.current = new window.BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'qr_code'] })
