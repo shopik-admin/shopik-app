@@ -81,6 +81,30 @@
         position: relative;
         top: 1px;
     }
+
+    &.sale {
+        gap: 8px;
+    }
+}
+
+.salePrice {
+    color: var(--text-success-primary);
+    font-weight: 700 !important;
+    line-height: 1.2;
+}
+
+.regularPrice {
+    color: var(--text-error-primary);
+    font-size: var(--text-sm);
+    text-decoration: line-through;
+}
+
+.price.s .salePrice {
+    font-size: var(--text-xl);
+}
+
+.price.l .salePrice {
+    font-size: 28px;
 }
 
 .productButton {
