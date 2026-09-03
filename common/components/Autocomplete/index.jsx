@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState, forwardRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Input from '../Input'
-import Flex from '../Flex'
 import Text from '../Text'
 import Loader from '../Loader'
 import styles from './autocomplete.module.css'
 
-const Autocomplete = forwardRef(function Autocomplete({
+function Autocomplete({
+    ref,
     label,
     placeholder,
     value,
@@ -18,7 +18,7 @@ const Autocomplete = forwardRef(function Autocomplete({
     debounceMs = 200,
     name,
     minChars = 1,
-}, ref) {
+}) {
     const initialQuery = value ?? defaultValue ?? ''
     const [query, setQuery] = useState(initialQuery)
     const [options, setOptions] = useState([])
@@ -182,6 +182,6 @@ const Autocomplete = forwardRef(function Autocomplete({
             </div>
         )}
     </div>
-})
+}
 
 export default Autocomplete

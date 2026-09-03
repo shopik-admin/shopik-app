@@ -2,7 +2,7 @@ import classNames from 'common/functions/classNames'
 import { useText } from 'common/texts/TextProvider'
 import styles from './input.module.css'
 import Checkbox from '../Checkbox'
-import { useState, useRef, useImperativeHandle, forwardRef } from 'react'
+import { useState, useRef, useImperativeHandle } from 'react'
 import Text from '../Text'
 import Icon from '../Icon'
 import Select from '../Select'
@@ -33,9 +33,9 @@ import Select from '../Select'
  * @returns {JSX.Element} The rendered input component.
  */
 
-const Input = forwardRef(function Input(props, forwardedRef) {
+function Input(props) {
     const
-        { name = '', label = name, title = label, placeholder = title,
+        { ref, name = '', label = name, title = label, placeholder = title,
             className, type = '', info = '', icon = '',
             required = false, defaultValue, defaults, onChange, onBlur: externalOnBlur, autoFocus, ...ps
         } = props,
@@ -48,7 +48,7 @@ const Input = forwardRef(function Input(props, forwardedRef) {
         requiredSign = required ? ' *' : '',
         innerRef = useRef(null)
 
-    useImperativeHandle(forwardedRef, () => innerRef.current)
+    useImperativeHandle(ref, () => innerRef.current)
 
     function onInputChange(e) { setValue(e?.target ? e.target.value : e); onChange?.(e) }
     function onBlur(e) { setTimeout(() => setVisited(true), 100); externalOnBlur?.(e) }
@@ -70,7 +70,7 @@ const Input = forwardRef(function Input(props, forwardedRef) {
                 {invalidError && <Text size='s' mode='error' className={styles.error}>{invalidError}</Text>}
             </>}
     </label>
-})
+}
 
 export default Input
 
