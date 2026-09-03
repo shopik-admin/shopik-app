@@ -75,6 +75,7 @@
 
 .price {
     margin-bottom: 10px;
+    align-items: baseline !important;
 
     .forgrams {
         font-weight: 400;
@@ -84,6 +85,7 @@
 
     &.sale {
         gap: 8px;
+        align-items: baseline !important;
     }
 }
 
