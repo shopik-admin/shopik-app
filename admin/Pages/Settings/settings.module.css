@@ -297,7 +297,7 @@
 }
 
 .settingValueContainer:hover {
-    background: var(--bg-brand-primary-hover);
+    background: var(--bg-quaternary);
 }
 
 .settingValue {

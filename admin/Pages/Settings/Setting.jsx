@@ -8,7 +8,7 @@ import styles from './settings.module.css'
 import ConfigEditor from './ConfigEditor.jsx'
 
 export default function Setting({ setting, onUpdate, onEditFull, onDelete }) {
-    const { id, key, value: initialValue, renderType, formType, category } = setting
+    const { id, key, value: initialValue, renderType, formType, category, public: isPublic } = setting
     const [isEditing, setIsEditing] = useState(false)
     const [value, setValue] = useState(initialValue ?? '')
     const [editValue, setEditValue] = useState(initialValue ?? '')
@@ -95,6 +95,20 @@ export default function Setting({ setting, onUpdate, onEditFull, onDelete }) {
         }
     }
 
+    async function handlePublicToggle(e) {
+        const newVal = e.target.checked
+        setSaving(true)
+        setError(null)
+        try {
+            const updated = await apiReq('setting/update', { id, public: newVal })
+            onUpdate?.(updated || { ...setting, public: newVal })
+        } catch (err) {
+            setError(err?.message || 'Failed to update public flag')
+        } finally {
+            setSaving(false)
+        }
+    }
+
     if (isToggleType) {
         return (
             <div className={styles.settingItem}>
@@ -104,6 +118,10 @@ export default function Setting({ setting, onUpdate, onEditFull, onDelete }) {
                             {onEditFull && <Button className={styles.gearBtn} onClick={() => onEditFull(setting)} title="Edit all fields" icon='edit' />}
                             {onDelete && <ConfirmButton q={`Delete "${key}"?`} onOk={handleDelete} icon="trash" className={styles.deleteBtn} title="Delete setting" disabled={saving} />}
                             <span className={styles.settingKey}>{key}</span>
+                            <label title={isPublic ? 'Public — sent to client' : 'Private — not sent to client'} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', color: isPublic ? 'var(--text-success-primary)' : 'var(--text-tertiary)', cursor: saving ? 'wait' : 'pointer', marginInlineStart: '0.5rem' }}>
+                                <input type="checkbox" checked={!!isPublic} onChange={handlePublicToggle} disabled={saving} style={{ accentColor: 'var(--bg-brand-primary)' }} />
+                                public
+                            </label>
                         </div>
                         {error && <span className={styles.settingError}>{error}</span>}
                     </div>
@@ -129,6 +147,10 @@ export default function Setting({ setting, onUpdate, onEditFull, onDelete }) {
                             {onEditFull && <Button className={styles.gearBtn} onClick={() => onEditFull(setting)} title="Edit all fields" icon='edit' />}
                             {onDelete && <ConfirmButton q={`Delete "${key}"?`} onOk={handleDelete} icon="trash" className={styles.deleteBtn} title="Delete setting" disabled={saving} />}
                             <span className={styles.settingKey}>{key}</span>
+                            <label title={isPublic ? 'Public — sent to client' : 'Private — not sent to client'} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', color: isPublic ? 'var(--text-success-primary)' : 'var(--text-tertiary)', cursor: saving ? 'wait' : 'pointer', marginInlineStart: '0.5rem' }}>
+                                <input type="checkbox" checked={!!isPublic} onChange={handlePublicToggle} disabled={saving} style={{ accentColor: 'var(--bg-brand-primary)' }} />
+                                public
+                            </label>
                         </div>
                         {error && <span className={styles.settingError}>{error}</span>}
                     </div>
@@ -170,6 +192,10 @@ export default function Setting({ setting, onUpdate, onEditFull, onDelete }) {
                             {onEditFull && <Button className={styles.gearBtn} onClick={() => onEditFull(setting)} title="Edit all fields" icon='edit' />}
                             {onDelete && <ConfirmButton q={`Delete "${key}"?`} onOk={handleDelete} icon="trash" className={styles.deleteBtn} title="Delete setting" disabled={saving} />}
                             <span className={styles.settingKey}>{key}</span>
+                            <label title={isPublic ? 'Public — sent to client' : 'Private — not sent to client'} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', color: isPublic ? 'var(--text-success-primary)' : 'var(--text-tertiary)', cursor: saving ? 'wait' : 'pointer', marginInlineStart: '0.5rem' }}>
+                                <input type="checkbox" checked={!!isPublic} onChange={handlePublicToggle} disabled={saving} style={{ accentColor: 'var(--bg-brand-primary)' }} />
+                                public
+                            </label>
                             {isThemeColor && (
                                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', marginInlineStart: '0.25rem' }}>
                                     <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', fontFamily: 'monospace' }}>var(--{key})</span>
@@ -279,6 +305,10 @@ export default function Setting({ setting, onUpdate, onEditFull, onDelete }) {
                         {onEditFull && <Button className={styles.gearBtn} onClick={() => onEditFull(setting)} title="Edit all fields" icon='edit' />}
                         {onDelete && <ConfirmButton q={`Delete "${key}"?`} onOk={handleDelete} icon="trash" className={styles.deleteBtn} title="Delete setting" disabled={saving} />}
                         <span className={styles.settingKey}>{key}</span>
+                        <label title={isPublic ? 'Public — sent to client' : 'Private — not sent to client'} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', color: isPublic ? 'var(--text-success-primary)' : 'var(--text-tertiary)', cursor: saving ? 'wait' : 'pointer', marginInlineStart: '0.5rem' }}>
+                            <input type="checkbox" checked={!!isPublic} onChange={handlePublicToggle} disabled={saving} style={{ accentColor: 'var(--bg-brand-primary)' }} />
+                            public
+                        </label>
                     </div>
                     {error && <span className={styles.settingError}>{error}</span>}
                 </div>

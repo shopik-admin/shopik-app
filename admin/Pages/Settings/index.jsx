@@ -7,6 +7,7 @@ import apiReq from 'common/functions/apiReq'
 import Input from 'common/components/Input'
 import Select from 'common/components/Select'
 import styles from './settings.module.css'
+import Checkbox from 'common/components/Checkbox'
 import Card from 'common/components/Card'
 import Flex from 'common/components/Flex'
 import Setting from './Setting.jsx'
@@ -33,7 +34,8 @@ function SettingModalContent({ setting, defaultCategory, defaultSubCategory, def
         subCategory: setting?.subCategory || defaultSubCategory || 'General',
         domainId: setting?.domainId || 'default',
         formType: setting?.formType || defaultFormType || 'text',
-        renderType: setting?.renderType || defaultRenderType || 'string'
+        renderType: setting?.renderType || defaultRenderType || 'string',
+        public: setting?.public ?? false
     })
     const [error, setError] = useState(null)
     const [loading, setLoading] = useState(false)
@@ -119,6 +121,10 @@ function SettingModalContent({ setting, defaultCategory, defaultSubCategory, def
                     required
                     name="domainId"
                 />
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                <Checkbox checked={!!formData.public} onChange={(e) => setFormData({ ...formData, public: e.target.checked })} />
+                <span className={styles.settingKey} title="If enabled, this setting is sent to the client (getSettings)">Public — sent to client</span>
             </label>
             {isConfig ? (
                 <div>
