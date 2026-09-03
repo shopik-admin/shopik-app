@@ -64,7 +64,7 @@ export function buildCartProduct({ product, amount, unitKey, domainId, existingS
     }
 }
 
-export function applyCalcToCart({ cart, calcResult }) {
+export function applyCalcToCart({ cart, calcResult, activeSalesOnly = false }) {
     for (let i = 0; i < cart.length; i++) {
         const calcProduct = calcResult.processedCart[i]
         if (!calcProduct) continue
@@ -104,14 +104,15 @@ export function applyCalcToCart({ cart, calcResult }) {
         cartItem.totalSum = round2(totalSum)
         cartItem.regularSum = round2(regularSum)
         cartItem.saleSum = round2(saleSum)
-        cartItem.saleIds = Array.from(activeSaleIds)
+        if (activeSalesOnly)
+            cartItem.saleIds = Array.from(activeSaleIds)
         cartItem.updatedAt = new Date()
     }
 
     return cart
 }
 
-export function calcOrder({ order, product, amount, unitKey, sales, shippingConfig, user }) {
+export function calcOrder({ order, product, amount, unitKey, sales, shippingConfig, user, activeSalesOnly = false }) {
     let cart = (order.cart || []).map(item => ({ ...item }))
 
     if (amount === 0) {
@@ -129,12 +130,12 @@ export function calcOrder({ order, product, amount, unitKey, sales, shippingConf
         if (existingIndex >= 0) {
             cart[existingIndex] = cartProduct
         } else {
-            cart.push(cartProduct)
+            cart.unshift(cartProduct)
         }
     }
     const deliveryMethod = order.deliveryMethod || 'delivery'
     const calcResult = calcOrderSum({ cart, sales: sales || {}, shippingConfig, deliveryMethod })
-    applyCalcToCart({ cart, calcResult })
+    applyCalcToCart({ cart, calcResult, activeSalesOnly })
 
     const shipping = calcResult.totals.shipping
     const sumWithShipping = calcResult.totals.sumWithShipping

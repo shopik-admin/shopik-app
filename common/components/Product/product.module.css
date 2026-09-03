@@ -33,7 +33,7 @@
 .saleBadge {
     position: absolute;
     inset-inline-start: -10px;
-    bottom: var(--spacing-md);
+    bottom: 25px;
     display: inline-flex;
     align-items: center;
     gap: 4px;
@@ -118,8 +118,4 @@
     &.s {
         width: 120px;
     }
-}
-
-.badges {
-    &.s {}
 }
