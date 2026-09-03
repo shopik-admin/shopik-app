@@ -18,7 +18,6 @@ export default function WindowOptions({ onChangeStore, onChangeAddress, hideAddr
     const { addresses } = useUser()
     const { pickupStores } = useAppData()
     const { data, loading, callReq } = useApi('order/window/options')
-
     // Refetch windows when the order's store changes (e.g. after
     // delivery_method switches between pickup/delivery). The initial
     // useApi fetch runs on mount; this covers the race where options
@@ -28,7 +27,7 @@ export default function WindowOptions({ onChangeStore, onChangeAddress, hideAddr
     const [windowLoading, setWindowLoading] = useState(null)
     const [activeDay, setActiveDay] = useState(null)
 
-    const activeWindow = order.window
+    const activeWindow = order?.window
 
     useEffect(() => {
         if (data && !activeDay) {

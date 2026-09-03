@@ -97,7 +97,7 @@ export default function OrderSummary({ onPayment, paying, showPayBtn = true, mis
         : 'no_address_selected'
 
     // Get active window from order state
-    const activeWindow = order.window
+    const activeWindow = order?.window
     const deliveryTimeText = (() => {
         if (!activeWindow?.id) return order.deliveryWindow || TR?.('choose window')
         const dayIdx = activeWindow.dayOfWeek ?? (activeWindow.date ? new Date(activeWindow.date + 'T12:00:00').getDay() : null)

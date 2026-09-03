@@ -53,7 +53,10 @@ export default function Checkout() {
         else if (order.window.leadTimestamp && new Date(order.window.leadTimestamp).getTime() < Date.now()) missing.push('window')
         return missing
     }
-
+    useEffect(() => {
+        if (!user?.id) navigate('/')
+        else if (!order?.cart || !order.cart.length) navigate('/')
+    }, [user, order?.cart])
     // If window lead time has passed, clear it from the order and prompt user to pick a new one
     useEffect(() => {
         if (!order?.window?.leadTimestamp) return
@@ -109,7 +112,7 @@ export default function Checkout() {
         }
     }
 
-    return (
+    return user?.id && (
         <div className={styles.checkoutPage}>
             <Flex gap={24} className={styles.container}>
                 {/* Main Content Area (Start Side in RTL) */}

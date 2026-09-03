@@ -8,16 +8,19 @@ import classNames from 'common/functions/classNames'
 import styles from './cart.module.css'
 import ProductInline from './ProductInline'
 import ConfirmButton from 'common/components/ConfirmButton'
-import render from '#common/functions/render.js'
-import apiReq from '#common/functions/apiReq.js'
+import render from 'common/functions/render.js'
+import apiReq from 'common/functions/apiReq.js'
 import { useNavigate } from 'react-router'
 import { useMemo } from 'react'
 import { useAppData } from 'App'
 import { calcShipping, extractShippingConfig } from '#common/functions/shipping.js'
+import events from 'common/features/events.js'
+import { useUser } from 'features/User'
 
 export default function Cart({ }) {
     const
         { order = {}, setOrder } = useOrder(),
+        user = useUser(),
         cart = order?.cart || [],
         emptyCart = !cart.length,
         navigate = useNavigate()
@@ -44,7 +47,9 @@ export default function Cart({ }) {
     })()
 
     function goToCheckout() {
-        if (!emptyCart) {
+        if (!user?.id) {
+            events.emit('login-popover')
+        } else if (!emptyCart) {
             navigate('/checkout')
             setCartOpen(false)
         }
