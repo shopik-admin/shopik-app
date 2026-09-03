@@ -31,6 +31,8 @@ export default function filterClientOrder(order) {
                     clientItem[key] = item[key]
                 }
             }
+            // ensure unit present even if missing
+            if (!clientItem.unit && item.unit) clientItem.unit = item.unit
             return clientItem
         })
     }

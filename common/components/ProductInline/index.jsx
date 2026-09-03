@@ -1,4 +1,4 @@
-import { ProductButton, ProductImage, ProductInfo } from 'common/components/Product'
+import { ProductButton, ProductImage, ProductInfo, formatAmount, getUnitLabel, isWeightProduct } from 'common/components/Product'
 import classNames from 'common/functions/classNames'
 import styles from './productInline.module.css'
 import Button from 'common/components/Button'
@@ -32,6 +32,9 @@ export default function ProductInline({
         const storageType = product.storageType
         const barcode = product.barcode || ''
         const isCold = storageType === 'cold' || storageType === 'freeze'
+        const weight = isWeightProduct(product)
+        const orderedLabel = formatAmount(product, ordered)
+        const suppliedLabel = supplied != null ? formatAmount(product, supplied) : ''
         let cardStatus = ''
         let pillStatus = ''
         if (missing) {
@@ -44,7 +47,7 @@ export default function ProductInline({
             } else if (supplied > ordered) {
                 cardStatus = styles.red
                 pillStatus = styles.red
-            } else if (supplied < ordered && supplied) {
+            } else if (supplied < ordered && supplied != null) {
                 cardStatus = styles.yellow
                 pillStatus = styles.yellow
             }
@@ -61,9 +64,9 @@ export default function ProductInline({
                     <Text size="xs" mode="sub">{barcode}</Text>
                 </Flex>}
                 <Flex gap={6} wrap alignItems="center" className={styles.pillsRow}>
-                    <Text size="xs" className={classNames(styles.pill, !missing && pillStatus)}>הוזמן: {ordered} יח'</Text>
+                    <Text size="xs" className={classNames(styles.pill, !missing && pillStatus)}>הוזמן: {orderedLabel}</Text>
                     {missing ? <Text size="xs" className={styles.missingText}>חסר במלאי</Text>
-                        : supplied != null ? <Text size="xs" className={classNames(styles.pill, pillStatus)}>סופק: {supplied} יח'</Text> : null}
+                        : supplied != null ? <Text size="xs" className={classNames(styles.pill, pillStatus)}>סופק: {suppliedLabel}</Text> : null}
                 </Flex>
                 {product.picking?.recommendations && <Flex alignItems="center" gap={6} className={styles.noteRow}>
                     <Icon name="note" size={12} />

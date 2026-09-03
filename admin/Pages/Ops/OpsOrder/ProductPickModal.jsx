@@ -1,10 +1,162 @@
+import { useState } from 'react'
 import ScanProduct from './ScanProduct'
+import Flex from 'common/components/Flex'
+import Text from 'common/components/Text'
+import Icon from 'common/components/Icon'
+import Button from 'common/components/Button'
+import Image from 'common/components/Image'
+import apiReq from 'common/functions/apiReq'
+import styles from './productPickModal.module.css'
+import { isWeightProduct, formatAmount, getUnitLabel, getUnitInfoText } from 'common/components/Product'
 
 export default function ProductPickModal({ product = {}, orderId, onClose, onPicked }) {
-    const isScanned = product.finalAmount || product.missing
-    // if !finalAmount -> display scan (camera) directly, if scanned -> display finalAmount modal
-    const initialPhase = isScanned ? 'amount' : 'scanning'
+    const weight = isWeightProduct(product)
+    const isScanned = product.finalAmount != null || !!product.missing
+    const [phase, setPhase] = useState(isScanned ? 'amount' : 'details')
     const initialSupplied = isScanned ? (product.missing ? '' : String(product.finalAmount ?? '')) : ''
 
-    return <ScanProduct product={product} orderId={orderId} onClose={onClose} onPicked={onPicked} initialPhase={initialPhase} initialSupplied={initialSupplied} initialBarcode={product.barcode} />
+    if (phase === 'details') {
+        return <ProductDetails
+            product={product}
+            orderId={orderId}
+            onClose={onClose}
+            onPicked={onPicked}
+            onScan={() => setPhase(weight ? 'weight' : 'scanning')}
+        />
+    }
+
+    if (phase === 'weight') {
+        return <ScanProduct
+            product={product}
+            orderId={orderId}
+            onClose={onClose}
+            onPicked={onPicked}
+            initialPhase="weight"
+            initialSupplied={initialSupplied}
+            initialBarcode={product.barcode}
+        />
+    }
+
+    const initialPhase = phase === 'amount' ? 'amount' : 'scanning'
+    return <ScanProduct
+        product={product}
+        orderId={orderId}
+        onClose={onClose}
+        onPicked={onPicked}
+        initialPhase={initialPhase}
+        initialSupplied={initialSupplied}
+        initialBarcode={product.barcode}
+    />
+}
+
+function ProductDetails({ product = {}, orderId, onClose, onPicked, onScan }) {
+    const [loading, setLoading] = useState(false)
+    const [error, setError] = useState('')
+    const [imgIdx, setImgIdx] = useState(0)
+
+    const productImages = (product?.images?.product || []).filter(img => img?.sizes)
+    const threeSixty = product?.images?.threeSixty || []
+    const has360 = threeSixty.length > 0 || productImages.length > 1
+    const displayImages = productImages.length ? productImages : []
+    const currentImg = displayImages[imgIdx]
+    const mainSrc = currentImg?.sizes?.l || currentImg?.sizes?.xl || currentImg?.sizes?.m || ''
+    const dots = displayImages.length > 1 ? displayImages : (has360 ? Array.from({ length: 5 }) : [])
+
+    const price = product.price ?? product.prices?.[0]?.price ?? 36
+    const barcode = product.barcode || ''
+    const storageType = product.storageType
+    const isCold = storageType === 'cold' || storageType === 'freeze'
+    const ordered = product.amount ?? 1
+    const orderedLabel = formatAmount(product, ordered)
+    const unitInfo = getUnitInfoText(product)
+    const weight = isWeightProduct(product)
+    const unitLabel = getUnitLabel(product)
+    const recommendations = product.picking?.recommendations
+
+    async function handleMissing() {
+        if (loading) return
+        setLoading(true)
+        setError('')
+        try {
+            const res = await apiReq('order/ops/pick_item', {
+                id: orderId,
+                barcode: product.barcode,
+                action: 'missing',
+                missingReason: 'missing'
+            })
+            if (res?.error) setError(res.error)
+            else {
+                onPicked?.(res)
+                onClose?.()
+            }
+        } catch (e) {
+            setError(e?.message || 'missing failed')
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    return <Flex col className={styles.pickModal}>
+        <div className={styles.imageWrap}>
+            {has360 && (
+                <button type="button" className={styles.view360} onClick={() => setImgIdx(i => (i + 1) % Math.max(displayImages.length, 1))}>
+                    <span>360°</span>
+                </button>
+            )}
+            {mainSrc ? (
+                <Image src={mainSrc} alt={product.name} width={200} height={200} className={styles.mainImage} />
+            ) : (
+                <div className={styles.placeholder}><Icon name="products" size={32} /></div>
+            )}
+            {dots.length > 0 && (
+                <div className={styles.dots}>
+                    {dots.map((_, idx) => (
+                        <span key={idx} className={idx === imgIdx ? styles.active : ''} onClick={() => setImgIdx(idx)} style={{ cursor: 'pointer' }} />
+                    ))}
+                </div>
+            )}
+            <div className={styles.priceTop}>
+                <Icon name={isCold ? 'snow' : 'stock'} size={14} />
+                <Text size="m" bold>₪{price}</Text>
+            </div>
+        </div>
+
+        <Flex col gap={8} className={styles.body}>
+            {barcode && <Flex alignItems="center" gap={4} className={styles.barcodeRow}>
+                <Icon name="barcode" size={12} />
+                <Text size="xs" mode="sub">{barcode}</Text>
+            </Flex>}
+            <Text bold size="m" className={styles.productName}>{product.name || 'מוצר'}</Text>
+            <Text size="xs" mode="sub">{unitInfo} • הוזמן: {orderedLabel}</Text>
+
+            <Flex col gap={8} className={styles.infoRows}>
+                <Flex gap={8} alignItems="center">
+                    <Icon name="location" size={16} className={styles.rowIcon} />
+                    <Text size="xs">{isCold ? 'אזור קירור • מעבר 16 • מדף 4' : 'אזור רגיל • מעבר 16 • מדף 4'}</Text>
+                </Flex>
+                {recommendations ? (
+                    <Flex gap={8} alignItems="center">
+                        <Icon name="note" size={16} className={styles.rowIcon} />
+                        <Text size="xs">{recommendations}</Text>
+                    </Flex>
+                ) : (
+                    <Flex gap={8} alignItems="center">
+                        <Icon name="note" size={16} className={styles.rowIcon} />
+                        <Text size="xs">יש לבדוק תוקף ולוודא אריזה תקינה</Text>
+                    </Flex>
+                )}
+                <Flex gap={8} alignItems="center">
+                    <Icon name={isCold ? 'snow' : 'stock'} size={16} className={styles.rowIcon} />
+                    <Text size="xs">{isCold ? 'לשמור בקירור, לאחסן בנפרד' : 'פלסטיק צריך לקשור, צורה בר הבחנה'}</Text>
+                </Flex>
+            </Flex>
+
+            {error && <Text size="s" mode="error">{error}</Text>}
+
+            <Flex col gap={10} className={styles.actions}>
+                <Button loading={loading} onClick={onScan} className={styles.scanBtn}>{weight ? 'הזן משקל' : 'סריקה מוצר'}</Button>
+                <Button mode="text" loading={loading} onClick={handleMissing} className={styles.missingBtn}>מוצר חסר</Button>
+            </Flex>
+        </Flex>
+    </Flex>
 }
