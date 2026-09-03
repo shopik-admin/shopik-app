@@ -13,7 +13,7 @@ export default async function callback(payload, info) {
         const url = req?.originalUrl || req?.url || ''
         const idx = url.indexOf('?')
         if (idx !== -1) rawQueryString = url.slice(idx + 1)
-    } catch {}
+    } catch { }
     if (!rawQueryString) rawQueryString = new URLSearchParams(q).toString()
 
     const hyp = external.hyp
@@ -50,7 +50,7 @@ export default async function callback(payload, info) {
                     metadata: { source: 'payment/hyp/callback', referenceOrderNumber: orderFallback.number }
                 })
             }
-        } catch {}
+        } catch { }
         sendHtml({ ok: false, order: null, errorMessage: 'אימות התשלום נכשל' })
         return
     }
@@ -70,7 +70,7 @@ export default async function callback(payload, info) {
                     metadata: { source: 'payment/hyp/callback' }
                 })
             }
-        } catch {}
+        } catch { }
         sendHtml({ ok: false, order: null, errorMessage: msg })
         return
     }
@@ -110,7 +110,7 @@ export default async function callback(payload, info) {
                 providerTxnId: providerTxnId ? String(providerTxnId) : undefined,
                 providerCode, authCode: q.ACode || q.acode, providerUid: q.UID, providerPayerId: q.UserId, signature: q.Sign, providerData: q, error: msg
             })
-        } catch {}
+        } catch { }
         try {
             const { record } = utils.data.timeline
             await record({
@@ -121,8 +121,8 @@ export default async function callback(payload, info) {
                 outcome: { success: false, errorMessage: msg },
                 metadata: { source: 'payment/hyp/callback' }
             })
-        } catch {}
-        await DL.Order.updateOne({ id: order.id }, { paymentError: msg }).catch(() => {})
+        } catch { }
+        await DL.Order.updateOne({ id: order.id }, { paymentError: msg }).catch(() => { })
         sendHtml({ ok: false, order, errorMessage: msg })
         return
     }
@@ -142,7 +142,7 @@ export default async function callback(payload, info) {
                 amount: amountRaw ? Number(amountRaw) : undefined,
                 providerTxnId: String(providerTxnId), providerCode, authCode: q.ACode, providerUid: q.UID, providerPayerId: q.UserId, signature: q.Sign, providerData: { ...q, tokenError: msg }, error: msg
             })
-        } catch {}
+        } catch { }
         sendHtml({ ok: false, order, errorMessage: msg })
         return
     }
@@ -159,7 +159,7 @@ export default async function callback(payload, info) {
                 providerTxnId: String(providerTxnId), providerCode: tokenData.CCode, authCode: q.ACode, providerUid: q.UID, providerPayerId: q.UserId, signature: q.Sign,
                 cardToken: tokenData.Token, cardExpiry: tokenData.Tokef, providerData: { ...q, tokenResponse: tokenData }, error: msg
             })
-        } catch {}
+        } catch { }
         sendHtml({ ok: false, order, errorMessage: msg })
         return
     }
@@ -167,7 +167,7 @@ export default async function callback(payload, info) {
     // 6. Persist auth success
     const cardToken = tokenData.Token
     const cardExpiry = tokenData.Tokef
-    const authorizedAmount = amountRaw ? Number(amountRaw) : order.finalSumWithShippingAndHandling ?? order.finalSum
+    const authorizedAmount = amountRaw ? Number(amountRaw) : order.finalSumWithShipping ?? order.finalSum
     const last4digits = q.L4digit ? String(q.L4digit) : undefined
     const cardCompany = hyp.cardBrandName(q.Brand)
 
@@ -182,7 +182,7 @@ export default async function callback(payload, info) {
             providerTxnId: String(providerTxnId), providerCode, authCode: q.ACode, providerUid: q.UID, providerPayerId: q.UserId, signature: q.Sign,
             cardToken, cardExpiry, last4digits, cardCompany, providerData: { ...q, tokenResponse: tokenData }
         })
-    } catch {}
+    } catch { }
 
     try {
         await DL.Order.updateOne({ id: order.id }, {
@@ -200,7 +200,7 @@ export default async function callback(payload, info) {
             },
             paymentError: null
         })
-    } catch {}
+    } catch { }
 
     try {
         const { record } = utils.data.timeline
@@ -212,7 +212,7 @@ export default async function callback(payload, info) {
             outcome: { success: true },
             metadata: { source: 'payment/hyp/callback', referenceOrderNumber: order.number }
         })
-    } catch {}
+    } catch { }
 
     sendHtml({ ok: true, order })
 }

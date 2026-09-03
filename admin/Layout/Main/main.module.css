@@ -4,7 +4,6 @@
     padding: 24px;
     padding-top: calc(24px + var(--admin-header-height));
     padding-bottom: calc(24px + var(--safeBottom, 0px));
-    background-color: var(--bg-page);
 
     @media screen and (max-width: 650px) {
         padding: 16px;

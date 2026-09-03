@@ -1,5 +1,8 @@
 import diff from '#common/functions/diff.js'
 import filterClientOrder from '#server/utils/data/filterClientOrder.js'
+import { calcShipping, getRemainingToFreeShipping } from '#common/functions/shipping.js'
+import { round2 } from '#common/functions/calcOrder/utils.js'
+import { isCouponEligible, calcOrderDiscount } from '#common/functions/coupon.js'
 
 export default async function add(payload, { DL, _user, utils }) {
     const couponCode = (payload.couponCode || '').trim().toLowerCase()
@@ -21,17 +24,27 @@ export default async function add(payload, { DL, _user, utils }) {
     const sumNoCoupon = cartOrder.sumNoCoupon ?? orderSum
 
     const eligibilityResult = isCouponEligible(coupon, _user, orderSum)
-    if (!eligibilityResult.eligible) throw { status: 400, message: 'Coupon conditions not met', details: { reason: eligibilityResult.reason } }
+    // Allow adding coupon even if minSum not yet reached – it stays on order as inactive
 
-    const discount = calcOrderDiscount(coupon, orderSum)
+    if (!eligibilityResult.eligible && !eligibilityResult.isMinSumBlock) throw { status: 400, message: 'Coupon conditions not met', details: { reason: eligibilityResult.reason } }
+
+    const isActive = eligibilityResult.eligible
+    const discount = isActive ? calcOrderDiscount(coupon, orderSum) : 0
     const finalSum = Math.max(orderSum - discount, 0)
 
     const couponEntry = {
         code: coupon.code,
-        discount: Math.round(discount * 100) / 100,
+        discount: Math.round(calcOrderDiscount(coupon, orderSum) * 100) / 100,
+        appliedDiscount: Math.round(discount * 100) / 100,
         percent: coupon.benefit === 'percent',
+        benefit: coupon.benefit,
+        originalDiscount: coupon.discount,
         minSum: coupon.minSum,
         maxSum: coupon.maxSum,
+        whitelist: coupon.whitelist,
+        blacklist: coupon.blacklist,
+        condition: coupon.condition,
+        isActive,
         couponMessages: {
             sectionMessage: { text: coupon.description || coupon.name },
             checkOutMessage: {
@@ -43,6 +56,12 @@ export default async function add(payload, { DL, _user, utils }) {
         checkOnPay: false
     }
 
+    // Shipping based on sum (pre-coupon) per spec
+    const shipping = cartOrder.shipping ?? 0
+    const finalShipping = shipping
+    const sumWithShipping = round2(orderSum + shipping)
+    const finalSumWithShipping = round2(finalSum + finalShipping)
+
     const updatedOrder = {
         ...cartOrder,
         coupons: [couponEntry],
@@ -50,6 +69,10 @@ export default async function add(payload, { DL, _user, utils }) {
         sumNoCoupon,
         finalSum,
         finalSumNoCoupon: sumNoCoupon,
+        shipping,
+        finalShipping,
+        sumWithShipping,
+        finalSumWithShipping,
         customerUpdatedAt: new Date()
     }
 
@@ -79,63 +102,7 @@ export default async function add(payload, { DL, _user, utils }) {
     return filterClientOrder(finalOrder)
 }
 
-function isCouponEligible(coupon, user, orderSum) {
-    if (coupon.whitelist && coupon.whitelist.length > 0) {
-        if (!coupon.whitelist.includes(user.id)) return { eligible: false, reason: 'not in whitelist' }
-    }
 
-    if (coupon.blacklist && coupon.blacklist.length > 0) {
-        if (coupon.blacklist.includes(user.id)) return { eligible: false, reason: 'in blacklist' }
-    }
-
-    if (!coupon.dynamic) return { eligible: true }
-
-    if (orderSum < coupon.minSum) return { eligible: false, reason: 'order sum below minimum' }
-
-    if (coupon.condition) {
-        if (coupon.condition.orderRange) {
-            const { start: rangeStart, end: rangeEnd } = coupon.condition.orderRange
-            if (orderSum < rangeStart || (rangeEnd !== undefined && orderSum > rangeEnd)) return { eligible: false, reason: 'order sum outside range' }
-        }
-
-        if (coupon.condition.lastOrder) {
-            const { start: lastStart, end: lastEnd } = coupon.condition.lastOrder
-            const userLastOrderDate = user.lastOrderDate
-            if (!userLastOrderDate) return { eligible: false, reason: 'no previous orders' }
-            if (lastStart && new Date(userLastOrderDate) < new Date(lastStart)) return { eligible: false, reason: 'last order too old' }
-            if (lastEnd && new Date(userLastOrderDate) > new Date(lastEnd)) return { eligible: false, reason: 'last order too recent' }
-        }
-
-        if (coupon.condition.cities && coupon.condition.cities.length > 0) {
-            const activeAddress = user.addresses?.find(a => a.active)
-            if (!activeAddress || !coupon.condition.cities.includes(activeAddress.city)) return { eligible: false, reason: 'city not supported' }
-        }
-
-        if (coupon.condition.emails && coupon.condition.emails.length > 0) {
-            if (!coupon.condition.emails.includes(user.email)) return { eligible: false, reason: 'email not allowed' }
-        }
-
-        if (coupon.condition.phones && coupon.condition.phones.length > 0) {
-            if (!coupon.condition.phones.includes(user.phone)) return { eligible: false, reason: 'phone not allowed' }
-        }
-    }
-
-    return { eligible: true }
-}
-
-function calcOrderDiscount(coupon, orderSum) {
-    if (coupon.benefit === 'sum') {
-        return Math.min(coupon.discount, orderSum)
-    }
-    if (coupon.benefit === 'percent') {
-        const percentDiscount = orderSum * (coupon.discount / 100)
-        if (coupon.maxSum !== undefined && coupon.maxSum !== null) {
-            return Math.min(percentDiscount, coupon.maxSum)
-        }
-        return percentDiscount
-    }
-    return 0
-}
 
 add.config = {
     auth: 'required',

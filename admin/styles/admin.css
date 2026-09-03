@@ -40,6 +40,9 @@
 /* ============================================================
    Table (common/components/Table)
    ============================================================ */
+body {
+    background-color: var(--bg-primary);
+}
 
 body .Table_ {
     max-height: calc(100dvh - var(--admin-header-height) - 115px);
@@ -101,7 +104,6 @@ body .Table_ table tr.Table_selected {
    ============================================================ */
 
 body .Button_ {
-    border: none;
     border-radius: var(--radius-full);
     padding: 10px;
     transition: background-color .2s, box-shadow .2s, transform .1s;
@@ -233,7 +235,7 @@ body label.Checkbox_cb.Checkbox_tag.Checkbox_checked {
    Card (common/components/Card)
    ============================================================ */
 
-body .Card_ {
+/* body .Card_ {
     padding: 20px;
     background-color: var(--bg-primary);
     border: 1px solid var(--border-tertiary);
@@ -248,7 +250,7 @@ body .Card_ .Card_title {
 body .Card_ .Card_close {
     color: var(--text-tertiary);
 }
-
+ */
 /* ============================================================
    Popover (common/components/Popover)
    ============================================================ */

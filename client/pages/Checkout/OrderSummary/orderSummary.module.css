@@ -14,29 +14,24 @@
     background-color: var(--bg-primary, #ffffff);
     border: 1px solid var(--border-secondary, #dde4e2);
     border-radius: 20px;
-    padding: 20px 18px;
+    padding: 10px;
+    padding-top: 0;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
 }
 
 /* Custom Collapse inside Order Summary */
 .summaryCollapse {
     border: none;
-    border-bottom: 1px solid var(--border-tertiary, #eef2f1);
+    border-bottom: 1px solid var(--border-secondary, #eef2f1);
     border-radius: 0;
-    padding: 8px 0;
+    padding: 15px 10px;
     background-color: transparent;
-}
-
-.summaryCollapse:last-of-type {
-    border-bottom: none;
 }
 
 .iconCircle {
     width: 34px;
     height: 34px;
     border-radius: 50%;
-    background-color: var(--bg-secondary, #f7f9f8);
-    border: 1px solid var(--border-tertiary, #eef2f1);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -44,13 +39,12 @@
 }
 
 .rowIcon {
-    font-size: 18px;
-    color: #195855;
+    font-size: 24px;
+    color: var(--text-brand, #242a28);
 }
 
 .rowText {
     color: var(--text-primary, #242a28);
-    font-size: 14px;
 }
 
 .editBtn {
@@ -70,7 +64,7 @@
 }
 
 .collapseContent {
-    padding-top: 4px;
+    padding: 4px 0 2px;
 }
 
 .couponInputRow {
@@ -113,16 +107,19 @@
 
 .divider {
     height: 1px;
-    background-color: var(--border-secondary, #dde4e2);
+    background-color: var(--border-secondary);
     margin: 4px 0;
 }
 
 .breakdown {
-    padding: 4px 0;
+    padding: 15px 20px;
+    font-size: var(--text-sm);
+    border: none;
+    border-bottom: 1px solid var(--border-secondary);
 }
 
-.savingsRow {
-    margin-top: 2px;
+.subtotalRow {
+    height: 20px;
 }
 
 .savingsText {
@@ -131,7 +128,8 @@
 }
 
 .totalRow {
-    padding-top: 4px;
+    padding: 20px;
+
 }
 
 .totalAmount {
@@ -144,7 +142,7 @@
     background-color: #195855;
     color: #ffffff;
     border: none;
-    border-radius: 12px;
+    border-radius: var(--radius-full);
     padding: 12px 20px;
     font-size: 16px;
     font-weight: 700;
@@ -154,7 +152,6 @@
     justify-content: center;
     gap: 10px;
     transition: background-color 0.2s ease, transform 0.1s ease;
-    margin-top: 6px;
 }
 
 .payBtn:hover {

@@ -1,0 +1,70 @@
+.ops {
+    padding-top: 16px;
+}
+
+.orderCard {
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-secondary);
+    box-shadow: none;
+    border-radius: var(--radius-3xl);
+    overflow: hidden;
+    cursor: pointer;
+
+    .row {
+        padding: 10px;
+        width: 100%;
+
+        &:first-child,
+        &:last-child {
+            background-color: var(--bg-secondary);
+        }
+
+        &:first-child {
+            svg {
+                color: var(--fg-brand-secondary);
+                width: 20px;
+                height: 20px;
+            }
+        }
+
+        &:nth-child(2) {
+            color: var(--text-tertiary);
+            border-bottom: 1px solid var(--border-secondary);
+        }
+
+        &:last-child {
+            color: var(--text-secondary);
+
+            small {
+                color: var(--text-primary);
+            }
+        }
+    }
+
+
+    &.success {
+        --status-color: var(--success-color);
+        --status-bg: var(--success-bg);
+    }
+
+    &.warning {
+        --status-color: var(--warning-color);
+        --status-bg: var(--warning-bg);
+    }
+
+    &.danger {
+        --status-color: var(--danger-color);
+        --status-bg: var(--danger-bg);
+    }
+
+    &.success,
+    &.warning,
+    &.danger {
+        border-color: var(--status-color);
+
+        .row:last-child {
+            background-color: var(--status-bg);
+            color: var(--status-color);
+        }
+    }
+}

@@ -112,7 +112,8 @@ export default function router(app, bootData) {
                     if (typeof permissions === 'string') {
                         hasPermission = _admin.hasPermission(permissions)
                     } else if (Array.isArray(permissions)) {
-                        hasPermission = permissions.every(p => _admin.hasPermission(p))
+                        // OR semantics: admin needs at least one of the listed permissions
+                        hasPermission = permissions.some(p => _admin.hasPermission(p))
                     }
                     if (!hasPermission)
                         throw { status: 403, message: 'Forbidden' }
@@ -228,7 +229,8 @@ export default function router(app, bootData) {
                 message: error.message || error || 'Internal Error',
                 ...(process.env.PRODUCTION || !error.stack ? {} : {
                     stack: error.stack
-                })
+                }),
+                missingFields: error.missingFields || undefined,
             }
             if (requestLog)
                 requestLogPromise = requestLog.error(errorRes)

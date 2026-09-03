@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import Input from '../Input'
-import Flex from '../Flex'
 import Text from '../Text'
 import Loader from '../Loader'
 import styles from './autocomplete.module.css'
 
-export default function Autocomplete({
+function Autocomplete({
+    ref,
     label,
     placeholder,
     value,
@@ -146,6 +146,7 @@ export default function Autocomplete({
 
     return <div ref={containerRef} className={styles.autocomplete} onKeyDown={handleKeyDown}>
         <Input
+            ref={ref}
             label={label}
             placeholder={placeholder}
             name={name}
@@ -182,3 +183,5 @@ export default function Autocomplete({
         )}
     </div>
 }
+
+export default Autocomplete

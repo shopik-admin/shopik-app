@@ -1,0 +1,389 @@
+.couponSection {
+    width: 100%;
+}
+
+.divider {
+    height: 1px;
+    background-color: var(--border-secondary, #dde4e2);
+    margin: 4px 0;
+}
+
+.loadingWrap {
+    padding: 16px 0;
+}
+
+/* Grid — 2 columns on desktop, 1 on narrow */
+.couponGrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+@media (max-width: 500px) {
+    .couponGrid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Shared card shell — used by regular and future sale cards */
+.couponCard {
+    border: 1.5px dashed #b6d5d1;
+    border-radius: 16px;
+    background: #ffffff;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    text-align: center;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+    min-height: 170px;
+}
+
+.couponCard.applied {
+    border-style: solid;
+    border-color: #195855;
+    background: #f0faf8;
+    box-shadow: 0 2px 8px rgba(25, 88, 85, 0.08);
+}
+
+.cardTop {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+}
+
+.cardIconCircle {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: #f7f9f8;
+    border: 1px solid #eef2f1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.cardIcon {
+    font-size: 22px;
+    color: #195855;
+}
+
+.discountValue {
+    font-size: 18px;
+    line-height: 1.1;
+    color: #195855;
+}
+
+.minSum {
+    font-size: 12px;
+}
+
+.cardBody {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    align-items: center;
+}
+
+.cardName {
+    font-size: 13px;
+    line-height: 1.3;
+    color: #242a28;
+}
+
+.cardDesc {
+    font-size: 12px;
+    line-height: 1.35;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.cardCta {
+    width: 100%;
+    border: none;
+    border-radius: 9999px;
+    padding: 8px 12px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    background: #195855;
+    color: #ffffff;
+    transition: background-color 0.2s ease, opacity 0.2s ease;
+}
+
+.cardCta:hover {
+    background: #12423f;
+}
+
+.cardCta:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+
+.cardCta.ctaApplied {
+    background: #e6f4f1;
+    color: #195855;
+    border: 1px solid #b6d5d1;
+}
+
+.cardCta.ctaApplied:hover {
+    background: #d6ebe8;
+}
+
+/* Regular variant — subtle differences kept for future sale variant */
+.regularCard {}
+
+.cardFooter {
+    border-top: 1px dashed #dde4e2;
+    padding-top: 8px;
+    margin-top: 2px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    align-items: center;
+}
+
+.expiry {
+    font-size: 11px;
+}
+
+/* Input row — matches screenshot: ערוך קופון | pill input | RiCoupon2Line */
+
+.inputSection {
+    position: relative;
+    border: none;
+    border-bottom: 1px solid var(--border-secondary);
+}
+
+.inputRow {
+    align-items: center;
+    gap: 10px;
+    padding: 20px 15px;
+    flex-wrap: nowrap;
+    width: 100%;
+}
+
+.editLabelBtn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    flex-shrink: 0;
+}
+
+.editLabel {
+    color: #195855;
+    text-decoration: none;
+    font-weight: 700 !important;
+    font-size: var(--text-sm);
+    white-space: nowrap;
+}
+
+.editLabelBtn:hover .editLabel {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.editLabelSpacer {
+    width: 72px;
+    flex-shrink: 0;
+}
+
+.inputPillWrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid #d1d5db;
+    border-radius: 9999px;
+    padding: var(--spacing-md) var(--spacing-lg);
+    background: #ffffff;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    min-width: 160px;
+    flex: 1;
+    max-width: 220px;
+    justify-content: center;
+}
+
+.couponPillDisplay {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    border: 1.5px solid #d1d5db;
+    border-radius: 9999px;
+    padding: 10px;
+    background: #ffffff;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    min-width: 160px;
+    flex: 1;
+    max-width: 220px;
+    cursor: pointer;
+}
+
+.couponPillText {
+    font-size: var(--text-sm);
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: #374151;
+}
+
+.pillClearBtn {
+    background: #f3f4f6;
+    border: none;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #6b7280;
+    flex-shrink: 0;
+    font-size: 14px;
+}
+
+.pillClearBtn:hover {
+    background: #e5e7eb;
+    color: #374151;
+}
+
+.outsideActions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.couponRowIcon {
+    font-size: 24px;
+    color: #195855;
+    flex-shrink: 0;
+}
+
+.cancelEditBtn {
+    background: none;
+    border: none;
+    color: #6b7280;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 2px 6px;
+    flex-shrink: 0;
+}
+
+.cancelEditBtn:hover {
+    color: #374151;
+    text-decoration: underline;
+}
+
+.couponInput {
+    border: none;
+    outline: none;
+    flex: 1;
+    min-width: 0;
+    font-size: var(--text-xs);
+    line-height: 16px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    color: #374151;
+    text-transform: uppercase;
+    background: transparent;
+    text-align: right;
+}
+
+.couponInput::placeholder {
+    color: #9ca3af;
+    font-weight: 400;
+    letter-spacing: 0;
+    text-transform: none;
+}
+
+.clearBtn {
+    background: #f3f4f6;
+    border: none;
+    border-radius: 50%;
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #6b7280;
+    flex-shrink: 0;
+    font-size: 14px;
+}
+
+.clearBtn:hover {
+    background: #e5e7eb;
+    color: #374151;
+}
+
+.applyBtn {
+    background: #195855;
+    color: #fff;
+    border: none;
+    border-radius: 9999px;
+    padding: 4px 12px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.applyBtn:hover {
+    background: #12423f;
+}
+
+.removeBtn {
+    background: #fef2f2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+    border-radius: 9999px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.removeBtn:hover {
+    background: #fee2e2;
+}
+
+.inputError {
+    color: #dc2626;
+    font-size: 12px;
+}
+
+.appliedHint {
+    font-size: 12px;
+}
+
+.couponCard.inactive {
+    border-color: var(--border-error);
+    background: var(--bg-error-secondary);
+}
+
+.cardCta.ctaInactive {
+    background: var(--bg-error-secondary);
+    color: var(--text-error-primary);
+    border: 1px solid var(--border-error);
+}
+
+.inactiveMsg {
+    position: absolute;
+    bottom: 4px;
+    right: 50px;
+    color: var(--text-error-primary);
+    font-size: 12px;
+    font-weight: 600;
+}

@@ -2,15 +2,16 @@ import classNames from 'common/functions/classNames'
 import styles from './icon.module.css'
 import {
     LuPlus, LuPencil, LuTrash2, LuChevronLeft, LuChevronRight, LuChevronUp, LuChevronDown,
-    LuDownload, LuSettings, LuMenu, LuSearch, LuEllipsis, LuUser, LuContact, LuMonitor,
+    LuDownload, LuSettings, LuSearch, LuEllipsis, LuUser, LuContact, LuMonitor,
     LuBell, LuLogOut, LuLayoutGrid, LuLayoutDashboard, LuBuilding, LuBuilding2, LuReplace,
     LuListChecks, LuHeadset, LuCircleHelp, LuClipboard, LuClipboardList, LuFileText, LuUsers,
-    LuTable, LuKeyRound, LuCalendar, LuSheet, LuRefreshCw, LuX, LuCheck, LuCircleCheck, LuCalendarClock,
+    LuTable, LuKeyRound, LuCalendar, LuRefreshCw, LuX, LuCheck, LuCircleCheck, LuCalendarClock,
     LuSmartphone, LuMonitorSmartphone, LuUndo2, LuReceipt, LuUnfoldVertical, LuFoldVertical,
-    LuLoader, LuCopy, LuShare, LuCircle, LuGithub, LuPlay, LuPause, LuShoppingCart,
+    LuLoader, LuCopy, LuShare, LuCircle, LuGithub, LuPlay, LuPause, LuShoppingCart, LuMapPin,
     LuShoppingBag, LuArrowUpDown, LuCode, LuPackage, LuStore, LuGlobe, LuPercent, LuTicket,
-    LuSun, LuMoon, LuCloudUpload, LuMap, LuClock, LuTruck, LuCreditCard, LuBarcode,
-    LuListPlus, LuNotebookPen, LuPanelRightClose, LuPanelRightOpen, LuCalendarPlus, LuSlidersHorizontal, LuBoxes
+    LuSun, LuMoon, LuCloudUpload, LuMap, LuClock, LuTruck, LuCreditCard, LuBarcode, LuAlignLeft,
+    LuListPlus, LuNotebookPen, LuPanelRightClose, LuPanelRightOpen, LuCalendarPlus, LuSlidersHorizontal,
+    LuBoxes, LuLightbulb, LuSnowflake, LuImage, LuBadgePercent
 } from 'react-icons/lu'
 import { BsFileEarmarkExcel } from 'react-icons/bs'
 import { TbHeartPlus } from 'react-icons/tb'
@@ -23,7 +24,7 @@ const iconsList = {
     right: LuChevronRight,
     download: LuDownload,
     settings: LuSettings,
-    menu: LuMenu,
+    menu: LuAlignLeft,// LuMenu,
     search: LuSearch,
     options: LuEllipsis,
     person: LuUser,
@@ -69,7 +70,7 @@ const iconsList = {
     github: LuGithub,
     play: LuPlay,
     pause: LuPause,
-    cart: LuShoppingCart,
+    cart: props => <LuShoppingCart style={{ transform: 'scaleX(-1)' }} {...props} />,
     sort: LuArrowUpDown,
     sortUp: LuChevronUp,
     sortDown: LuChevronDown,
@@ -79,6 +80,7 @@ const iconsList = {
     stores: LuStore,
     domains: LuGlobe,
     sale: LuPercent,
+    salePercent: LuBadgePercent,
     coupon: LuTicket,
     toMini: LuPanelRightClose,
     unMini: LuPanelRightOpen,
@@ -89,15 +91,20 @@ const iconsList = {
     map: LuMap,
     time: LuClock,
     bag: LuShoppingBag,
-    truck: LuTruck,
+    truck: props => <LuTruck style={{ transform: 'scaleX(-1)' }} {...props} />,
     card: LuCreditCard,
     barcode: LuBarcode,
     listPlus: LuListPlus,
     heartPlus: TbHeartPlus,
     note: LuNotebookPen,
     filter: LuSlidersHorizontal,
+    location: LuMapPin,
     stockSync: LuBoxes,
-    stock: LuBoxes
+    stock: LuBoxes,
+    bulb: LuLightbulb,
+    snow: LuSnowflake,
+    image: LuImage,
+    box: LuPackage
 }
 
 /**

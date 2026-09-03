@@ -1,5 +1,4 @@
 import { Routes, Route, Navigate } from 'react-router'
-//import BottomMenu from 'Layout/BottomMenu' 
 import Sidebar from 'Layout/Sidebar'
 import Header from 'Layout/Header'
 import Main from 'Layout/Main'
@@ -12,7 +11,6 @@ function AdminLayout() {
     return <Sidebar >
         <Header />
         <Main />
-        {/*  <BottomMenu /> */}
     </Sidebar>
 }
 

@@ -14,7 +14,7 @@ console.log(`\n⚡ Starting server...\n`)
 
 const
     bootData = await boot(),
-    { PORT = 7777, PRODUCTION } = process.env,
+    { PORT = 7777, PRODUCTION, NO_NIGHT_SYNC } = process.env,
     app = express()
 
 app.use((req, res, next) => {
@@ -32,8 +32,10 @@ router(app, bootData)
 
 try {
     await startImageWorker({ DL: bootData.DL })
-    startNightlySync(bootData)
-    startHolidaySeed(bootData)
+    if (!NO_NIGHT_SYNC || PRODUCTION) {
+        startNightlySync(bootData)
+        startHolidaySeed(bootData)
+    }
 } catch (e) {
     log.warn('Jobs not started:', e?.message || e)
 }

@@ -11,7 +11,7 @@ export default function Header({ }) {
 
     return <Flex tag='header' className={styles.header} alignItems='center' justifyContent='space-between'>
         <Flex alignItems='center' gap={20}>
-            <Button icon='menu' onClick={toggle} mode='text' />
+            <Button icon='menu' onClick={toggle} mode='text' className={styles.menuButton} />
             <PageTitle />
             {/*  <Button onClick={toggleMini}>מיני</Button>
             <ThemeToggle /> */}

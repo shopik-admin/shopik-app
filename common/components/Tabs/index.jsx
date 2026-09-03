@@ -1,7 +1,9 @@
-import { useLists } from 'common/features/Lists'
 import classNames from 'common/functions/classNames'
+import { useLists } from 'common/features/Lists'
 import styles from './tabs.module.css'
 import Button from '../Button'
+import Badge from '../Badge'
+import Text from '../Text'
 import Flex from '../Flex'
 
 export default function Tabs({
@@ -11,6 +13,7 @@ export default function Tabs({
     active,
     defaultValue,
     onChange,
+    mode,
     ...props
 }) {
     const lists = useLists()
@@ -42,7 +45,7 @@ export default function Tabs({
     return (
         <Flex
             {...props}
-            className={classNames(styles.tabs, className)}
+            className={classNames(styles.tabs, className, styles[mode])}
             style={{ '--active-index': activeIndex !== -1 ? activeIndex : 0, ...style }}
         >
             {/* Moving indicator */}
@@ -56,22 +59,26 @@ export default function Tabs({
             {options.map((opt, i) => {
                 const text = getText(opt)
                 const value = getValue(opt)
+                const isDisabled = typeof opt === 'object' && !!opt.disabled
 
                 const isActive = currentValue === value
 
-                return (
-                    <Button
-                        key={value ?? i}
-                        mode='text'
-                        icon={opt.icon}
-                        className={`${styles.tab} ${isActive ? styles.active : ''}`}
-                        onClick={() => {
-                            onChange?.(value)
-                        }}
-                    >
-                        {text}
-                    </Button>
-                )
+                return <Button
+                    key={value ?? i}
+                    mode='text'
+                    icon={opt.icon}
+                    disabled={isDisabled}
+                    aria-disabled={isDisabled}
+                    className={`${styles.tab} ${isActive ? styles.active : ''} ${isDisabled ? styles.disabled : ''}`}
+                    tooltip={opt.tooltip}
+                    onClick={() => {
+                        if (isDisabled) return
+                        onChange?.(value)
+                    }}
+                >
+                    <Text size='none'>{text}</Text>
+                    <Badge>{opt.badge}</Badge>
+                </Button>
             })}
         </Flex>
     )

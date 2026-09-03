@@ -31,7 +31,7 @@ export default async function cancel(payload, info) {
                 provider: 'hyp', kind: DL.PaymentTransaction.constants.TRANSACTION_KIND.CANCEL,
                 status: DL.PaymentTransaction.constants.TRANSACTION_STATUS.FAILED,
                 amount: order.payment.authorizedAmount, providerTxnId: targetId, providerCode: res.CCode, providerData: res, error: msg
-            }).catch(() => {})
+            }).catch(() => { })
             await record({
                 DL, order, eventType: DL.Timeline.constants.EVENT_TYPES.PAYMENT,
                 actor: adminActor(_admin),
@@ -47,7 +47,7 @@ export default async function cancel(payload, info) {
             provider: 'hyp', kind: DL.PaymentTransaction.constants.TRANSACTION_KIND.CANCEL,
             status: DL.PaymentTransaction.constants.TRANSACTION_STATUS.SUCCESS,
             amount: order.payment.authorizedAmount, providerTxnId: targetId, providerCode: 0, providerData: res
-        }).catch(() => {})
+        }).catch(() => { })
         await DL.Order.updateOne({ id: order.id }, { status: DL.Order.constants.ORDER_STATUS.CANCELED, cancelDate: new Date(), paymentError: null })
         await record({
             DL, order,
@@ -77,9 +77,9 @@ export default async function cancel(payload, info) {
             orderId: order.id, orderNumber: order.number, userId: order.userId,
             provider: 'hyp', kind: DL.PaymentTransaction.constants.TRANSACTION_KIND.CANCEL,
             status: DL.PaymentTransaction.constants.TRANSACTION_STATUS.SUCCESS,
-            amount: order.finalSumWithShippingAndHandling ?? order.finalSum,
+            amount: order.finalSumWithShipping ?? order.finalSum,
             providerTxnId: captureId, providerCode: 0, providerData: cancelRes
-        }).catch(() => {})
+        }).catch(() => { })
         await DL.Order.updateOne({ id: order.id }, { status: DL.Order.constants.ORDER_STATUS.CANCELED, cancelDate: new Date(), paymentError: null })
         await record({
             DL, order,
@@ -95,7 +95,7 @@ export default async function cancel(payload, info) {
 
     if (Number(cancelRes.CCode) === 920) {
         // fallback: refund entire remaining amount
-        const remaining = Number((order.finalSumWithShippingAndHandling ?? order.finalSum ?? 0) - (order.refundedTotal || 0))
+        const remaining = Number((order.finalSumWithShipping ?? order.finalSum ?? 0) - (order.refundedTotal || 0))
         if (remaining <= 0.001) {
             await DL.Order.updateOne({ id: order.id }, { status: DL.Order.constants.ORDER_STATUS.CANCELED, cancelDate: new Date() })
             return { canceled: true, mode: 'already_refunded' }
@@ -124,10 +124,10 @@ export default async function cancel(payload, info) {
             provider: 'hyp', kind: DL.PaymentTransaction.constants.TRANSACTION_KIND.REFUND,
             status: DL.PaymentTransaction.constants.TRANSACTION_STATUS.SUCCESS,
             amount: remaining, providerTxnId: newId, parentProviderTxnId: captureId, providerCode: 0, providerData: refundRes, reason: 'cancel_fallback_refund'
-        }).catch(() => {})
+        }).catch(() => { })
         const prevRefunded = Number(order.refundedTotal || 0)
-        await DL.Order.Model.updateOne({ id: order.id }, { $inc: { refundedTotal: remaining } }).catch(() => {})
-        await DL.Order.Model.updateOne({ id: order.id }, { finalSumAfterRefunds: Number((order.finalSumWithShippingAndHandling ?? 0) - (prevRefunded + remaining)) }).catch(() => {})
+        await DL.Order.Model.updateOne({ id: order.id }, { $inc: { refundedTotal: remaining } }).catch(() => { })
+        await DL.Order.Model.updateOne({ id: order.id }, { finalSumAfterRefunds: Number((order.finalSumWithShipping ?? 0) - (prevRefunded + remaining)) }).catch(() => { })
         await DL.Order.updateOne({ id: order.id }, { status: DL.Order.constants.ORDER_STATUS.CANCELED, cancelDate: new Date() })
         await record({
             DL, order, eventType: DL.Timeline.constants.EVENT_TYPES.REFUND,

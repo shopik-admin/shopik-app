@@ -1,7 +1,7 @@
 /* Design Tokens - Generated from Figma */
 
 :root {
-    --max-width: 1440px;
+    --max-width: 1920px;
 
     --header-height: 120px;
     --admin-header-height: 64px;
@@ -59,6 +59,10 @@
     --radius-3xl: 20px;
     --radius-4xl: 24px;
     --radius-full: 9999px;
+
+    /* Spacing */
+    --spacing-md: 8px;
+    --spacing-lg: 12px;
 
     /* === LIGHT MODE COLORS === */
 
@@ -130,6 +134,14 @@
     /* Accent Colors (area groups) */
     --accent-group: #7C3AED;
     --accent-group-light: #8B5CF6;
+
+    /* Status Colors */
+    --success-color: #22C55E;
+    --success-bg: #F0FDF4;
+    --warning-color: #EAB308;
+    --warning-bg: #FEFCE8;
+    --danger-color: #EF4444;
+    --danger-bg: #FEF2F2;
 }
 
 [data-theme="dark"] {

@@ -11,6 +11,9 @@ import ConfirmButton from 'common/components/ConfirmButton'
 import render from '#common/functions/render.js'
 import apiReq from '#common/functions/apiReq.js'
 import { useNavigate } from 'react-router'
+import { useMemo } from 'react'
+import { useAppData } from 'App'
+import { calcShipping, extractShippingConfig } from '#common/functions/shipping.js'
 
 export default function Cart({ }) {
     const
@@ -20,6 +23,25 @@ export default function Cart({ }) {
         navigate = useNavigate()
 
     const { cartOpen, setCartOpen } = useCart()
+    const { settings } = useAppData() || {}
+    const shippingConfig = useMemo(() => extractShippingConfig(settings), [settings])
+
+    const sum = order?.sum ?? 0
+    const shipping = order?.shipping ?? calcShipping({ sum, deliveryMethod: order?.deliveryMethod, shippingConfig })
+    const sumWithShipping = order?.sumWithShipping ?? (sum + Number(shipping || 0))
+    const finalSumWithShipping = order?.finalSumWithShipping
+    const hasCoupon = !!(order?.coupons && order.coupons.length)
+    const displayTotal = hasCoupon && finalSumWithShipping != null ? finalSumWithShipping : sumWithShipping
+    const originalShipping = order?.deliveryMethod === 'pickup'
+        ? Number(shippingConfig?.pickupTotal ?? shippingConfig?.total ?? 0)
+        : Number(shippingConfig?.total ?? 0)
+    const isFreeShipping = Number(shipping) === 0 && originalShipping > 0 && sum > 0
+    const savings = (() => {
+        const before = order?.sumNoCoupon ?? order?.sum ?? 0
+        // include coupon discount in savings when coupon present
+        const after = hasCoupon ? (order?.finalSum ?? order?.sum ?? 0) : (order?.sum ?? 0)
+        return Math.max(0, before - after)
+    })()
 
     function goToCheckout() {
         if (!emptyCart) {
@@ -37,7 +59,11 @@ export default function Cart({ }) {
             sum: 0,
             sumNoCoupon: 0,
             finalSum: 0,
-            finalSumNoCoupon: 0
+            finalSumNoCoupon: 0,
+            shipping: 0,
+            sumWithShipping: 0,
+            finalShipping: 0,
+            finalSumWithShipping: 0
         })
         apiReq('order/cart/clear', { domainId: order?.domainId })
             .then(({ order: serverOrder }) => {
@@ -77,21 +103,28 @@ export default function Cart({ }) {
         <Flex col className={styles.footer}>
             <Flex col gap={10} className={styles.summary}>
                 <Flex alignItems='center' justifyContent='space-between'>
-                    <Text mode='sub' bold>סכום ביניים</Text>
-                    <Text mode='sub' bold>{render({ type: 'coin', value: order?.sum })}</Text>
+                    <Text mode='sub' bold>subtotal_text</Text>
+                    <Text mode='sub' bold>{render({ type: 'coin', value: sum })}</Text>
                 </Flex>
                 <Flex alignItems='center' justifyContent='space-between'>
-                    <Text mode='sub' bold>דמי טיפול ומשלוח</Text>
-                    <Text mode='sub' bold>{render({ type: 'coin', value: order?.sum })}</Text>
+                    <Text mode='sub' bold>handling_and_delivery</Text>
+                    {isFreeShipping ? (
+                        <Flex gap={6} alignItems='center'>
+                            <Text mode='sub' bold style={{ textDecoration: 'line-through', opacity: 0.6 }}>{render({ type: 'coin', value: originalShipping })}</Text>
+                            <Text mode='sub' bold>free_shipping</Text>
+                        </Flex>
+                    ) : (
+                        <Text mode='sub' bold>{render({ type: 'coin', value: shipping })}</Text>
+                    )}
                 </Flex>
                 <Flex alignItems='center' justifyContent='space-between'>
-                    <Text size='l' bold>סה"כ חסכת בקניה זו</Text>
-                    <Text size='l' bold>{render({ type: 'coin', value: order?.sum })}</Text>
+                    <Text size='l' bold>total_saved_in_purchase</Text>
+                    <Text size='l' bold>{render({ type: 'coin', value: savings })}</Text>
                 </Flex>
             </Flex>
             <Button icon='cart' onClick={goToCheckout}>
                 <Text>to_pay</Text>
-                <Text>{render({ type: 'coin', value: order?.sum })}</Text>
+                <Text>{render({ type: 'coin', value: displayTotal })}</Text>
             </Button>
         </Flex>
     </Flex >

@@ -13,6 +13,7 @@
         color: var(--text-primary-on-brand);
         padding: 20px;
         padding-bottom: calc(20px + var(--safeBottom, 0px));
+        background-color: var(--bg-brand-primary);
 
         svg {
             transition: .2s;
@@ -28,10 +29,14 @@
         --sidebarWidth: 60px;
 
         aside {
-            padding-inline: 10px;
+            padding-inline: 15px;
 
             .content {
                 width: 40px;
+            }
+
+            a {
+                gap: 0
             }
         }
 
@@ -76,7 +81,7 @@
         border-inline-end: 1px solid rgba(255, 255, 255, 0.06);
         box-shadow: var(--shadow-md);
         width: var(--sidebarWidth);
-        inset-inline-start: 0;
+        inset-inline-start: -10px;
         background-color: var(--bg-brand-primary);
         top: 0;
         position: fixed;

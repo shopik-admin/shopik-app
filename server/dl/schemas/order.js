@@ -176,8 +176,33 @@ export const cartSchema = [{
             type: String,
             enum: Object.values(productConstants.BASE_UNIT)
         },
+        minAmount: Number,
+        step: Number,
         units: Number, // count of units ordered (e.g. 2 watermelons)
         option: unitOptionSchema
+    },
+    // important product snapshot for display in cart / admin pick
+    images: {
+        product: [{
+            main: Boolean,
+            sourceUrl: String,
+            hash: String,
+            sizes: { xl: String, l: String, m: String, s: String },
+            _id: false
+        }],
+        threeSixty: [String]
+    },
+    label: String,
+    producer: String,
+    category: {
+        id: String,
+        title: String,
+        pathIds: [String]
+    },
+    picking: {
+        recommendations: String,
+        minShelflife: Number,
+        allowBarcodeTypeIn: Boolean
     },
     shelfLife: Number,
     shelfLifeDate: Date,
@@ -220,7 +245,7 @@ const orderSchema = {
     pickBy: Date,
     shipBy: Date,
     phone: String,
-    phoneB: String,
+    secondPhone: String,
     email: String,
     name: {
         first: String,
@@ -242,9 +267,16 @@ const orderSchema = {
     coupons: [{
         code: String,
         discount: Number,
+        appliedDiscount: Number,
+        originalDiscount: Number,
+        benefit: String,
         percent: Boolean,
         minSum: Number,
         maxSum: Number,
+        isActive: Boolean,
+        whitelist: [String],
+        blacklist: [String],
+        condition: Object,
         couponMessages: {
             sectionMessage: {
                 text: String
@@ -343,10 +375,10 @@ const orderSchema = {
     tempCartId: String,
     customerUpdatedAt: Date,
     originalSum: Number,
-    sumWithShippingAndHandling: Number,
-    finalSumWithShippingAndHandling: Number,
-    initialShippingAndHandling: Number,
-    finalShippingAndHandling: Number,
+    sumWithShipping: Number,
+    finalSumWithShipping: Number,
+    shipping: Number,
+    finalShipping: Number,
     updateReason: String,
     userOrderNumber: Number,
     orderRestoredFrom: {
@@ -422,6 +454,12 @@ const orderSchema = {
         restoredAt: Date
     },
     shipperComment: String,
+    shipmentId: String,
+    deliveryProof: {
+        url: String,
+        at: Date
+    },
+    pickingReleaseCount: Number,
 }
 
 const virtuals = {
@@ -457,8 +495,15 @@ const methods = Order => ({
 const defaultSelect = {
     _id: 0,
     id: 1,
+    number: 1,
     status: 1,
     sum: 1,
+    sumWithShipping: 1,
+    shipping: 1,
+    finalSum: 1,
+    finalSumWithShipping: 1,
+    finalShipping: 1,
+    sumNoCoupon: 1,
     websiteCart: 1,
     cart: 1,
     coupons: 1,
@@ -467,7 +512,7 @@ const defaultSelect = {
     address: 1,
     storeId: 1,
     window: 1,
-    address: 1
+    domainId: 1
 }
 
 const index = [

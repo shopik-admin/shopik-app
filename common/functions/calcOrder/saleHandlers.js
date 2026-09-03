@@ -2,31 +2,32 @@ import { round2, round3, SALE_KINDS, AGORA } from './utils.js'
 
 export function distributeAgoraLeftover(distributions, targetSum, actualSum) {
     const leftOverSum = round2(targetSum - actualSum)
-    if (leftOverSum > 0) {
-        let agorotAmount = Math.floor(round2(leftOverSum / AGORA))
-        if (agorotAmount > 0) {
-            for (let i = 0; agorotAmount > 0 && i < distributions.length; i++) {
-                const dist = distributions[i]
-                const availableAmount = Math.min(dist.saleAmount, agorotAmount)
-                if (availableAmount > 0) {
-                    agorotAmount -= availableAmount
-                    const noPriceChangeAmount = dist.saleAmount - availableAmount
-
-                    // Push higher unit price first
-                    distributions.splice(i, 1, {
-                        ...dist,
-                        saleAmount: availableAmount,
-                        salePricePerUnit: round2(dist.salePricePerUnit + AGORA)
-                    })
-
-                    if (noPriceChangeAmount > 0) {
-                        distributions.splice(i + 1, 0, {
-                            ...dist,
-                            saleAmount: noPriceChangeAmount
-                        })
-                        i++ // Skip the newly added part
-                    }
-                }
+    if (leftOverSum === 0) return
+    const isPositive = leftOverSum > 0
+    let agorotAmount = Math.floor(round2(Math.abs(leftOverSum) / AGORA))
+    if (agorotAmount <= 0) return
+    for (let i = 0; agorotAmount > 0 && i < distributions.length; i++) {
+        const dist = distributions[i]
+        const availableAmount = Math.min(dist.saleAmount, agorotAmount)
+        if (availableAmount > 0) {
+            agorotAmount -= availableAmount
+            const noPriceChangeAmount = dist.saleAmount - availableAmount
+            const newPrice = round2(dist.salePricePerUnit + (isPositive ? AGORA : -AGORA))
+            // Guard against negative price
+            if (newPrice < 0) continue
+            distributions.splice(i, 1, {
+                ...dist,
+                saleAmount: availableAmount,
+                salePricePerUnit: newPrice,
+                sum: round2(availableAmount * newPrice)
+            })
+            if (noPriceChangeAmount > 0) {
+                distributions.splice(i + 1, 0, {
+                    ...dist,
+                    saleAmount: noPriceChangeAmount,
+                    sum: round2(noPriceChangeAmount * dist.salePricePerUnit)
+                })
+                i++
             }
         }
     }

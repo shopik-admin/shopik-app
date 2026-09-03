@@ -11,7 +11,7 @@
     scroll-behavior: smooth;
     gap: 16px;
     width: 100%;
-    padding: 4px 0;
+    padding: 4px 2px;
     scrollbar-width: none;
     /* Firefox */
 }
@@ -51,9 +51,9 @@
 }
 
 .leftArrow {
-    left: -15px;
+    left: 0;
 }
 
 .rightArrow {
-    right: -15px;
+    right: 0;
 }

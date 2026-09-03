@@ -15,7 +15,7 @@ export const useSidebar = () => useContext(SidebarContext)
 
 export default function Sidebar({ children }) {//TODO remember on refresh
     const
-        [open, setOpen] = useState(true),
+        [open, setOpen] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 650px)').matches ? false : true),
         [mini, setMini] = useState()
 
     function toggle() {
@@ -46,7 +46,7 @@ export default function Sidebar({ children }) {//TODO remember on refresh
                     </Flex>
                 </div>
             </aside>
-            <Overlay onClick={toggle} open className={styles.overlay} />
+            <Overlay onClick={toggle} open={open} className={styles.overlay} />
             {children}
         </div>
     </SidebarContext>

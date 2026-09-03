@@ -13,7 +13,7 @@ import Flex from 'common/components/Flex'
 import { useUser } from 'features/User'
 
 
-export default function WindowOptions({ onChangeStore, onChangeAddress }) {
+export default function WindowOptions({ onChangeStore, onChangeAddress, hideAddress = false }) {
     const { order, setOrder } = useOrder()
     const { addresses } = useUser()
     const { pickupStores } = useAppData()
@@ -55,13 +55,13 @@ export default function WindowOptions({ onChangeStore, onChangeAddress }) {
     }
 
     return <Flex col gap={20} className={styles.windowOptions}>
-        {onChangeStore && isPickup && selectedStore
+        {!hideAddress && (onChangeStore && isPickup && selectedStore
             ? <Address store={selectedStore} action={{ text: 'change', onClick: onChangeStore }} />
             : <Address
                 address={activeAddress}
                 active={false}
                 action={onChangeAddress ? { text: 'change', onClick: onChangeAddress } : undefined}
-            />}
+            />)}
         <Text bold>Choose day</Text>
 
         <HorizontalScroll items={data?.map(day => (

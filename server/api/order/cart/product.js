@@ -2,6 +2,7 @@ import diff from '#common/functions/diff.js'
 import { calcOrder } from '#common/functions/calcOrder/cart.js'
 import filterClientOrder from '#server/utils/data/filterClientOrder.js'
 import { getOrCreateGuestCart } from '#server/utils/data/getGuestCart.js'
+import getShippingConfig from '#server/utils/data/getShippingConfig.js'
 
 export default async function product(payload, { DL, _user, utils, cookies, setCookie }) {
     const { id: productId, amount, unitKey, domainId } = payload
@@ -54,7 +55,8 @@ export default async function product(payload, { DL, _user, utils, cookies, setC
         salesMap[sale.id] = sale
     }
 
-    const updatedOrder = calcOrder({ order: cartOrder, product, amount, unitKey, sales: salesMap })
+    const shippingConfig = await getShippingConfig(DL, cartOrder.domainId || domainId)
+    const updatedOrder = calcOrder({ order: cartOrder, product, amount, unitKey, sales: salesMap, shippingConfig, user: _user })
 
     const updateData = diff(originalOrder, updatedOrder)
     const nothingToUpdate = Object.keys(updateData).length === 0
@@ -66,9 +68,12 @@ export default async function product(payload, { DL, _user, utils, cookies, setC
             ? await DL.Order.updateOne({ id: cartOrder.id }, update)
             : await DL.GuestCart.updateOne({ id: cartOrder.id }, update)
         if (savedOrder) finalOrder = savedOrder
+        else finalOrder = updatedOrder
+    } else {
+        finalOrder = updatedOrder
     }
 
-    return { order: filterClientOrder(finalOrder) }
+    return { order: filterClientOrder(finalOrder), sales: salesMap }
 }
 
 product.config = {

@@ -1,13 +1,13 @@
 import diff from '#common/functions/diff.js'
 
-const USER_DETAILS_FIELDS = ['name', 'phone', 'phoneB', 'email', 'comment']
+const USER_DETAILS_FIELDS = ['name', 'phone', 'secondPhone', 'email', 'comment']
 const CAPTURE_STATUSES = ['packed']
 
 async function tryCapture({ DL, external, utils, _admin, order }) {
     if (order.paid) return
     if (!order.payment?.cardToken || !order.payment?.cardExpiry) return
     if (!order.payment?.authCode) return
-    const amount = order.finalSumWithShippingAndHandling ?? order.finalSum ?? order.sum
+    const amount = order.finalSumWithShipping ?? order.finalSum ?? order.sum
     if (!amount || Number(amount) <= 0) return
 
     const { record, adminActor } = utils.data.timeline
@@ -107,7 +107,7 @@ async function tryCapture({ DL, external, utils, _admin, order }) {
                     amount: captureAmount, providerTxnId: result.Id ? String(result.Id) : undefined, parentProviderTxnId: order.payment.providerTxnId,
                     providerCode: result.CCode, providerData: result, error: msg
                 })
-            } catch {}
+            } catch { }
             await record({
                 DL, order,
                 eventType: DL.Timeline.constants.EVENT_TYPES.PAYMENT,
@@ -141,7 +141,7 @@ async function tryCapture({ DL, external, utils, _admin, order }) {
         })
     } catch (e) {
         const msg = e.message || 'Capture failed'
-        await DL.Order.updateOne({ id: order.id }, { paymentError: msg }).catch(() => {})
+        await DL.Order.updateOne({ id: order.id }, { paymentError: msg }).catch(() => { })
         await record({
             DL, order,
             eventType: DL.Timeline.constants.EVENT_TYPES.PAYMENT,
@@ -149,7 +149,7 @@ async function tryCapture({ DL, external, utils, _admin, order }) {
             context: { step: 'payment_capture_failed', provider: 'hyp', amount: captureAmount, authorizedAmount },
             outcome: { success: false, errorMessage: msg },
             metadata: { source: 'order/update:capture' }
-        }).catch(() => {})
+        }).catch(() => { })
     }
 }
 

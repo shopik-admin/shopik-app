@@ -2,7 +2,7 @@ import classNames from 'common/functions/classNames'
 import { useText } from 'common/texts/TextProvider'
 import styles from './input.module.css'
 import Checkbox from '../Checkbox'
-import { useState } from 'react'
+import { useState, useRef, useImperativeHandle } from 'react'
 import Text from '../Text'
 import Icon from '../Icon'
 import Select from '../Select'
@@ -33,11 +33,11 @@ import Select from '../Select'
  * @returns {JSX.Element} The rendered input component.
  */
 
-export default function Input(props) {
+function Input(props) {
     const
-        { name = '', label = name, title = label, placeholder = title,
+        { ref, name = '', label = name, title = label, placeholder = title,
             className, type = '', info = '', icon = '',
-            required = false, defaultValue, defaults, onChange, onBlur: externalOnBlur, ...ps
+            required = false, defaultValue, defaults, onChange, onBlur: externalOnBlur, autoFocus, ...ps
         } = props,
         functionType = typeof type == 'function',
         [visited, setVisited] = useState(),
@@ -45,7 +45,10 @@ export default function Input(props) {
         { TR } = useText(),
         InputTag = getInputTag(props),
         invalidError = functionType ? '' : getInputInvalidError(value, props),
-        requiredSign = required ? ' *' : ''
+        requiredSign = required ? ' *' : '',
+        innerRef = useRef(null)
+
+    useImperativeHandle(ref, () => innerRef.current)
 
     function onInputChange(e) { setValue(e?.target ? e.target.value : e); onChange?.(e) }
     function onBlur(e) { setTimeout(() => setVisited(true), 100); externalOnBlur?.(e) }
@@ -56,8 +59,9 @@ export default function Input(props) {
             <>
                 {icon && <Icon name={icon} className={styles.icon} />}
                 <InputTag
+                    ref={innerRef}
                     {...ps}
-                    {...{ name, type, onBlur, defaultValue }}
+                    {...{ name, type, onBlur, defaultValue, autoFocus }}
                     onChange={onInputChange}
                     aria-invalid={!!invalidError}
                     placeholder={(TR(placeholder) || placeholder) + requiredSign}
@@ -67,6 +71,8 @@ export default function Input(props) {
             </>}
     </label>
 }
+
+export default Input
 
 function getInputTag({ type }) {
     switch (type) {

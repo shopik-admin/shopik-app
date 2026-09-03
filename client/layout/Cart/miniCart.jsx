@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import Button from 'common/components/Button'
 import Flex from 'common/components/Flex'
 import Text from 'common/components/Text'
@@ -7,12 +7,14 @@ import { useText } from 'common/texts/TextProvider'
 import classNames from 'common/functions/classNames'
 import { useCart } from './CartProvider'
 import { useOrder } from 'features/Order/OrderProvider'
+import { useAppData } from 'App'
+import { getRemainingToFreeShipping, extractShippingConfig } from '#common/functions/shipping.js'
 import styles from './cart.module.css'
 
 export default function MiniCart({
     isOpen: controlledIsOpen,
     onToggle,
-    freeShippingThreshold = 506.3,
+    freeShippingThreshold,
     className
 }) {
     const [internalIsOpen, setInternalIsOpen] = useState(false)
@@ -24,7 +26,13 @@ export default function MiniCart({
         : (ctxCartOpen !== undefined ? ctxCartOpen : internalIsOpen)
     const { TR } = useText?.() || {}
     const { order } = useOrder()
-    const total = order?.sum
+    const { settings } = useAppData() || {}
+    const shippingConfig = useMemo(() => extractShippingConfig(settings), [settings])
+    // sum pre-coupon per spec; if coupon present, show discounted total
+    const sum = order?.sum ?? 0
+    const hasCoupon = !!(order?.coupons && order.coupons.length)
+    const sumWithShipping = order?.sumWithShipping ?? (order?.shipping != null ? (sum + Number(order.shipping || 0)) : sum)
+    const total = hasCoupon && order?.finalSumWithShipping != null ? order.finalSumWithShipping : sumWithShipping
     const itemCount = order?.cart?.length
 
     const handleToggle = (e) => {
@@ -45,7 +53,12 @@ export default function MiniCart({
         maximumFractionDigits: 1
     })
 
-    const remaining = Math.round(Math.max(0, freeShippingThreshold - total))
+    const effectiveThreshold = freeShippingThreshold ?? (order?.deliveryMethod === 'pickup'
+        ? (shippingConfig?.pickupFreeFrom ?? shippingConfig?.freeFrom)
+        : (shippingConfig?.freeFrom))
+    const remaining = effectiveThreshold != null
+        ? getRemainingToFreeShipping({ sum, deliveryMethod: order?.deliveryMethod, shippingConfig })
+        : Math.round(Math.max(0, (freeShippingThreshold ?? 0) - sum))
 
     // DRY Translations from hebrew.json
     const toPayText = TR?.('to_pay')
@@ -53,7 +66,7 @@ export default function MiniCart({
     const subtext = isCartEmpty
         ? (TR?.('cart_empty_subtext')) :
         remaining ?
-            (TR?.('free_shipping_subtext')).replace('{remaining}', remaining) : 'free_shipping'
+            (TR?.('free_shipping_subtext')).replace('{remaining}', remaining) : TR?.('free_shipping') || 'free_shipping'
 
     // Shared Cart Icon with Badge element
     const cartIconElement = (

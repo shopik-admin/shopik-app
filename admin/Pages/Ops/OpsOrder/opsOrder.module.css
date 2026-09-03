@@ -1,0 +1,160 @@
+.orderPreview {
+    height: calc(100dvh - 20px - var(--admin-header-height));
+    position: relative;
+    padding-top: 20px;
+
+
+
+    .startPickingBtn {
+        width: 300px;
+        max-width: calc(100% - 0px);
+        margin: auto;
+        height: 48px;
+        font-size: 16px;
+    }
+
+
+
+
+    .intro {
+        background-color: var(--status-bg);
+        color: var(--status-color);
+        width: calc(100% + 32px);
+        position: relative;
+        right: -16px;
+        padding: 46px 30px;
+
+        svg {
+            position: relative;
+            top: 1px;
+        }
+
+        .subtitle {
+            color: var(--text-primary);
+        }
+
+        &.danger {
+            --status-color: var(--danger-color);
+            --status-bg: var(--danger-bg);
+        }
+
+        &.warning {
+            --status-color: var(--warning-color);
+            --status-bg: var(--warning-bg);
+        }
+
+        &.success {
+            --status-color: var(--success-color);
+            --status-bg: var(--success-bg);
+        }
+    }
+
+    .priviewRow {
+        padding: 0 16px;
+    }
+}
+
+.footer {
+    position: fixed;
+    bottom: 0;
+    padding: 20px 0;
+    padding-bottom: calc(20px + env(safe-area-inset-bottom));
+    width: 100%;
+    inset-inline-start: 0;
+    background-color: var(--bg-primary);
+}
+
+.orderPick {
+    .tabs {
+        position: sticky;
+        top: calc(var(--admin-header-height));
+        z-index: 2;
+        background: var(--bg-primary);
+    }
+
+    .cartList {
+        margin-block: 20px;
+        padding-bottom: 80px;
+    }
+
+    .finishBtn {
+        width: 300px;
+        max-width: calc(100% - 32px);
+        height: 48px;
+        border-radius: 999px;
+        font-size: 16px;
+        background: #0a4742;
+        color: #fff;
+    }
+    .finishBtn:disabled {
+        background: #c5cfcc;
+        color: #fff;
+        opacity: 1;
+    }
+}
+
+.orderPack {
+    min-height: calc(100dvh - var(--admin-header-height) - 40px);
+    padding: 16px 16px 100px;
+    gap: 20px;
+
+    .packInstruction {
+        text-align: center;
+        padding: 8px 0 12px;
+        border-bottom: 1px solid var(--border-tertiary);
+    }
+
+    .packList {
+        padding: 8px 0;
+    }
+
+    .packRow {
+        background: #fff;
+        border: 1px solid var(--border-tertiary);
+        border-radius: 16px;
+        padding: 14px 16px;
+    }
+
+    .packIcon {
+        color: #0a4742;
+    }
+
+    .stepper {
+        background: #f4f6f5;
+        border-radius: 999px;
+        padding: 4px;
+        gap: 12px;
+    }
+    .stepBtn {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        padding: 0;
+        min-width: 32px;
+        background: #fff;
+        border: 1px solid var(--border-tertiary);
+    }
+    .stepValue {
+        min-width: 20px;
+        text-align: center;
+    }
+
+    .transferBtn {
+        width: 300px;
+        max-width: calc(100% - 32px);
+        height: 48px;
+        border-radius: 999px;
+        font-size: 16px;
+        background: #0a4742;
+        color: #fff;
+    }
+}
+
+.pickModal {
+    padding: 0 !important;
+    overflow: hidden !important;
+}
+
+.pickModal :global(.modal-body) {
+    padding: 0;
+}
