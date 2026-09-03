@@ -26,7 +26,11 @@ export default defineConfig({
   base: '/',
   resolve: { alias },
   plugins: [react()],
-  define: { APP_VERSION: JSON.stringify(version), CARTO_KEY: JSON.stringify(process.env.CARTO_KEY) },
+  define: {
+    APP_VERSION: JSON.stringify(version),
+    CARTO_KEY: JSON.stringify(process.env.CARTO_KEY),
+    VITE_FILES_BASE_URL: JSON.stringify(process.env.FILES_BASE_URL || 'https://files.shopik.co.il')
+  },
   build: {
     outDir: '../build/admin',
     emptyOutDir: true,
