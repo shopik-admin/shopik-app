@@ -98,9 +98,13 @@ export default function OrderSummary({ onPayment, paying, showPayBtn = true, mis
 
     // Get active window from order state
     const activeWindow = order.window
-    const deliveryTimeText = activeWindow
-        ? `${activeWindow.dayName || TR?.('day-2') || 'יום שלישי'}, ${activeWindow.start}:00-${activeWindow.end}:00`
-        : (order.deliveryWindow || `${TR?.('day-2') || 'יום שלישי'}, 10:00-12:00`)
+    const deliveryTimeText = (() => {
+        if (!activeWindow?.id) return order.deliveryWindow || TR?.('choose window')
+        const dayIdx = activeWindow.dayOfWeek ?? (activeWindow.date ? new Date(activeWindow.date + 'T12:00:00').getDay() : null)
+        const dayName = dayIdx != null ? (TR?.(`day-${dayIdx}`) || activeWindow.dayName || '') : (activeWindow.dayName || '')
+        const time = `${String(activeWindow.start).padStart(2, '0')}:00-${String(activeWindow.end).padStart(2, '0')}:00`
+        return dayName ? `${dayName}, ${time}` : time
+    })()
 
     // Real financial calculations from order
     const { settings } = useAppData() || {}
@@ -207,7 +211,7 @@ export default function OrderSummary({ onPayment, paying, showPayBtn = true, mis
                     >
                         <div className={styles.collapseContent}>
                             {addresses.length > 0 ? (
-                                <Addresses action={{ onClick: () => setAddressOpen(false) }} />
+                                <Addresses hideHeader action={{ onClick: () => setAddressOpen(false) }} />
                             ) : (
                                 <AddressForm onDone={() => setAddressOpen(false)} cityRef={cityRef} />
                             )}
@@ -245,7 +249,7 @@ export default function OrderSummary({ onPayment, paying, showPayBtn = true, mis
                         }
                     >
                         <div ref={windowRef} className={styles.collapseContent}>
-                            {windowOpen && <WindowOptions />}
+                            {windowOpen && <WindowOptions hideAddress />}
                         </div>
                     </Collapse>
 

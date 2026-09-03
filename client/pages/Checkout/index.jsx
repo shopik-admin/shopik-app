@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useOrder } from 'features/Order/OrderProvider'
 import { useUser } from 'features/User'
 import { useNavigate } from 'react-router'
@@ -13,7 +13,7 @@ import apiReq from 'common/functions/apiReq'
 import Loader from 'common/components/Loader'
 
 export default function Checkout() {
-    const { order = {} } = useOrder()
+    const { order = {}, setOrder } = useOrder()
     const user = useUser()
     const { TR } = useText() || {}
     const navigate = useNavigate()
@@ -50,8 +50,23 @@ export default function Checkout() {
             }
         }
         if (!order?.window || !order.window.id || !order.window.date) missing.push('window')
+        else if (order.window.leadTimestamp && new Date(order.window.leadTimestamp).getTime() < Date.now()) missing.push('window')
         return missing
     }
+
+    // If window lead time has passed, clear it from the order and prompt user to pick a new one
+    useEffect(() => {
+        if (!order?.window?.leadTimestamp) return
+        const ts = new Date(order.window.leadTimestamp).getTime()
+        if (Number.isNaN(ts) || ts >= Date.now()) return
+        // expired → remove window from local order state and show missing
+        setOrder(prev => {
+            if (!prev?.window) return prev
+            const { window: _w, ...rest } = prev
+            return rest
+        })
+        setMissingFields(prev => (prev.includes('window') ? prev : [...prev, 'window']))
+    }, [order?.window?.leadTimestamp, order?.window?.id])
 
     async function handlePayment() {
         if (paying) return
@@ -59,6 +74,13 @@ export default function Checkout() {
         const localMissing = getLocalMissing()
         if (localMissing.length) {
             setMissingFields(localMissing)
+            if (localMissing.includes('window') && order?.window?.leadTimestamp && new Date(order.window.leadTimestamp).getTime() < Date.now()) {
+                setOrder(prev => {
+                    if (!prev?.window) return prev
+                    const { window: _w, ...rest } = prev
+                    return rest
+                })
+            }
             return
         }
         setPaying(true)
@@ -74,6 +96,13 @@ export default function Checkout() {
             if (Array.isArray(fields) && fields.length) {
                 // trigger auto-open one-by-one (OrderSummary watches this array)
                 setMissingFields(fields)
+                if (fields.includes('window')) {
+                    setOrder(prev => {
+                        if (!prev?.window) return prev
+                        const { window: _w, ...rest } = prev
+                        return rest
+                    })
+                }
             }
         } finally {
             setPaying(false)

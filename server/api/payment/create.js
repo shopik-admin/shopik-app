@@ -1,3 +1,5 @@
+import { releaseWindowReservation } from '#server/utils/data/windowGroups.js'
+
 export default async function create(payload, info) {
     const { DL, external, utils, _user } = info
     const { orderId } = payload
@@ -80,6 +82,18 @@ export default async function create(payload, info) {
             } else {
                 missingFields.push('address')
             }
+        }
+    }
+
+    // If the chosen window's lead time has passed, remove it and treat as missing
+    if (order.window?.leadTimestamp) {
+        const lead = new Date(order.window.leadTimestamp).getTime()
+        if (!Number.isNaN(lead) && lead < Date.now()) {
+            const expiredWindowId = order.window.id
+            const expiredGroupId = order.window.reservedGroupId
+            try { await releaseWindowReservation(DL, expiredWindowId, expiredGroupId) } catch {}
+            try { await DL.Order.updateOne({ id: order.id }, { $unset: { window: 1 } }) } catch {}
+            order.window = undefined
         }
     }
 

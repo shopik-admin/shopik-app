@@ -64,9 +64,8 @@ export function AddressForm({ initialData, onDone, cityRef }) {
     )
 }
 
-export default function Addresses({ action }) {
+export default function Addresses({ action, hideHeader }) {
     const user = useUser()
-    const { setOrder } = useOrder()
     const [mode, setMode] = useState(action ? 'select' : 'browse')
     const [editAddress, setEditAddress] = useState(null)
 
@@ -108,7 +107,7 @@ export default function Addresses({ action }) {
 
     return (
         <Flex col gap={24}>
-            <Title subtitle={'addresses-subtitle'}>addresses</Title>
+            {!hideHeader && <Title subtitle={'addresses-subtitle'}>addresses</Title>}
 
             {addresses.length === 0 ? (
                 <Text>no addresses yet</Text>

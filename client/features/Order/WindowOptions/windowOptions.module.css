@@ -1,4 +1,6 @@
 .windowOptions {
+    padding-inline: 1px;
+    box-sizing: border-box;
     .day {
         width: 56px;
         height: 56px;
@@ -23,6 +25,7 @@
     }
 
     .time {
+        margin-inline: 1px;
         padding: 14px 16px;
         border: 1px solid #E6E6E6;
         border-radius: var(--radius-3xl);
