@@ -11,7 +11,7 @@ import {
     LuShoppingBag, LuArrowUpDown, LuCode, LuPackage, LuStore, LuGlobe, LuPercent, LuTicket,
     LuSun, LuMoon, LuCloudUpload, LuMap, LuClock, LuTruck, LuCreditCard, LuBarcode, LuAlignLeft,
     LuListPlus, LuNotebookPen, LuPanelRightClose, LuPanelRightOpen, LuCalendarPlus, LuSlidersHorizontal,
-    LuBoxes, LuLightbulb, LuSnowflake, LuImage
+    LuBoxes, LuLightbulb, LuSnowflake, LuImage, LuBadgePercent
 } from 'react-icons/lu'
 import { BsFileEarmarkExcel } from 'react-icons/bs'
 import { TbHeartPlus } from 'react-icons/tb'
@@ -70,7 +70,7 @@ const iconsList = {
     github: LuGithub,
     play: LuPlay,
     pause: LuPause,
-    cart: () => <LuShoppingCart style={{ transform: 'scaleX(-1)' }} />,
+    cart: props => <LuShoppingCart style={{ transform: 'scaleX(-1)' }} {...props} />,
     sort: LuArrowUpDown,
     sortUp: LuChevronUp,
     sortDown: LuChevronDown,
@@ -80,6 +80,7 @@ const iconsList = {
     stores: LuStore,
     domains: LuGlobe,
     sale: LuPercent,
+    salePercent: LuBadgePercent,
     coupon: LuTicket,
     toMini: LuPanelRightClose,
     unMini: LuPanelRightOpen,
@@ -90,7 +91,7 @@ const iconsList = {
     map: LuMap,
     time: LuClock,
     bag: LuShoppingBag,
-    truck: () => <LuTruck style={{ transform: 'scaleX(-1)' }} />,
+    truck: props => <LuTruck style={{ transform: 'scaleX(-1)' }} {...props} />,
     card: LuCreditCard,
     barcode: LuBarcode,
     listPlus: LuListPlus,

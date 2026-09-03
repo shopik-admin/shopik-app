@@ -8,8 +8,13 @@ import ProductCard from 'pages/Products/ProductCard'
 import { usePage } from 'layout/Page'
 import { useText } from '#common/texts/TextProvider'
 import styles from 'pages/Products/products.module.css'
+import { setSalesCache } from '#common/functions/salesCache.js'
 
 const LIMIT = 30
+function unwrapSearchRes(res) {
+    if (Array.isArray(res)) return { products: res, sales: {} }
+    return { products: res?.products || [], sales: res?.sales || {} }
+}
 
 export default function Search() {
     const { TR } = useText()
@@ -32,6 +37,7 @@ export default function Search() {
         if (seeded.current) {
             seeded.current = false
             setHasMore((pageData?.results?.length || 0) === LIMIT)
+            if (pageData?.sales) setSalesCache(pageData.sales)
             return
         }
         if (q.length < 2) {
@@ -45,7 +51,9 @@ export default function Search() {
         const currentRequest = ++latestRequest.current
         setLoading(true)
         apiReq('product/search', { value: q, limit: LIMIT })
-            .then(products => {
+            .then(res => {
+                const { products, sales } = unwrapSearchRes(res)
+                if (sales && Object.keys(sales).length) setSalesCache(sales)
                 if (currentRequest === latestRequest.current) {
                     setResults(products)
                     setExtra([])
@@ -65,7 +73,9 @@ export default function Search() {
         const reqId = ++moreReqId.current
         setLoadingMore(true)
         try {
-            const products = await apiReq('product/search', { value: q, limit: LIMIT, skip: results.length + extra.length })
+            const res = await apiReq('product/search', { value: q, limit: LIMIT, skip: results.length + extra.length })
+            const { products, sales } = unwrapSearchRes(res)
+            if (sales && Object.keys(sales).length) setSalesCache(sales)
             if (reqId !== moreReqId.current) return
             setExtra(prev => [...prev, ...products])
             setHasMore(products.length === LIMIT)
@@ -105,12 +115,17 @@ export default function Search() {
 Search.init = async function (url) {
     const q = new URL(url, 'http://localhost').searchParams.get('q')?.trim() || ''
     let results = []
+    let sales = {}
     if (q.length >= 2) {
-        results = await apiReq('product/search', { value: q, limit: LIMIT }).catch(() => [])
+        const res = await apiReq('product/search', { value: q, limit: LIMIT }).catch(() => [])
+        const unwrapped = unwrapSearchRes(res)
+        results = unwrapped.products
+        sales = unwrapped.sales
     }
     return {
         title: q,
         q,
-        results
+        results,
+        sales
     }
 }

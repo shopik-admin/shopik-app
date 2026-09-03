@@ -8,23 +8,67 @@ import classNames from 'common/functions/classNames'
 import { round3 } from 'common/functions/calcOrder/utils.js'
 import { getProductImageUrl } from 'common/functions/productImageUrl.js'
 import { useState, useEffect } from 'react'
+import { getSalesCache } from '#common/functions/salesCache.js'
 
-export function ProductImage({ product, size = 'm' }) {
+export function getFirstSale(product, sales) {
+    const saleId = product?.saleIds?.[0]
+    if (!saleId) return null
+    if (sales && sales[saleId]) return sales[saleId]
+    try {
+        const cache = getSalesCache?.()
+        if (cache && cache[saleId]) return cache[saleId]
+    } catch { }
+    return null
+}
+
+export function getSaleBadgeText(sale) {
+    if (!sale) return null
+    // fallback: generate from kind/amount/price/percent
+    console.log('getSaleBadgeText', sale)
+    const amount = sale.amount
+    const price = sale.price
+    const percent = sale.percent
+    if (sale.kind === 'price' && amount > 1 && price != null) return `מבצע ${amount} ב-${price}`
+    if (sale.kind === 'price' && price != null) return `מבצע ב-${price}`
+    if (sale.kind === 'percent' && percent != null) return `מבצע ${percent}% הנחה`
+    if (amount > 1 && price != null) return `מבצע ${amount} ב-${price}`
+    if (percent != null) return `מבצע ${percent}%`
+    return 'מבצע'
+}
+
+export function ProductSaleBadge({ product, sales, size = 'm' }) {
+    const sale = getFirstSale(product, sales)
+    if (!sale) return null
+    const label = getSaleBadgeText(sale)
+    return <Flex alignItems="center" gap={4} className={classNames(styles.saleBadge, styles[size])}>
+        <Icon name="salePercent" size={12} className={styles.saleBadgeIcon} />
+        <Text size="xs" bold className={styles.saleBadgeText}>{label}</Text>
+    </Flex>
+}
+
+export function ProductImage({ product, size = 'm', sales }) {
     const [failed, setFailed] = useState(false)
     useEffect(() => { setFailed(false) }, [product?.id, size])
     const src = product?.id ? getProductImageUrl(product.id, size) : ''
+    const saleBadge = <ProductSaleBadge product={product} sales={sales} size={size} />
     if (failed || !src) {
-        return <Flex
-            center
-            className={classNames(styles.productImage, styles[size], styles.productImageFallback)}
-        >
-            <Icon name="image" size={32} style={{ opacity: 0.35 }} />
-        </Flex>
+        return <div className={classNames(styles.productImageWrapper, styles[size])}>
+            <Flex
+                center
+                className={classNames(styles.productImage, styles[size], styles.productImageFallback)}
+            >
+                <Icon name="image" size={32} style={{ opacity: 0.35 }} />
+            </Flex>
+            {saleBadge}
+        </div>
     }
 
-    return <Image
-        className={classNames(styles.productImage, styles[size])}
-        src={src} alt={product.name} loading="eager" onError={() => setFailed(true)} />
+    return <div className={classNames(styles.productImageWrapper, styles[size])}>
+        <Image
+            className={classNames(styles.productImage, styles[size])}
+            src={src} alt={product.name} loading="eager" onError={() => setFailed(true)} />
+        {saleBadge}
+    </div>
 }
 
 export function isWeightProduct(product) {

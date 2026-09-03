@@ -16,6 +16,7 @@ import Breadcrumbs from 'components/Breadcrumbs'
 import NotFound from 'pages/NotFound'
 import { usePage } from 'layout/Page'
 import { getUnitPriceText, ProductButton } from 'pages/Products/ProductCard'
+import { ProductSaleBadge } from 'common/components/Product'
 
 export default function Product() {
     const [selectedImageIndex, setSelectedImageIndex] = useState(0)
@@ -60,6 +61,7 @@ export default function Product() {
                             height={560}
                             className={styles.mainImage}
                         />
+                        <ProductSaleBadge product={product} sales={sales} />
                     </div>
 
                     {images.length > 1 && (
