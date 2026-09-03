@@ -273,6 +273,65 @@
     color: var(--text-primary) !important;
 }
 
+.expandBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: none !important;
+    border: none !important;
+    color: var(--text-tertiary) !important;
+    cursor: pointer;
+    border-radius: var(--radius-xs) !important;
+    width: 1.6rem !important;
+    height: 1.6rem !important;
+    min-width: 1.6rem !important;
+    min-height: 1.6rem !important;
+    padding: 0 !important;
+    transition: transform 0.2s ease, color 0.15s ease, background-color 0.15s ease !important;
+    flex-shrink: 0;
+}
+
+.expandBtn:hover {
+    background: var(--bg-primary-alt) !important;
+    color: var(--text-primary) !important;
+}
+
+.settingItem.expanded .expandBtn {
+    transform: rotate(180deg);
+}
+
+.settingItem.expanded {
+    background-color: var(--bg-secondary-hover);
+}
+
+.settingExpanded {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border-primary);
+    animation: expandIn 0.18s ease;
+}
+
+@keyframes expandIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.configCount {
+    font-size: 0.7rem;
+    padding: 0.1rem 0.35rem;
+    border-radius: var(--radius-full);
+    background: var(--bg-primary-alt);
+    color: var(--text-tertiary);
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.configPreview {
+    margin-top: 0.25rem;
+    max-width: 100%;
+    overflow: hidden;
+}
+
 .settingError {
     font-size: var(--text-xs);
     color: var(--text-error-primary);
@@ -511,11 +570,44 @@
     margin-top: 4px;
 }
 
+/* Read-only keys: shared grid so value inputs align */
+.configEditorReadonly {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    column-gap: 0.5rem;
+    row-gap: 0.5rem;
+    align-items: center;
+}
+
+.configEditorReadonly .emptyValue {
+    grid-column: 1 / -1;
+}
+
 .configRow {
     display: grid;
     grid-template-columns: 1fr 1fr auto;
     gap: 0.5rem;
     align-items: center;
+}
+
+.configEditorReadonly .configRow,
+.configEditorReadonly .configRowReadonly {
+    display: contents;
+}
+
+.configRowReadonly {
+    grid-template-columns: auto 1fr auto;
+}
+
+.configKeyLabel {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    word-break: break-word;
+    padding-inline-end: 0.25rem;
+    white-space: nowrap;
+    text-align: end;
+    justify-self: end;
 }
 
 /* Responsive Styles matching Permissions layout */

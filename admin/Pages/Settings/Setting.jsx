@@ -4,6 +4,7 @@ import ConfirmButton from 'common/components/ConfirmButton'
 import render from 'common/functions/render'
 import apiReq from 'common/functions/apiReq'
 import { useState, useEffect, useRef } from 'react'
+import { useUser } from 'features/User'
 import styles from './settings.module.css'
 import ConfigEditor from './ConfigEditor.jsx'
 
@@ -15,8 +16,12 @@ export default function Setting({ setting, onUpdate, onEditFull, onDelete }) {
     const [saving, setSaving] = useState(false)
     const [error, setError] = useState(null)
     const [copied, setCopied] = useState(false)
+    const [expanded, setExpanded] = useState(false)
     const lightRef = useRef(null)
     const darkRef = useRef(null)
+    const { isSuperAdmin, role: adminRole } = useUser() || {}
+    const canEditValues = isSuperAdmin || adminRole?.permissions?.includes('setting:update')
+    const canEditKeys = !isSuperAdmin
 
     useEffect(() => {
         setValue(initialValue ?? '')
@@ -139,42 +144,76 @@ export default function Setting({ setting, onUpdate, onEditFull, onDelete }) {
     }
 
     if (isConfig) {
+        const configObj = value && typeof value === 'object' && !Array.isArray(value) ? value : {}
+        const editObj = editValue && typeof editValue === 'object' && !Array.isArray(editValue) ? editValue : {}
+        const configCount = Object.keys(configObj).length
+        const isDirty = JSON.stringify(editObj) !== JSON.stringify(configObj)
+
+        function toggleExpand() {
+            const next = !expanded
+            if (next) setEditValue(value && typeof value === 'object' && !Array.isArray(value) ? value : {})
+            setExpanded(next)
+        }
+        function handleConfigCancel() {
+            setEditValue(value && typeof value === 'object' && !Array.isArray(value) ? value : {})
+            setError(null)
+        }
+
         return (
-            <div className={styles.settingItem}>
-                <div className={styles.settingMain}>
+            <div className={`${styles.settingItem} ${expanded ? styles.expanded : ''}`}>
+                <div className={styles.settingMain} onClick={toggleExpand} style={{ cursor: 'pointer' }}>
                     <div className={styles.settingInfo}>
                         <div className={styles.settingKeyRow}>
-                            {onEditFull && <Button className={styles.gearBtn} onClick={() => onEditFull(setting)} title="Edit all fields" icon='edit' />}
+                            <Button
+                                className={styles.expandBtn}
+                                icon="down"
+                                mode="text"
+                                onClick={(e) => { e.stopPropagation(); toggleExpand() }}
+                                title={expanded ? 'Collapse' : 'Expand'}
+                                aria-expanded={expanded}
+                            />
+                            {onEditFull && <Button className={styles.gearBtn} onClick={(e) => { e.stopPropagation(); onEditFull(setting) }} title="Edit all fields" icon='edit' />}
                             {onDelete && <ConfirmButton q={`Delete "${key}"?`} onOk={handleDelete} icon="trash" className={styles.deleteBtn} title="Delete setting" disabled={saving} />}
                             <span className={styles.settingKey}>{key}</span>
-                            <label title={isPublic ? 'Public — sent to client' : 'Private — not sent to client'} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', color: isPublic ? 'var(--text-success-primary)' : 'var(--text-tertiary)', cursor: saving ? 'wait' : 'pointer', marginInlineStart: '0.5rem' }}>
+                            {!expanded && <span className={styles.configCount}>{configCount} keys</span>}
+                            <label onClick={(e) => e.stopPropagation()} title={isPublic ? 'Public — sent to client' : 'Private — not sent to client'} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', color: isPublic ? 'var(--text-success-primary)' : 'var(--text-tertiary)', cursor: saving ? 'wait' : 'pointer', marginInlineStart: '0.5rem' }}>
                                 <input type="checkbox" checked={!!isPublic} onChange={handlePublicToggle} disabled={saving} style={{ accentColor: 'var(--bg-brand-primary)' }} />
                                 public
                             </label>
+                            {!canEditKeys && expanded && <span title="Only superAdmin can edit keys / add entries" style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', marginInlineStart: '0.35rem' }}>(keys read-only)</span>}
                         </div>
                         {error && <span className={styles.settingError}>{error}</span>}
-                    </div>
-                    <div className={styles.settingControl}>
-                        {isEditing ? (
-                            <div className={styles.inlineEditor} style={{ flexDirection: 'column', alignItems: 'stretch' }}>
-                                <ConfigEditor
-                                    value={editValue && typeof editValue === 'object' && !Array.isArray(editValue) ? editValue : {}}
-                                    onChange={(next) => setEditValue(next)}
-                                    disabled={saving}
-                                />
-                                <div style={{ display: 'flex', gap: '0.35rem', marginTop: '0.5rem', justifyContent: 'flex-end' }}>
-                                    <Button icon="check" className={styles.saveBtn} onClick={() => handleSave()} disabled={saving} />
-                                    <Button icon="x" className={styles.cancelBtn} onClick={handleCancel} disabled={saving} />
-                                </div>
-                            </div>
-                        ) : (
-                            <div className={styles.settingValueContainer} onClick={() => setIsEditing(true)} title="Click to edit">
+                        {!expanded && (
+                            <div className={styles.configPreview} onClick={(e) => e.stopPropagation()}>
                                 <span className={styles.settingValue}>{renderValueContent(value, renderType, formType, false)}</span>
-                                <Button icon='edit' mode='text' />
                             </div>
                         )}
                     </div>
+                    <div className={styles.settingControl} onClick={(e) => e.stopPropagation()} style={{ gap: '0.25rem' }}>
+                        {!expanded && canEditValues && (
+                            <Button icon="edit" mode="text" onClick={toggleExpand} title={canEditKeys ? 'Edit keys & values' : 'Edit values'} />
+                        )}
+                    </div>
                 </div>
+                {expanded && (
+                    <div className={styles.settingExpanded} onClick={(e) => e.stopPropagation()}>
+                        <ConfigEditor
+                            value={editObj}
+                            onChange={(next) => setEditValue(next)}
+                            disabled={saving || !canEditValues}
+                            canEditKeys={canEditKeys}
+                            canEditValues={canEditValues}
+                        />
+                        {canEditValues ? (
+                            <div style={{ display: 'flex', gap: '0.35rem', marginTop: '0.5rem', justifyContent: 'flex-end', alignItems: 'center' }}>
+                                <Button icon="x" className={styles.cancelBtn} onClick={handleConfigCancel} disabled={saving || !isDirty} title="Revert changes" />
+                                <Button icon="check" className={styles.saveBtn} onClick={() => handleSave(editObj)} disabled={saving || !isDirty} title="Save changes" />
+                            </div>
+                        ) : (
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: '0.35rem' }}>View only — requires setting:update permission</div>
+                        )}
+                    </div>
+                )}
             </div>
         )
     }
