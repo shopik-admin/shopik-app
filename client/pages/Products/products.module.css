@@ -28,7 +28,20 @@
             grid-template-columns: repeat(5, minmax(0, 1fr));
         }
     }
+
+    @container (min-width: 1600px) {
+        .list {
+            grid-template-columns: repeat(6, minmax(0, 1fr));
+        }
+    }
+
+    @container (min-width: 1900px) {
+        .list {
+            grid-template-columns: repeat(7, minmax(0, 1fr));
+        }
+    }
 }
+
 .sentinel {
     height: 1px;
 }
