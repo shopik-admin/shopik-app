@@ -74,6 +74,79 @@
 
     .cartList {
         margin-block: 20px;
+        padding-bottom: 80px;
+    }
+
+    .finishBtn {
+        width: 300px;
+        max-width: calc(100% - 32px);
+        height: 48px;
+        border-radius: 999px;
+        font-size: 16px;
+        background: #0a4742;
+        color: #fff;
+    }
+    .finishBtn:disabled {
+        background: #c5cfcc;
+        color: #fff;
+        opacity: 1;
+    }
+}
+
+.orderPack {
+    min-height: calc(100dvh - var(--admin-header-height) - 40px);
+    padding: 16px 16px 100px;
+    gap: 20px;
+
+    .packInstruction {
+        text-align: center;
+        padding: 8px 0 12px;
+        border-bottom: 1px solid var(--border-tertiary);
+    }
+
+    .packList {
+        padding: 8px 0;
+    }
+
+    .packRow {
+        background: #fff;
+        border: 1px solid var(--border-tertiary);
+        border-radius: 16px;
+        padding: 14px 16px;
+    }
+
+    .packIcon {
+        color: #0a4742;
+    }
+
+    .stepper {
+        background: #f4f6f5;
+        border-radius: 999px;
+        padding: 4px;
+        gap: 12px;
+    }
+    .stepBtn {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        padding: 0;
+        min-width: 32px;
+        background: #fff;
+        border: 1px solid var(--border-tertiary);
+    }
+    .stepValue {
+        min-width: 20px;
+        text-align: center;
+    }
+
+    .transferBtn {
+        width: 300px;
+        max-width: calc(100% - 32px);
+        height: 48px;
+        border-radius: 999px;
+        font-size: 16px;
+        background: #0a4742;
+        color: #fff;
     }
 }
 

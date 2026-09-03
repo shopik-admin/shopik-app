@@ -14,6 +14,7 @@ import {
 } from 'react-icons/lu'
 import { BsFileEarmarkExcel } from 'react-icons/bs'
 import { TbHeartPlus } from 'react-icons/tb'
+import { BsBoxSeam } from "react-icons/bs"
 
 const iconsList = {
     add: LuPlus,
@@ -100,7 +101,8 @@ const iconsList = {
     stockSync: LuBoxes,
     stock: LuBoxes,
     bulb: LuLightbulb,
-    snow: LuSnowflake
+    snow: LuSnowflake,
+    box: BsBoxSeam
 }
 
 /**
