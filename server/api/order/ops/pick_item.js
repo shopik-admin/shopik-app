@@ -90,6 +90,10 @@ export default async function pick_item(payload, { DL, _admin, utils }) {
         update,
         { new: true, arrayFilters }
     ).lean()
+    try {
+        const { default: enrichCart } = await import('#server/utils/data/enrichCart.js')
+        await enrichCart(updated, DL)
+    } catch {}
 
     // audit to pick_history
     try {

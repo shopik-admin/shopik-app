@@ -121,9 +121,9 @@ function OrderPick({ order = {}, setStep, onPicked }) {
     const [tab, setTab] = useState()
     const { openModal, closeModal } = useModal()
     const cart = order.cart || []
-    // to_pick = products with !finalAmount, done_pick = products with finalAmount, wait_pick not now
-    const toPickItems = cart.filter(p => !p.finalAmount)
-    const donePickItems = cart.filter(p => p.finalAmount)
+    const isScanned = p => p.finalAmount != null || !!p.missing
+    const toPickItems = cart.filter(p => !isScanned(p))
+    const donePickItems = cart.filter(p => isScanned(p))
     const isDoneTab = tab === 'done_pick' || tab === 2
     const isWaitTab = tab === 'wait_pick' || tab === 1
     const displayed = isDoneTab ? donePickItems : isWaitTab ? [] : toPickItems

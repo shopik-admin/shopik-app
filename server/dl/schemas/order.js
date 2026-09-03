@@ -176,8 +176,33 @@ export const cartSchema = [{
             type: String,
             enum: Object.values(productConstants.BASE_UNIT)
         },
+        minAmount: Number,
+        step: Number,
         units: Number, // count of units ordered (e.g. 2 watermelons)
         option: unitOptionSchema
+    },
+    // important product snapshot for display in cart / admin pick
+    images: {
+        product: [{
+            main: Boolean,
+            sourceUrl: String,
+            hash: String,
+            sizes: { xl: String, l: String, m: String, s: String },
+            _id: false
+        }],
+        threeSixty: [String]
+    },
+    label: String,
+    producer: String,
+    category: {
+        id: String,
+        title: String,
+        pathIds: [String]
+    },
+    picking: {
+        recommendations: String,
+        minShelflife: Number,
+        allowBarcodeTypeIn: Boolean
     },
     shelfLife: Number,
     shelfLifeDate: Date,

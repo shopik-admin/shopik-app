@@ -2,6 +2,7 @@ import diff from '#common/functions/diff.js'
 import { calcOrder } from '#common/functions/calcOrder/cart.js'
 import filterClientOrder from '#server/utils/data/filterClientOrder.js'
 import { getOrCreateGuestCart } from '#server/utils/data/getGuestCart.js'
+import enrichCart from '#server/utils/data/enrichCart.js'
 
 export default async function product(payload, { DL, _user, utils, cookies, setCookie }) {
     const { id: productId, amount, unitKey, domainId } = payload
@@ -66,8 +67,12 @@ export default async function product(payload, { DL, _user, utils, cookies, setC
             ? await DL.Order.updateOne({ id: cartOrder.id }, update)
             : await DL.GuestCart.updateOne({ id: cartOrder.id }, update)
         if (savedOrder) finalOrder = savedOrder
+        else finalOrder = updatedOrder
+    } else {
+        finalOrder = updatedOrder
     }
 
+    await enrichCart(finalOrder, DL)
     return { order: filterClientOrder(finalOrder) }
 }
 

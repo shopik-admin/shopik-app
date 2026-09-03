@@ -15,32 +15,105 @@ export function ProductImage({ product, size = 'm' }) {
         src={src} alt={product.name} />
 }
 
+export function isWeightProduct(product) {
+    const t = product?.unit?.type
+    return t === 'weight' || t === 'WEIGHT'
+}
+
+export function getUnitLabel(product) {
+    const unit = product?.unit || {}
+    const type = unit.type
+    const base = unit.baseUnit
+    if (type === 'weight') {
+        if (base === 'kg') return 'ק"ג'
+        if (base === 'g') return 'גרם'
+        return 'ק"ג'
+    }
+    if (base === 'kg') return 'ק"ג'
+    if (base === 'g') return 'גרם'
+    return "יח'"
+}
+
+export function formatAmount(product, amount) {
+    if (amount == null || amount === '') return ''
+    const n = Number(amount)
+    if (isNaN(n)) return `${amount} ${getUnitLabel(product)}`
+    const str = Number.isInteger(n) ? String(n) : String(Math.round(n * 1000) / 1000)
+    return `${str} ${getUnitLabel(product)}`
+}
+
+export function getUnitInfoText(product) {
+    if (!product) return ''
+    const label = product.label || product.producer || ''
+    const unit = product.unit
+    let unitText = ''
+    if (unit?.type === 'weight') {
+        if (unit.baseUnit === 'kg') unitText = unit.amount ? `${unit.amount} ק"ג` : 'משקל'
+        else if (unit.baseUnit === 'g') unitText = unit.amount ? `${unit.amount} גרם` : 'משקל'
+        else unitText = 'משקל'
+    } else if (unit?.type === 'pack' || unit?.type === 'item') {
+        unitText = unit.amount ? `${unit.amount} יח'` : ''
+    } else {
+        // fallback to legacy fields
+        if (product.unitType || product.unitAmount) {
+            return getUnitPriceText(product) || ''
+        }
+    }
+    // also handle cart unit with option
+    if (unit?.option?.name) return unit.option.name
+    if (unit?.option?.amount) {
+        const base = unit.baseUnit === 'kg' ? 'ק"ג' : unit.baseUnit === 'g' ? 'גרם' : "יח'"
+        return `${unit.option.amount} ${base}`
+    }
+    if (label && unitText) return `${label} | ${unitText}`
+    if (label) return label
+    if (unitText) return unitText
+    return label || '200 גרם'
+}
+
 export function ProductInfo(props) {
     const { product, sales, size = 'm' } = props
+    const infoText = getUnitInfoText(product)
     return <Flex gap={4} col className={classNames(styles.info, styles[size])}>
         <ProductPrice {...props} />
-        <Text size='xs' mode='sub'>אסם | 200 גרם</Text>
+        {infoText && <Text size='xs' mode='sub'>{infoText}</Text>}
         <Text bold>{product.name}</Text>
     </Flex>
 }
 
 export function ProductButton({ product, amount = 0, onUpdateAmount, size = 'm', sales = {} }) {
+    const step = Number(product?.unit?.step ?? 1)
+    const minAmount = Number(product?.unit?.minAmount ?? step ?? 1)
+    // For weight, show amount with unit label (e.g. "1.5 ק\"ג"); for items show "2 יח'"
+    const displayAmount = formatAmount(product, amount)
+
     // Presentational stepper — caller provides amount and update handler
     // If no handler provided, button is disabled / hidden
     if (!amount) {
         return <Flex className={classNames(styles.productButton, styles[size])} >
             <Button
                 icon='add' preventDefault stopPropagation
-                onClick={() => onUpdateAmount?.(1)}
+                onClick={() => onUpdateAmount?.(minAmount)}
                 disabled={!onUpdateAmount}
             >add_to_cart</Button>
         </Flex >
     }
 
+    const inc = () => {
+        if (!onUpdateAmount) return
+        const next = Math.round((Number(amount) + step) * 1000) / 1000
+        onUpdateAmount(next)
+    }
+    const dec = () => {
+        if (!onUpdateAmount) return
+        const next = Math.round((Number(amount) - step) * 1000) / 1000
+        onUpdateAmount(next)
+    }
+
     return <Flex className={classNames(styles.productButton, styles[size], styles.stepper)}>
-        <Button icon='add' preventDefault stopPropagation onClick={() => onUpdateAmount?.(amount + 1)} disabled={!onUpdateAmount} />
-        <Text size='m' bold className={styles.amount}>{amount}</Text>
-        <Button preventDefault stopPropagation onClick={() => onUpdateAmount?.(amount - 1)} disabled={!onUpdateAmount}>-</Button>
+        <Button icon='add' preventDefault stopPropagation onClick={inc} disabled={!onUpdateAmount} />
+        <Text size='m' bold className={styles.amount}>{displayAmount}</Text>
+        <Button preventDefault stopPropagation onClick={dec} disabled={!onUpdateAmount}>-</Button>
     </Flex>
 }
 

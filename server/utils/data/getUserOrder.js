@@ -1,6 +1,7 @@
 import { findClosestStore } from '#server/api/order/address/update.js'
 import handleSelect from '#server/dl/handleSelect.js'
 import { record, userActor } from './timeline.js'
+import enrichCart from './enrichCart.js'
 
 export default async function getUserOrder({ DL, _user }) {
     const cartOrder = await DL.Order.readOne(
@@ -8,7 +9,10 @@ export default async function getUserOrder({ DL, _user }) {
         DL.Order.defaultSelect
     )
 
-    if (cartOrder) return cartOrder
+    if (cartOrder) {
+        await enrichCart(cartOrder, DL)
+        return cartOrder
+    }
     const { DELIVERY_METHOD } = DL.Order.constants
     if (!_user.deliveryMethod) {
         _user.deliveryMethod = DELIVERY_METHOD.DELIVERY
@@ -45,7 +49,9 @@ export default async function getUserOrder({ DL, _user }) {
             actor: userActor(_user),
             context: { creationData: { deliveryMethod: newOrder.deliveryMethod } }
         })
-        return handleSelect(newOrder, DL.Order.defaultSelect)
+        const selected = handleSelect(newOrder, DL.Order.defaultSelect)
+        await enrichCart(selected, DL)
+        return selected
     } catch (err) {
         const existing = await DL.Order.readOne(
             { userId: _user.id, status: 'cart', active: true },

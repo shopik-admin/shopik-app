@@ -10,13 +10,15 @@ export default function filterClientOrder(order) {
     if (filtered.cart && Array.isArray(filtered.cart)) {
         filtered.cart = filtered.cart.map(item => {
             const clientItem = {}
-            const allowedFields = ['id', 'barcode', 'name', 'amount', 'finalAmount', 'price', 'totalSum', 'regularSum', 'saleSum', 'saleIds', 'missing', 'replacedBy', 'unit']
+            const allowedFields = ['id', 'barcode', 'name', 'amount', 'finalAmount', 'price', 'totalSum', 'regularSum', 'saleSum', 'saleIds', 'missing', 'missingReason', 'replacedBy', 'unit', 'images', 'label', 'producer', 'category', 'storageType', 'picking', 'priceDistribution', 'status', 'replacement']
             for (const key of Object.keys(item)) {
                 if (key.startsWith('admin') || key.startsWith('internal')) continue
                 if (allowedFields.includes(key)) {
                     clientItem[key] = item[key]
                 }
             }
+            // ensure unit present even if missing
+            if (!clientItem.unit && item.unit) clientItem.unit = item.unit
             return clientItem
         })
     }

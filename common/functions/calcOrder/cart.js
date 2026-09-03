@@ -34,11 +34,31 @@ export function buildCartProduct({ product, amount, unitKey, domainId, existingS
         priceDistribution: [],
         missing: false,
         unit: {
-            type: unit?.type || 'item',
-            baseUnit: unit?.baseUnit || 'unit',
+            type: unit?.type || product.unit?.type || 'item',
+            baseUnit: unit?.baseUnit || product.unit?.baseUnit || 'unit',
+            minAmount: product.unit?.minAmount,
+            step: product.unit?.step,
             units,
             option
         },
+        images: product.images ? {
+            product: (product.images.product || []).map(img => ({
+                main: !!img.main,
+                sourceUrl: img.sourceUrl,
+                hash: img.hash,
+                sizes: img.sizes ? { xl: img.sizes.xl, l: img.sizes.l, m: img.sizes.m, s: img.sizes.s } : undefined
+            })),
+            threeSixty: product.images.threeSixty || []
+        } : undefined,
+        label: product.label,
+        producer: product.producer,
+        category: product.category,
+        storageType: product.storageType,
+        picking: product.picking ? {
+            recommendations: product.picking.recommendations,
+            minShelflife: product.picking.minShelflife,
+            allowBarcodeTypeIn: product.picking.allowBarcodeTypeIn
+        } : undefined,
         updatedAt: new Date()
     }
 }
