@@ -56,7 +56,6 @@ export default function Product() {
                             height={560}
                             className={styles.mainImage}
                         />
-                        <ProductSaleBadge product={product} sales={sales} />
                     </div>
 
                     {images.length > 1 && (

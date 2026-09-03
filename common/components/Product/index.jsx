@@ -28,7 +28,7 @@ export function getSaleBadgeText(sale) {
     const percent = sale.percent
     if (sale.kind === 'price' && amount > 1 && price != null) return `מבצע ${amount} ב-${price}`
     if (sale.kind === 'price' && price != null) return `מבצע ב-${price}`
-    if (sale.kind === 'percent' && percent != null) return `מבצע ${percent}% הנחה`
+    if (sale.kind === 'percent' && percent != null) return `${percent}% הנחה`
     if (amount > 1 && price != null) return `מבצע ${amount} ב-${price}`
     if (percent != null) return `מבצע ${percent}%`
     return 'מבצע'
