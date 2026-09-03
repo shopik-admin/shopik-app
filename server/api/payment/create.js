@@ -1,3 +1,5 @@
+import { releaseWindowReservation } from '#server/utils/data/windowGroups.js'
+
 export default async function create(payload, info) {
     const { DL, external, utils, _user } = info
     const { orderId } = payload
@@ -9,10 +11,113 @@ export default async function create(payload, info) {
     if (String(order.userId) !== String(_user.id)) throw { status: 403, message: 'Not your order' }
     if (order.status !== DL.Order.constants.ORDER_STATUS.CART) throw { status: 400, message: 'Order not in cart status' }
 
-    const amount = order.finalSumWithShippingAndHandling ?? order.finalSum ?? order.sum
+    const amount = order.finalSumWithShipping ?? order.finalSum ?? order.sum
     if (!amount || Number(amount) <= 0) throw { status: 400, message: 'Order amount must be > 0' }
 
-    // TODO: add user details to order and return error if any fields are missing or invalid  
+    // ---- Validate required order fields & auto-fill from _user ----
+    const isNonEmpty = (v) => typeof v === 'string' && v.trim().length > 0
+    const hasOrderName = order.name && isNonEmpty(order.name.first) && isNonEmpty(order.name.last)
+    const updates = {}
+    const missingFields = []
+
+    if (!hasOrderName) {
+        const hasUserName = _user.name && isNonEmpty(_user.name.first) && isNonEmpty(_user.name.last)
+        if (hasUserName) {
+            updates.name = { first: _user.name.first.trim(), last: _user.name.last.trim() }
+        } else {
+            missingFields.push('name')
+        }
+    }
+    if (!isNonEmpty(order.email)) {
+        if (isNonEmpty(_user.email)) updates.email = _user.email.trim()
+        else missingFields.push('email')
+    }
+    if (!isNonEmpty(order.phone)) {
+        if (isNonEmpty(_user.phone)) updates.phone = _user.phone.trim()
+        else missingFields.push('phone')
+    }
+
+    const deliveryMethod = order.deliveryMethod || DL.Order.constants.DELIVERY_METHOD.DELIVERY
+    const isPickup = deliveryMethod === DL.Order.constants.DELIVERY_METHOD.PICKUP
+    if (isPickup) {
+        const hasPickupAddress = order.storeId || (order.address && isNonEmpty(order.address.city))
+        if (!hasPickupAddress) {
+            if (_user.pickupStoreId) {
+                try {
+                    const store = await DL.Store.readById(_user.pickupStoreId)
+                    if (store?.id) {
+                        updates.storeId = store.id
+                        if (store.address) updates.address = store.address
+                    } else {
+                        missingFields.push('address')
+                    }
+                } catch {
+                    missingFields.push('address')
+                }
+            } else {
+                missingFields.push('address')
+            }
+        }
+    } else {
+        const addr = order.address
+        const hasDeliveryAddress = addr && isNonEmpty(addr.city) && isNonEmpty(addr.street) && addr.building != null && String(addr.building).trim() !== ''
+        if (!hasDeliveryAddress) {
+            const activeAddr = _user.addresses?.find((a) => a.active) || _user.addresses?.[0]
+            const hasCandidate = activeAddr && isNonEmpty(activeAddr.city) && isNonEmpty(activeAddr.street) && activeAddr.building != null && String(activeAddr.building).trim() !== ''
+            if (hasCandidate) {
+                updates.address = activeAddr
+                if (!order.storeId && activeAddr.location?.coordinates?.length) {
+                    try {
+                        const store = await DL.Store.Model.findOne({
+                            'address.location': {
+                                $nearSphere: {
+                                    $geometry: activeAddr.location,
+                                    $maxDistance: 10 * 1000
+                                }
+                            }
+                        }, { _id: 0, id: 1 }).lean()
+                        if (store?.id) updates.storeId = store.id
+                    } catch { }
+                }
+            } else {
+                missingFields.push('address')
+            }
+        }
+    }
+
+    // If the chosen window's lead time has passed, remove it and treat as missing
+    if (order.window?.leadTimestamp) {
+        const lead = new Date(order.window.leadTimestamp).getTime()
+        if (!Number.isNaN(lead) && lead < Date.now()) {
+            const expiredWindowId = order.window.id
+            const expiredGroupId = order.window.reservedGroupId
+            try { await releaseWindowReservation(DL, expiredWindowId, expiredGroupId) } catch {}
+            try { await DL.Order.updateOne({ id: order.id }, { $unset: { window: 1 } }) } catch {}
+            order.window = undefined
+        }
+    }
+
+    if (!order.window || !order.window.id || !order.window.date) {
+        missingFields.push('window')
+    }
+
+    if (missingFields.length) {
+        if (Object.keys(updates).length) {
+            try {
+                await DL.Order.updateOne({ id: order.id }, updates)
+                Object.assign(order, updates)
+            } catch { }
+        }
+        throw { status: 400, message: `Missing required fields: ${missingFields.join(', ')}`, missingFields, code: 'MISSING_FIELDS' }
+    }
+
+    if (Object.keys(updates).length) {
+        try {
+            const updated = await DL.Order.updateOne({ id: order.id }, updates)
+            if (updated?.id) Object.assign(order, updated)
+            else Object.assign(order, updates)
+        } catch { }
+    }
 
     const hyp = external.hyp
 

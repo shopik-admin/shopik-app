@@ -7,6 +7,7 @@ import { useText } from '#common/texts/TextProvider'
 import { useNavigate, Link } from 'react-router'
 import { useEffect, useRef, useState } from 'react'
 import apiReq from '#common/functions/apiReq'
+import { setSalesCache } from '#common/functions/salesCache.js'
 import styles from './search.module.css'
 
 export default function Search({ }) {
@@ -34,7 +35,10 @@ export default function Search({ }) {
 
         const debounceId = setTimeout(() => {
             apiReq('product/search', { value: trimmed, limit: 10 })
-                .then(products => {
+                .then(res => {
+                    const products = Array.isArray(res) ? res : (res?.products || [])
+                    const sales = Array.isArray(res) ? null : res?.sales
+                    if (sales && typeof sales === 'object' && Object.keys(sales).length) setSalesCache(sales)
                     if (currentRequest === latestRequest.current) setResults(products)
                 })
                 .catch(() => {

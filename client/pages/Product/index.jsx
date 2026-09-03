@@ -1,7 +1,9 @@
 import { useState } from 'react'
+import { useEffect } from 'react'
 import { useParams } from 'react-router'
 import apiReq from '#common/functions/apiReq.js'
 import Loader from '#common/components/Loader'
+import { setSalesCache } from '#common/functions/salesCache.js'
 import Flex from '#common/components/Flex'
 import Image from '#common/components/Image'
 import Text from '#common/components/Text'
@@ -14,13 +16,16 @@ import Breadcrumbs from 'components/Breadcrumbs'
 import NotFound from 'pages/NotFound'
 import { usePage } from 'layout/Page'
 import { getUnitPriceText, ProductButton } from 'pages/Products/ProductCard'
+import { ProductSaleBadge } from 'common/components/Product'
 
 export default function Product() {
     const [selectedImageIndex, setSelectedImageIndex] = useState(0)
     const { productId } = useParams()
     const { loading, pageData } = usePage()
     const { data } = pageData
-    const { product, sale, categoryPath } = data
+    const { product, sale, sales, categoryPath } = data || {}
+    useEffect(() => { if (sales) setSalesCache(sales) }, [sales])
+    useEffect(() => { if (data?.sales) setSalesCache(data.sales) }, [data])
     const productImages = (product?.images?.product || []).filter(img => img?.sizes)
     const images = productImages.length
         ? productImages.map(img => img.sizes.l || img.sizes.xl)
@@ -47,7 +52,7 @@ export default function Product() {
             <Breadcrumbs path={categoryPath ? `products/${categoryPath}` : 'products'} />
             <Flex gap={40} wrap className={styles.body}>
 
-                <Flex className={styles.gallery} col gap={10} alignItems='center' flexGrow={1}>
+                <Flex className={styles.gallery} col gap={10} alignItems='center'>
                     <div className={styles.mainImageWrapper}>
                         <Image
                             src={mainImage}
@@ -56,6 +61,7 @@ export default function Product() {
                             height={560}
                             className={styles.mainImage}
                         />
+                        <ProductSaleBadge product={product} sales={sales} />
                     </div>
 
                     {images.length > 1 && (
@@ -110,7 +116,7 @@ export default function Product() {
                         </Flex>
                     )}
 
-                    <ProductButton product={product} />
+                    <ProductButton product={product} sales={sales || {}} />
                 </Flex>
             </Flex>
         </Flex>

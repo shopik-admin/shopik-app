@@ -229,7 +229,8 @@ export default function router(app, bootData) {
                 message: error.message || error || 'Internal Error',
                 ...(process.env.PRODUCTION || !error.stack ? {} : {
                     stack: error.stack
-                })
+                }),
+                missingFields: error.missingFields || undefined,
             }
             if (requestLog)
                 requestLogPromise = requestLog.error(errorRes)

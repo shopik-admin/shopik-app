@@ -12,7 +12,7 @@ export default async function refund(payload, info) {
     const totalRefund = items.reduce((sum, it) => sum + Number(it.amount || 0), 0)
     if (totalRefund <= 0) throw { status: 400, message: 'Refund total must be > 0' }
 
-    const remainingOrder = Number((order.finalSumWithShippingAndHandling ?? order.finalSum ?? order.sum) - (order.refundedTotal || 0))
+    const remainingOrder = Number((order.finalSumWithShipping ?? order.finalSum ?? order.sum) - (order.refundedTotal || 0))
     if (totalRefund - remainingOrder > 0.001) throw { status: 400, message: `Refund exceeds remaining amount (${remainingOrder})` }
 
     // per-line validation
@@ -50,7 +50,7 @@ export default async function refund(payload, info) {
             context: { step: 'refund_failed', provider: 'hyp', parentProviderTxnId: captureTxnId, amount: totalRefund, reason },
             outcome: { success: false, errorMessage: msg },
             metadata: { source: 'payment/refund' }
-        }).catch(() => {})
+        }).catch(() => { })
         throw { status: e.status || 502, message: msg }
     }
 
@@ -62,7 +62,7 @@ export default async function refund(payload, info) {
             provider: 'hyp', kind: DL.PaymentTransaction.constants.TRANSACTION_KIND.REFUND,
             status: DL.PaymentTransaction.constants.TRANSACTION_STATUS.FAILED,
             amount: totalRefund, parentProviderTxnId: captureTxnId, providerCode: hypRes.CCode, providerData: hypRes, error: msg, reason, items: refundItems
-        }).catch(() => {})
+        }).catch(() => { })
         const { record, adminActor } = utils.data.timeline
         await record({
             DL, order,
@@ -116,12 +116,12 @@ export default async function refund(payload, info) {
             await Model.updateOne(
                 { id: order.id, 'cart.barcode': ri.barcode },
                 { $inc: { 'cart.$.refundedAmount': ri.amount } }
-            ).catch(() => {})
+            ).catch(() => { })
         })
     }
-    await Model.updateOne(updateFilter, updateOps).catch(() => {})
-    const finalSumAfter = Number((order.finalSumWithShippingAndHandling ?? order.finalSum ?? 0) - newRefunded)
-    await Model.updateOne({ id: order.id }, { finalSumAfterRefunds: finalSumAfter }).catch(() => {})
+    await Model.updateOne(updateFilter, updateOps).catch(() => { })
+    const finalSumAfter = Number((order.finalSumWithShipping ?? order.finalSum ?? 0) - newRefunded)
+    await Model.updateOne({ id: order.id }, { finalSumAfterRefunds: finalSumAfter }).catch(() => { })
 
     const { record, adminActor } = utils.data.timeline
     await record({

@@ -120,7 +120,7 @@ export default function hypFactory({ DL }) {
     async function capture({ order, amount }) {
         const { masof, passp, baseUrl } = getConfig()
         const p = order.payment || {}
-        const captureAmount = amount ?? order.finalSumWithShippingAndHandling
+        const captureAmount = amount ?? order.finalSumWithShipping
         const authorizedAmount = p.authorizedAmount
         if (!p.cardToken || !p.cardExpiry) throw { status: 400, message: 'Missing card token for capture' }
         if (!p.authCode) throw { status: 400, message: 'Missing authCode for capture' }

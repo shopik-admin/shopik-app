@@ -7,7 +7,7 @@ export default async function capture(payload, info) {
     if (order.paid) throw { status: 400, message: 'Order already captured' }
     if (!order.payment?.cardToken) throw { status: 400, message: 'No payment token on order' }
 
-    const amount = order.finalSumWithShippingAndHandling ?? order.finalSum ?? order.sum
+    const amount = order.finalSumWithShipping ?? order.finalSum ?? order.sum
     const authorized = Number(order.payment.authorizedAmount || amount)
     const captureAmount = Number(amount)
     const overCaptureAllowed = String(process.env.HYP_OVER_CAPTURE || 'false').toLowerCase() === 'true'
@@ -27,7 +27,7 @@ export default async function capture(payload, info) {
                 provider: 'hyp', kind: DL.PaymentTransaction.constants.TRANSACTION_KIND.CAPTURE,
                 status: DL.PaymentTransaction.constants.TRANSACTION_STATUS.FAILED,
                 amount: captureAmount, providerCode: primary?.CCode, parentProviderTxnId: order.payment.providerTxnId, providerData: primary, error: msg
-            }).catch(() => {})
+            }).catch(() => { })
             await record({
                 DL, order, eventType: DL.Timeline.constants.EVENT_TYPES.PAYMENT,
                 actor: adminActor(_admin),
@@ -87,7 +87,7 @@ export default async function capture(payload, info) {
             status: DL.PaymentTransaction.constants.TRANSACTION_STATUS.FAILED,
             amount: captureAmount, providerTxnId: result.Id ? String(result.Id) : undefined, parentProviderTxnId: order.payment.providerTxnId,
             providerCode: result.CCode, providerData: result, error: msg
-        }).catch(() => {})
+        }).catch(() => { })
         await record({
             DL, order, eventType: DL.Timeline.constants.EVENT_TYPES.PAYMENT,
             actor: adminActor(_admin),

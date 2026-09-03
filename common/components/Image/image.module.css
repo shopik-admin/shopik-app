@@ -6,3 +6,12 @@ div.image {
     background-color: #f5f5f5;
     border-radius: var(--radius-3xl);
 }
+
+.fallback {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    background: #f5f5f5;
+    border-radius: var(--radius-3xl);
+    aspect-ratio: 1 / 1;
+}

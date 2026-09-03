@@ -245,7 +245,7 @@ const orderSchema = {
     pickBy: Date,
     shipBy: Date,
     phone: String,
-    phoneB: String,
+    secondPhone: String,
     email: String,
     name: {
         first: String,
@@ -267,9 +267,16 @@ const orderSchema = {
     coupons: [{
         code: String,
         discount: Number,
+        appliedDiscount: Number,
+        originalDiscount: Number,
+        benefit: String,
         percent: Boolean,
         minSum: Number,
         maxSum: Number,
+        isActive: Boolean,
+        whitelist: [String],
+        blacklist: [String],
+        condition: Object,
         couponMessages: {
             sectionMessage: {
                 text: String
@@ -368,10 +375,10 @@ const orderSchema = {
     tempCartId: String,
     customerUpdatedAt: Date,
     originalSum: Number,
-    sumWithShippingAndHandling: Number,
-    finalSumWithShippingAndHandling: Number,
-    initialShippingAndHandling: Number,
-    finalShippingAndHandling: Number,
+    sumWithShipping: Number,
+    finalSumWithShipping: Number,
+    shipping: Number,
+    finalShipping: Number,
     updateReason: String,
     userOrderNumber: Number,
     orderRestoredFrom: {
@@ -488,8 +495,15 @@ const methods = Order => ({
 const defaultSelect = {
     _id: 0,
     id: 1,
+    number: 1,
     status: 1,
     sum: 1,
+    sumWithShipping: 1,
+    shipping: 1,
+    finalSum: 1,
+    finalSumWithShipping: 1,
+    finalShipping: 1,
+    sumNoCoupon: 1,
     websiteCart: 1,
     cart: 1,
     coupons: 1,
@@ -498,7 +512,7 @@ const defaultSelect = {
     address: 1,
     storeId: 1,
     window: 1,
-    address: 1
+    domainId: 1
 }
 
 const index = [

@@ -39,6 +39,14 @@ export default async function apiReq(path, data = {}, fields) {
             window.__reloading = true
             location.reload()
         }
+        // Preserve structured errors (e.g. MISSING_FIELDS) so callers can inspect missingFields
+        if (err && typeof err === 'object' && (err.missingFields || err.code === 'MISSING_FIELDS')) throw err
+        if (err && typeof err === 'object' && err.message) {
+            // attach raw payload to string error for callers that check err.missingFields
+            const e = new Error(err.message)
+            Object.assign(e, err)
+            throw e
+        }
         throw err?.message || err
     }
 }

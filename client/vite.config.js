@@ -22,7 +22,10 @@ export default defineConfig({
 
   resolve: { alias },
   plugins: [react()],
-  define: { APP_VERSION: JSON.stringify(version) },
+  define: {
+    APP_VERSION: JSON.stringify(version),
+    VITE_FILES_BASE_URL: JSON.stringify(process.env.FILES_BASE_URL || 'https://files.shopik.co.il')
+  },
 
   build: {
     outDir: '../build/client',

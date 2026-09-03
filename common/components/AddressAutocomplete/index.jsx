@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import Autocomplete from '../Autocomplete'
 import Input from '../Input'
 import apiReq from 'common/functions/apiReq'
@@ -10,10 +10,18 @@ import styles from './addressAutocomplete.module.css'
  * Autocomplete uses Input type="text" internally, so no recursion via getInputTag.
  * Server handles provider chain govmap -> osm -> google via ADDRESS_PROVIDER flag.
  */
-export default function AddressAutocomplete({ value = {}, onChange, required }) {
+export default function AddressAutocomplete({ value = {}, onChange, required, cityRef: externalCityRef, streetRef: externalStreetRef, buildingRef: externalBuildingRef }) {
     const [city, setCity] = useState(value.city || '')
     const [street, setStreet] = useState(value.street || '')
     const [building, setBuilding] = useState(value.building || '')
+
+    const internalCityRef = useRef(null)
+    const internalStreetRef = useRef(null)
+    const internalBuildingRef = useRef(null)
+    // use external refs if provided, otherwise internal
+    const cityRef = externalCityRef || internalCityRef
+    const streetRef = externalStreetRef || internalStreetRef
+    const buildingRef = externalBuildingRef || internalBuildingRef
 
     useEffect(() => {
         setCity(value.city || '')
@@ -25,12 +33,12 @@ export default function AddressAutocomplete({ value = {}, onChange, required }) 
         onChange?.(next)
     }
 
-    function focusField(name) {
+    function focusRef(ref) {
         setTimeout(() => {
-            const el = document.querySelector(`input[name="${name}"]`)
+            const el = ref?.current
             if (el) {
                 el.focus()
-                const len = el.value.length
+                const len = el.value?.length ?? 0
                 try { el.setSelectionRange(len, len) } catch { }
             }
         }, 50)
@@ -50,6 +58,7 @@ export default function AddressAutocomplete({ value = {}, onChange, required }) 
     return <div className={styles.addressAutocomplete}>
         <div className={styles.row}>
             <Autocomplete
+                ref={cityRef}
                 label="address.city"
                 placeholder="address.city"
                 name="city_search"
@@ -63,7 +72,7 @@ export default function AddressAutocomplete({ value = {}, onChange, required }) 
                     setStreet('')
                     setBuilding('')
                     emit({ city: nextCity, street: '', building: '' })
-                    focusField('street_search')
+                    focusRef(streetRef)
                 }}
                 onChange={(v) => {
                     const val = typeof v === 'string' ? v : v?.target?.value ?? v
@@ -76,6 +85,7 @@ export default function AddressAutocomplete({ value = {}, onChange, required }) 
                 }}
             />
             <Autocomplete
+                ref={streetRef}
                 label="address.street"
                 placeholder="address.street"
                 name="street_search"
@@ -89,7 +99,7 @@ export default function AddressAutocomplete({ value = {}, onChange, required }) 
                     setStreet(nextStreet)
                     setBuilding('')
                     emit({ city, street: nextStreet, building: '' })
-                    focusField('building_search')
+                    focusRef(buildingRef)
                 }}
                 onChange={(v) => {
                     const val = typeof v === 'string' ? v : v?.target?.value ?? v
@@ -103,6 +113,7 @@ export default function AddressAutocomplete({ value = {}, onChange, required }) 
         </div>
         <div className={styles.row}>
             <Input
+                ref={buildingRef}
                 key={`${city}-${street}`}
                 label="address.building"
                 placeholder="address.building"

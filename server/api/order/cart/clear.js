@@ -21,6 +21,10 @@ export default async function clear(payload, { DL, _user, utils, cookies }) {
         sumNoCoupon: 0,
         finalSum: 0,
         finalSumNoCoupon: 0,
+        shipping: 0,
+        sumWithShipping: 0,
+        finalShipping: 0,
+        finalSumWithShipping: 0,
         customerUpdatedAt: new Date()
     }
 

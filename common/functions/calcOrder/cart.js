@@ -1,5 +1,6 @@
 import { calcOrderSum } from './index.js'
 import { round2 } from './utils.js'
+import { isCouponEligible } from '../coupon.js'
 
 export const CART_PRODUCT_STATUS = {
     ADMIN_ADD: 'admin_add',
@@ -10,9 +11,9 @@ export function buildCartProduct({ product, amount, unitKey, domainId, existingS
     const domainPrice = domainId ? product.prices?.find(p => p.domainId === domainId)?.price : undefined
     const price = domainPrice ?? product.prices?.[0]?.price ?? product.price ?? 0
 
-    let option, unit, units
+    let option, units
+    const unit = product?.unit
     if (unitKey) {
-        unit = product?.unit
         option = unit?.options.find(o => o.key === unitKey) || null
         if (!option)
             throw { status: 400, message: 'Unit option does not exist' }
@@ -34,10 +35,10 @@ export function buildCartProduct({ product, amount, unitKey, domainId, existingS
         priceDistribution: [],
         missing: false,
         unit: {
-            type: unit?.type || product.unit?.type || 'item',
-            baseUnit: unit?.baseUnit || product.unit?.baseUnit || 'unit',
-            minAmount: product.unit?.minAmount,
-            step: product.unit?.step,
+            type: unit?.type || 'item',
+            baseUnit: unit?.baseUnit || 'unit',
+            minAmount: unit?.minAmount || 1,
+            step: unit?.step || 1,
             units,
             option
         },
@@ -63,7 +64,7 @@ export function buildCartProduct({ product, amount, unitKey, domainId, existingS
     }
 }
 
-export function applyCalcToCart({ cart, calcResult }) {
+export function applyCalcToCart({ cart, calcResult, activeSalesOnly = false }) {
     for (let i = 0; i < cart.length; i++) {
         const calcProduct = calcResult.processedCart[i]
         if (!calcProduct) continue
@@ -103,14 +104,15 @@ export function applyCalcToCart({ cart, calcResult }) {
         cartItem.totalSum = round2(totalSum)
         cartItem.regularSum = round2(regularSum)
         cartItem.saleSum = round2(saleSum)
-        cartItem.saleIds = Array.from(activeSaleIds)
+        if (activeSalesOnly)
+            cartItem.saleIds = Array.from(activeSaleIds)
         cartItem.updatedAt = new Date()
     }
 
     return cart
 }
 
-export function calcOrder({ order, product, amount, unitKey, sales }) {
+export function calcOrder({ order, product, amount, unitKey, sales, shippingConfig, user, activeSalesOnly = false }) {
     let cart = (order.cart || []).map(item => ({ ...item }))
 
     if (amount === 0) {
@@ -128,21 +130,88 @@ export function calcOrder({ order, product, amount, unitKey, sales }) {
         if (existingIndex >= 0) {
             cart[existingIndex] = cartProduct
         } else {
-            cart.push(cartProduct)
+            cart.unshift(cartProduct)
         }
     }
-    const calcResult = calcOrderSum({ cart, sales: sales || {} })
-    console.log('calc', { cart, sales: sales || {} })
-    applyCalcToCart({ cart, calcResult })
+    const deliveryMethod = order.deliveryMethod || 'delivery'
+    const calcResult = calcOrderSum({ cart, sales: sales || {}, shippingConfig, deliveryMethod })
+    applyCalcToCart({ cart, calcResult, activeSalesOnly })
+
+    const shipping = calcResult.totals.shipping
+    const sumWithShipping = calcResult.totals.sumWithShipping
+
+    // finalShipping based on sum (pre-coupon) per spec, so same as shipping for client
+    // Keep sumWithShipping for client charging; finalSum for coupon-discounted total
+    const finalSum = calcResult.totals.sum
+    const sumNoCoupon = calcResult.totals.sumBeforeDiscounts
+
+    // Preserve existing coupons: if order has coupons, finalSum should be reduced
+    // Respect minSum via isCouponEligible and handle percent recalc
+    let resolvedFinalSum = finalSum
+    let resolvedFinalShipping = shipping
+    let resolvedFinalSumWithShipping = sumWithShipping
+    let resolvedCoupons = order.coupons ? [...order.coupons] : []
+    if (order.coupons && order.coupons.length) {
+        const oldSum = Number(order.sum || 0)
+        let totalCouponDiscount = 0
+        const updatedCoupons = []
+        for (const c of order.coupons) {
+            const pseudoCoupon = {
+                whitelist: c.whitelist,
+                blacklist: c.blacklist,
+                dynamic: c.minSum != null || !!c.condition,
+                minSum: c.minSum,
+                maxSum: c.maxSum,
+                condition: c.condition,
+            }
+            const eligible = isCouponEligible(pseudoCoupon, user, finalSum).eligible
+            if (!eligible) {
+                // keep coupon but mark inactive – no discount applied
+                updatedCoupons.push({ ...c, isActive: false, appliedDiscount: 0 })
+                continue
+            }
+            const storedDiscount = Number(c.discount || 0)
+            // For percent coupons storedDiscount is absolute at old sum; derive rate from original coupon data if available
+            let newDiscount = 0
+            if (c.percent) {
+                // Prefer originalDiscount/benefit if available, else derive rate from stored
+                if (c.originalDiscount != null || c.benefit === 'percent') {
+                    const rate = c.originalDiscount != null ? Number(c.originalDiscount) / 100 : (oldSum > 0 ? storedDiscount / oldSum : 0)
+                    newDiscount = round2(finalSum * rate)
+                } else {
+                    const rate = oldSum > 0 ? storedDiscount / oldSum : 0
+                    newDiscount = rate > 0 ? round2(finalSum * rate) : storedDiscount
+                }
+                if (c.maxSum != null && c.maxSum !== undefined) newDiscount = Math.min(newDiscount, Number(c.maxSum))
+                newDiscount = Math.min(newDiscount, finalSum)
+            } else {
+                newDiscount = Math.min(storedDiscount, finalSum)
+            }
+            const updated = { ...c, isActive: true, appliedDiscount: newDiscount, discount: newDiscount }
+            // Preserve original discount for future recalc if needed
+            if (c.originalDiscount == null && c.percent) updated.originalDiscount = c.discount
+            updatedCoupons.push(updated)
+            totalCouponDiscount += newDiscount
+        }
+        resolvedFinalSum = Math.max(0, round2(finalSum - totalCouponDiscount))
+        resolvedFinalShipping = shipping
+        resolvedFinalSumWithShipping = round2(resolvedFinalSum + resolvedFinalShipping)
+        resolvedCoupons = updatedCoupons
+    }
 
     return {
         ...order,
         cart,
         sales: calcResult.cartSaleDetails || sales,
+        coupons: resolvedCoupons,
         sum: calcResult.totals.sum,
-        sumNoCoupon: calcResult.totals.sumBeforeDiscounts,
-        finalSum: calcResult.totals.sum,
-        finalSumNoCoupon: calcResult.totals.sumBeforeDiscounts,
+        sumNoCoupon,
+        finalSum: resolvedFinalSum,
+        finalSumNoCoupon: sumNoCoupon,
+        shipping,
+        sumWithShipping,
+        finalShipping: resolvedFinalShipping,
+        finalSumWithShipping: resolvedFinalSumWithShipping,
         customerUpdatedAt: new Date()
     }
 }
