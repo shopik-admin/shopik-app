@@ -14,7 +14,12 @@ export function ProductImage({ product, size = 'm' }) {
     useEffect(() => { setFailed(false) }, [product?.id, size])
     const src = product?.id ? getProductImageUrl(product.id, size) : ''
     if (failed || !src) {
-        return <Flex center className={classNames(styles.productImage, styles[size])} style={{ background: '#f5f5f5', borderRadius: 'var(--radius-3xl)' }}><Icon name="image" size={32} style={{ opacity: 0.35 }} /></Flex>
+        return <Flex
+            center
+            className={classNames(styles.productImage, styles[size], styles.productImageFallback)}
+        >
+            <Icon name="image" size={32} style={{ opacity: 0.35 }} />
+        </Flex>
     }
 
     return <Image
@@ -89,11 +94,7 @@ export function ProductInfo(props) {
 }
 
 export function ProductButton({ product, amount = 0, onUpdateAmount, size = 'm', sales = {} }) {
-    const step = Number(product?.unit?.step ?? 1)
-    const minAmount = Number(product?.unit?.minAmount ?? step ?? 1)
     // For weight, show amount with unit label (e.g. "1.5 ק\"ג"); for items show "2 יח'"
-    const displayAmount = formatAmount(product, amount)
-
     // Presentational stepper — caller provides amount and update handler
     // If no handler provided, button is disabled / hidden
     const minAmount = product?.unit?.minAmount || 1
@@ -109,6 +110,7 @@ export function ProductButton({ product, amount = 0, onUpdateAmount, size = 'm',
         </Flex >
     }
 
+    const displayAmount = formatAmount(product, amount)
     const handleInc = () => onUpdateAmount?.(round3(amount + step))
     const handleDec = () => {
         const next = round3(amount - step)
@@ -117,7 +119,7 @@ export function ProductButton({ product, amount = 0, onUpdateAmount, size = 'm',
 
     return <Flex className={classNames(styles.productButton, styles[size], styles.stepper)}>
         <Button icon='add' preventDefault stopPropagation onClick={handleInc} disabled={!onUpdateAmount} />
-        <Text size='m' bold className={styles.amount}>{amount}</Text>
+        <Text size='m' bold className={styles.amount}>{displayAmount}</Text>
         <Button preventDefault stopPropagation onClick={handleDec} disabled={!onUpdateAmount}>-</Button>
     </Flex>
 }

@@ -29,10 +29,13 @@ export default function OrderProvider({ children }) {
     const seqRef = useRef(0)
     const timersRef = useRef(new Map())
     const pendingRef = useRef(new Map())
+    const queueRef = useRef(Promise.resolve())
+    const unconfirmedRef = useRef(new Map())
 
     const queueCartSync = (product, amount) => {
         const id = product?.id
         if (!id) return
+        unconfirmedRef.current.set(id, amount)
         pendingRef.current.set(id, { product, amount })
         if (timersRef.current.has(id)) clearTimeout(timersRef.current.get(id))
         const tid = setTimeout(() => {
@@ -42,11 +45,19 @@ export default function OrderProvider({ children }) {
             timersRef.current.delete(id)
             const seq = ++seqRef.current
             const domainId = orderRef.current?.domainId
-            apiReq('order/cart/product', { id: pending.product.id, amount: pending.amount, domainId })
+            const task = () => apiReq('order/cart/product', { id: pending.product.id, amount: pending.amount, domainId })
                 .then(({ order: serverOrder, sales }) => {
                     if (sales) setSalesCache(sales)
+                    const cur = unconfirmedRef.current.get(pending.product.id)
+                    if (cur === pending.amount) unconfirmedRef.current.delete(pending.product.id)
+                    const hasPending = unconfirmedRef.current.size > 0 || timersRef.current.size > 0
+                    if (hasPending) return
                     if (seq === seqRef.current && serverOrder) setOrder(serverOrder)
-                }).catch(() => { })
+                }).catch(() => {
+                    const cur = unconfirmedRef.current.get(pending.product.id)
+                    if (cur === pending.amount) unconfirmedRef.current.delete(pending.product.id)
+                })
+            queueRef.current = queueRef.current.then(task, task)
         }, CART_SYNC_DEBOUNCE_MS)
         timersRef.current.set(id, tid)
     }
