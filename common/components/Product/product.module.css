@@ -34,15 +34,12 @@
     position: absolute;
     inset-inline-start: -10px;
     bottom: 25px;
-    display: inline-flex;
-    align-items: center;
     gap: 4px;
     background: var(--color-brand-secondary);
     color: var(--text-primary);
-    padding: 2px var(--spacing-md);
+    padding: 5px;
+    padding-inline-end: 10px;
     border-radius: var(--radius-full) 0 0 var(--radius-full);
-    font-size: var(--text-xs);
-    line-height: var(--line-height-text-xs);
     font-weight: var(--font-weight-bold);
     z-index: 1;
     max-width: calc(100% - var(--spacing-lg));
@@ -51,10 +48,14 @@
 }
 
 .saleBadgeText {
+    position: relative;
+    top: 1px;
     color: var(--text-primary);
 }
 
 .saleBadgeIcon {
+    position: relative;
+    top: 1px;
     flex-shrink: 0;
     color: var(--text-primary);
 }

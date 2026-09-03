@@ -1,4 +1,4 @@
-import { ProductButton, ProductImage, ProductInfo, formatAmount, getUnitLabel, isWeightProduct } from 'common/components/Product'
+import { ProductButton, ProductImage, ProductInfo, formatAmount, getUnitLabel, isWeightProduct, getFirstSale, getInlineSaleBarText } from 'common/components/Product'
 import classNames from 'common/functions/classNames'
 import styles from './productInline.module.css'
 import Button from 'common/components/Button'
@@ -20,6 +20,7 @@ export default function ProductInline({
     admin = false,
     variant,
     icon,
+    saleTotalAmount,
     ...props
 }) {
     const [noteOpen, setNoteOpen] = useState()
@@ -55,7 +56,7 @@ export default function ProductInline({
         const iconName = icon || (missing ? 'x' : supplied != null ? 'check' : isCold ? 'snow' : 'stock')
 
         return <Flex tag={Card} gap={10} className={classNames(styles.productInline, styles.admin, cardStatus)} {...props}>
-            <ProductImage product={product} size={size} />
+            <ProductImage product={product} size={size} hideSaleBadge />
             <Flex col gap={5} grow={1} justifyContent='space-around'>
                 <Icon name={iconName} size={16} className={classNames(styles.remove, styles.iconSlot, pillStatus)} />
                 <ProductInfo product={product} sales={sales} size={size} />
@@ -76,18 +77,31 @@ export default function ProductInline({
         </Flex>
     }
 
-    return <Flex tag={Card} gap={10} className={styles.productInline} {...props}>
-        <ProductImage product={product} size={size} />
-        <Flex col gap={5} justifyContent='space-around' grow={1}>
-            {remove && onRemove && <Button icon='trash' mode='text' stopPropagation preventDefault onClick={onRemove} className={styles.remove} />}
-            <ProductInfo product={product} sales={sales} size={size} />
-            <Flex alignItems='center' justifyContent='space-between'>
-                {note && <Button
-                    onClick={() => setNoteOpen(n => !n)}
-                    icon='note' mode='text' stopPropagation preventDefault
-                    className={classNames(styles.note, [styles.active, noteOpen])} />}
-                {(onUpdateAmount != null || amount != null) && <ProductButton product={product} amount={amount} onUpdateAmount={onUpdateAmount} size={size} sales={sales} />}
+    const sale = getFirstSale(product, sales)
+    const showSaleBar = !!sale && !isAdmin
+    const saleAmountForBar = saleTotalAmount != null ? saleTotalAmount : (amount ?? product?.amount ?? 0)
+    const saleBarText = showSaleBar ? getInlineSaleBarText(sale, saleAmountForBar) : null
+
+    return <Card className={classNames(styles.productInline, styles.cardWithSaleBar)} {...props}>
+        <Flex gap={10} className={styles.productInlineMain}>
+            <ProductImage product={product} size={size} hideSaleBadge />
+            <Flex col gap={5} justifyContent='space-around' grow={1}>
+                {remove && onRemove && <Button icon='trash' mode='text' stopPropagation preventDefault onClick={onRemove} className={styles.remove} />}
+                <ProductInfo product={product} sales={sales} size={size} />
+                <Flex alignItems='center' justifyContent='space-between'>
+                    {note && <Button
+                        onClick={() => setNoteOpen(n => !n)}
+                        icon='note' mode='text' stopPropagation preventDefault
+                        className={classNames(styles.note, [styles.active, noteOpen])} />}
+                    {(onUpdateAmount != null || amount != null) && <ProductButton product={product} amount={amount} onUpdateAmount={onUpdateAmount} size={size} sales={sales} />}
+                </Flex>
             </Flex>
         </Flex>
-    </Flex>
+        {showSaleBar && saleBarText && (
+            <Flex alignItems="center" justifyContent="center" gap={6} className={styles.saleInlineBar}>
+                <Icon name="salePercent" size={18} className={styles.saleInlineBarIcon} />
+                <Text size="m" bold className={styles.saleInlineBarText}>{saleBarText}</Text>
+            </Flex>
+        )}
+    </Card>
 }

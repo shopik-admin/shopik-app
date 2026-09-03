@@ -23,8 +23,6 @@ export function getFirstSale(product, sales) {
 
 export function getSaleBadgeText(sale) {
     if (!sale) return null
-    // fallback: generate from kind/amount/price/percent
-    console.log('getSaleBadgeText', sale)
     const amount = sale.amount
     const price = sale.price
     const percent = sale.percent
@@ -36,21 +34,46 @@ export function getSaleBadgeText(sale) {
     return 'מבצע'
 }
 
+export function getSaleRemaining(sale, amount) {
+    if (!sale || !sale.amount || sale.amount <= 1) return 0
+    if (sale.kind === 'percent') return 0
+    const required = Number(sale.amount)
+    if (!required || required <= 1) return 0
+    const cur = Number(amount) || 0
+    if (cur <= 0) return required
+    const mod = cur % required
+    const epsilon = 1e-6
+    if (Math.abs(mod) < epsilon || Math.abs(mod - required) < epsilon) return 0
+    const remaining = round3(Math.ceil(cur / required) * required - cur)
+    if (remaining <= epsilon) return 0
+    return remaining
+}
+
+export function getInlineSaleBarText(sale, amount) {
+    if (!sale) return null
+    const remaining = getSaleRemaining(sale, amount)
+    if (remaining > 0) {
+        const formatted = Number.isInteger(remaining) ? String(remaining) : String(Math.round(remaining * 1000) / 1000)
+        return `עוד ${formatted} יח' בשביל לקבל את המבצע`
+    }
+    return getSaleBadgeText(sale)
+}
+
 export function ProductSaleBadge({ product, sales, size = 'm' }) {
     const sale = getFirstSale(product, sales)
     if (!sale) return null
     const label = getSaleBadgeText(sale)
     return <Flex alignItems="center" gap={4} className={classNames(styles.saleBadge, styles[size])}>
-        <Icon name="salePercent" size={12} className={styles.saleBadgeIcon} />
-        <Text size="xs" bold className={styles.saleBadgeText}>{label}</Text>
+        <Icon name="salePercent" size={14} className={styles.saleBadgeIcon} />
+        <Text size="s" bold className={styles.saleBadgeText}>{label}</Text>
     </Flex>
 }
 
-export function ProductImage({ product, size = 'm', sales }) {
+export function ProductImage({ product, size = 'm', sales, hideSaleBadge = false }) {
     const [failed, setFailed] = useState(false)
     useEffect(() => { setFailed(false) }, [product?.id, size])
     const src = product?.id ? getProductImageUrl(product.id, size) : ''
-    const saleBadge = <ProductSaleBadge product={product} sales={sales} size={size} />
+    const saleBadge = hideSaleBadge ? null : <ProductSaleBadge product={product} sales={sales} size={size} />
     if (failed || !src) {
         return <div className={classNames(styles.productImageWrapper, styles[size])}>
             <Flex
