@@ -80,19 +80,23 @@ export default function SupplyAreas() {
         viewportFetchedRef.current = true
         viewportBoundsRef.current = bounds
         try {
-            const data = await apiReq('supply_area/read', { bounds, limit: 0, select: { id: 1, name: 1, location: 1, stores: 1 } })
+            const data = await apiReq('supply_area/read', {
+                // bounds,
+                limit: 0,
+                select: { id: 1, name: 1, location: 1, stores: 1 }
+            })
             if (Array.isArray(data)) {
                 setAreas(prev => {
                     if (prev.length === 0) return data
                     return mergeById(prev, data)
                 })
             }
-        } catch (_) {}
+        } catch (_) { }
         setLoading(false)
     }, [])
 
     const startBackgroundFetch = useCallback(async () => {
-        // return
+        return
         if (bgRunningRef.current) return
         bgRunningRef.current = true
         setBgLoading(true)
