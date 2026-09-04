@@ -21,7 +21,7 @@ export default function Setting({ setting, onUpdate, onEditFull, onDelete }) {
     const darkRef = useRef(null)
     const { isSuperAdmin, role: adminRole } = useUser() || {}
     const canEditValues = isSuperAdmin || adminRole?.permissions?.includes('setting:update')
-    const canEditKeys = !isSuperAdmin
+    const canEditKeys = !!isSuperAdmin
 
     useEffect(() => {
         setValue(initialValue ?? '')
