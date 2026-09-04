@@ -1,3 +1,29 @@
+.orderTitle {
+    position: fixed;
+    top: var(--safeTop, 0px);
+    padding-top: calc(20px + var(--safeTop, 0px));
+    padding-inline-start: var(--safeLeft, 0px);
+    padding-inline-end: var(--safeRight, 0px);
+    z-index: 999;
+    background-color: var(--bg-primary);
+    inset-inline-start: 15px;
+    inset-inline-end: 15px;
+
+    button {
+        padding: 0 !important;
+
+        svg {
+            height: 24px;
+            width: 24px;
+        }
+    }
+
+    h3 {
+        position: relative;
+        top: -2px;
+    }
+}
+
 .orderPreview {
     height: calc(100dvh - 20px - var(--admin-header-height));
     position: relative;
@@ -57,8 +83,10 @@
 .footer {
     position: fixed;
     bottom: 0;
-    padding: 20px 0;
-    padding-bottom: calc(20px + env(safe-area-inset-bottom));
+    padding: 20px 16px;
+    padding-bottom: calc(20px + var(--safeBottom, 0px));
+    padding-inline-start: calc(16px + var(--safeLeft, 0px));
+    padding-inline-end: calc(16px + var(--safeRight, 0px));
     width: 100%;
     inset-inline-start: 0;
     background-color: var(--bg-primary);
@@ -67,14 +95,16 @@
 .orderPick {
     .tabs {
         position: sticky;
-        top: calc(var(--admin-header-height));
+        top: calc(var(--admin-header-height) + var(--safeTop, 0px));
         z-index: 2;
         background: var(--bg-primary);
     }
 
     .cartList {
         margin-block: 20px;
-        padding-bottom: 80px;
+        padding-bottom: calc(80px + var(--safeBottom, 0px));
+        padding-inline-start: var(--safeLeft, 0px);
+        padding-inline-end: var(--safeRight, 0px);
     }
 
     .finishBtn {
@@ -86,6 +116,7 @@
         background: #0a4742;
         color: #fff;
     }
+
     .finishBtn:disabled {
         background: #c5cfcc;
         color: #fff;
@@ -94,8 +125,10 @@
 }
 
 .orderPack {
-    min-height: calc(100dvh - var(--admin-header-height) - 40px);
-    padding: 16px 16px 100px;
+    min-height: calc(100dvh - var(--admin-header-height) - var(--safeTop, 0px) - var(--safeBottom, 0px) - 40px);
+    padding: 16px 16px calc(100px + var(--safeBottom, 0px));
+    padding-inline-start: calc(16px + var(--safeLeft, 0px));
+    padding-inline-end: calc(16px + var(--safeRight, 0px));
     gap: 20px;
 
     .packInstruction {
@@ -125,6 +158,7 @@
         padding: 4px;
         gap: 12px;
     }
+
     .stepBtn {
         width: 32px;
         height: 32px;
@@ -134,6 +168,7 @@
         background: #fff;
         border: 1px solid var(--border-tertiary);
     }
+
     .stepValue {
         min-width: 20px;
         text-align: center;

@@ -7,12 +7,13 @@ import Text from 'common/components/Text'
 import Collapse from 'common/components/Collapse'
 import ProductInline from 'layout/Cart/ProductInline'
 import OrderSummary from './OrderSummary'
+import CheckoutSuccess from './CheckoutSuccess'
 import styles from './checkout.module.css'
 import { useText } from 'common/texts/TextProvider'
 import apiReq from 'common/functions/apiReq'
 import Loader from 'common/components/Loader'
 import { useAppData } from 'App'
-import { useMemo } from 'react'
+import { useMemo, useRef } from 'react'
 import { extractLimits, getMinSumForMethod, getRemainingToMin } from '#common/functions/limits.js'
 import render from '#common/functions/render.js'
 
@@ -25,6 +26,7 @@ export default function Checkout() {
     const [paying, setPaying] = useState(false)
     const [payError, setPayError] = useState()
     const [missingFields, setMissingFields] = useState([])
+    const [doneOrder, setDoneOrder] = useState(null)
 
     const cart = order?.cart || []
     const totalItemsCount = cart.reduce((acc, item) => acc + (item.amount || item.units || 1), 0)
@@ -80,6 +82,54 @@ export default function Checkout() {
         setMissingFields(prev => (prev.includes('window') ? prev : [...prev, 'window']))
     }, [order?.window?.leadTimestamp, order?.window?.id])
 
+    // Listen for hyp callback postMessage (lightweight loader html) + fetch updated order
+    const iframeRef = useRef(null)
+    useEffect(() => {
+        function onMessage(e) {
+            if (e.origin !== window.location.origin) return
+            const data = e.data || {}
+            if (data.type !== 'hyp_callback') return
+            if (data.ok && data.orderNumber) {
+                // verify via API then show success
+                apiReq('order/status', { orderNumber: data.orderNumber }).then(res => {
+                    const paidOrder = res?.order || res?.data || order
+                    if (paidOrder?.status === 'paid' || data.ok) {
+                        setDoneOrder(paidOrder?.id ? paidOrder : { ...order, number: data.orderNumber })
+                        setPaymentUrl(null)
+                    }
+                }).catch(() => {
+                    setDoneOrder({ ...order, number: data.orderNumber })
+                    setPaymentUrl(null)
+                })
+            } else if (data.ok === false) {
+                setPayError({ message: data.error || 'payment_failed_generic' })
+                setPaymentUrl(null)
+            }
+        }
+        window.addEventListener('message', onMessage)
+        return () => window.removeEventListener('message', onMessage)
+    }, [order])
+
+    function handleIframeLoad(e) {
+        try {
+            const loc = e.target.contentDocument?.location
+            if (!loc) return
+            const href = loc.href || ''
+            const search = loc.search || ''
+            // fallback if postMessage missed - check query for Order/CCode
+            if (href.includes('hyp/callback') || href.includes('success') || search.includes('CCode=')) {
+                const params = new URLSearchParams(search)
+                const orderNumber = params.get('Order') || params.get('order')
+                const ccode = params.get('CCode') ?? params.get('Ccode')
+                const isOk = ccode === '0' || ccode === '700'
+                if (isOk && orderNumber) {
+                    setDoneOrder(prev => prev || { ...order, number: orderNumber })
+                    setPaymentUrl(null)
+                }
+            }
+        } catch {}
+    }
+
     async function handlePayment() {
         if (paying) return
         if (isBelowMinSum) {
@@ -126,6 +176,10 @@ export default function Checkout() {
         }
     }
 
+    if (doneOrder) {
+        return <CheckoutSuccess order={doneOrder} />
+    }
+
     return user?.id && (
         <div className={styles.checkoutPage}>
             <Flex gap={24} className={styles.container}>
@@ -137,11 +191,14 @@ export default function Checkout() {
                         </Flex>
                     ) : paymentUrl ? (
                         <div className={styles.paymentFrameWrapper}>
+                            <Loader size={28} />
                             <iframe
+                                ref={iframeRef}
                                 src={paymentUrl}
                                 title='payment'
                                 className={styles.paymentFrame}
                                 allow='payment'
+                                onLoad={handleIframeLoad}
                             />
                         </div>
                     ) : (

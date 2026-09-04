@@ -2,7 +2,9 @@
     width: 100%;
     max-width: var(--max-width, 1200px);
     margin: 0 auto;
-    padding: 24px 16px 40px;
+    padding: 24px 16px calc(40px + var(--safeBottom, 0px));
+    padding-inline-start: calc(16px + var(--safeLeft, 0px));
+    padding-inline-end: calc(16px + var(--safeRight, 0px));
     direction: rtl;
 }
 
@@ -30,6 +32,7 @@
     border-radius: 12px;
     overflow: hidden;
     background: #fff;
+    position: relative;
     /*  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06); */
 }
 
@@ -38,6 +41,8 @@
     height: 680px;
     border: none;
     display: block;
+    position: relative;
+    z-index: 1;
 }
 
 .payError {

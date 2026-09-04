@@ -9,7 +9,7 @@ import styles from './opsOrder.module.css'
 import Text from 'common/components/Text'
 import Icon from 'common/components/Icon'
 import Flex from 'common/components/Flex'
-import { useParams } from 'react-router'
+import { useNavigate, useParams } from 'react-router'
 import { useUser } from 'features/User'
 import { useState, useEffect } from 'react'
 import Tabs from '#common/components/Tabs/index.jsx'
@@ -41,6 +41,7 @@ export default function OpsOrder({ }) {
     const { id } = useUser()
     const isMine = id == order.picker?.adminId,
         cantPick = !isMine && order.picker?.adminId
+    const navigate = useNavigate()
 
     useEffect(() => {
         if (loading || !order?.status) return
@@ -71,14 +72,20 @@ export default function OpsOrder({ }) {
         }
     }
 
-    return StepComponent ? <StepComponent
-        order={order}
-        claimOrder={claimOrder}
-        isMine={isMine}
-        cantPick={cantPick}
-        setStep={setStep}
-        onPicked={handlePicked}
-    /> : null
+    return <>
+        <Flex gap={15} center className={styles.orderTitle}>
+            <Button icon='back' mode='text' onClick={() => navigate('/ops')} />
+            <Text size='h3' bold >הזמנה {order.number}</Text>
+        </Flex>
+        {StepComponent ? <StepComponent
+            order={order}
+            claimOrder={claimOrder}
+            isMine={isMine}
+            cantPick={cantPick}
+            setStep={setStep}
+            onPicked={handlePicked}
+        /> : null}
+    </>
 }
 
 function OrderPreview({ order = {}, claimOrder, isMine, cantPick, setStep }) {

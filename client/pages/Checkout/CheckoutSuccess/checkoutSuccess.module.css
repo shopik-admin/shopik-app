@@ -1,0 +1,115 @@
+.successPage {
+    width: 100%;
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 40px 16px calc(40px + var(--safeBottom, 0px));
+    padding-inline-start: calc(16px + var(--safeLeft, 0px));
+    padding-inline-end: calc(16px + var(--safeRight, 0px));
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+    direction: rtl;
+}
+
+.iconWrap {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background-color: var(--bg-brand-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.icon {
+    font-size: 32px;
+    color: var(--text-white);
+}
+
+.title {
+    color: var(--text-primary);
+    text-align: center;
+}
+
+.orderNumber {
+    color: var(--text-secondary);
+    text-align: center;
+    margin-top: 4px;
+}
+
+.card {
+    width: 100%;
+    max-width: 520px;
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-tertiary);
+    border-radius: var(--radius-3xl);
+    padding: 20px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.cardTitle {
+    text-align: center;
+    color: var(--text-primary);
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border-secondary);
+    margin-bottom: 4px;
+}
+
+.row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 4px;
+    border-bottom: 1px solid var(--border-tertiary);
+}
+
+.row:last-of-type {
+    border-bottom: none;
+}
+
+.label {
+    color: var(--text-tertiary);
+    font-size: var(--text-sm);
+    white-space: nowrap;
+}
+
+.value {
+    color: var(--text-primary);
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-semibold);
+    text-align: end;
+    flex: 1;
+    min-width: 0;
+}
+
+.totalRow {
+    border-bottom: none;
+    padding-top: 16px;
+    margin-top: 4px;
+}
+
+.totalValue {
+    color: var(--text-primary);
+    font-size: var(--text-md);
+    font-weight: var(--font-weight-bold);
+}
+
+.homeBtn {
+    color: var(--text-brand);
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-semibold);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 8px 16px;
+    text-decoration: none;
+}
+
+.homeBtn:hover {
+    text-decoration: underline;
+}

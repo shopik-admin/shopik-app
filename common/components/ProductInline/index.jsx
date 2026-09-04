@@ -65,10 +65,10 @@ export default function ProductInline({
                     <Icon name="barcode" size={12} />
                     <Text size="xs" mode="sub">{barcode}</Text>
                 </Flex>}
-                <Flex gap={6} wrap alignItems="center" className={styles.pillsRow}>
-                    <Text size="xs" className={classNames(styles.pill, !missing && pillStatus)}>הוזמן: {orderedLabel}</Text>
-                    {missing ? <Text size="xs" className={styles.missingText}>חסר במלאי</Text>
-                        : supplied != null ? <Text size="xs" className={classNames(styles.pill, pillStatus)}>סופק: {suppliedLabel}</Text> : null}
+                <Flex gap={6} wrap alignItems="center" justifyContent="space-between" className={classNames(styles.pill, !missing && pillStatus)}>
+                    <Text size="s" bold>הוזמן: {orderedLabel}</Text>
+                    {missing ? <Text size="xs" className={styles.missingText} bold>חסר במלאי</Text>
+                        : supplied != null ? <Text size="s" className={classNames(pillStatus)} bold>סופק: {suppliedLabel}</Text> : null}
                 </Flex>
                 {product.picking?.recommendations && <Flex alignItems="center" gap={6} className={styles.noteRow}>
                     <Icon name="note" size={12} />

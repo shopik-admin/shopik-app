@@ -6,16 +6,20 @@ import Icon from 'common/components/Icon'
 import Text from 'common/components/Text'
 import styles from './ops.module.css'
 import { DeliveryMethodTag, formatWindow } from './orderUtils'
+import render from '#common/functions/render.js'
+import ProgressGauge from '#common/components/ProgressGauge/index.jsx'
 
 export default function OrderCard({ order = {} }) {
     const
-        { deliveryMethod, status, storeId } = order,
+        { deliveryMethod, status, storeId, cart = [] } = order,
         windowTime = formatWindow(order.window),
         done = status == 'done',
         { stores } = useLists(),
         store = stores.find(s => s.value == storeId),
         address = deliveryMethod == 'pickup' ? store?.address : order.address,
-        navigate = useNavigate()
+        navigate = useNavigate(),
+        total = cart.length,
+        handled = cart.filter(p => p.finalAmount != null || !!p.missing).length
 
     function onOrderCardClick() {
         navigate(`/ops-order/${order.id}`)
@@ -33,7 +37,7 @@ export default function OrderCard({ order = {} }) {
                 <Text bold>|</Text>
                 <Text bold>{order.number}</Text>
             </Flex>
-            <Text size='s'>שם הלקוח</Text>
+            <Text size='s'>{render({ type: 'name', value: order.name })}</Text>
         </Flex>
         <Flex className={styles.row} alignItems='center' justifyContent='space-between' >
             <Flex gap={5} alignItems='center' >
@@ -49,10 +53,13 @@ export default function OrderCard({ order = {} }) {
                 <Text size='s'>{windowTime.dayText}</Text>
             </Flex>
         </Flex>
-        <Flex className={styles.row} justifyContent='space-around'>
-            <Flex col gap={5}>
-                <Text bold size='xl'>8/20</Text>
-                <Text size='s' mode='sub'>מוצרים שטופלו</Text>
+        <Flex className={styles.row} justifyContent='space-between'>
+            <Flex gap={20} center>
+                <ProgressGauge value={(handled / total) * 100} />
+                <Flex col gap={5}>
+                    <Text bold size='xl'>{handled}/{total}</Text>
+                    <Text size='s' mode='sub'>מוצרים שטופלו</Text>
+                </Flex>
             </Flex>
             <Flex col gap={5} center>
                 <Text bold size='xl'>{windowTime.text}</Text>

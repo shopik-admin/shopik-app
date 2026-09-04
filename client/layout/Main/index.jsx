@@ -5,7 +5,7 @@ import { useCart } from 'layout/Cart/CartProvider'
 
 export default function Main({ children }) {
     const { cartOpen } = useCart()
-    return <Flex gap={20} tag='main' className={classNames(styles.main, [styles.shifted, cartOpen])}>
+    return <Flex grow gap={20} tag='main' className={classNames(styles.main, [styles.shifted, cartOpen])}>
         {children}
     </Flex>
 }
