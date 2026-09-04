@@ -1,3 +1,26 @@
+.orderTitle {
+    position: fixed;
+    top: 0px;
+    padding-top: 20px;
+    z-index: 999;
+    background-color: var(--bg-primary);
+    inset-inline-start: 15px;
+
+    button {
+        padding: 0 !important;
+
+        svg {
+            height: 24px;
+            width: 24px;
+        }
+    }
+
+    h3 {
+        position: relative;
+        top: -2px;
+    }
+}
+
 .orderPreview {
     height: calc(100dvh - 20px - var(--admin-header-height));
     position: relative;
@@ -86,6 +109,7 @@
         background: #0a4742;
         color: #fff;
     }
+
     .finishBtn:disabled {
         background: #c5cfcc;
         color: #fff;
@@ -125,6 +149,7 @@
         padding: 4px;
         gap: 12px;
     }
+
     .stepBtn {
         width: 32px;
         height: 32px;
@@ -134,6 +159,7 @@
         background: #fff;
         border: 1px solid var(--border-tertiary);
     }
+
     .stepValue {
         min-width: 20px;
         text-align: center;

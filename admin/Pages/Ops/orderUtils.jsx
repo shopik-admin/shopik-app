@@ -31,7 +31,7 @@ export function formatWindow(w) {
     const minutes = totalMinutes % 60
 
     const text = days > 0
-        ? `${days}d ${String(hours).padStart(2, '0')}h`
+        ? `${days} ימים ${String(hours).padStart(2, '0')} שעות`
         : `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
 
     return {
