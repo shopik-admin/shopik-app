@@ -14,6 +14,7 @@ import Addresses, { AddressForm } from 'pages/Account/Addresses'
 import { useText } from 'common/texts/TextProvider'
 import { CouponCollapse } from './CouponSection'
 import { calcShipping, extractShippingConfig } from '#common/functions/shipping.js'
+import { extractLimits, getMinSumForMethod, getRemainingToMin } from '#common/functions/limits.js'
 import Input from 'common/components/Input'
 import Form from 'common/components/Form'
 import {
@@ -126,6 +127,10 @@ export default function OrderSummary({ onPayment, paying, showPayBtn = true, mis
     const total = hasCoupon && order.finalSumWithShipping != null
         ? order.finalSumWithShipping
         : (order.sumWithShipping ?? (subtotal + Number(shipping || 0)))
+    const limits = useMemo(() => extractLimits(settings), [settings])
+    const minSumThreshold = getMinSumForMethod(limits, order?.deliveryMethod)
+    const minSumRemaining = getRemainingToMin({ sum: order?.sum ?? subtotal, deliveryMethod: order?.deliveryMethod, limits })
+    const isBelowMinSum = minSumThreshold > 0 && minSumRemaining > 0
     return (
         <Flex col gap={15} className={styles.orderSummaryWrapper}>
             <Text size='xxl' bold className={styles.title}>
@@ -303,13 +308,16 @@ export default function OrderSummary({ onPayment, paying, showPayBtn = true, mis
                         </Text>
                     </Flex>
 
+                    {isBelowMinSum && (
+                        <Text size='s' mode='sub' style={{ textAlign: 'center' }}>{TR?.('minimum_order_sum') || 'minimum order sum:'} {render({ type: 'coin', value: minSumThreshold })}</Text>
+                    )}
                     {/* CTA Pay Button */}
                     {showPayBtn && (
                         <button
                             type='button'
                             className={styles.payBtn}
                             onClick={onPayment}
-                            disabled={paying}
+                            disabled={paying || isBelowMinSum}
                         >
                             {paying ? (
                                 <Loader size={16} />

@@ -7,7 +7,6 @@ import { setSalesCache } from '#common/functions/salesCache.js'
 import Flex from '#common/components/Flex'
 import Image from '#common/components/Image'
 import Text from '#common/components/Text'
-import Button from '#common/components/Button'
 import HorizontalScroll from '#common/components/HorizontalScroll'
 import Icon from '#common/components/Icon'
 import classNames from '#common/functions/classNames'
@@ -15,8 +14,8 @@ import styles from './product.module.css'
 import Breadcrumbs from 'components/Breadcrumbs'
 import NotFound from 'pages/NotFound'
 import { usePage } from 'layout/Page'
-import { getUnitPriceText, ProductButton } from 'pages/Products/ProductCard'
-import { ProductSaleBadge } from 'common/components/Product'
+import { ProductButton } from 'pages/Products/ProductCard'
+import { ProductSaleBadge, ProductPrice, getUnitInfoText } from 'common/components/Product'
 
 export default function Product() {
     const [selectedImageIndex, setSelectedImageIndex] = useState(0)
@@ -33,10 +32,6 @@ export default function Product() {
     const mainImage = productImages.find(img => img?.main)?.sizes?.xl || images[0]
 
     const price = product?.prices?.[0]?.price
-    const unit = product?.unit || {}
-    const unitType = unit.type || 'item'
-    const unitBase = unit.baseUnit || 'unit'
-    const unitAmount = unit.amount || 1
 
     if (loading) {
         return <Flex className={styles.container}><Loader /></Flex>
@@ -61,7 +56,6 @@ export default function Product() {
                             height={560}
                             className={styles.mainImage}
                         />
-                        <ProductSaleBadge product={product} sales={sales} />
                     </div>
 
                     {images.length > 1 && (
@@ -84,22 +78,14 @@ export default function Product() {
                 </Flex>
                 <Flex className={styles.info} col gap={8} width={400}>
                     {price !== undefined && (
-                        <Flex className={styles.priceRow} gap={8} alignItems='flex-end'>
-                            <Text size='h1' bold style={{ fontSize: '48px', lineHeight: 1 }}>
-                                {price} ₪
-                            </Text>
-                            <Text mode='sub' style={{ fontSize: '18px', marginBottom: '4px' }}>
-                                {getUnitPriceText(product)}
-                            </Text>
-                        </Flex>
+                        <div className={styles.priceRow}>
+                            <ProductPrice product={product} sales={sales} size="l" />
+                        </div>
                     )}
 
-                    {(product.label || unitAmount) && (
+                    {getUnitInfoText(product) && (
                         <Text size='s' className={styles.labelLine}>
-                            {product.label ? `${product.label} | ` : ''}
-                            {unitType === 'weight' ? `${unitAmount} ${unitBase === 'g' ? 'גרם' : 'ק"ג'}` :
-                                unitType === 'pack' ? `${unitAmount} יח'` :
-                                    ''}
+                            {getUnitInfoText(product)}
                         </Text>
                     )}
 

@@ -16,36 +16,6 @@
 
 }
 
-.productImage {
-    width: 100%;
-    aspect-ratio: 1 / 1;
-    object-fit: contain;
-    display: block;
-    border-radius: 0;
-    max-width: 100%;
-
-    &.s {
-        width: 120px !important;
-    }
-}
-
-.info {
-    width: 100%;
-    margin-top: 10px;
-}
-
-.price {
-    margin-bottom: 10px;
-
-    .forgrams {
-        font-weight: 400;
-        position: relative;
-        top: 1px;
-    }
-}
-
-
-
 .productButton {
     width: 280px;
     max-width: 100%;

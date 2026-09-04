@@ -16,7 +16,7 @@ function fromEntries(entries) {
     return obj
 }
 
-export default function ConfigEditor({ value, onChange, disabled }) {
+export default function ConfigEditor({ value, onChange, disabled, canEditKeys = true, canEditValues = true }) {
     const [entries, setEntries] = useState(() => toEntries(value))
     const [newKey, setNewKey] = useState('')
     const [newVal, setNewVal] = useState('')
@@ -31,16 +31,21 @@ export default function ConfigEditor({ value, onChange, disabled }) {
     }
 
     function updateEntry(idx, field, val) {
+        // keys are view-only when canEditKeys is false
+        if (field === 'key' && !canEditKeys) return
+        if (field === 'value' && !canEditValues && !canEditKeys) return
         const next = entries.map((e, i) => i === idx ? { ...e, [field]: val } : e)
         emit(next)
     }
 
     function removeEntry(idx) {
+        if (!canEditKeys || disabled) return
         const next = entries.filter((_, i) => i !== idx)
         emit(next)
     }
 
     function addEntry() {
+        if (!canEditKeys || disabled) return
         if (!newKey.trim()) return
         if (entries.some(e => e.key === newKey.trim())) return
         const next = [...entries, { key: newKey.trim(), value: newVal }]
@@ -49,31 +54,45 @@ export default function ConfigEditor({ value, onChange, disabled }) {
         emit(next)
     }
 
+    const canAddRemove = canEditKeys && !disabled
+    const valDisabled = disabled || (!canEditValues && !canEditKeys)
+
+    const isReadonlyKeys = !canEditKeys
     return (
-        <div className={styles.configEditor}>
-            {entries.length === 0 && <div className={styles.emptyValue}>No keys — add below</div>}
+        <div className={`${styles.configEditor} ${isReadonlyKeys ? styles.configEditorReadonly : ''}`}>
+            {entries.length === 0 && <div className={styles.emptyValue}>No keys — {canAddRemove ? 'add below' : 'none'}</div>}
             {entries.map((e, idx) => (
-                <div key={idx} className={styles.configRow}>
-                    <Input
-                        value={e.key}
-                        onChange={(ev) => updateEntry(idx, 'key', ev.target.value)}
-                        placeholder="key"
-                        disabled={disabled}
-                    />
+                <div key={idx} className={`${styles.configRow} ${!canEditKeys ? styles.configRowReadonly : ''}`}>
+                    {canEditKeys ? (
+                        <Input
+                            value={e.key}
+                            onChange={(ev) => updateEntry(idx, 'key', ev.target.value)}
+                            placeholder="key"
+                            disabled={disabled}
+                        />
+                    ) : (
+                        <span className={styles.configKeyLabel} title="Key editing restricted to superAdmin">{e.key}:</span>
+                    )}
                     <Input
                         value={e.value}
                         onChange={(ev) => updateEntry(idx, 'value', ev.target.value)}
                         placeholder="value"
-                        disabled={disabled}
+                        disabled={valDisabled}
                     />
-                    <Button icon="delete" mode="text" onClick={() => removeEntry(idx)} disabled={disabled} title="Remove" />
+                    {canAddRemove ? (
+                        <Button icon="trash" mode="text" onClick={() => removeEntry(idx)} disabled={disabled} title="Remove" />
+                    ) : (
+                        <span style={{ width: 36 }} />
+                    )}
                 </div>
             ))}
-            <div className={styles.configRow}>
-                <Input value={newKey} onChange={(e) => setNewKey(e.target.value)} placeholder="new key" disabled={disabled} />
-                <Input value={newVal} onChange={(e) => setNewVal(e.target.value)} placeholder="new value" disabled={disabled} />
-                <Button icon="add" size="s" onClick={addEntry} disabled={disabled || !newKey.trim()}>Add</Button>
-            </div>
+            {canAddRemove && (
+                <div className={styles.configRow}>
+                    <Input value={newKey} onChange={(e) => setNewKey(e.target.value)} placeholder="new key" disabled={disabled} />
+                    <Input value={newVal} onChange={(e) => setNewVal(e.target.value)} placeholder="new value" disabled={disabled} />
+                    <Button icon="add" size="s" onClick={addEntry} disabled={disabled || !newKey.trim()} />
+                </div>
+            )}
         </div>
     )
 }

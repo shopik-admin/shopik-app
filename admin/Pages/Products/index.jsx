@@ -23,7 +23,7 @@ export default function Products({ }) {
                 { name: 'barcode', required: true },
                 { name: 'name', required: true },
                 { name: 'label', required: true },
-                { name: 'category.title', type: 'idNum', required: true },
+                { name: 'category.title', required: true },
             ]}
         />
     </div>

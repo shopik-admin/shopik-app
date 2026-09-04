@@ -65,7 +65,6 @@ function buildSignQuery({ masof, key, passp, amount, orderNumber, orderId, custo
         params.set('phone', digits)
         params.set('Cell', digits)
     }
-    if (customer?.idNum) params.set('UserId', customer.idNum)
     if (customer?.email) {
         params.set('email', customer.email)
         if (sendInvoiceEmail) params.set('SendHesh', 'True')

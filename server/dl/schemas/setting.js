@@ -66,6 +66,11 @@ const settingSchema = {
     renderType: {
         type: String,
         enum: Object.values(constants.renderType)
+    },
+    public: {
+        type: Boolean,
+        default: false,
+        filter: true
     }
 }
 const index = [

@@ -7,6 +7,7 @@ import apiReq from 'common/functions/apiReq'
 import Input from 'common/components/Input'
 import Select from 'common/components/Select'
 import styles from './settings.module.css'
+import Checkbox from 'common/components/Checkbox'
 import Card from 'common/components/Card'
 import Flex from 'common/components/Flex'
 import Setting from './Setting.jsx'
@@ -25,6 +26,7 @@ const RENDER_TYPES = [
 
 function SettingModalContent({ setting, defaultCategory, defaultSubCategory, defaultFormType, defaultRenderType, onSuccess, onClose }) {
     const isEdit = !!setting
+    const { isSuperAdmin: modalIsSuperAdmin, role } = useUser() || {}
     const initialIsConfig = setting?.formType === 'config' || setting?.renderType === 'config' || defaultFormType === 'config' || defaultRenderType === 'config'
     const [formData, setFormData] = useState({
         key: setting?.key || '',
@@ -33,7 +35,8 @@ function SettingModalContent({ setting, defaultCategory, defaultSubCategory, def
         subCategory: setting?.subCategory || defaultSubCategory || 'General',
         domainId: setting?.domainId || 'default',
         formType: setting?.formType || defaultFormType || 'text',
-        renderType: setting?.renderType || defaultRenderType || 'string'
+        renderType: setting?.renderType || defaultRenderType || 'string',
+        public: setting?.public ?? false
     })
     const [error, setError] = useState(null)
     const [loading, setLoading] = useState(false)
@@ -60,6 +63,10 @@ function SettingModalContent({ setting, defaultCategory, defaultSubCategory, def
 
     const isConfig = formData.formType === 'config' || formData.renderType === 'config'
     const isColor = formData.formType === 'color'
+    const canAddConfig = !!modalIsSuperAdmin
+    // filter 'config' for users who cannot add configs; keep current value if already config to avoid blank select
+    const formTypeOptions = canAddConfig ? FORM_TYPES : FORM_TYPES.filter((t) => t !== 'config' || t === formData.formType)
+    const renderTypeOptions = canAddConfig ? RENDER_TYPES : RENDER_TYPES.filter((t) => t !== 'config' || t === formData.renderType)
 
     function normalizeColorValue(val) {
         if (val && typeof val === 'object' && ('light' in val || 'dark' in val)) return val
@@ -75,6 +82,8 @@ function SettingModalContent({ setting, defaultCategory, defaultSubCategory, def
                 required
                 value={formData.key}
                 onChange={(e) => setFormData({ ...formData, key: e.target.value })}
+                disabled={isEdit && !modalIsSuperAdmin}
+                title={isEdit && !modalIsSuperAdmin ? 'Only superAdmin can edit keys' : undefined}
             />
             <div className={styles.formGrid}>
                 <label className={styles.settingInfo}>
@@ -82,7 +91,7 @@ function SettingModalContent({ setting, defaultCategory, defaultSubCategory, def
                     <Select
                         value={formData.formType}
                         onChange={(e) => setFormData({ ...formData, formType: e.target.value })}
-                        options={FORM_TYPES}
+                        options={formTypeOptions}
                     />
                 </label>
                 <label className={styles.settingInfo}>
@@ -90,7 +99,7 @@ function SettingModalContent({ setting, defaultCategory, defaultSubCategory, def
                     <Select
                         value={formData.renderType}
                         onChange={(e) => setFormData({ ...formData, renderType: e.target.value })}
-                        options={RENDER_TYPES}
+                        options={renderTypeOptions}
                     />
                 </label>
             </div>
@@ -120,12 +129,18 @@ function SettingModalContent({ setting, defaultCategory, defaultSubCategory, def
                     name="domainId"
                 />
             </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                <Checkbox checked={!!formData.public} onChange={(e) => setFormData({ ...formData, public: e.target.checked })} />
+                <span className={styles.settingKey} title="If enabled, this setting is sent to the client (getSettings)">Public — sent to client</span>
+            </label>
             {isConfig ? (
                 <div>
-                    <span className={styles.settingKey}>Value (config)</span>
+                    <span className={styles.settingKey}>Value (config) {!modalIsSuperAdmin && <em style={{ fontWeight: 400, fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>(keys view-only)</em>}</span>
                     <ConfigEditor
                         value={typeof formData.value === 'object' && formData.value !== null && !Array.isArray(formData.value) ? formData.value : {}}
                         onChange={(next) => setFormData({ ...formData, value: next })}
+                        canEditKeys={!!modalIsSuperAdmin}
+                        canEditValues={role.permissions?.includes('setting:update')}
                     />
                 </div>
             ) : isColor ? (
@@ -175,6 +190,7 @@ export default function Settings() {
     const { openModal, closeModal } = useModal()
     const { isSuperAdmin, role: adminRole } = useUser()
     const canDeleteSetting = isSuperAdmin || adminRole?.permissions?.includes('setting:delete')
+    const canCreateSetting = isSuperAdmin || adminRole?.permissions?.includes('setting:create')
 
     useEffect(() => {
         if (Array.isArray(rawSettings)) {
@@ -224,6 +240,9 @@ export default function Settings() {
         const targetSubCategory = defaultSubCat || 'General'
         const targetFormType = defaultFormType || 'text'
         const targetRenderType = defaultRenderType || 'string'
+        const isConfigAdd = targetFormType === 'config' || targetRenderType === 'config'
+        if (isConfigAdd && !isSuperAdmin) return
+        if (!isConfigAdd && !canCreateSetting) return
         openModal(
             <SettingModalContent
                 defaultCategory={targetCategory}
@@ -280,7 +299,7 @@ export default function Settings() {
             <div className={styles.categoriesSidebar}>
                 <div className={styles.sidebarHeaderRow}>
                     <h3 className={styles.sidebarHeader}>Settings</h3>
-                    <Button size="s" icon="add" onClick={() => handleAddModal()} title="Add Setting" />
+                    {canCreateSetting && <Button size="s" icon="add" onClick={() => handleAddModal()} title="Add Setting" />}
                 </div>
 
                 <ul className={styles.categoryList}>
@@ -321,25 +340,30 @@ export default function Settings() {
                             <div className={styles.emptyState}>No settings in this category</div>
                         ) : (
                             <div className={styles.sectionsList}>
-                                {Object.entries(activeCategorySettings).map(([subCat, subCatSettings]) => (
-                                    <div key={subCat} className={styles.subCategoryGroup}>
-                                        <div className={styles.subCategoryHeaderRow}>
-                                            <h4 className={styles.subCategoryHeader}>{subCat}</h4>
-                                            <Button icon="add" className={styles.subCategoryAddBtn} onClick={() => { const last = subCatSettings[subCatSettings.length - 1]; handleAddModal(selectedCategory, subCat, last?.formType, last?.renderType) }} title={`Add setting to ${subCat}`} />
+                                {Object.entries(activeCategorySettings).map(([subCat, subCatSettings]) => {
+                                    const last = subCatSettings[subCatSettings.length - 1]
+                                    const isConfigGroup = last?.formType === 'config' || last?.renderType === 'config'
+                                    const canAddHere = isConfigGroup ? isSuperAdmin : canCreateSetting
+                                    return (
+                                        <div key={subCat} className={styles.subCategoryGroup}>
+                                            <div className={styles.subCategoryHeaderRow}>
+                                                <h4 className={styles.subCategoryHeader}>{subCat}</h4>
+                                                {canAddHere && <Button icon="add" className={styles.subCategoryAddBtn} onClick={() => handleAddModal(selectedCategory, subCat, last?.formType, last?.renderType)} title={isConfigGroup ? 'Add config (superAdmin only)' : `Add setting to ${subCat}`} />}
+                                            </div>
+                                            <div className={styles.insetGroupCard}>
+                                                {subCatSettings.map((setting) => (
+                                                    <Setting
+                                                        key={setting.id || setting.key}
+                                                        setting={setting}
+                                                        onUpdate={handleSettingUpdate}
+                                                        onEditFull={handleEditModal}
+                                                        onDelete={canDeleteSetting ? handleDelete : undefined}
+                                                    />
+                                                ))}
+                                            </div>
                                         </div>
-                                        <div className={styles.insetGroupCard}>
-                                            {subCatSettings.map((setting) => (
-                                                <Setting
-                                                    key={setting.id || setting.key}
-                                                    setting={setting}
-                                                    onUpdate={handleSettingUpdate}
-                                                    onEditFull={handleEditModal}
-                                                    onDelete={canDeleteSetting ? handleDelete : undefined}
-                                                />
-                                            ))}
-                                        </div>
-                                    </div>
-                                ))}
+                                    )
+                                })}
                             </div>
                         )}
                     </>
@@ -348,7 +372,7 @@ export default function Settings() {
                 ) : (
                     <div className={styles.emptyState} style={{ flexDirection: 'column', gap: '1rem' }}>
                         <span>No settings yet</span>
-                        <Button icon="add" onClick={() => handleAddModal()}>Add Setting</Button>
+                        {canCreateSetting && <Button icon="add" onClick={() => handleAddModal()}>Add Setting</Button>}
                     </div>
                 )}
             </div>

@@ -11,6 +11,10 @@ import styles from './checkout.module.css'
 import { useText } from 'common/texts/TextProvider'
 import apiReq from 'common/functions/apiReq'
 import Loader from 'common/components/Loader'
+import { useAppData } from 'App'
+import { useMemo } from 'react'
+import { extractLimits, getMinSumForMethod, getRemainingToMin } from '#common/functions/limits.js'
+import render from '#common/functions/render.js'
 
 export default function Checkout() {
     const { order = {}, setOrder } = useOrder()
@@ -24,6 +28,11 @@ export default function Checkout() {
 
     const cart = order?.cart || []
     const totalItemsCount = cart.reduce((acc, item) => acc + (item.amount || item.units || 1), 0)
+    const { settings } = useAppData?.() || {}
+    const limits = useMemo(() => extractLimits(settings), [settings])
+    const minSumThreshold = getMinSumForMethod(limits, order?.deliveryMethod)
+    const minSumRemaining = getRemainingToMin({ sum: order?.sum ?? 0, deliveryMethod: order?.deliveryMethod, limits })
+    const isBelowMinSum = minSumThreshold > 0 && minSumRemaining > 0
 
     const cartTitle = `${TR('my_cart_title')} (${totalItemsCount} ${TR('items_suffix')})`
 
@@ -73,6 +82,11 @@ export default function Checkout() {
 
     async function handlePayment() {
         if (paying) return
+        if (isBelowMinSum) {
+            const label = TR?.('minimum_order_sum') || 'minimum order sum:'
+            setPayError({ message: `${label} ${minSumThreshold}` })
+            return
+        }
         // Client-side pre-validation: if we already know fields are missing, open them and don't hit server
         const localMissing = getLocalMissing()
         if (localMissing.length) {

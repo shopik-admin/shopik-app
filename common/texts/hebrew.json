@@ -308,6 +308,8 @@
         "total_saved_in_purchase": "סה\"כ חסכת בקניה זו",
         "total_to_pay": "סה\"כ לתשלום",
         "to_payment_btn": "לתשלום",
+        "minimum_order_sum": "סכום מינימום:",
+        "product_max_reached": "הגעת למגבלת כמות",
         "coupon_inactive": "לא פעיל",
         "coupon_active": "מופעל",
         "coupon_apply": "החל קופון",
