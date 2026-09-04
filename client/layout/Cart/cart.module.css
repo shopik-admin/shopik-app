@@ -2,30 +2,43 @@
     width: var(--cart-width);
     flex-shrink: 0;
     position: fixed;
-    inset-inline-end: calc(-1 * var(--cart-width) - 8px);
-    top: calc(var(--header-height) - 42px);
+    inset-inline-end: calc(-1 * var(--cart-width) - 16px - var(--safeRight, 0px));
+    top: calc(var(--header-height) - 42px + var(--safeTop, 0px));
+    bottom: 0;
+    bottom: calc(0px + var(--safeBottom, 0px));
     z-index: 9999;
     background-color: var(--bg-primary);
     transition: inset-inline-end .3s ease;
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100dvh - var(--header-height) + 42px - var(--safeTop, 0px));
+    padding-inline-end: var(--safeRight, 0px);
 
     .header {
         background-color: #F1F7F6;
         box-shadow: 0 1px 3px 0 var(--Colors-Effects-Shadows-shadow-sm_01, rgba(0, 0, 0, 0.10)), 0 1px 2px -1px var(--Colors-Effects-Shadows-shadow-sm_02, rgba(0, 0, 0, 0.10));
         padding-inline: 10px;
         height: 56px;
+        flex-shrink: 0;
     }
 
     .items,
     .emptyCart {
-        height: calc(100vh - 170px - var(--header-height));
+        flex: 1;
+        min-height: 0;
     }
 
     .items {
         overflow: auto;
+        -webkit-overflow-scrolling: touch;
         padding-block: 20px;
+        padding-bottom: calc(20px + var(--safeBottom, 0px));
     }
 
     .emptyCart {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
 
         svg {
             width: 56px;
@@ -38,7 +51,10 @@
         background-color: #F1F7F6;
         border-top-left-radius: var(--radius-3xl);
         border-top-right-radius: var(--radius-3xl);
-        padding: 10px 10px calc(10px + env(safe-area-inset-bottom, 0px));
+        padding: 10px 10px calc(10px + var(--safeBottom, 0px));
+        padding-inline-start: calc(10px + var(--safeRight, 0px));
+        padding-inline-end: calc(10px + var(--safeRight, 0px));
+        flex-shrink: 0;
 
         .summary {
             padding: 10px 15px;
@@ -52,7 +68,36 @@
 }
 
 .cart.open {
-    inset-inline-end: max(0px, (100vw - var(--max-width)) / 2);
+    inset-inline-end: max(var(--safeRight, 0px), calc((100vw - var(--max-width)) / 2 + var(--safeRight, 0px)));
+}
+
+@media (max-width: 1023px) {
+    .cart {
+        width: 100%;
+        max-width: 380px;
+        inset-inline-end: calc(-100% - 16px - var(--safeRight, 0px));
+        top: calc(var(--header-height) + var(--safeTop, 0px) - 42px);
+        max-height: calc(100dvh - var(--header-height) - var(--safeTop, 0px) + 42px);
+    }
+
+    .cart.open {
+        inset-inline-end: var(--safeRight, 0px);
+    }
+}
+
+@media (max-width: 480px) {
+    .cart {
+        max-width: 100%;
+        width: calc(100dvw - var(--safeLeft, 0px) - var(--safeRight, 0px));
+        inset-inline-start: auto;
+        border-radius: 0;
+    }
+
+    .cart.open {
+        inset-inline-end: 0;
+        inset-inline-start: var(--safeLeft, 0px);
+        width: calc(100dvw - var(--safeLeft, 0px) - var(--safeRight, 0px));
+    }
 }
 
 .miniCartButton {
