@@ -1,7 +1,8 @@
-function buildHtml({ ok, title, message, href, btnText }) {
-    const safeTitle = String(title).replace(/</g, '&lt;')
-    const safeMsg = String(message).replace(/</g, '&lt;')
-    return `<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${safeTitle}</title><style>body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Heebo,Arial,sans-serif;max-width:560px;margin:40px auto;padding:24px;text-align:center;line-height:1.6;color:#111}h1{font-size:22px;margin:0 0 12px} p{color:#444;margin:0 0 16px} .btn{display:inline-block;margin-top:16px;padding:12px 24px;background:#111;color:#fff;text-decoration:none;border-radius:10px;font-weight:600} .muted{font-size:13px;color:#888;margin-top:20px}</style></head><body><h1>${safeTitle}</h1><p>${safeMsg}</p><a class="btn" href="${href}">${btnText}</a><div class="muted">${ok ? 'החיוב יתבצע בעת הכנת המשלוח' : ''}</div></body></html>`
+function buildLoaderHtml({ ok, orderNumber, errorMessage }) {
+    const safeNum = String(orderNumber || '').replace(/</g, '&lt;')
+    const safeErr = String(errorMessage || '').replace(/</g, '&lt;').replace(/'/g, '&#39;')
+    // minimal ~0.6kb, no bundle - spinner + postMessage to parent Checkout
+    return `<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${ok ? 'אושר' : 'שגיאה'}</title><style>html,body{margin:0;height:100%}body{display:grid;place-items:center;background:#fff;font-family:system-ui,Heebo,Arial,sans-serif} .l{width:36px;height:36px;border:3px solid #EEF2F1;border-top-color:#195855;border-radius:50%;animation:s .8s linear infinite}@keyframes s{to{transform:rotate(360deg)}} p{margin-top:12px;color:#65716E;font-size:13px}</style></head><body><div style="text-align:center"><div class="l" style="margin:0 auto"></div><p>${ok ? 'מעבד...' : safeErr || 'שגיאה'}</p></div><script>(function(){try{var d={type:'hyp_callback',ok:${ok ? 'true' : 'false'},orderNumber:'${safeNum}',error:'${safeErr}'};try{parent.postMessage(d,'*')}catch(e){}try{window.top.postMessage(d,'*')}catch(e){} }catch(e){}})();<\/script></body></html>`
 }
 
 export default async function callback(payload, info) {
@@ -23,11 +24,9 @@ export default async function callback(payload, info) {
     const providerCode = ccodeRaw !== undefined ? Number(ccodeRaw) : undefined
     const amountRaw = q.Amount
 
-    // Helper to send simple HTML (not SPA, not JSON)
+    // Helper to send minimal loader HTML (no bundle) + postMessage to parent
     function sendHtml({ ok, order, errorMessage }) {
-        const html = ok
-            ? buildHtml({ ok: true, title: 'התשלום אושר', message: 'ההזמנה התקבלה בהצלחה.', href: order?.id ? `/account/orders/${order.id}` : '/account/orders', btnText: 'לצפייה בהזמנה' })
-            : buildHtml({ ok: false, title: 'שגיאת תשלום', message: errorMessage || 'אימות התשלום נכשל. ניתן לנסות שוב.', href: order?.id ? `/checkout/${order.id}` : '/', btnText: 'חזרה' })
+        const html = buildLoaderHtml({ ok, orderNumber: order?.number || orderNumber, errorMessage })
         res.status(ok ? 200 : 400).type('html').send(html)
     }
 
@@ -82,7 +81,7 @@ export default async function callback(payload, info) {
     }
     const order = await DL.Order.readOne({ number: String(orderNumber) })
     if (!order) {
-        res.status(404).type('html').send(buildHtml({ ok: false, title: 'הזמנה לא נמצאה', message: 'ההזמנה לא נמצאה במערכת.', href: '/', btnText: 'לדף הבית' }))
+        res.status(404).type('html').send(buildLoaderHtml({ ok: false, orderNumber, errorMessage: 'ההזמנה לא נמצאה' }))
         return
     }
 
