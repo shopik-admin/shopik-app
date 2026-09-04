@@ -209,17 +209,17 @@
 
 .pill.green {
     background: var(--bg-success-secondary);
-    color: var(--text-success-primary);
+    /*  color: var(--text-success-primary); */
 }
 
 .pill.yellow {
     background: var(--bg-warning-secondary);
-    color: var(--text-warning-primary);
+    /*   color: var(--text-warning-primary); */
 }
 
 .pill.red {
     background: var(--bg-error-secondary);
-    color: var(--text-error-primary);
+    /*  color: var(--text-error-primary); */
 }
 
 .missingText {

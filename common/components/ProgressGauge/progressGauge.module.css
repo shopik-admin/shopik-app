@@ -1,3 +1,36 @@
-.progressGauge{
+.progressGauge {
+    width: 75px;
+    position: relative;
+    flex-shrink: 0;
+}
 
+.gaugeSvg {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.track {
+    fill: none;
+    stroke: var(--border-secondary);
+    stroke-width: 12;
+    stroke-linecap: round;
+}
+
+.progress {
+    fill: none;
+    stroke: var(--fg-success-primary);
+    stroke-width: 12;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.3s ease;
+}
+
+.value {
+    position: absolute;
+    inset: 24px 0 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--text-sm);
+    font-weight: 600;
 }
