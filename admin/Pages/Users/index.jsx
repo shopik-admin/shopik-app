@@ -10,7 +10,6 @@ export default function Users({ }) {
             rowActions={['edit']}
             onRowClick={console.log}
             cols={[
-                { key: 'idNum' },
                 { key: 'name', type: 'name' },
                 { key: 'phone' },
                 { key: 'email' },
@@ -22,7 +21,6 @@ export default function Users({ }) {
             form={[
                 { name: 'name.first' },
                 { name: 'name.last' },
-                { name: 'idNum', type: 'idNum', required: true },
                 { name: 'phone', type: 'tel', required: true },
                 { name: 'email', type: 'email' },
             ]}

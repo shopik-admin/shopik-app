@@ -67,6 +67,7 @@ export default function router(app, bootData) {
                     action: route,
                     ip,
                     userAgent: headers['user-agent'],
+                    appVersion,
                     data: {
                         request: {
                             platform,

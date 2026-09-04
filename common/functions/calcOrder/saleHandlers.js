@@ -154,7 +154,7 @@ export function applySaleToProducts({ products, receiveProducts, sale }) {
     }
 
     const res = updateCartBarcodes(products, sale, sale.amount)
-    if (res.requiredSaleAmount === 0) {
+    if (res.requiredSaleAmount === 0 && sale.price != null && sale.kind !== SALE_KINDS.PERCENT) {
         distributeAgoraLeftover(res.distributions, sale.price, res.productSum)
     }
     return { success: true, distributions: res.distributions }

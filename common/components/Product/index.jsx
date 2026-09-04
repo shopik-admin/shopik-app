@@ -5,7 +5,7 @@ import Flex from 'common/components/Flex'
 import Text from 'common/components/Text'
 import Icon from 'common/components/Icon'
 import classNames from 'common/functions/classNames'
-import { round3 } from 'common/functions/calcOrder/utils.js'
+import { round2, round3 } from 'common/functions/calcOrder/utils.js'
 import { getProductImageUrl } from 'common/functions/productImageUrl.js'
 import { useState, useEffect } from 'react'
 import { getSalesCache } from '#common/functions/salesCache.js'
@@ -28,10 +28,42 @@ export function getSaleBadgeText(sale) {
     const percent = sale.percent
     if (sale.kind === 'price' && amount > 1 && price != null) return `מבצע ${amount} ב-${price}`
     if (sale.kind === 'price' && price != null) return `מבצע ב-${price}`
-    if (sale.kind === 'percent' && percent != null) return `מבצע ${percent}% הנחה`
+    if (sale.kind === 'percent' && percent != null) return `${percent}% הנחה`
     if (amount > 1 && price != null) return `מבצע ${amount} ב-${price}`
     if (percent != null) return `מבצע ${percent}%`
     return 'מבצע'
+}
+
+export function formatPrice(price) {
+    if (price == null || isNaN(price)) return ''
+    const n = Number(price)
+    return Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/\.00$/, '')
+}
+
+export function getSalePriceInfo(product, sale) {
+    if (!sale || !product) return null
+    const regular = Number(product.price ?? product.prices?.[0]?.price)
+    if (isNaN(regular)) return null
+    const amount = Number(sale.amount) || 1
+    const kind = sale.kind
+    const price = sale.price
+    const percent = sale.percent
+    let saleSingle = null
+    let saleTotal = null
+    if (kind === 'percent' && percent != null) {
+        const p = Number(percent)
+        saleSingle = round2(regular * (1 - p / 100))
+        saleTotal = round2(saleSingle * amount)
+    } else if (price != null) {
+        const total = Number(price)
+        saleTotal = round2(total)
+        saleSingle = amount > 1 ? round2(total / amount) : saleTotal
+    } else {
+        return null
+    }
+    if (saleSingle < 0) saleSingle = 0
+    if (saleTotal < 0) saleTotal = 0
+    return { regular, saleSingle, saleTotal, amount, kind, isBundle: amount > 1 }
 }
 
 export function getSaleRemaining(sale, amount) {
@@ -160,12 +192,15 @@ export function ProductInfo(props) {
     </Flex>
 }
 
-export function ProductButton({ product, amount = 0, onUpdateAmount, size = 'm', sales = {} }) {
+export function ProductButton({ product, amount = 0, onUpdateAmount, size = 'm', sales = {}, maxAmount = 0 }) {
     // For weight, show amount with unit label (e.g. "1.5 ק\"ג"); for items show "2 יח'"
     // Presentational stepper — caller provides amount and update handler
     // If no handler provided, button is disabled / hidden
     const minAmount = product?.unit?.minAmount || 1
     const step = product?.unit?.step || 1
+    const max = Number(maxAmount ?? 0) || 0
+    const atMax = max > 0 && Number(amount ?? 0) >= max
+    const maxTitle = atMax ? `הגעת למגבלת כמות (${max})` : undefined
 
     if (!amount) {
         return <Flex className={classNames(styles.productButton, styles[size])} >
@@ -178,7 +213,11 @@ export function ProductButton({ product, amount = 0, onUpdateAmount, size = 'm',
     }
 
     const displayAmount = formatAmount(product, amount)
-    const handleInc = () => onUpdateAmount?.(round3(amount + step))
+    const handleInc = () => {
+        const next = round3(amount + step)
+        if (max > 0 && next > max) return
+        onUpdateAmount?.(next)
+    }
     const handleDec = () => {
         const next = round3(amount - step)
         onUpdateAmount?.(next <= 0 ? 0 : next)
@@ -190,7 +229,7 @@ export function ProductButton({ product, amount = 0, onUpdateAmount, size = 'm',
             e.stopPropagation()
         }}
         className={classNames(styles.productButton, styles[size], styles.stepper)}>
-        <Button icon='add' preventDefault stopPropagation onClick={handleInc} disabled={!onUpdateAmount} />
+        <Button icon='add' preventDefault stopPropagation onClick={handleInc} disabled={!onUpdateAmount || atMax} title={maxTitle} />
         <Text size='m' bold className={styles.amount}>{displayAmount}</Text>
         <Button preventDefault stopPropagation onClick={handleDec} disabled={!onUpdateAmount}>-</Button>
     </Flex>
@@ -205,13 +244,31 @@ export function ProductBadges({ product, size = 'm' }) {
     </Flex>
 }
 
-export function ProductPrice({ product, size = 'm' }) {
+export function ProductPrice({ product, size = 'm', sales }) {
     try {
-        const price = product.price || product.prices?.[0]?.price
+        const price = product.price ?? product.prices?.[0]?.price
         if (price == null) return null
         const unitPriceText = getUnitPriceText(product)
+        const sale = getFirstSale(product, sales)
+        const saleInfo = sale ? getSalePriceInfo(product, sale) : null
+
+        const CurrencySymbol = <Text size='s' bold>₪</Text>
+        if (saleInfo) {
+            const isBundle = saleInfo.isBundle
+            const saleText = isBundle
+                ? <Text size='xxl' bold className={styles.salePrice}>
+                    {saleInfo.amount} ב-{CurrencySymbol}{formatPrice(saleInfo.saleTotal)}
+                </Text>
+                : <Text size='xxl' bold className={styles.salePrice}>{CurrencySymbol}{formatPrice(saleInfo.saleSingle)}</Text>
+            return <Flex gap={8} alignItems='center' wrap className={classNames(styles.price, styles[size], styles.sale)}>
+                <Text size='xxl' bold className={styles.salePrice}>{saleText}</Text>
+                <Text size='s' lineThrough className={styles.regularPrice}>{CurrencySymbol}{formatPrice(saleInfo.regular)}</Text>
+                {unitPriceText && <Text size='s' mode='sub' className={styles.forgrams}>{unitPriceText}</Text>}
+            </Flex>
+        }
+
         return <Flex gap={20} alignItems='center' className={classNames(styles.price, styles[size])}>
-            <Text size='xxl' bold><Text size='s' bold>₪</Text>{price}</Text>
+            <Text size='xxl' bold>{CurrencySymbol}{formatPrice(price)}</Text>
             {unitPriceText && <Text size='s' mode='sub' className={styles.forgrams}>{unitPriceText}</Text>}
         </Flex>
 

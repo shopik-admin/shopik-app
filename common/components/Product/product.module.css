@@ -32,15 +32,15 @@
 
 .saleBadge {
     position: absolute;
-    inset-inline-start: -10px;
+    inset-inline-start: -11px;
     bottom: 25px;
     gap: 4px;
     background: var(--color-brand-secondary);
     color: var(--text-primary);
-    padding: 5px;
-    padding-inline-end: 10px;
+    padding: 4px;
+    padding-inline-end: 5px;
+    border: 1px solid var(--color-brand-secondary-600);
     border-radius: var(--radius-full) 0 0 var(--radius-full);
-    font-weight: var(--font-weight-bold);
     z-index: 1;
     max-width: calc(100% - var(--spacing-lg));
     white-space: nowrap;
@@ -48,6 +48,7 @@
 }
 
 .saleBadgeText {
+    font-weight: 700 !important;
     position: relative;
     top: 1px;
     color: var(--text-primary);
@@ -75,12 +76,38 @@
 
 .price {
     margin-bottom: 10px;
+    align-items: baseline !important;
 
     .forgrams {
         font-weight: 400;
         position: relative;
         top: 1px;
     }
+
+    &.sale {
+        gap: 8px;
+        align-items: baseline !important;
+    }
+}
+
+.salePrice {
+    color: var(--text-success-primary);
+    font-weight: 700 !important;
+    line-height: 1.2;
+}
+
+.regularPrice {
+    color: var(--text-error-primary);
+    font-size: var(--text-sm);
+    text-decoration: line-through;
+}
+
+.price.s .salePrice {
+    font-size: var(--text-xl);
+}
+
+.price.l .salePrice {
+    font-size: 28px;
 }
 
 .productButton {

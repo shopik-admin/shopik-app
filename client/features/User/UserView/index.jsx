@@ -49,17 +49,17 @@ export default function UserView({ }) {
 function LoginModal({ onClose, setTab }) {
     const
         [step, setStep] = useState(1),
-        [idNum, setIdNum] = useState(''),
         [otpToken, setOtpToken] = useState(''),
+        [phone, setPhone] = useState(''),
         [error, setError] = useState('')
 
     async function handleRequestOtp(vals) {
         setError('')
         try {
-            const targetIdNum = vals?.idNum || idNum
-            const res = await apiReq('user/login_otp', { idNum: targetIdNum })
+            const targetPhone = vals?.phone || phone
+            const res = await apiReq('user/login_otp', { phone: targetPhone })
             setOtpToken(res.token)
-            if (vals?.idNum) setIdNum(vals.idNum)
+            if (vals?.phone) setPhone(vals.phone)
             setStep(2)
         } catch (err) {
             setError(err.message || err)
@@ -70,7 +70,7 @@ function LoginModal({ onClose, setTab }) {
         return <DigitsInputStep
             title='web_login_title'
             subtitle='web_login_subTitle_otp'
-            idNum={idNum}
+            phone={phone}
             otpToken={otpToken}
             onClose={onClose}
             onResend={() => handleRequestOtp()}
@@ -83,7 +83,7 @@ function LoginModal({ onClose, setTab }) {
         <Form action={handleRequestOtp} error={error} submitText='send_otp'>
             <Flex col>
                 <Title subtitle='web_login_subTitle'>web_login_title</Title>
-                <Input name='idNum' defaultValue={idNum} required autoFocus />
+                <Input name='phone' type='tel' defaultValue={phone} required autoFocus />
             </Flex>
         </Form>
         <Flex center gap={5}>
@@ -95,7 +95,7 @@ function LoginModal({ onClose, setTab }) {
 
 function RegisterModal({ onClose, setTab }) {
     const [step, setStep] = useState(1)
-    const [idNum, setIdNum] = useState('')
+    const [phone, setPhone] = useState('')
     const [otpToken, setOtpToken] = useState('')
     const [error, setError] = useState('')
 
@@ -104,7 +104,7 @@ function RegisterModal({ onClose, setTab }) {
         try {
             const res = await apiReq('user/register', data)
             setOtpToken(res.token)
-            setIdNum(data.idNum)
+            setPhone(data.phone)
             setStep(2)
         } catch (err) {
             setError(err.message || err)
@@ -115,7 +115,7 @@ function RegisterModal({ onClose, setTab }) {
         return <DigitsInputStep
             title='web_register_title'
             subtitle='web_login_subTitle_otp'
-            idNum={idNum}
+            phone={phone}
             otpToken={otpToken}
             onClose={onClose}
             onResend={() => handleRequestOtp()}
@@ -128,8 +128,7 @@ function RegisterModal({ onClose, setTab }) {
         <Form action={handleRequestOtp} error={error} submitText='send_otp'>
             <Title subtitle='web_register_subTitle'>web_register_title</Title>
             <Flex col gap={10}>
-                <Input name='idNum' required autoFocus />
-                <Input name='phone' type='tel' required />
+                <Input name='phone' type='tel' required autoFocus />
                 <Input name='name.first' />
                 <Input name='name.last' />
             </Flex>
@@ -142,7 +141,7 @@ function RegisterModal({ onClose, setTab }) {
     </>
 }
 
-function DigitsInputStep({ title, subtitle = 'web_login_subTitle_otp', idNum, otpToken, onClose, onResend, onBack, submitText }) {
+function DigitsInputStep({ title, subtitle = 'web_login_subTitle_otp', phone, otpToken, onClose, onResend, onBack, submitText }) {
     const { onLogin } = useUser()
     const [error, setError] = useState('')
     const [resent, setResent] = useState(false)
@@ -150,7 +149,7 @@ function DigitsInputStep({ title, subtitle = 'web_login_subTitle_otp', idNum, ot
     async function handleLogin(vals) {
         setError('')
         try {
-            const user = await apiReq('user/login', { idNum, otpToken, otp: vals.otp })
+            const user = await apiReq('user/login', { phone, otpToken, otp: vals.otp })
             onLogin(user)
             onClose?.()
             events.emit('delivery-popover')

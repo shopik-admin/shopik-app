@@ -11,6 +11,19 @@ export default async function product(payload, { DL, _user, utils, cookies, setC
         throw { status: 400, message: 'Amount must be >= 0' }
     }
 
+    // Enforce productMaxAmount (global per-product limit) from limits setting
+    try {
+        const limitsSetting = await DL.Setting.readOne({ key: 'limits' })
+        const raw = limitsSetting?.value
+        const max = Number(raw?.productMaxAmount ?? 0) || 0
+        if (max > 0 && Number(amount) > max) {
+            throw { status: 400, message: `Product max amount exceeded (max ${max})`, code: 'MAX_AMOUNT_EXCEEDED', max }
+        }
+    } catch (e) {
+        if (e?.code === 'MAX_AMOUNT_EXCEEDED') throw e
+        // ignore read errors, treat as no limit
+    }
+
     let cartOrder
     if (_user?.id) {
         cartOrder = await utils.data.getUserOrder({ DL, _user })

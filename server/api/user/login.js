@@ -1,6 +1,6 @@
 import { USER_TOKEN_EXPIRY_MS, USER_TOKEN_COOKIE, GUEST_CART_TOKEN_COOKIE } from '#common/constants.js'
 
-export default async function login({ idNum, otpToken, otp }, { DL, utils, platform, setCookie, cookies, clearCookie }) {
+export default async function login({ domainId, phone, otpToken, otp }, { DL, utils, platform, setCookie, cookies, clearCookie }) {
     const storedOtp = await DL.Otp.readOne({ token: otpToken })
     if (!storedOtp || storedOtp.otp !== otp)
         throw { message: 'invalid OTP', status: 403 }
@@ -10,7 +10,7 @@ export default async function login({ idNum, otpToken, otp }, { DL, utils, platf
     if (storedOtp.payload) {
         user = await DL.User.create(storedOtp.payload)
     } else {
-        user = await DL.User.readOne({ idNum })
+        user = await DL.User.readOne({ domainId, phone })
         if (!user)
             throw { message: 'login failed', status: 403 }
     }
@@ -59,5 +59,5 @@ export default async function login({ idNum, otpToken, otp }, { DL, utils, platf
 
 login.config = {
     auth: 'none',
-    required: ['idNum', 'otpToken', 'otp']
+    required: ['phone', 'otpToken', 'otp']
 }
