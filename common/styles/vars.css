@@ -6,10 +6,8 @@
     --header-height: 120px;
     --admin-header-height: 64px;
 
-    --safeTop: env(safe-area-inset-top, 0px);
-    --safeBottom: env(safe-area-inset-bottom, 0px);
-    --safeLeft: env(safe-area-inset-left, 0px);
-    --safeRight: env(safe-area-inset-right, 0px);
+    --safeTop: env(safe-area-inset-top);
+    --safeBottom: env(safe-area-inset-bottom);
 
     --cart-width: 380px;
 

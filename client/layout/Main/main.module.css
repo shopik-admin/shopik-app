@@ -1,11 +1,8 @@
 .main {
     width: 100%;
     padding-top: 20px;
-    padding-bottom: var(--safeBottom, 0px);
-    padding-inline-start: var(--safeLeft, 0px);
-    padding-inline-end: var(--safeRight, 0px);
-    min-height: calc(100dvh - var(--header-height) - var(--safeTop, 0px) - 50px);
-    max-width: min(var(--max-width), calc(100vw - 20px - var(--safeLeft, 0px) - var(--safeRight, 0px)));
+    min-height: calc(100vh - var(--header-height) - 50px);
+    max-width: min(var(--max-width), calc(100vw - 20px));
     margin: auto;
     transition: padding-inline-end .3s ease;
 }

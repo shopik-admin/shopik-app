@@ -2,9 +2,7 @@
     width: 100%;
     max-width: var(--max-width, 1200px);
     margin: 0 auto;
-    padding: 24px 16px calc(40px + var(--safeBottom, 0px));
-    padding-inline-start: calc(16px + var(--safeLeft, 0px));
-    padding-inline-end: calc(16px + var(--safeRight, 0px));
+    padding: 24px 16px 40px;
     direction: rtl;
 }
 
