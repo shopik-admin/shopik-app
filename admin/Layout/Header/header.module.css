@@ -1,10 +1,11 @@
 .header {
-    height: var(--admin-header-height);
+    height: calc(var(--admin-header-height) + var(--safeTop, 0px));
     top: 0;
     border-bottom: 1px solid var(--border-tertiary);
     background-color: var(--bg-primary);
     position: fixed;
-    padding: calc(12px + var(--safeTop, 0px)) 24px 12px;
+    padding: calc(12px + var(--safeTop, 0px)) calc(24px + var(--safeRight, 0px)) 12px calc(24px + var(--safeLeft, 0px));
+    padding-top: calc(12px + var(--safeTop, 0px));
     transition: inset-inline-start .3s, width .3s;
     width: 100%;
     z-index: 999;
