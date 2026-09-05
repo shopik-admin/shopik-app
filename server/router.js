@@ -20,6 +20,18 @@ function populateRoutes(api, prefix = '/') {
     }
 }
 
+// Never persist credentials/OTPs in request logs
+const SENSITIVE_KEY = /otp|token|password|secret|signature/i
+function redact(value, depth = 0) {
+    if (depth >= 6 || !value || typeof value !== 'object') return value
+    if (Array.isArray(value)) return value.map(v => redact(v, depth + 1))
+    const out = {}
+    for (const [k, v] of Object.entries(value)) {
+        out[k] = SENSITIVE_KEY.test(k) ? '[REDACTED]' : redact(v, depth + 1)
+    }
+    return out
+}
+
 function validateApi() {
     for (const [key, value] of Object.entries(apiRoutes)) {
         if (value?.config?.permissions?.length) {
@@ -71,7 +83,7 @@ export default function router(app, bootData) {
                     data: {
                         request: {
                             platform,
-                            body
+                            body: redact(body)
                         }
                     }
                 }
@@ -218,7 +230,7 @@ export default function router(app, bootData) {
                 if (requestLog) {
                     requestLogPromise = requestLog.success({
                         ...response,
-                        data: Array.isArray(result) ? `[${result.length} elements]` : result
+                        data: Array.isArray(result) ? `[${result.length} elements]` : redact(result)
                     })
                 }
                 return res.send(response)

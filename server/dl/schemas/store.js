@@ -14,7 +14,8 @@ const storeSchema = {
     address: {
         city: {
             type: String,
-            required: true
+            required: true,
+            filter: true
         },
         street: {
             type: String,

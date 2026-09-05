@@ -4,6 +4,8 @@ import createDL from './dl/index.js'
 import { fileURLToPath } from 'url'
 import path from 'path'
 import externalBuilder from '#server/external/index.js'
+import entityRouteConfig from '#server/utils/entityRouteConfig.js'
+import { applyEntityRoutes } from '#server/utils/entityApi.js'
 
 const
     __filename = fileURLToPath(import.meta.url),
@@ -20,6 +22,10 @@ export default async function boot() {
         loadDir(path.join(__dirname, 'api')),
         loadDir(path.join(__dirname, 'utils'))
     ])
+
+    // Register the standard read/count/id/filters routes declared in
+    // entityRouteConfig.js — file-defined handlers always win
+    applyEntityRoutes(api, entityRouteConfig)
 
     const external = externalBuilder({
         DL,

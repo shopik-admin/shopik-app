@@ -145,9 +145,11 @@ function FilterPill({ descriptor, filter, setFilter, TR, storeMap }) {
     const count = filter[descriptor.key]?.$in?.length || (active ? 1 : 0)
     const isDate = descriptor.type === 'date'
     const isString = descriptor.type === 'string'
+    const isBoolean = descriptor.type === 'boolean'
     const dateText = isDate ? formatDateRange(filter[descriptor.key]?.$gte, filter[descriptor.key]?.$lte, TR) : null
     let displayText = label
     if (isDate && dateText) displayText = dateText
+    else if (isBoolean && active && filter[descriptor.key] === false) displayText = `${TR('not') || 'not'} ${label}`
     else if (isString && active) {
         const v = filter[descriptor.key]
         const raw = typeof v === 'string' ? v : ''
@@ -249,20 +251,24 @@ function FilterControl({ descriptor, filter, setFilter, TR, storeMap, close }) {
     const value = filter[key]
 
     if (type === 'boolean') {
-        const checked = value === true
-        return <label className={styles.checkRow}>
-            <input type='checkbox' checked={checked} onChange={e => {
-                if (e.target.checked) setFilter(prev => ({ ...prev, [key]: true }))
-                else {
-                    setFilter(prev => {
-                        const next = { ...prev }
-                        delete next[key]
-                        return next
-                    })
-                }
-            }} />
-            <span>{getLabel(TR, key)}</span>
-        </label>
+        // exclusive radio pair — lets the filter express false as well as true
+        const { apiRoute } = useData()
+        const trueLabel = getLabel(TR, key)
+        const falseLabel = `${TR('not') || 'not'} ${trueLabel}`
+        const clear = () => setFilter(prev => { const n = { ...prev }; delete n[key]; return n })
+        return <Flex gap={8} col>
+            <label className={styles.checkRow}>
+                <input type='radio' name={`filter-${apiRoute}-${key}`} checked={value === true} onChange={() => setFilter(prev => ({ ...prev, [key]: true }))} />
+                <span>{trueLabel}</span>
+            </label>
+            <label className={styles.checkRow}>
+                <input type='radio' name={`filter-${apiRoute}-${key}`} checked={value === false} onChange={() => setFilter(prev => ({ ...prev, [key]: false }))} />
+                <span>{falseLabel}</span>
+            </label>
+            {(value === true || value === false) && (
+                <button type='button' className={styles.clearBtn} onClick={clear}>{TR('reset')}</button>
+            )}
+        </Flex>
     }
 
     if (type === 'date') {
@@ -443,7 +449,8 @@ function FilterChips({ filter, setFilter, TR, storeMap }) {
             const label = `${getLabel(TR, key)}: ${val}`
             chips.push({ key, label, onRemove: () => { const n = { ...filter }; delete n[key]; setFilter(n) } })
         } else if (val === true || val === false) {
-            chips.push({ key, label: `${getLabel(TR, key)}`, onRemove: () => { const n = { ...filter }; delete n[key]; setFilter(n) } })
+            const label = val === false ? `${TR('not') || 'not'} ${getLabel(TR, key)}` : getLabel(TR, key)
+            chips.push({ key, label, onRemove: () => { const n = { ...filter }; delete n[key]; setFilter(n) } })
         } else if (typeof val === 'object' && Array.isArray(val.$in)) {
             for (const v of val.$in) {
                 let label = v

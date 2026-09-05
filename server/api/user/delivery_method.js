@@ -2,7 +2,7 @@ import { findClosestStore } from '#server/api/order/address/update.js'
 import { releaseWindowReservation } from '#server/utils/data/windowGroups.js'
 import getShippingConfig from '#server/utils/data/getShippingConfig.js'
 import { calcShipping } from '#common/functions/shipping.js'
-import { round2 } from '#common/functions/calcOrder/utils.js'
+import { shippingTotals } from '#common/functions/calcOrder/totals.js'
 import log from '#server/utils/log.js'
 
 async function storeNameById(DL, storeId) {
@@ -59,14 +59,11 @@ export default async function deliveryMethod(payload, { DL, utils, _user }) {
         const sum = order.sum ?? 0
         const shipping = calcShipping({ sum, deliveryMethod, shippingConfig })
         const finalSum = order.finalSum ?? sum
-        orderChanges.shipping = shipping
-        orderChanges.finalShipping = shipping
-        orderChanges.sumWithShipping = round2(sum + shipping)
-        orderChanges.finalSumWithShipping = round2(finalSum + shipping)
-        if (order.sumNoCoupon != null) {
-            orderChanges.sumNoCouponWithShipping = round2(order.sumNoCoupon + shipping)
-            orderChanges.finalSumNoCouponWithShipping = round2((order.finalSumNoCoupon ?? order.sumNoCoupon) + shipping)
-        }
+        Object.assign(orderChanges, shippingTotals({
+            sum, shipping, finalSum,
+            sumNoCoupon: order.sumNoCoupon,
+            finalSumNoCoupon: order.finalSumNoCoupon,
+        }))
     } catch (e) {
         log.error('deliveryMethod: shipping recalc failed, order will keep stale shipping sums', { userId: _user.id, orderId: order.id, error: e?.message || e })
     }

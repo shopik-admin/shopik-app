@@ -231,21 +231,6 @@
     cursor: pointer;
 }
 
-.form {
-    :global(.Form_footer) {
-        position: sticky;
-        inset-inline-start: 0;
-        bottom: -25px;
-        width: 100%;
-        background-color: var(--bg-primary);
-        border-top: 1px solid var(--border-primary);
-
-        button {
-            width: 300px !important;
-        }
-    }
-}
-
 .emptyState {
     display: flex;
     flex-direction: column;
@@ -309,9 +294,5 @@
     .apiKeys.detail .keyDetail {
         display: flex;
         width: 100%;
-    }
-
-    .form :global(.Form_footer) button {
-        width: 100% !important;
     }
 }

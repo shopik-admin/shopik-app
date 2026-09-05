@@ -1,6 +1,6 @@
 import diff from '#common/functions/diff.js'
 import filterClientOrder from '#server/utils/data/filterClientOrder.js'
-import { calcShipping, getRemainingToFreeShipping } from '#common/functions/shipping.js'
+import { shippingTotals } from '#common/functions/calcOrder/totals.js'
 import { round2 } from '#common/functions/calcOrder/utils.js'
 import { isCouponEligible, calcOrderDiscount } from '#common/functions/coupon.js'
 
@@ -59,9 +59,7 @@ export default async function add(payload, { DL, _user, utils }) {
 
     // Shipping based on sum (pre-coupon) per spec
     const shipping = cartOrder.shipping ?? 0
-    const finalShipping = shipping
-    const sumWithShipping = round2(orderSum + shipping)
-    const finalSumWithShipping = round2(finalSum + finalShipping)
+    const { sumWithShipping, finalSumWithShipping, finalShipping } = shippingTotals({ sum: orderSum, shipping, finalSum })
 
     const updatedOrder = {
         ...cartOrder,

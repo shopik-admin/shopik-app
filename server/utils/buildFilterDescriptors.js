@@ -32,7 +32,7 @@ export default function buildFilterDescriptors(ModelOrDL, mainFields = []) {
                 }
             } else if (instance === 'Array') {
                 // e.g. [String] with enum — treat as enum
-                const caster = schematype.caster
+                const caster = schematype.embeddedSchemaType
                 if (caster?.enumValues?.length) {
                     type = 'enum'
                     options = [...caster.enumValues]
