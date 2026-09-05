@@ -5,7 +5,7 @@ import Text from '#common/components/Text/index.jsx'
 
 export default function Home({ }) {
     return <div className={styles.home}>
-        <Text center bold size='h1'>Shopik Home</Text>
+        <Text center bold size='h1'>Shopik Home Page</Text>
     </div>
 }
 
