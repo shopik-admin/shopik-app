@@ -2,6 +2,7 @@ import fs from 'fs'
 import path from 'path'
 import readline from 'readline'
 import { promisify } from 'util'
+import { toPascalCase, toSnakeCase, singularToPlural } from '#common/functions/naming.js'
 const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
@@ -10,22 +11,6 @@ const rlQuestion = promisify(rl.question).bind(rl)
 
 const SCHEMAS_DIR = './server/dl/schemas'
 const API_DIR = './server/api'
-
-function toPascalCase(str) {
-    return str.replace(/(?:^|-|_)(\w)/g, (_, c) => c.toUpperCase())
-}
-
-function toSnakeCase(str) {
-    return str.replace(/([A-Z])/g, '_$1').toLowerCase().replace(/^_/, '')
-}
-
-function singularToPlural(word) {
-    if (/[^aeiou]y$/.test(word))
-        return word.slice(0, -1) + 'ies'
-    if (/[sxz]$|sh$|ch$/.test(word))
-        return word + 'es'
-    return word + 's'
-}
 
 /**
  * Interactive schema field prompt.

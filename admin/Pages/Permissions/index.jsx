@@ -14,13 +14,6 @@ import Tree from 'components/Tree'
 import { useText } from 'common/texts/TextProvider'
 import { useUser } from 'features/User'
 
-function findFirst(nodes) {
-    for (const node of nodes) {
-        return node
-    }
-    return null
-}
-
 function groupPermissions(permissionsList) {
     const groups = {}
 
@@ -62,7 +55,7 @@ export default function Permissions() {
 
     useEffect(() => {
         if (!selected && children.length) {
-            setSelected(findFirst(children))
+            setSelected(children[0] ?? null)
         }
     }, [children, selected])
 

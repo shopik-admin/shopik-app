@@ -236,7 +236,7 @@ export default function router(app, bootData) {
             if (requestLog)
                 requestLogPromise = requestLog.error(errorRes)
 
-            return res.send(errorRes)
+            return res.status(errorRes.status).send(errorRes)
         } finally {
             if (apiFunction?.config?.preventMultiple) {
                 let lockKey = `lock:${route}`

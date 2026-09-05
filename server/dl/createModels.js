@@ -1,6 +1,7 @@
 import { CACHE_STRATEGIES } from '#common/constants.js'
 import uid from '#common/functions/uid.js'
 import get from '#common/functions/get.js'
+import { toPascalCase, toSnakeCase, singularToPlural } from '#common/functions/naming.js'
 import { fileURLToPath } from 'url'
 import mongoose from 'mongoose'
 import path from 'path'
@@ -15,30 +16,9 @@ const __dirname = path.dirname(__filename)
 
 const SCHEMAS_DIR = path.resolve(__dirname, '.', 'schemas')
 
-function toPascalCase(str) {
-    return str.replace(/(?:^|-|_)(\w)/g, (_, c) => c.toUpperCase())
-}
-
-function toSnakeCase(str) {
-    return str.replace(/([A-Z])/g, '_$1').toLowerCase().replace(/^_/, '')
-}
-
 function toSnakeCasePlural(str) {
     const parts = str.split('_')
     return parts.map((part, index) => index === parts.length - 1 ? singularToPlural(part) : part).join('_')
-}
-
-function singularToPlural(word) {
-    // Words ending in consonant + y → ies
-    if (/[^aeiou]y$/.test(word))
-        return word.slice(0, -1) + 'ies'
-
-    // Words ending in s, sh, ch, x, z → es
-    if (/[sxz]$|sh$|ch$/.test(word))
-        return word + 'es'
-
-    // Default: add "s"
-    return word + 's'
 }
 
 /**
@@ -369,10 +349,11 @@ async function createModelFromSchema(schemaPath) {
         })
 
         if (search?.length && Model.filterFields) {
+            const escapedSearch = String(search).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
             for (const field of Model.filterFields) {
                 if (get(schema, `${field}.type`) === String) {
                     if (!processed.$or) processed.$or = []
-                    processed.$or.push({ [field]: new RegExp(search) })
+                    processed.$or.push({ [field]: new RegExp(escapedSearch) })
                 }
             }
         }

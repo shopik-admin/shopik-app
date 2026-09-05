@@ -1,5 +1,7 @@
 import regex from "#common/functions/regex.js"
 
+const MAX_ATTEMPTS = 5
+
 const otpSchema = {
     phone: {
         type: String,
@@ -8,6 +10,7 @@ const otpSchema = {
     },
     otp: { type: String, required: true },
     token: { type: String, required: true },
+    attempts: { type: Number, default: 0 },
     userId: String,
     payload: Object
 }
@@ -23,7 +26,8 @@ const index = [
 export const meta = {
     index,
     noActive: true,
-    noId: true
+    noId: true,
+    constants: { MAX_ATTEMPTS }
 }
 
 export default otpSchema

@@ -1,3 +1,5 @@
+import log from '#server/utils/log.js'
+
 function buildLoaderHtml({ ok, orderNumber, errorMessage }) {
     const safeNum = String(orderNumber || '').replace(/</g, '&lt;')
     const safeErr = String(errorMessage || '').replace(/</g, '&lt;').replace(/'/g, '&#39;')
@@ -85,12 +87,12 @@ export default async function callback(payload, info) {
         return
     }
 
-    // 3. Idempotency — same providerTxnId already processed
+    // 3. Idempotency — same providerTxnId already processed successfully
+    // A previously FAILED txn falls through so a genuine PSP retry can reprocess
     if (providerTxnId) {
         const existing = await DL.PaymentTransaction.readOne({ providerTxnId: String(providerTxnId) })
-        if (existing) {
-            const isSuccess = existing.status === DL.PaymentTransaction.constants.TRANSACTION_STATUS.SUCCESS
-            sendHtml({ ok: isSuccess, order, errorMessage: existing.error })
+        if (existing && existing.status === DL.PaymentTransaction.constants.TRANSACTION_STATUS.SUCCESS) {
+            sendHtml({ ok: true, order, errorMessage: existing.error })
             return
         }
     }
@@ -181,7 +183,9 @@ export default async function callback(payload, info) {
             providerTxnId: String(providerTxnId), providerCode, authCode: q.ACode, providerUid: q.UID, providerPayerId: q.UserId, signature: q.Sign,
             cardToken, cardExpiry, last4digits, cardCompany, providerData: { ...q, tokenResponse: tokenData }
         })
-    } catch { }
+    } catch (e) {
+        log.error('hyp callback: failed to record AUTH transaction', { orderId: order.id, providerTxnId, error: e?.message || e })
+    }
 
     try {
         await DL.Order.updateOne({ id: order.id }, {
@@ -199,7 +203,12 @@ export default async function callback(payload, info) {
             },
             paymentError: null
         })
-    } catch { }
+    } catch (e) {
+        // money was authorized — this failure must be visible, not silent
+        log.error('hyp callback: failed to mark order paid after successful auth', { orderId: order.id, providerTxnId, error: e?.message || e })
+        sendHtml({ ok: false, order, errorMessage: 'התשלום אושר אך עיבוד ההזמנה נכשל' })
+        return
+    }
 
     try {
         const { record } = utils.data.timeline
@@ -211,7 +220,9 @@ export default async function callback(payload, info) {
             outcome: { success: true },
             metadata: { source: 'payment/hyp/callback', referenceOrderNumber: order.number }
         })
-    } catch { }
+    } catch (e) {
+        log.error('hyp callback: failed to record payment timeline event', { orderId: order.id, providerTxnId, error: e?.message || e })
+    }
 
     sendHtml({ ok: true, order })
 }

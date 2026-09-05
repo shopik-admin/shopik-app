@@ -43,19 +43,6 @@ export function decryptValue(encStr) {
     }
 }
 
-export function shouldEncryptDoc(doc) {
-    if (!doc) return false
-    return doc.formType === 'config' || doc.renderType === 'config'
-}
-
-export function encryptDocValue(doc) {
-    if (!doc || doc.value === undefined || doc.value === null) return doc
-    if (!shouldEncryptDoc(doc)) return doc
-    if (isEncrypted(doc.value)) return doc
-    doc.value = encryptValue(doc.value)
-    return doc
-}
-
 export function decryptDoc(doc) {
     if (!doc || doc.value === undefined || doc.value === null) return doc
     if (!isEncrypted(doc.value)) return doc

@@ -1,16 +1,6 @@
 import { OPS_PROXIMITY_RADIUS_M } from '#common/constants.js'
+import distanceMeters from '#common/functions/distance.js'
 import sharp from 'sharp'
-
-function haversine(a, b) {
-    const toRad = d => d * Math.PI / 180
-    const [lng1, lat1] = a
-    const [lng2, lat2] = b
-    const R = 6371000
-    const dLat = toRad(lat2 - lat1)
-    const dLng = toRad(lng2 - lng1)
-    const s = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2
-    return 2 * R * Math.asin(Math.sqrt(s))
-}
 
 export default async function deliver(payload, { DL, _admin, external, utils }) {
     const { orderId, imageBase64, coordinates, force } = payload
@@ -25,7 +15,7 @@ export default async function deliver(payload, { DL, _admin, external, utils }) 
     if (shipment && shipment.shipper?.adminId !== _admin.id && !_admin.isSuperAdmin) throw { status: 403, message: 'not your shipment' }
 
     if (!force && coordinates && order.address?.location?.coordinates?.length) {
-        const d = haversine(coordinates, order.address.location.coordinates)
+        const d = distanceMeters(coordinates, order.address.location.coordinates)
         if (d > OPS_PROXIMITY_RADIUS_M) throw { status: 400, message: `too far: ${Math.round(d)}m > ${OPS_PROXIMITY_RADIUS_M}m (use force if GPS drift)` }
     }
 

@@ -7,8 +7,16 @@ export default async function login({ idNum, otpToken, otp }, { DL, utils, platf
 
     const { phone } = admin
     const storedOtp = await DL.Otp.readOne({ phone, token: otpToken })
-    if (!storedOtp || storedOtp.otp !== otp)
+    if (!storedOtp || storedOtp.otp !== otp) {
+        if (storedOtp) {
+            const attempts = (storedOtp.attempts || 0) + 1
+            if (attempts >= DL.Otp.constants.MAX_ATTEMPTS)
+                await DL.Otp.deleteOne({ _id: storedOtp._id })
+            else
+                await DL.Otp.Model.updateOne({ _id: storedOtp._id }, { attempts })
+        }
         throw { message: 'login failed', status: 403 }
+    }
 
     const token = utils.auth.createToken(admin.id, ADMIN_TOKEN_EXPIRY_MS)
     const update = {

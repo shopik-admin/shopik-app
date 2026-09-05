@@ -7,6 +7,15 @@ export default async function edit(payload, { DL, _user, external, utils }) {
 
     const update = diff(_user, payload)
 
+    // Whitelist: only schema fields marked userEditable may be changed by the user
+    // (top-level segments — e.g. 'name.first' allows the 'name' key through)
+    const editableKeys = new Set(
+        Array.from(DL.User.Model.userEditableFields || [], path => path.split('.')[0])
+    )
+    for (const key of Object.keys(update)) {
+        if (!editableKeys.has(key)) delete update[key]
+    }
+
     const nothingToUpdate = Object.keys(update).length === 0
     if (nothingToUpdate) return { user: _user }
 
