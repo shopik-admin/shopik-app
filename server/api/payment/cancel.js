@@ -1,3 +1,5 @@
+import paymentTxn from '#server/utils/data/paymentAudit.js'
+
 export default async function cancel(payload, info) {
     const { DL, external, utils, _admin } = info
     const { orderId } = payload
@@ -25,13 +27,11 @@ export default async function cancel(payload, info) {
         const isOk = okCodes.includes(Number(res.CCode)) || Number(res.ReversalStatus) === 777
         if (!isOk && Number(res.CCode) !== 0) {
             const msg = external.hyp.ccodeMessage(res.CCode)
-            await DL.PaymentTransaction.create({
-                domainId: order.domainId, storeId: order.storeId,
-                orderId: order.id, orderNumber: order.number, userId: order.userId,
-                provider: 'hyp', kind: DL.PaymentTransaction.constants.TRANSACTION_KIND.CANCEL,
+            await DL.PaymentTransaction.create(paymentTxn(order, {
+                kind: DL.PaymentTransaction.constants.TRANSACTION_KIND.CANCEL,
                 status: DL.PaymentTransaction.constants.TRANSACTION_STATUS.FAILED,
                 amount: order.payment.authorizedAmount, providerTxnId: targetId, providerCode: res.CCode, providerData: res, error: msg
-            }).catch(() => { })
+            })).catch(() => { })
             await record({
                 DL, order, eventType: DL.Timeline.constants.EVENT_TYPES.PAYMENT,
                 actor: adminActor(_admin),
@@ -41,13 +41,11 @@ export default async function cancel(payload, info) {
             })
             throw { status: 502, message: msg }
         }
-        await DL.PaymentTransaction.create({
-            domainId: order.domainId, storeId: order.storeId,
-            orderId: order.id, orderNumber: order.number, userId: order.userId,
-            provider: 'hyp', kind: DL.PaymentTransaction.constants.TRANSACTION_KIND.CANCEL,
+        await DL.PaymentTransaction.create(paymentTxn(order, {
+            kind: DL.PaymentTransaction.constants.TRANSACTION_KIND.CANCEL,
             status: DL.PaymentTransaction.constants.TRANSACTION_STATUS.SUCCESS,
             amount: order.payment.authorizedAmount, providerTxnId: targetId, providerCode: 0, providerData: res
-        }).catch(() => { })
+        })).catch(() => { })
         await DL.Order.updateOne({ id: order.id }, { status: DL.Order.constants.ORDER_STATUS.CANCELED, cancelDate: new Date(), paymentError: null })
         await record({
             DL, order,
@@ -72,14 +70,12 @@ export default async function cancel(payload, info) {
 
     const cancelOk = Number(cancelRes.CCode) === 0 || Number(cancelRes.ReversalStatus) === 777
     if (cancelOk) {
-        await DL.PaymentTransaction.create({
-            domainId: order.domainId, storeId: order.storeId,
-            orderId: order.id, orderNumber: order.number, userId: order.userId,
-            provider: 'hyp', kind: DL.PaymentTransaction.constants.TRANSACTION_KIND.CANCEL,
+        await DL.PaymentTransaction.create(paymentTxn(order, {
+            kind: DL.PaymentTransaction.constants.TRANSACTION_KIND.CANCEL,
             status: DL.PaymentTransaction.constants.TRANSACTION_STATUS.SUCCESS,
             amount: order.finalSumWithShipping ?? order.finalSum,
             providerTxnId: captureId, providerCode: 0, providerData: cancelRes
-        }).catch(() => { })
+        })).catch(() => { })
         await DL.Order.updateOne({ id: order.id }, { status: DL.Order.constants.ORDER_STATUS.CANCELED, cancelDate: new Date(), paymentError: null })
         await record({
             DL, order,
@@ -118,13 +114,11 @@ export default async function cancel(payload, info) {
             throw { status: 502, message: msg }
         }
         const newId = refundRes.Id ? String(refundRes.Id) : undefined
-        await DL.PaymentTransaction.create({
-            domainId: order.domainId, storeId: order.storeId,
-            orderId: order.id, orderNumber: order.number, userId: order.userId,
-            provider: 'hyp', kind: DL.PaymentTransaction.constants.TRANSACTION_KIND.REFUND,
+        await DL.PaymentTransaction.create(paymentTxn(order, {
+            kind: DL.PaymentTransaction.constants.TRANSACTION_KIND.REFUND,
             status: DL.PaymentTransaction.constants.TRANSACTION_STATUS.SUCCESS,
             amount: remaining, providerTxnId: newId, parentProviderTxnId: captureId, providerCode: 0, providerData: refundRes, reason: 'cancel_fallback_refund'
-        }).catch(() => { })
+        })).catch(() => { })
         const prevRefunded = Number(order.refundedTotal || 0)
         await DL.Order.Model.updateOne({ id: order.id }, { $inc: { refundedTotal: remaining } }).catch(() => { })
         await DL.Order.Model.updateOne({ id: order.id }, { finalSumAfterRefunds: Number((order.finalSumWithShipping ?? 0) - (prevRefunded + remaining)) }).catch(() => { })

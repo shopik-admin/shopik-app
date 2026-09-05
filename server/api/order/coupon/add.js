@@ -29,13 +29,14 @@ export default async function add(payload, { DL, _user, utils }) {
     if (!eligibilityResult.eligible && !eligibilityResult.isMinSumBlock) throw { status: 400, message: 'Coupon conditions not met', details: { reason: eligibilityResult.reason } }
 
     const isActive = eligibilityResult.eligible
-    const discount = isActive ? calcOrderDiscount(coupon, orderSum) : 0
+    const calculatedDiscount = round2(calcOrderDiscount(coupon, orderSum))
+    const discount = isActive ? calculatedDiscount : 0
     const finalSum = Math.max(orderSum - discount, 0)
 
     const couponEntry = {
         code: coupon.code,
-        discount: Math.round(calcOrderDiscount(coupon, orderSum) * 100) / 100,
-        appliedDiscount: Math.round(discount * 100) / 100,
+        discount: calculatedDiscount,
+        appliedDiscount: discount,
         percent: coupon.benefit === 'percent',
         benefit: coupon.benefit,
         originalDiscount: coupon.discount,

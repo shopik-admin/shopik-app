@@ -64,6 +64,7 @@ export default async function deliver(payload, { DL, _admin, external, utils }) 
 }
 
 deliver.config = {
+    required: ['orderId', 'imageBase64'],
     permissions: ['order:ship'],
-    preventMultiple: p => ':' + (p.orderId || '')
+    preventMultiple: p => ':' + p.orderId
 }

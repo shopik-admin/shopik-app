@@ -1,4 +1,5 @@
 import { releaseWindowReservation } from '#server/utils/data/windowGroups.js'
+import paymentTxn from '#server/utils/data/paymentAudit.js'
 
 export default async function create(payload, info) {
     const { DL, external, utils, _user } = info
@@ -157,19 +158,13 @@ export default async function create(payload, info) {
 
     const terminalId = process.env.HYP_MASOF || undefined
 
-    const txn = await DL.PaymentTransaction.create({
-        domainId: order.domainId,
-        storeId: order.storeId,
-        orderId: order.id,
-        orderNumber: order.number,
-        userId: order.userId,
-        provider: 'hyp',
+    const txn = await DL.PaymentTransaction.create(paymentTxn(order, {
         kind: DL.PaymentTransaction.constants.TRANSACTION_KIND.AUTH,
         status: DL.PaymentTransaction.constants.TRANSACTION_STATUS.PENDING,
         amount: Number(amount),
         terminalId,
         providerData: { createdAt: new Date().toISOString(), orderNumber: order.number }
-    })
+    }))
 
     try {
         await DL.Order.updateOne({ id: order.id }, { $inc: { paymentAttempts: 1 } })

@@ -1,3 +1,5 @@
+import paymentTxn from '#server/utils/data/paymentAudit.js'
+
 export default async function refund(payload, info) {
     const { DL, external, utils, _admin } = info
     const { orderId, items = [], reason } = payload
@@ -56,13 +58,11 @@ export default async function refund(payload, info) {
 
     if (Number(hypRes.CCode) !== 0) {
         const msg = external.hyp.ccodeMessage(hypRes.CCode)
-        await DL.PaymentTransaction.create({
-            domainId: order.domainId, storeId: order.storeId,
-            orderId: order.id, orderNumber: order.number, userId: order.userId,
-            provider: 'hyp', kind: DL.PaymentTransaction.constants.TRANSACTION_KIND.REFUND,
+        await DL.PaymentTransaction.create(paymentTxn(order, {
+            kind: DL.PaymentTransaction.constants.TRANSACTION_KIND.REFUND,
             status: DL.PaymentTransaction.constants.TRANSACTION_STATUS.FAILED,
             amount: totalRefund, parentProviderTxnId: captureTxnId, providerCode: hypRes.CCode, providerData: hypRes, error: msg, reason, items: refundItems
-        }).catch(() => { })
+        })).catch(() => { })
         const { record, adminActor } = utils.data.timeline
         await record({
             DL, order,
@@ -77,13 +77,11 @@ export default async function refund(payload, info) {
 
     const newProviderTxnId = hypRes.Id ? String(hypRes.Id) : undefined
 
-    await DL.PaymentTransaction.create({
-        domainId: order.domainId, storeId: order.storeId,
-        orderId: order.id, orderNumber: order.number, userId: order.userId,
-        provider: 'hyp', kind: DL.PaymentTransaction.constants.TRANSACTION_KIND.REFUND,
+    await DL.PaymentTransaction.create(paymentTxn(order, {
+        kind: DL.PaymentTransaction.constants.TRANSACTION_KIND.REFUND,
         status: DL.PaymentTransaction.constants.TRANSACTION_STATUS.SUCCESS,
         amount: totalRefund, providerTxnId: newProviderTxnId, parentProviderTxnId: captureTxnId, providerCode: 0, providerData: hypRes, reason, items: refundItems
-    })
+    }))
 
     // atomic update: inc refundedTotal, inc per-line refundedAmount, set finalSumAfterRefunds
     const prevRefunded = Number(order.refundedTotal || 0)

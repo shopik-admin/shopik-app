@@ -13,27 +13,7 @@ import Text from 'common/components/Text'
 import Tree from 'components/Tree'
 import { useText } from 'common/texts/TextProvider'
 import { useUser } from 'features/User'
-
-function groupPermissions(permissionsList) {
-    const groups = {}
-
-    permissionsList.sort().forEach((permission) => {
-        const [category, action] = permission.split(':')
-
-        if (!category) return
-
-        if (!groups[category]) {
-            groups[category] = []
-        }
-
-        groups[category].push({
-            action: action || 'all',
-            fullValue: permission,
-        })
-    })
-
-    return groups
-}
+import { groupPermissions } from 'utils/permissions'
 
 export default function Permissions() {
     const { data = {}, callReq } = useApi('role/tree')

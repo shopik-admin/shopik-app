@@ -1,4 +1,5 @@
 import log from '#server/utils/log.js'
+import paymentTxn from '#server/utils/data/paymentAudit.js'
 
 function buildLoaderHtml({ ok, orderNumber, errorMessage }) {
     const safeNum = String(orderNumber || '').replace(/</g, '&lt;')
@@ -102,15 +103,13 @@ export default async function callback(payload, info) {
     if (!isSuccessCode) {
         const msg = hyp.ccodeMessage(providerCode)
         try {
-            await DL.PaymentTransaction.create({
-                domainId: order.domainId, storeId: order.storeId,
-                orderId: order.id, orderNumber: order.number, userId: order.userId,
-                provider: 'hyp', kind: DL.PaymentTransaction.constants.TRANSACTION_KIND.AUTH,
+            await DL.PaymentTransaction.create(paymentTxn(order, {
+                kind: DL.PaymentTransaction.constants.TRANSACTION_KIND.AUTH,
                 status: DL.PaymentTransaction.constants.TRANSACTION_STATUS.FAILED,
                 amount: amountRaw ? Number(amountRaw) : undefined,
                 providerTxnId: providerTxnId ? String(providerTxnId) : undefined,
                 providerCode, authCode: q.ACode || q.acode, providerUid: q.UID, providerPayerId: q.UserId, signature: q.Sign, providerData: q, error: msg
-            })
+            }))
         } catch { }
         try {
             const { record } = utils.data.timeline
@@ -135,14 +134,12 @@ export default async function callback(payload, info) {
     } catch (e) {
         const msg = e.message || 'getToken failed'
         try {
-            await DL.PaymentTransaction.create({
-                domainId: order.domainId, storeId: order.storeId,
-                orderId: order.id, orderNumber: order.number, userId: order.userId,
-                provider: 'hyp', kind: DL.PaymentTransaction.constants.TRANSACTION_KIND.AUTH,
+            await DL.PaymentTransaction.create(paymentTxn(order, {
+                kind: DL.PaymentTransaction.constants.TRANSACTION_KIND.AUTH,
                 status: DL.PaymentTransaction.constants.TRANSACTION_STATUS.FAILED,
                 amount: amountRaw ? Number(amountRaw) : undefined,
                 providerTxnId: String(providerTxnId), providerCode, authCode: q.ACode, providerUid: q.UID, providerPayerId: q.UserId, signature: q.Sign, providerData: { ...q, tokenError: msg }, error: msg
-            })
+            }))
         } catch { }
         sendHtml({ ok: false, order, errorMessage: msg })
         return
@@ -151,15 +148,13 @@ export default async function callback(payload, info) {
     if (Number(tokenData.CCode) !== 0 || !tokenData.Token) {
         const msg = hyp.ccodeMessage(tokenData.CCode)
         try {
-            await DL.PaymentTransaction.create({
-                domainId: order.domainId, storeId: order.storeId,
-                orderId: order.id, orderNumber: order.number, userId: order.userId,
-                provider: 'hyp', kind: DL.PaymentTransaction.constants.TRANSACTION_KIND.AUTH,
+            await DL.PaymentTransaction.create(paymentTxn(order, {
+                kind: DL.PaymentTransaction.constants.TRANSACTION_KIND.AUTH,
                 status: DL.PaymentTransaction.constants.TRANSACTION_STATUS.FAILED,
                 amount: amountRaw ? Number(amountRaw) : undefined,
                 providerTxnId: String(providerTxnId), providerCode: tokenData.CCode, authCode: q.ACode, providerUid: q.UID, providerPayerId: q.UserId, signature: q.Sign,
                 cardToken: tokenData.Token, cardExpiry: tokenData.Tokef, providerData: { ...q, tokenResponse: tokenData }, error: msg
-            })
+            }))
         } catch { }
         sendHtml({ ok: false, order, errorMessage: msg })
         return
@@ -173,16 +168,14 @@ export default async function callback(payload, info) {
     const cardCompany = hyp.cardBrandName(q.Brand)
 
     try {
-        await DL.PaymentTransaction.create({
-            domainId: order.domainId, storeId: order.storeId,
-            orderId: order.id, orderNumber: order.number, userId: order.userId,
-            provider: 'hyp', kind: DL.PaymentTransaction.constants.TRANSACTION_KIND.AUTH,
+        await DL.PaymentTransaction.create(paymentTxn(order, {
+            kind: DL.PaymentTransaction.constants.TRANSACTION_KIND.AUTH,
             status: DL.PaymentTransaction.constants.TRANSACTION_STATUS.SUCCESS,
             amount: Number(authorizedAmount),
             terminalId: process.env.HYP_MASOF || undefined,
             providerTxnId: String(providerTxnId), providerCode, authCode: q.ACode, providerUid: q.UID, providerPayerId: q.UserId, signature: q.Sign,
             cardToken, cardExpiry, last4digits, cardCompany, providerData: { ...q, tokenResponse: tokenData }
-        })
+        }))
     } catch (e) {
         log.error('hyp callback: failed to record AUTH transaction', { orderId: order.id, providerTxnId, error: e?.message || e })
     }

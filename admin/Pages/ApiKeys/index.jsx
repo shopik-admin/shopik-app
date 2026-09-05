@@ -13,18 +13,8 @@ import apiReq from 'common/functions/apiReq'
 import useApi from 'common/functions/useApi'
 import { useUser } from 'features/User'
 import apiKeyPermissions from 'common/constants/apiKeyPermissions.js'
+import { groupPermissions } from 'utils/permissions'
 import styles from './apiKeys.module.css'
-
-function groupPermissions(list) {
-    const groups = {}
-    list.slice().sort().forEach((permission) => {
-        const [category, action] = permission.split(':')
-        if (!category) return
-        if (!groups[category]) groups[category] = []
-        groups[category].push({ action: action || 'all', fullValue: permission })
-    })
-    return groups
-}
 
 function CreateKeyForm({ onClose, onCreated }) {
     const [name, setName] = useState('')

@@ -24,6 +24,12 @@ function formatMinSum(minSum, TR) {
     return template.replace('{minSum}', Number(minSum).toFixed(0))
 }
 
+// Sum still missing for an applied-but-inactive coupon to reach its minSum
+function getRemainingToActivate(order, coupon) {
+    if (!coupon?.minSum) return 0
+    return Math.max(0, round2(Number(coupon.minSum) - Number(order.sum || 0)))
+}
+
 function formatExpiry(end, TR) {
     if (!end) return null
     try {
@@ -228,7 +234,7 @@ export default function CouponSection() {
                     {coupons.map(c => {
                         const isApplied = appliedCode === c.code.toLowerCase()
                         const isActive = isApplied ? (appliedCoupon?.isActive !== false) : true
-                        const remainingToActivate = isApplied && !isActive && appliedCoupon?.minSum ? Math.max(0, round2(Number(appliedCoupon.minSum) - Number(order.sum || 0))) : 0
+                        const remainingToActivate = isApplied && !isActive ? getRemainingToActivate(order, appliedCoupon) : 0
                         return (
                             <CouponCard
                                 key={c.code}
@@ -316,7 +322,7 @@ export default function CouponSection() {
             </div>
 
             {order.coupons?.[0]?.isActive === false && order.coupons[0].minSum && (
-                <Text size='s' mode='error' className={styles.inactiveMsg}>{TR?.('coupon_min_sum_not_reached')?.replace('{remaining}', Math.max(0, round2(Number(order.coupons[0].minSum) - Number(order.sum || 0)))).replace('{minSum}', order.coupons[0].minSum)}</Text>
+                <Text size='s' mode='error' className={styles.inactiveMsg}>{TR?.('coupon_min_sum_not_reached')?.replace('{remaining}', getRemainingToActivate(order, order.coupons[0])).replace('{minSum}', order.coupons[0].minSum)}</Text>
             )}
             {inputError && <Text size='s' mode='error' className={styles.inputError}>{inputError}</Text>}
         </Flex>
@@ -515,7 +521,7 @@ export function CouponCollapse({ defaultOpen = true }) {
 
             {order.coupons?.[0]?.isActive === false && order.coupons[0].minSum && (
                 <Text size='s' mode='error' className={styles.inactiveMsg}>{TR?.('coupon_min_sum_not_reached')
-                    ?.replace('{remaining}', Math.max(0, round2(Number(order.coupons[0].minSum) - Number(order.sum || 0))))
+                    ?.replace('{remaining}', getRemainingToActivate(order, order.coupons[0]))
                     .replace('{minSum}', order.coupons[0].minSum)}
                 </Text>
             )}
@@ -548,7 +554,7 @@ function CouponSectionInner({
                     {coupons.map(c => {
                         const isApplied = appliedCode === c.code.toLowerCase()
                         const isActive = isApplied ? (appliedCoupon?.isActive !== false) : true
-                        const remainingToActivate = isApplied && !isActive && appliedCoupon?.minSum ? Math.max(0, round2(Number(appliedCoupon.minSum) - Number(order.sum || 0))) : 0
+                        const remainingToActivate = isApplied && !isActive ? getRemainingToActivate(order, appliedCoupon) : 0
                         return (
                             <CouponCard
                                 key={c.code}

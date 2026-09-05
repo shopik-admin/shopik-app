@@ -53,6 +53,7 @@ export default async function claim(payload, { DL, _admin, utils }) {
 }
 
 claim.config = {
+    required: ['id'],
     permissions: ['order:pick'],
-    preventMultiple: p => ':' + (p.id || '')
+    preventMultiple: p => ':' + p.id
 }

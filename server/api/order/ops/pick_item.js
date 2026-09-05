@@ -123,6 +123,7 @@ export default async function pick_item(payload, { DL, _admin, utils }) {
 }
 
 pick_item.config = {
+    required: ['id'],
     permissions: ['order:pick'],
-    preventMultiple: p => ':' + (p.id || '')
+    preventMultiple: p => ':' + p.id
 }

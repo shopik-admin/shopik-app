@@ -61,43 +61,51 @@ export function calcOrderDiscount(coupon, orderSum) {
     return 0
 }
 
-// For client calcOrder where coupon entry is stored as {discount, percent, minSum, maxSum, code}
-// Need to recalc discount based on new sum, respecting original benefit and caps
-export function calcCouponDiscountForOrder(couponEntry, orderSum, user) {
-    // couponEntry may be normalized from order.coupons (has discount, percent, minSum, maxSum)
-    // Reconstruct a coupon-like object for eligibility check
-    const pseudoCoupon = {
-        whitelist: couponEntry.whitelist,
-        blacklist: couponEntry.blacklist,
-        dynamic: true, // assume dynamic if minSum present
-        minSum: couponEntry.minSum,
-        maxSum: couponEntry.maxSum,
-        condition: couponEntry.condition,
-        benefit: couponEntry.percent ? 'percent' : 'sum',
-        discount: couponEntry.percent ? undefined : couponEntry.discount, // for percent we need rate
+// Re-evaluates order.coupons entries against a new order sum:
+// marks coupons ineligible (minSum/conditions no longer met) as inactive,
+// recalculates applied discounts (percent rate preserved via originalDiscount)
+// and clamps to the new sum.
+export function resolveCoupons(orderCoupons, oldSum, newSum, user) {
+    if (!orderCoupons?.length) return { coupons: [], totalDiscount: 0 }
+    oldSum = Number(oldSum || 0)
+    let totalDiscount = 0
+    const coupons = []
+    for (const c of orderCoupons) {
+        const pseudoCoupon = {
+            whitelist: c.whitelist,
+            blacklist: c.blacklist,
+            dynamic: c.minSum != null || !!c.condition,
+            minSum: c.minSum,
+            maxSum: c.maxSum,
+            condition: c.condition,
+        }
+        const eligible = isCouponEligible(pseudoCoupon, user, newSum).eligible
+        if (!eligible) {
+            // keep coupon but mark inactive – no discount applied
+            coupons.push({ ...c, isActive: false, appliedDiscount: 0 })
+            continue
+        }
+        const storedDiscount = Number(c.discount || 0)
+        // For percent coupons storedDiscount is absolute at old sum; derive rate from original coupon data if available
+        let newDiscount = 0
+        if (c.percent) {
+            if (c.originalDiscount != null || c.benefit === 'percent') {
+                const rate = c.originalDiscount != null ? Number(c.originalDiscount) / 100 : (oldSum > 0 ? storedDiscount / oldSum : 0)
+                newDiscount = round2(newSum * rate)
+            } else {
+                const rate = oldSum > 0 ? storedDiscount / oldSum : 0
+                newDiscount = rate > 0 ? round2(newSum * rate) : Math.min(storedDiscount, newSum)
+            }
+            if (c.maxSum != null) newDiscount = Math.min(newDiscount, Number(c.maxSum))
+            newDiscount = Math.min(newDiscount, newSum)
+        } else {
+            newDiscount = Math.min(storedDiscount, newSum)
+        }
+        const updated = { ...c, isActive: true, appliedDiscount: newDiscount, discount: newDiscount }
+        // Preserve original discount for future recalc if needed
+        if (c.originalDiscount == null && c.percent) updated.originalDiscount = c.discount
+        coupons.push(updated)
+        totalDiscount += newDiscount
     }
-    // For percent, discount rate is stored as absolute at time of apply; derive rate from stored vs old sum?
-    // Better to store original percent discount value in couponEntry - but we only have absolute.
-    // Caller should handle rate derivation; this helper just uses calcOrderDiscount if benefit known
-    // If percent, we need original percent rate; fallback to using stored discount as absolute is wrong for new sum.
-    // So this function is not used directly for percent recalc - see cart.js rate logic.
-    return calcOrderDiscount(pseudoCoupon, orderSum)
-}
-
-export function isCouponEntryEligible(couponEntry, orderSum, user) {
-    // couponEntry from order.coupons has minSum, etc.
-    if (couponEntry.minSum != null && orderSum < Number(couponEntry.minSum)) return false
-    // For full eligibility, delegate to isCouponEligible with pseudo coupon
-    const pseudo = {
-        whitelist: couponEntry.whitelist,
-        blacklist: couponEntry.blacklist,
-        dynamic: couponEntry.minSum != null || !!couponEntry.condition,
-        minSum: couponEntry.minSum,
-        maxSum: couponEntry.maxSum,
-        condition: couponEntry.condition,
-    }
-    // if no dynamic fields, just minSum check is enough
-    if (!pseudo.dynamic) return true
-    const res = isCouponEligible(pseudo, user, orderSum)
-    return res.eligible
+    return { coupons, totalDiscount: round2(totalDiscount) }
 }

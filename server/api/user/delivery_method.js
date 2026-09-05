@@ -3,6 +3,7 @@ import { releaseWindowReservation } from '#server/utils/data/windowGroups.js'
 import getShippingConfig from '#server/utils/data/getShippingConfig.js'
 import { calcShipping } from '#common/functions/shipping.js'
 import { round2 } from '#common/functions/calcOrder/utils.js'
+import log from '#server/utils/log.js'
 
 async function storeNameById(DL, storeId) {
     if (!storeId) return null
@@ -66,7 +67,9 @@ export default async function deliveryMethod(payload, { DL, utils, _user }) {
             orderChanges.sumNoCouponWithShipping = round2(order.sumNoCoupon + shipping)
             orderChanges.finalSumNoCouponWithShipping = round2((order.finalSumNoCoupon ?? order.sumNoCoupon) + shipping)
         }
-    } catch {}
+    } catch (e) {
+        log.error('deliveryMethod: shipping recalc failed, order will keep stale shipping sums', { userId: _user.id, orderId: order.id, error: e?.message || e })
+    }
 
     const orderUpdate = { $set: orderChanges }
     if (order.storeId != orderChanges.storeId) {

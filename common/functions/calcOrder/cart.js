@@ -1,6 +1,6 @@
 import { calcOrderSum } from './index.js'
 import { round2 } from './utils.js'
-import { isCouponEligible } from '../coupon.js'
+import { resolveCoupons } from '../coupon.js'
 
 export const CART_PRODUCT_STATUS = {
     ADMIN_ADD: 'admin_add',
@@ -146,55 +146,14 @@ export function calcOrder({ order, product, amount, unitKey, sales, shippingConf
     const sumNoCoupon = calcResult.totals.sumBeforeDiscounts
 
     // Preserve existing coupons: if order has coupons, finalSum should be reduced
-    // Respect minSum via isCouponEligible and handle percent recalc
     let resolvedFinalSum = finalSum
     let resolvedFinalShipping = shipping
     let resolvedFinalSumWithShipping = sumWithShipping
     let resolvedCoupons = order.coupons ? [...order.coupons] : []
     if (order.coupons && order.coupons.length) {
         const oldSum = Number(order.sum || 0)
-        let totalCouponDiscount = 0
-        const updatedCoupons = []
-        for (const c of order.coupons) {
-            const pseudoCoupon = {
-                whitelist: c.whitelist,
-                blacklist: c.blacklist,
-                dynamic: c.minSum != null || !!c.condition,
-                minSum: c.minSum,
-                maxSum: c.maxSum,
-                condition: c.condition,
-            }
-            const eligible = isCouponEligible(pseudoCoupon, user, finalSum).eligible
-            if (!eligible) {
-                // keep coupon but mark inactive – no discount applied
-                updatedCoupons.push({ ...c, isActive: false, appliedDiscount: 0 })
-                continue
-            }
-            const storedDiscount = Number(c.discount || 0)
-            // For percent coupons storedDiscount is absolute at old sum; derive rate from original coupon data if available
-            let newDiscount = 0
-            if (c.percent) {
-                // Prefer originalDiscount/benefit if available, else derive rate from stored
-                if (c.originalDiscount != null || c.benefit === 'percent') {
-                    const rate = c.originalDiscount != null ? Number(c.originalDiscount) / 100 : (oldSum > 0 ? storedDiscount / oldSum : 0)
-                    newDiscount = round2(finalSum * rate)
-                } else {
-                    const rate = oldSum > 0 ? storedDiscount / oldSum : 0
-                    newDiscount = rate > 0 ? round2(finalSum * rate) : storedDiscount
-                }
-                if (c.maxSum != null && c.maxSum !== undefined) newDiscount = Math.min(newDiscount, Number(c.maxSum))
-                newDiscount = Math.min(newDiscount, finalSum)
-            } else {
-                newDiscount = Math.min(storedDiscount, finalSum)
-            }
-            const updated = { ...c, isActive: true, appliedDiscount: newDiscount, discount: newDiscount }
-            // Preserve original discount for future recalc if needed
-            if (c.originalDiscount == null && c.percent) updated.originalDiscount = c.discount
-            updatedCoupons.push(updated)
-            totalCouponDiscount += newDiscount
-        }
-        resolvedFinalSum = Math.max(0, round2(finalSum - totalCouponDiscount))
-        resolvedFinalShipping = shipping
+        const { coupons: updatedCoupons, totalDiscount } = resolveCoupons(order.coupons, oldSum, finalSum, user)
+        resolvedFinalSum = Math.max(0, round2(finalSum - totalDiscount))
         resolvedFinalSumWithShipping = round2(resolvedFinalSum + resolvedFinalShipping)
         resolvedCoupons = updatedCoupons
     }

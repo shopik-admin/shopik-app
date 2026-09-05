@@ -1,3 +1,5 @@
+import paymentTxn from '#server/utils/data/paymentAudit.js'
+
 export default async function capture(payload, info) {
     const { DL, external, utils, _admin } = info
     const { orderId } = payload
@@ -21,13 +23,11 @@ export default async function capture(payload, info) {
         if (!primary || Number(primary.CCode) !== 0) {
             const msg = external.hyp.ccodeMessage(primary?.CCode)
             await DL.Order.updateOne({ id: order.id }, { paymentError: msg })
-            await DL.PaymentTransaction.create({
-                domainId: order.domainId, storeId: order.storeId,
-                orderId: order.id, orderNumber: order.number, userId: order.userId,
-                provider: 'hyp', kind: DL.PaymentTransaction.constants.TRANSACTION_KIND.CAPTURE,
+            await DL.PaymentTransaction.create(paymentTxn(order, {
+                kind: DL.PaymentTransaction.constants.TRANSACTION_KIND.CAPTURE,
                 status: DL.PaymentTransaction.constants.TRANSACTION_STATUS.FAILED,
                 amount: captureAmount, providerCode: primary?.CCode, parentProviderTxnId: order.payment.providerTxnId, providerData: primary, error: msg
-            }).catch(() => { })
+            })).catch(() => { })
             await record({
                 DL, order, eventType: DL.Timeline.constants.EVENT_TYPES.PAYMENT,
                 actor: adminActor(_admin),
@@ -39,14 +39,12 @@ export default async function capture(payload, info) {
         }
         const capturedAt = new Date()
         const captureTxnId = primary.Id ? String(primary.Id) : undefined
-        await DL.PaymentTransaction.create({
-            domainId: order.domainId, storeId: order.storeId,
-            orderId: order.id, orderNumber: order.number, userId: order.userId,
-            provider: 'hyp', kind: DL.PaymentTransaction.constants.TRANSACTION_KIND.CAPTURE,
+        await DL.PaymentTransaction.create(paymentTxn(order, {
+            kind: DL.PaymentTransaction.constants.TRANSACTION_KIND.CAPTURE,
             status: DL.PaymentTransaction.constants.TRANSACTION_STATUS.SUCCESS,
             amount: authorized, terminalId: process.env.HYP_MASOF || undefined,
             providerTxnId: captureTxnId, parentProviderTxnId: order.payment.providerTxnId, providerCode: 0, providerData: primary
-        })
+        }))
         await record({
             DL, order, eventType: DL.Timeline.constants.EVENT_TYPES.PAYMENT,
             actor: adminActor(_admin),
@@ -57,13 +55,11 @@ export default async function capture(payload, info) {
         const secondary = split.secondary
         if (secondary && Number(secondary.CCode) === 0) {
             const secondId = secondary.Id ? String(secondary.Id) : undefined
-            await DL.PaymentTransaction.create({
-                domainId: order.domainId, storeId: order.storeId,
-                orderId: order.id, orderNumber: order.number, userId: order.userId,
-                provider: 'hyp', kind: DL.PaymentTransaction.constants.TRANSACTION_KIND.CAPTURE,
+            await DL.PaymentTransaction.create(paymentTxn(order, {
+                kind: DL.PaymentTransaction.constants.TRANSACTION_KIND.CAPTURE,
                 status: DL.PaymentTransaction.constants.TRANSACTION_STATUS.SUCCESS,
                 amount: split.overflow, providerTxnId: secondId, parentProviderTxnId: order.payment.providerTxnId, providerCode: 0, providerData: secondary
-            })
+            }))
             await record({
                 DL, order, eventType: DL.Timeline.constants.EVENT_TYPES.PAYMENT,
                 actor: adminActor(_admin),
@@ -80,14 +76,12 @@ export default async function capture(payload, info) {
     if (Number(result.CCode) !== 0) {
         const msg = external.hyp.ccodeMessage(result.CCode)
         await DL.Order.updateOne({ id: order.id }, { paymentError: msg })
-        await DL.PaymentTransaction.create({
-            domainId: order.domainId, storeId: order.storeId,
-            orderId: order.id, orderNumber: order.number, userId: order.userId,
-            provider: 'hyp', kind: DL.PaymentTransaction.constants.TRANSACTION_KIND.CAPTURE,
+        await DL.PaymentTransaction.create(paymentTxn(order, {
+            kind: DL.PaymentTransaction.constants.TRANSACTION_KIND.CAPTURE,
             status: DL.PaymentTransaction.constants.TRANSACTION_STATUS.FAILED,
             amount: captureAmount, providerTxnId: result.Id ? String(result.Id) : undefined, parentProviderTxnId: order.payment.providerTxnId,
             providerCode: result.CCode, providerData: result, error: msg
-        }).catch(() => { })
+        })).catch(() => { })
         await record({
             DL, order, eventType: DL.Timeline.constants.EVENT_TYPES.PAYMENT,
             actor: adminActor(_admin),
@@ -100,14 +94,12 @@ export default async function capture(payload, info) {
 
     const captureTxnId = result.Id ? String(result.Id) : undefined
     const capturedAt = new Date()
-    await DL.PaymentTransaction.create({
-        domainId: order.domainId, storeId: order.storeId,
-        orderId: order.id, orderNumber: order.number, userId: order.userId,
-        provider: 'hyp', kind: DL.PaymentTransaction.constants.TRANSACTION_KIND.CAPTURE,
+    await DL.PaymentTransaction.create(paymentTxn(order, {
+        kind: DL.PaymentTransaction.constants.TRANSACTION_KIND.CAPTURE,
         status: DL.PaymentTransaction.constants.TRANSACTION_STATUS.SUCCESS,
         amount: captureAmount, terminalId: process.env.HYP_MASOF || undefined,
         providerTxnId: captureTxnId, parentProviderTxnId: order.payment.providerTxnId, providerCode: 0, providerData: result
-    })
+    }))
     await DL.Order.updateOne({ id: order.id }, { paid: true, paidAt: capturedAt, 'payment.capturedAt': capturedAt, 'payment.captureProviderTxnId': captureTxnId, paymentError: null })
     await record({
         DL, order, eventType: DL.Timeline.constants.EVENT_TYPES.PAYMENT,
