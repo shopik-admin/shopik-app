@@ -7,7 +7,7 @@
     z-index: 999;
     background-color: var(--bg-primary);
     inset-inline-start: 15px;
-    inset-inline-end: 15px;
+    width: fit-content;
 
     button {
         padding: 0 !important;
@@ -20,7 +20,7 @@
 
     h3 {
         position: relative;
-        top: -2px;
+        top: -1px;
     }
 }
 

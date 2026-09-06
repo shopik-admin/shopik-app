@@ -76,7 +76,7 @@ export default function OpsOrder({ }) {
     }
 
     return <>
-        <Flex gap={15} center className={styles.orderTitle}>
+        <Flex gap={15} alignItem='center' className={styles.orderTitle}>
             <Button icon='back' mode='text' onClick={() => navigate('/ops')} />
             <Text size='h3' bold >הזמנה {order.number}</Text>
         </Flex>
