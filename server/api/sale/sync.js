@@ -38,9 +38,7 @@ export async function syncProductSaleIds({ DL }) {
         { limit: 0 }
     )
 
-    if (activeSales.length === 0) return { updatedProducts: 0 }
-
-    // Build barcode -> saleIds map
+    // Build barcode -> saleIds map (empty when no active sales — stale cleanup below still runs)
     const barcodeToSaleIds = new Map()
 
     for (const sale of activeSales) {
@@ -93,8 +91,21 @@ export async function syncProductSaleIds({ DL }) {
         updatedProducts += result.modifiedCount || 0
     }
 
-    console.log(`[Sale Sync Product IDs] Updated ${updatedProducts} products`)
-    return { updatedProducts }
+    // Clear stale saleIds: products with non-empty saleIds whose barcode has no active sale.
+    // (Computed via distinct + $in chunks so any active-barcode volume is safe.)
+    let clearedProducts = 0
+    const saleBarcodes = await DL.Product.Model.distinct('barcode', { saleIds: { $exists: true, $ne: [] } })
+    const staleBarcodes = saleBarcodes.filter(b => !barcodeToSaleIds.has(b))
+    for (let i = 0; i < staleBarcodes.length; i += MAX_BARCODES_PER_UPDATE) {
+        const res = await DL.Product.update(
+            { barcode: { $in: staleBarcodes.slice(i, i + MAX_BARCODES_PER_UPDATE) } },
+            { saleIds: [] }
+        )
+        clearedProducts += res.modifiedCount || 0
+    }
+
+    console.log(`[Sale Sync Product IDs] Updated ${updatedProducts} products, cleared ${clearedProducts} stale`)
+    return { updatedProducts, clearedProducts }
 }
 
 export async function updateSalesAndProducts({ DL }) {

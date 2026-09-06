@@ -123,7 +123,7 @@ const productSchema = {
             amount: Number // weight in baseUnit, e.g. 10 (kg)
         }]
     },
-    saleIds: [String],
+    saleIds: { type: [String], filter: true, index: true },
     sortOrder: {
         type: Number,
         min: 0,
