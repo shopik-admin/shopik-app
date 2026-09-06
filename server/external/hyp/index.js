@@ -153,16 +153,12 @@ export default function hypFactory({ DL }) {
         return parsed // { Id, CCode, ... }
     }
 
-    async function captureOverCaptureSplit({ order, captureAmount }) {
-        // fallback when J4 > authorized and over-capture not allowed: capture max + token charge remainder
-        const authorized = order.payment.authorizedAmount
-        const overflow = Number((captureAmount - authorized).toFixed(2))
-        if (overflow <= 0) return { primary: await capture({ order, amount: captureAmount }) }
-        const primary = await capture({ order, amount: authorized })
-        if (primary.CCode !== 0) return { primary }
-        // second immediate charge for overflow (no originalUid/originalAmount refs)
+    async function chargeToken({ order, amount }) {
+        // immediate token charge, no J4 refs (no originalUid/originalAmount)
+        // used for over-capture overflow and post-capture deltas
         const { masof, passp, baseUrl } = getConfig()
-        const p = order.payment
+        const p = order.payment || {}
+        if (!p.cardToken || !p.cardExpiry) throw { status: 400, message: 'Missing card token for charge' }
         const tokef = String(p.cardExpiry)
         const tmonth = tokef.slice(0, 2)
         const tyear = tokef.slice(2)
@@ -178,10 +174,21 @@ export default function hypFactory({ DL }) {
         params.set('CC', p.cardToken)
         params.set('Tmonth', tmonth)
         params.set('Tyear', tyear)
-        params.set('Amount', String(overflow))
+        params.set('Amount', String(amount))
         if (order.id) params.set('Info', order.id)
         const text = await hypFetch(`${baseUrl}?${params.toString()}`)
-        const secondary = parseHypResponse(text)
+        const parsed = parseHypResponse(text)
+        return parsed // { Id, CCode, ... }
+    }
+
+    async function captureOverCaptureSplit({ order, captureAmount }) {
+        // fallback when J4 > authorized and over-capture not allowed: capture max + token charge remainder
+        const authorized = order.payment.authorizedAmount
+        const overflow = Number((captureAmount - authorized).toFixed(2))
+        if (overflow <= 0) return { primary: await capture({ order, amount: captureAmount }) }
+        const primary = await capture({ order, amount: authorized })
+        if (primary.CCode !== 0) return { primary }
+        const secondary = await chargeToken({ order, amount: overflow })
         return { primary, secondary, overflow }
     }
 
@@ -231,6 +238,7 @@ export default function hypFactory({ DL }) {
         getToken,
         capture,
         captureOverCaptureSplit,
+        chargeToken,
         refund,
         cancel,
         invoiceLink,

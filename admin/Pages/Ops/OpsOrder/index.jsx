@@ -203,6 +203,7 @@ function OrderPick({ order = {}, setStep, onPicked }) {
 
 function OrderPack({ order = {}, setStep, onPicked }) {
     const [loading, setLoading] = useState(false)
+    const [packError, setPackError] = useState(null)
     const [regular, setRegular] = useState(order.bags?.regular ?? 0)
     const [cold, setCold] = useState(order.bags?.cold ?? 0)
     const [freeze, setFreeze] = useState(order.bags?.freeze ?? 0)
@@ -210,6 +211,7 @@ function OrderPack({ order = {}, setStep, onPicked }) {
     async function handleTransfer() {
         if (loading) return
         setLoading(true)
+        setPackError(null)
         try {
             const bags = {
                 regular: Number(regular) || 0,
@@ -217,24 +219,29 @@ function OrderPack({ order = {}, setStep, onPicked }) {
                 freeze: Number(freeze) || 0,
             }
             const res = await apiReq('order/ops/pack', { id: order.id, bags })
-            if (res?.error) {
-                alert(res.error)
-                return
-            }
             const updated = res?.data || res
             if (updated?.id) onPicked?.(updated)
             setStep(STEPS.SHIP)
         } catch (e) {
-            alert(e.message || 'pack failed')
+            setPackError(e)
         } finally {
             setLoading(false)
         }
     }
 
+    const chargeAmount = packError?.amount ?? order.finalSumWithShipping ?? order.sumWithShipping ?? order.finalSum ?? order.sum
+
     return <Flex grow col className={styles.orderPack}>
         <Flex col gap={6} className={styles.packInstruction}>
             <Text bold size="m">נא להזין כמות אריזות מדויקת בסיום האריזה</Text>
         </Flex>
+        {packError ? <Flex col gap={8} className={styles.packError}>
+            <Text bold size="m" mode="error">החיוב נכשל — ההזמנה לא נארזה</Text>
+            <Text size="s" mode="error">{packError.message || 'שגיאת תשלום'}</Text>
+            {chargeAmount ? <Text size="s">סכום לחיוב: ₪{chargeAmount}</Text> : null}
+            {order.payment?.last4digits ? <Text size="s">כרטיס: ****{order.payment.last4digits}</Text> : null}
+            <Button mode="text-brand" onClick={handleTransfer}>נסה שוב</Button>
+        </Flex> : null}
 
         <Flex col gap={14} className={styles.packList}>
             <Flex justifyContent="space-between" alignItems="center" className={styles.packRow}>

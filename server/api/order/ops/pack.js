@@ -1,4 +1,6 @@
-export default async function pack(payload, { DL, _admin, utils }) {
+import captureOrder from '#server/utils/data/captureOrder.js'
+
+export default async function pack(payload, { DL, _admin, utils, external }) {
     const { id, bags, boxes } = payload
     if (!id) throw { status: 400, message: 'id required' }
 
@@ -12,9 +14,21 @@ export default async function pack(payload, { DL, _admin, utils }) {
 
     const adminName = `${_admin.name?.first ?? ''} ${_admin.name?.last ?? ''}`.trim()
 
+    // Sole capture path — fail-closed: throws on any payment failure,
+    // order stays in 'picked'. Only advances to 'packed' on success.
+    const { captureAmount, totals, captureProviderTxnId, capturedAt } = await captureOrder({
+        DL, _admin, utils, external, order
+    })
+
     const set = {
         status: 'packed',
-        picker: null
+        picker: null,
+        ...totals,
+        paid: true,
+        paidAt: capturedAt,
+        'payment.capturedAt': capturedAt,
+        'payment.captureProviderTxnId': captureProviderTxnId,
+        paymentError: null
     }
     if (bags) set.bags = bags
     if (boxes) set.boxes = boxes
@@ -44,7 +58,7 @@ export default async function pack(payload, { DL, _admin, utils }) {
             eventType: DL.Timeline.constants.EVENT_TYPES.ORDER_STATUS_UPDATE,
             actor: adminActor(_admin),
             changes: { oldData: { status: 'picked' }, newData: { status: 'packed', bags, boxes } },
-            context: { step: 'pack' },
+            context: { step: 'pack', capturedAmount: captureAmount },
             metadata: { source: 'order/ops/pack' }
         })
     } catch {}
@@ -53,5 +67,6 @@ export default async function pack(payload, { DL, _admin, utils }) {
 }
 
 pack.config = {
-    permissions: ['order:pick']
+    permissions: ['order:pick'],
+    preventMultiple: (body) => ':' + body.id
 }
