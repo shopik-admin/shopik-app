@@ -192,6 +192,13 @@
     }
 }
 
+.replacedCard {
+    border: 1.5px solid var(--warning-color, #e6a600);
+    border-radius: 16px;
+    background: #fff;
+    padding: 10px 12px;
+}
+
 .pickModal {
     padding: 0 !important;
     overflow: hidden !important;

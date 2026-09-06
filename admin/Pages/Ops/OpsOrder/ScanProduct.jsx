@@ -9,7 +9,7 @@ import apiReq from 'common/functions/apiReq'
 import classNames from 'common/functions/classNames'
 import { isWeightProduct, getUnitLabel, formatAmount } from 'common/components/Product'
 
-export default function ScanProduct({ product = {}, orderId, onClose, onPicked, initialPhase, initialSupplied, initialBarcode }) {
+export default function ScanProduct({ product = {}, orderId, onClose, onPicked, initialPhase, initialSupplied, initialBarcode, onReplace }) {
     const videoRef = useRef(null)
     const streamRef = useRef(null)
     const rafRef = useRef(null)
@@ -345,7 +345,7 @@ export default function ScanProduct({ product = {}, orderId, onClose, onPicked, 
         </Flex>
 
         <Flex col gap={10} className={styles.actions}>
-            <Button mode="outline" loading={loading} onClick={handleMissing} className={styles.missingBtn}>מוצר חסר</Button>
+            <Button mode="outline" loading={loading} onClick={onReplace || handleMissing} className={styles.missingBtn}>מוצר חסר</Button>
         </Flex>
     </Flex>
 }

@@ -1,0 +1,287 @@
+.replaceProduct {
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-primary);
+    min-height: 100%;
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border-tertiary);
+    position: relative;
+}
+
+.closeBtn {
+    padding: 4px;
+}
+
+.originalWrap {
+    padding: 12px 16px 4px;
+    background: #fff;
+    border-bottom: 1px solid var(--border-tertiary);
+}
+
+.searchBar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 12px 16px 4px;
+    border: 1.5px solid #0a7a5a;
+    border-radius: 999px;
+    padding: 8px 14px;
+    background: #fff;
+}
+
+.searchInput {
+    flex: 1;
+    border: none;
+    outline: none;
+    font-size: 14px;
+    background: transparent;
+    min-width: 0;
+}
+
+.iconBtn {
+    padding: 2px;
+    flex-shrink: 0;
+}
+
+.list {
+    padding: 8px 16px 90px;
+    overflow-y: auto;
+}
+
+.rowCard {
+    border: 1.5px solid var(--border-tertiary);
+    border-radius: 16px;
+    background: #fff;
+    padding: 10px 12px;
+    margin-top: 10px;
+}
+
+.rowTop {
+    color: var(--text-secondary);
+}
+
+.saleTag {
+    background: #e6f4ef;
+    color: #0a7a5a;
+    border-radius: 999px;
+    padding: 4px 10px;
+    width: fit-content;
+    margin-top: 6px;
+}
+
+.selectBtn {
+    width: 100%;
+    height: 40px;
+    border-radius: 999px;
+    background: #0a7a5a;
+    margin-top: 8px;
+    font-size: 14px;
+}
+
+.cameraWrap {
+    position: relative;
+    margin: 12px 16px;
+    border-radius: 16px;
+    overflow: hidden;
+    background: #000;
+    aspect-ratio: 4 / 3;
+    min-height: 260px;
+}
+
+.video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.corner {
+    position: absolute;
+    width: 28px;
+    height: 28px;
+    border-color: #fff;
+    border-style: solid;
+}
+
+.tl {
+    top: 16px;
+    left: 16px;
+    border-width: 3px 0 0 3px;
+    border-top-left-radius: 12px;
+}
+
+.tr {
+    top: 16px;
+    right: 16px;
+    border-width: 3px 3px 0 0;
+    border-top-right-radius: 12px;
+}
+
+.bl {
+    bottom: 16px;
+    left: 16px;
+    border-width: 0 0 3px 3px;
+    border-bottom-left-radius: 12px;
+}
+
+.br {
+    bottom: 16px;
+    right: 16px;
+    border-width: 0 3px 3px 0;
+    border-bottom-right-radius: 12px;
+}
+
+.errorOverlay {
+    position: absolute;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(255, 255, 255, 0.95);
+    padding: 6px 12px;
+    border-radius: 8px;
+    max-width: 90%;
+    text-align: center;
+}
+
+.manualForm {
+    position: absolute;
+    bottom: 16px;
+    left: 16px;
+    right: 16px;
+    display: flex;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 8px;
+    border-radius: 12px;
+    pointer-events: auto;
+}
+
+.manualInput {
+    flex: 1;
+    border: 1px solid var(--border-primary);
+    border-radius: 999px;
+    padding: 8px 14px;
+    font-size: 14px;
+    outline: none;
+    min-width: 0;
+}
+
+.linkedCard {
+    margin: 12px 16px 0;
+    border: 1.5px solid #e6a600;
+    border-radius: 16px;
+    background: #fff;
+    padding: 10px 12px;
+}
+
+.amountRow {
+    margin: 16px;
+    border: 1px solid var(--border-tertiary);
+    border-radius: 999px;
+    overflow: hidden;
+    background: #fff;
+    height: 56px;
+}
+
+.orderedBox,
+.suppliedBox {
+    flex: 1;
+    padding: 6px 12px;
+    gap: 2px;
+}
+
+.orderedBox {
+    border-inline-end: 1px solid var(--border-tertiary);
+    background: #fff;
+}
+
+.suppliedBox {
+    background: #fff;
+    position: relative;
+}
+
+.suppliedBox.empty {
+    border: 1px solid transparent;
+    border-radius: 999px;
+}
+
+.suppliedBox.match {
+    background: #e6f4ef;
+    border: 1px solid #0a7a5a;
+    border-radius: 999px;
+}
+
+.suppliedBox.warning {
+    background: #fef9e6;
+    border: 1px solid #e6a600;
+    border-radius: 999px;
+}
+
+.suppliedInput {
+    width: 60px;
+    text-align: center;
+    border: none;
+    background: transparent;
+    font-size: 16px;
+    font-weight: 600;
+    outline: none;
+}
+
+.suppliedInput::placeholder {
+    color: var(--text-tertiary);
+}
+
+.stickyFooter {
+    position: sticky;
+    bottom: 0;
+    padding: 12px 16px calc(16px + var(--safeBottom, 0px));
+    background: linear-gradient(transparent, var(--bg-primary) 30%);
+}
+
+.missingBtn {
+    width: 100%;
+    height: 44px;
+    border-radius: 999px;
+    background: var(--bg-primary);
+}
+
+.confirmBtn {
+    width: 100%;
+    height: 48px;
+    border-radius: 999px;
+    background: #0a4742;
+    font-size: 16px;
+}
+
+.confirmBtn:disabled {
+    background: #c5cfcc;
+    opacity: 1;
+    color: #fff;
+}
+
+.backBtn {
+    margin: 4px 16px 0;
+    align-self: flex-start;
+}
+
+@media (min-width: 650px) {
+    .replaceProduct {
+        width: 420px;
+        max-width: 90vw;
+    }
+    .cameraWrap {
+        min-height: 320px;
+    }
+}

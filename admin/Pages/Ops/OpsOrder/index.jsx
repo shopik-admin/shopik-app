@@ -17,6 +17,7 @@ import ProductInline from 'common/components/ProductInline'
 import Stepper from 'common/components/Stepper'
 import { useModal } from 'common/components/Modal'
 import ProductPickModal from './ProductPickModal'
+import { formatAmount } from 'common/components/Product'
 
 const STEPS = {
     PREVIEW: 0,
@@ -141,11 +142,24 @@ function OrderPick({ order = {}, setStep, onPicked }) {
     const { openModal, closeModal } = useModal()
     const cart = order.cart || []
     const isScanned = p => p.finalAmount != null || !!p.missing
-    const toPickItems = cart.filter(p => !isScanned(p))
-    const donePickItems = cart.filter(p => isScanned(p))
+    // group replaced originals with their replacer into one yellow linked card (image-3 style)
+    const byBarcode = new Map(cart.map(p => [p.barcode, p]))
+    const replacedPairs = []
+    const pairedBarcodes = new Set()
+    for (const p of cart) {
+        const repBarcode = p.replacement?.replacementBarcode
+        if (p.missing && repBarcode && byBarcode.has(repBarcode)) {
+            replacedPairs.push({ original: p, replacer: byBarcode.get(repBarcode) })
+            pairedBarcodes.add(p.barcode)
+            pairedBarcodes.add(repBarcode)
+        }
+    }
+    const toPickItems = cart.filter(p => !isScanned(p) && !pairedBarcodes.has(p.barcode))
+    const donePickItems = cart.filter(p => isScanned(p) && !pairedBarcodes.has(p.barcode))
     const isDoneTab = tab === 'done_pick'
     const isWaitTab = tab === 'wait_pick'
     const displayed = isDoneTab ? donePickItems : isWaitTab ? [] : toPickItems
+    const displayedPairs = isDoneTab ? replacedPairs : []
     const allHandled = toPickItems.length === 0 && cart.length > 0
 
 
@@ -188,9 +202,17 @@ function OrderPick({ order = {}, setStep, onPicked }) {
             options={[
                 { text: 'to_pick', badge: toPickItems.length },
                 { text: 'wait_pick', badge: 0 },
-                { text: 'done_pick', badge: donePickItems.length },
+                { text: 'done_pick', badge: donePickItems.length + replacedPairs.length },
             ]} />
         <Flex grow col gap={10} className={styles.cartList}>
+            {displayedPairs.map(({ original, replacer }) => (
+                <ReplacementCard
+                    key={(original.id || original.barcode) + '->' + (replacer.id || replacer.barcode)}
+                    original={original}
+                    replacer={replacer}
+                    onClick={() => handleProductClick(replacer)}
+                />
+            ))}
             {displayed.map(product => (
                 <ProductInline
                     key={product.id || product.barcode}
@@ -206,6 +228,22 @@ function OrderPick({ order = {}, setStep, onPicked }) {
         <Flex center gap={20} className={styles.footer}>
             <Button disabled={!allHandled} loading={completing} onClick={handleFinishPick} className={styles.finishBtn}>finish_pick</Button>
         </Flex>
+    </Flex>
+}
+
+function ReplacementCard({ original = {}, replacer = {}, onClick }) {
+    return <Flex col gap={8} onClick={onClick} style={{ cursor: 'pointer' }} className={styles.replacedCard}>
+        <Flex alignItems="center" gap={6}>
+            <Icon name="replace" size={16} />
+            <Text size="s" bold>הוחלף</Text>
+        </Flex>
+        <Text size="xs" mode="sub">מקורי: {original.name || 'מוצר'} • הוזמן: {formatAmount(original, original.amount ?? 1)}</Text>
+        <ProductInline
+            product={replacer}
+            remove={false}
+            note={false}
+            admin
+        />
     </Flex>
 }
 

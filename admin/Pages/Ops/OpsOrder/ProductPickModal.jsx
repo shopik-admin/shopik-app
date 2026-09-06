@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import ScanProduct from './ScanProduct'
+import ReplaceProduct from './ReplaceProduct'
 import Flex from 'common/components/Flex'
 import Text from 'common/components/Text'
 import Icon from 'common/components/Icon'
 import Button from 'common/components/Button'
 import Image from 'common/components/Image'
-import apiReq from 'common/functions/apiReq'
 import styles from './productPickModal.module.css'
 import { isWeightProduct, formatAmount, getUnitLabel, getUnitInfoText } from 'common/components/Product'
 
@@ -22,6 +22,16 @@ export default function ProductPickModal({ product = {}, orderId, onClose, onPic
             onClose={onClose}
             onPicked={onPicked}
             onScan={() => setPhase(weight ? 'weight' : 'scanning')}
+            onReplace={() => setPhase('replace')}
+        />
+    }
+
+    if (phase === 'replace') {
+        return <ReplaceProduct
+            product={product}
+            orderId={orderId}
+            onClose={onClose}
+            onPicked={onPicked}
         />
     }
 
@@ -34,6 +44,7 @@ export default function ProductPickModal({ product = {}, orderId, onClose, onPic
             initialPhase="weight"
             initialSupplied={initialSupplied}
             initialBarcode={product.barcode}
+            onReplace={() => setPhase('replace')}
         />
     }
 
@@ -46,10 +57,11 @@ export default function ProductPickModal({ product = {}, orderId, onClose, onPic
         initialPhase={initialPhase}
         initialSupplied={initialSupplied}
         initialBarcode={product.barcode}
+        onReplace={() => setPhase('replace')}
     />
 }
 
-function ProductDetails({ product = {}, orderId, onClose, onPicked, onScan }) {
+function ProductDetails({ product = {}, orderId, onClose, onPicked, onScan, onReplace }) {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
     const [imgIdx, setImgIdx] = useState(0)
@@ -72,29 +84,6 @@ function ProductDetails({ product = {}, orderId, onClose, onPicked, onScan }) {
     const weight = isWeightProduct(product)
     const unitLabel = getUnitLabel(product)
     const recommendations = product.picking?.recommendations
-
-    async function handleMissing() {
-        if (loading) return
-        setLoading(true)
-        setError('')
-        try {
-            const res = await apiReq('order/ops/pick_item', {
-                id: orderId,
-                barcode: product.barcode,
-                action: 'missing',
-                missingReason: 'missing'
-            })
-            if (res?.error) setError(res.error)
-            else {
-                onPicked?.(res)
-                onClose?.()
-            }
-        } catch (e) {
-            setError(e?.message || 'missing failed')
-        } finally {
-            setLoading(false)
-        }
-    }
 
     return <Flex col className={styles.pickModal}>
         <div className={styles.imageWrap}>
@@ -155,7 +144,7 @@ function ProductDetails({ product = {}, orderId, onClose, onPicked, onScan }) {
 
             <Flex col gap={10} className={styles.actions}>
                 <Button loading={loading} onClick={onScan} className={styles.scanBtn}>{weight ? 'הזן משקל' : 'סריקה מוצר'}</Button>
-                <Button mode="text" loading={loading} onClick={handleMissing} className={styles.missingBtn}>מוצר חסר</Button>
+                <Button mode="text" loading={loading} onClick={onReplace || onScan} className={styles.missingBtn}>מוצר חסר</Button>
             </Flex>
         </Flex>
     </Flex>

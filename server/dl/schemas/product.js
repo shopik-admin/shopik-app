@@ -158,7 +158,7 @@ const productSchema = {
     },
     shelflife: Number,
     category: {
-        id: String,
+        id: { type: String, filter: true },
         title: {
             type: String,
             search: 5,

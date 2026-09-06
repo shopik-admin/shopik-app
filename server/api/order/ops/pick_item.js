@@ -79,28 +79,76 @@ export default async function pick_item(payload, { DL, _admin, utils }) {
             }
         }
     } else if (action === 'replace') {
-        // replacement: mark original as replaced, expect client to have added replacement line via separate flow
-        // Here we mark the original item as missing/replaced
-        const repBarcode = replacement?.replacementBarcode
+        // replacement: mark original as replaced AND ensure the replacer line exists in cart
+        const repBarcode = String(replacement?.replacementBarcode ?? '').trim()
         if (!repBarcode) throw { status: 400, message: 'replacementBarcode required' }
+        if (repBarcode === String(barcode).trim()) throw { status: 400, message: 'replacement cannot be the same product' }
+        const repAmountRaw = replacement?.amount ?? item.amount
+        const repAmount = Number(repAmountRaw)
+        if (isNaN(repAmount) || repAmount <= 0) throw { status: 400, message: 'valid replacement amount required' }
+
+        // validate replacer product exists and is orderable
+        let repProduct = null
+        try {
+            repProduct = await DL.Product.readOne({ barcode: repBarcode })
+        } catch { repProduct = null }
+        if (!repProduct) {
+            try {
+                repProduct = await DL.Product.Model.findOne({ scannableBarcodes: repBarcode }).lean()
+            } catch { repProduct = null }
+        }
+        if (!repProduct) throw { status: 404, message: 'replacement product not found' }
+        if (repProduct.status === DL.Product.constants.STATUS.ARCHIVED) throw { status: 400, message: 'replacement product not available' }
+
+        const repBarcodeCanon = String(repProduct.barcode || repBarcode).trim()
+        const adminEntry = { adminId: _admin.id, date: new Date(), amount: repAmount, status: 'replaced' }
+
+        // If replacement item already exists in cart, link + set picked amount on it
+        const repIdx = order.cart.findIndex(c => c.barcode === repBarcodeCanon)
+        if (repIdx !== -1) {
+            await DL.Order.Model.updateOne(
+                { id },
+                {
+                    $set: {
+                        [`cart.${repIdx}.replacement.originalBarcode`]: barcode,
+                        [`cart.${repIdx}.finalAmount`]: repAmount,
+                        [`cart.${repIdx}.missing`]: false
+                    },
+                    $push: { [`cart.${repIdx}.admins`]: adminEntry }
+                }
+            )
+        } else {
+            // create replacer line from product snapshot
+            const { buildCartProduct, CART_PRODUCT_STATUS } = await import('#common/functions/calcOrder/cart.js')
+            const cartProduct = buildCartProduct({
+                product: repProduct,
+                amount: repAmount,
+                domainId: order.domainId,
+                existingStatus: CART_PRODUCT_STATUS.ADMIN_ADD
+            })
+            cartProduct.status = CART_PRODUCT_STATUS.ADMIN_ADD
+            cartProduct.finalAmount = repAmount
+            cartProduct.missing = false
+            cartProduct.replacement = { originalBarcode: barcode }
+            cartProduct.admins = [adminEntry]
+            await DL.Order.Model.updateOne({ id }, { $push: { cart: cartProduct } })
+        }
+
         update = {
             $set: {
                 'cart.$[elem].missing': true,
                 'cart.$[elem].missingReason': 'replaced',
                 'cart.$[elem].finalAmount': 0,
-                'cart.$[elem].replacement.replacementBarcode': repBarcode
+                'cart.$[elem].replacement.replacementBarcode': repBarcodeCanon
             },
             $push: {
-                'cart.$[elem].admins': { adminId: _admin.id, date: new Date(), status: 'replaced' }
+                'cart.$[elem].admins': { adminId: _admin.id, date: new Date(), status: 'replaced' },
+                'cart.$[elem].replacement.suggestions': {
+                    barcode: repBarcodeCanon,
+                    amount: repAmount,
+                    approval: { admin: { adminId: _admin.id, name: adminName } }
+                }
             }
-        }
-        // If replacement item already exists in cart, set its originalBarcode pointer
-        const repIdx = order.cart.findIndex(c => c.barcode === repBarcode)
-        if (repIdx !== -1) {
-            await DL.Order.Model.updateOne(
-                { id },
-                { $set: { [`cart.${repIdx}.replacement.originalBarcode`]: barcode } }
-            )
         }
     } else {
         throw { status: 400, message: 'unknown action' }
