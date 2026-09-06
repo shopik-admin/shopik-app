@@ -1,8 +1,38 @@
+// Status codes per https://developers.hyp.co.il/pay/reference/response-status-codes
+// (Shva network codes passed through Hyp, plus Hyp Pay codes)
 const CCODE_MESSAGES = {
     0: 'Success',
+    1: 'Blocked card',
+    2: 'Stolen card, confiscate',
+    3: 'Call the credit card company',
+    4: 'Transaction not approved',
+    5: 'Forged card, confiscate',
+    6: 'Transaction declined: incorrect CVV2',
+    10: 'Partial approval',
+    12: 'Card not permitted in the terminal',
+    14: 'Card not associated with the network',
+    15: 'Card is not valid',
+    26: 'Transaction declined: incorrect ID',
+    33: 'Refund exceeds original amount',
+    200: 'Missing parameters from the payment completion redirect',
+    250: 'Transaction or payment link not found',
+    400: 'Sum of items differs from transaction amount',
+    401: 'First or last name is required',
+    402: 'Transaction information is required',
+    403: 'Transaction amount is smaller than the minimum amount',
+    415: 'Invalid data entered',
+    416: 'Expiration date is not in a valid format',
+    417: 'Terminal number is incorrect',
+    418: 'Essential parameters are missing',
+    421: 'General error - invalid data',
+    426: 'The amount was increased after performing checks',
+    429: 'Card is not valid according to the valid cards file',
+    447: 'Incorrect card number',
+    507: 'Actual transaction amount is higher than the approved amount',
+    599: 'General error',
+    600: 'Transaction details received (J2)',
     700: 'Authorized (J5 hold)',
     800: 'Postponed success',
-    33: 'Refund exceeds original amount',
     920: 'Already transmitted — cannot cancel, refund instead',
     777: 'Reversal success'
 }
@@ -26,6 +56,24 @@ function parseHypResponse(text) {
     if (obj.CCode !== undefined) obj.CCode = Number(obj.CCode)
     if (obj.Amount !== undefined) obj.Amount = Number(obj.Amount)
     return obj
+}
+
+// Names occasionally arrive HTML-entity-encoded (e.g. '&#1488;' for א).
+// Decode numeric entities so Hyp receives/stores plain text.
+function decodeEntities(s) {
+    return String(s ?? '').replace(/&#(\d+);/g, (_, n) => {
+        const c = Number(n)
+        return c > 0 && c < 0x110000 ? String.fromCodePoint(c) : _
+    })
+}
+
+// Hyp getToken returns Tokef in YYMM format (e.g. '2912' = Dec 2029).
+// Shva rejects anything else with CCode 416.
+function parseTokef(tokef) {
+    const s = String(tokef ?? '')
+    if (!/^\d{2}(0[1-9]|1[0-2])$/.test(s))
+        throw { status: 402, code: 'PAYMENT_AUTH_MISSING', message: 'תוקף הכרטיס השמור אינו תקין — לא ניתן לחייב (קוד 416)' }
+    return { tmonth: s.slice(2), tyear: s.slice(0, 2) }
 }
 
 async function hypFetch(url, { timeoutMs = 15000 } = {}) {
@@ -58,8 +106,8 @@ function buildSignQuery({ masof, key, passp, amount, orderNumber, orderId, custo
     params.set('tmp', tmp)
     params.set('Tash', 1)
     if (orderId) params.set('Info', String(orderId))
-    if (customer?.name?.first) params.set('ClientName', customer.name.first)
-    if (customer?.name?.last) params.set('ClientLName', customer.name.last)
+    if (customer?.name?.first) params.set('ClientName', decodeEntities(customer.name.first))
+    if (customer?.name?.last) params.set('ClientLName', decodeEntities(customer.name.last))
     if (customer?.phone) {
         const digits = String(customer.phone).replace(/\D/g, '')
         params.set('phone', digits)
@@ -123,11 +171,9 @@ export default function hypFactory({ DL }) {
         const authorizedAmount = p.authorizedAmount
         if (!p.cardToken || !p.cardExpiry) throw { status: 400, message: 'Missing card token for capture' }
         if (!p.authCode) throw { status: 400, message: 'Missing authCode for capture' }
-        const tokef = String(p.cardExpiry)
-        const tmonth = tokef.slice(0, 2)
-        const tyear = tokef.slice(2)
+        const { tmonth, tyear } = parseTokef(p.cardExpiry)
         const payerId = p.providerPayerId || '000000000'
-        const clientName = `${order.name?.first || ''} ${order.name?.last || ''}`.trim() || 'Customer'
+        const clientName = decodeEntities(`${order.name?.first || ''} ${order.name?.last || ''}`.trim()) || 'Customer'
         const originalAmountAgorot = Math.round(Number(authorizedAmount) * 100)
         const providerUid = p.providerUid
 
@@ -159,11 +205,9 @@ export default function hypFactory({ DL }) {
         const { masof, passp, baseUrl } = getConfig()
         const p = order.payment || {}
         if (!p.cardToken || !p.cardExpiry) throw { status: 400, message: 'Missing card token for charge' }
-        const tokef = String(p.cardExpiry)
-        const tmonth = tokef.slice(0, 2)
-        const tyear = tokef.slice(2)
+        const { tmonth, tyear } = parseTokef(p.cardExpiry)
         const payerId = p.providerPayerId || '000000000'
-        const clientName = `${order.name?.first || ''} ${order.name?.last || ''}`.trim() || 'Customer'
+        const clientName = decodeEntities(`${order.name?.first || ''} ${order.name?.last || ''}`.trim()) || 'Customer'
         const params = new URLSearchParams()
         params.set('action', 'soft')
         params.set('Masof', masof)
@@ -233,6 +277,7 @@ export default function hypFactory({ DL }) {
     return {
         getConfig,
         parseHypResponse,
+        parseTokef,
         createPaymentUrl,
         verifyRedirect,
         getToken,

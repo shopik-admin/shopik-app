@@ -247,7 +247,9 @@ function OrderPack({ order = {}, setStep, onPicked }) {
             <Text bold size="m" mode="error">החיוב נכשל — ההזמנה לא נארזה</Text>
             <Text size="s" mode="error">{packError.message || 'שגיאת תשלום'}</Text>
             {chargeAmount ? <Text size="s">סכום לחיוב: ₪{chargeAmount}</Text> : null}
+            {packError.capturedTotal > 0 ? <Text size="s">כבר חויב: ₪{packError.capturedTotal}{packError.delta > 0 ? `, נותר: ₪${packError.delta}` : null}</Text> : null}
             {order.payment?.last4digits ? <Text size="s">כרטיס: ****{order.payment.last4digits}</Text> : null}
+            {packError.providerCode !== undefined ? <Text size="s">קוד שגיאה: {packError.providerCode}</Text> : null}
             <Button mode="text-brand" onClick={handleTransfer}>נסה שוב</Button>
         </Flex> : null}
 

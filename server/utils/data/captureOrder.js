@@ -4,6 +4,12 @@ import { round2 } from '#common/functions/calcOrder/utils.js'
 
 const EPS = 0.005
 
+// Hyp getToken returns Tokef in YYMM format (e.g. '2912' = Dec 2029).
+// Shva rejects anything else with CCode 416.
+function isTokefValid(tokef) {
+    return /^\d{2}(0[1-9]|1[0-2])$/.test(String(tokef ?? ''))
+}
+
 async function recordCapture({ DL, utils, actor, order, ok, step, providerTxnId, amount, authorizedAmount, capturedTotal, errorMessage, providerCode, source }) {
     try {
         const { record } = utils.data.timeline
@@ -15,7 +21,9 @@ async function recordCapture({ DL, utils, actor, order, ok, step, providerTxnId,
                 step, provider: 'hyp',
                 providerTxnId, parentProviderTxnId: order.payment?.providerTxnId,
                 amount, authorizedAmount, capturedTotal,
-                providerCode
+                providerCode,
+                hasJ5Refs: Boolean(order.payment?.authCode && order.payment?.providerUid),
+                tokefValid: isTokefValid(order.payment?.cardExpiry)
             },
             outcome: ok ? { success: true } : { success: false, errorMessage },
             metadata: { source }
@@ -61,7 +69,7 @@ async function failClosed({ DL, utils, actor, external, order, totals, amount, a
     })
     throw {
         status: 502, code: 'PAYMENT_CAPTURE_FAILED',
-        message: `החיוב בסך ₪${amount} נכשל (${providerMsg})`,
+        message: `החיוב בסך ₪${amount} נכשל (${providerCode !== undefined ? `קוד ${providerCode}: ${providerMsg}` : providerMsg})`,
         providerCode, amount, authorizedAmount, capturedTotal
     }
 }
@@ -129,10 +137,17 @@ export default async function captureOrder({ DL, _admin, _user, utils, external,
     if (!alreadyPaid) {
         // ---- Full J4 path: require J5 hold ----
         const p = order.payment || {}
-        if (!p.cardToken || !p.cardExpiry || !p.authCode || !p.providerTxnId) {
+        if (!p.cardToken || !p.cardExpiry || !p.authCode || !p.providerTxnId || !Number.isFinite(authorizedAmount)) {
             await authMissing({
                 ...ctx,
                 message: 'לא נמצאו פרטי תשלום לחיוב',
+                amount: captureAmount
+            })
+        }
+        if (!isTokefValid(p.cardExpiry)) {
+            await authMissing({
+                ...ctx,
+                message: 'תוקף הכרטיס השמור אינו תקין — לא ניתן לחייב (קוד 416)',
                 amount: captureAmount
             })
         }
@@ -215,6 +230,13 @@ export default async function captureOrder({ DL, _admin, _user, utils, external,
                 await authMissing({
                     ...ctx,
                     message: 'לא נמצאו פרטי תשלום לחיוב ההפרש',
+                    amount: captureAmount, capturedTotal, delta
+                })
+            }
+            if (!isTokefValid(p.cardExpiry)) {
+                await authMissing({
+                    ...ctx,
+                    message: 'תוקף הכרטיס השמור אינו תקין — לא ניתן לחייב את ההפרש (קוד 416)',
                     amount: captureAmount, capturedTotal, delta
                 })
             }
