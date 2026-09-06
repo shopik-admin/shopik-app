@@ -179,6 +179,7 @@ export default function hypFactory({ DL }) {
 
         const params = new URLSearchParams()
         params.set('action', 'soft')
+        params.set('UTF8', 'True')
         params.set('Masof', masof)
         params.set('PassP', passp)
         params.set('UserId', payerId)
