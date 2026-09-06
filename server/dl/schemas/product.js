@@ -234,7 +234,10 @@ export const meta = {
     defaultSelect,
     defaultSelectOne,
     defaultSort,
-    index: [{ storeIds: 1 }]
+    index: [
+        { storeIds: 1 },
+        { status: 1, 'category.pathIds': 1 }
+    ]
 }
 
 export default productSchema

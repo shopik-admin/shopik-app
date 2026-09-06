@@ -5,6 +5,7 @@ export default async function search(payload, { DL, req, _user, utils }) {
     const wantAnnotate = mode === 'annotate' && !!storeId
 
     const effectiveFilter = wantFilter ? utils.data.withStock.applyStockFilter(filter, storeId, mode) : filter
+    effectiveFilter.status = DL.Product.constants.STATUS.ACTIVE
     const selectForStock = wantAnnotate ? { ...(select || DL.Product.defaultSelect), storeIds: 1 } : select
 
     // Barcode exact fast-path: numeric-only search bypasses Atlas entirely (barcode is no longer indexed)

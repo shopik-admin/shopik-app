@@ -127,7 +127,7 @@ export default function Checkout() {
                     setPaymentUrl(null)
                 }
             }
-        } catch {}
+        } catch { }
     }
 
     async function handlePayment() {
@@ -191,7 +191,6 @@ export default function Checkout() {
                         </Flex>
                     ) : paymentUrl ? (
                         <div className={styles.paymentFrameWrapper}>
-                            <Loader size={28} />
                             <iframe
                                 ref={iframeRef}
                                 src={paymentUrl}

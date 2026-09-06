@@ -1,4 +1,5 @@
 import { updateSalesAndProducts } from '../sale/sync.js'
+import { findInflatedBarcode } from '#server/utils/data/validateSalePrice.js'
 const IGNORE_PROMO_TYPES = [18, 19, 5, 6, 9, 10]
 
 function deduplicateKey(cs) {
@@ -43,7 +44,7 @@ function deduplicateSales(comaxSales) {
     return { uniqueComaxSales: Array.from(byKey.values()), deduplicateSaleIds }
 }
 
-function buildSale(cs, kodToBarcodeMap, activeBarcodesSet, DL) {
+function buildSale(cs, kodToBarcodeMap, activeBarcodesSet, barcodeToPriceMap, DL, stats) {
     if (IGNORE_PROMO_TYPES.includes(cs.promotionType)) {
         return null
     }
@@ -150,6 +151,21 @@ function buildSale(cs, kodToBarcodeMap, activeBarcodesSet, DL) {
         return null
     }
 
+    // Block inflated kind=price sales: sale price must be strictly lower than
+    // regular total (prices[0] x amount) for every barcode — skip otherwise
+    if (kind === KINDS.PRICE && price != null && barcodeToPriceMap) {
+        const inflated = findInflatedBarcode(
+            { kind, price, amount, barcodes: validBarcodes },
+            barcodeToPriceMap,
+            KINDS.PRICE
+        )
+        if (inflated) {
+            if (stats) stats.skippedInflated = (stats.skippedInflated || 0) + 1
+            console.log(`[Comax Sales Sync] Skipping inflated sale ${cs.comaxId}: price ${price} >= regular total for barcode ${inflated}`)
+            return null
+        }
+    }
+
     const saleDoc = {
         id: cs.comaxId,
         name: saleName,
@@ -234,11 +250,16 @@ export default async function syncComaxSales(payload, { DL }) {
         console.log(`[Comax Sales Sync] Deduplicated ${deduplicateSaleIds.size} duplicate sales`)
     }
 
-    // Get active product barcodes
-    const activeProductsBarcodes = await DL.Product.Model.distinct('barcode', {
-        status: DL.Product.constants.STATUS.ACTIVE
-    })
-    const activeBarcodesSet = new Set(activeProductsBarcodes)
+    // Get active product barcodes + regular prices (prices[0])
+    const activeProducts = await DL.Product.read(
+        { status: DL.Product.constants.STATUS.ACTIVE },
+        { _id: 0, barcode: 1, prices: 1 },
+        { limit: 0 }
+    )
+    const activeBarcodesSet = new Set((activeProducts || []).map(p => p.barcode))
+    const barcodeToPriceMap = new Map(
+        (activeProducts || []).map(p => [p.barcode, p?.prices?.[0]?.price])
+    )
 
     // Collect all item Kods for barcode resolution
     const kodsSet = new Set()
@@ -273,14 +294,19 @@ export default async function syncComaxSales(payload, { DL }) {
         }
     }
 
+    const stats = { skippedInflated: 0 }
     const salesToSync = uniqueComaxSales
-        .map(cs => buildSale(cs, kodToBarcodeMap, activeBarcodesSet, DL))
+        .map(cs => buildSale(cs, kodToBarcodeMap, activeBarcodesSet, barcodeToPriceMap, DL, stats))
         .filter(Boolean)
+
+    if (stats.skippedInflated > 0) {
+        console.log(`[Comax Sales Sync] Skipped ${stats.skippedInflated} inflated sales (price >= regular total)`)
+    }
 
     if (salesToSync.length === 0) {
         console.log('[Comax Sales Sync] No valid sales matching active products to sync')
         await updateSalesAndProducts({ DL })
-        return { synced: 0, updated: 0, created: 0 }
+        return { synced: 0, updated: 0, created: 0, skippedInflated: stats.skippedInflated }
     }
 
     const result = await DL.Sale.bulkWrite({
@@ -301,6 +327,7 @@ export default async function syncComaxSales(payload, { DL }) {
         synced: salesToSync.length,
         created: result.upsertedCount,
         updated: result.modifiedCount,
+        skippedInflated: stats.skippedInflated,
         saleUpdates: saleResults
     }
 }

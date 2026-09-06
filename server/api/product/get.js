@@ -10,12 +10,18 @@ export default async function get(payload, { DL, _user, req, utils }) {
 
     if (barcode) {
         const sel = wantAnnotate ? { ...DL.Product.defaultSelectOne, storeIds: 1 } : DL.Product.defaultSelectOne
-        const product = await DL.Product.readOne({ barcode }, sel)
+        const product = await DL.Product.readOne({
+            barcode,
+            status: DL.Product.constants.STATUS.ACTIVE
+        }, sel)
         products = product ? [product] : []
         if (wantAnnotate) products = utils.data.withStock.annotateInStock(products, storeId, mode)
     } else if (id) {
         const sel = wantAnnotate ? { ...DL.Product.defaultSelectOne, storeIds: 1 } : DL.Product.defaultSelectOne
-        const product = await DL.Product.readById(id, sel)
+        const product = await DL.Product.readOne({
+            id,
+            status: DL.Product.constants.STATUS.ACTIVE
+        }, sel)
         products = product ? [product] : []
         if (product?.category?.id) {
             const category = await DL.Category.readOne({ id: product.category.id }, { _id: 0, path: 1 })
@@ -35,6 +41,7 @@ export default async function get(payload, { DL, _user, req, utils }) {
         const selectForStock = wantAnnotate ? { ...(select || DL.Product.defaultSelect), storeIds: 1 } : (select || DL.Product.defaultSelect)
         // Pass effectiveFilter and selectForStock via payload while preserving pagination options
         const readPayload = { ...payload, filter: effectiveFilter, select: selectForStock }
+        effectiveFilter.status = DL.Product.constants.STATUS.ACTIVE
         products = await DL.Product.read(effectiveFilter, selectForStock, readPayload)
         if (wantAnnotate) products = utils.data.withStock.annotateInStock(products, storeId, mode)
     }

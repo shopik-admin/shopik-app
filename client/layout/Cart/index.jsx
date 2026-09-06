@@ -31,7 +31,6 @@ export default function Cart({ }) {
     const { settings } = useAppData() || {}
     const { TR } = useText() || {}
     const shippingConfig = useMemo(() => extractShippingConfig(settings), [settings])
-    console.log('settings', settings)
     const limits = useMemo(() => extractLimits(settings), [settings])
 
     const sum = order?.sum ?? 0
