@@ -358,6 +358,7 @@ async function createModelFromSchema(schemaPath) {
                     if (val.$lte != null) allowed.$lte = val.$lte
                     if (val.$gt != null) allowed.$gt = val.$gt
                     if (val.$lt != null) allowed.$lt = val.$lt
+                    if (val.$ne != null) allowed.$ne = val.$ne
                     if (Object.keys(allowed).length) processed[key] = allowed
                     else {
                         // no recognized operator — keep only if it's a plain value object (unlikely)

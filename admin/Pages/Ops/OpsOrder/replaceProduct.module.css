@@ -50,7 +50,8 @@
 }
 
 .list {
-    padding: 8px 16px 90px;
+    max-height: calc(100vh - 360px);
+    padding: 8px 16px var(--safeBottom, 0px);
     overflow-y: auto;
 }
 
@@ -281,6 +282,7 @@
         width: 420px;
         max-width: 90vw;
     }
+
     .cameraWrap {
         min-height: 320px;
     }
