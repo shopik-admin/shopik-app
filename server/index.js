@@ -9,6 +9,7 @@ import startNightlySync from '#server/cron/nightlySync.js'
 import startHolidaySeed from '#server/cron/holidaySeed.js'
 import log from '#server/utils/log.js'
 import compression from 'compression'
+import setupSecurity from './middleware/security.js'
 
 console.log(`\n⚡ Starting server...\n`)
 
@@ -16,6 +17,8 @@ const
     bootData = await boot(),
     { PORT = 7777, PRODUCTION, NO_NIGHT_SYNC } = process.env,
     app = express()
+
+await setupSecurity(app, bootData)
 
 app.use((req, res, next) => {
     if (/\.php$/i.test(req.path)) return res.redirect(301, 'https://0.0.0.0')

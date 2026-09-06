@@ -11,12 +11,14 @@ export default function Domains({ }) {
             onRowClick={console.log}
             cols={[
                 { key: 'name' },
+                { key: 'url' },
                 { key: 'createdAt', type: 'date' },
                 { key: 'updatedAt', type: 'datetime' },
                 { key: 'active', type: 'boolean' },
             ]}
             form={[
                 { name: 'name', required: true },
+                { name: 'url', placeholder: 'domain.com' },
             ]}
         />
     </div>
