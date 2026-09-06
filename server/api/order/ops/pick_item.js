@@ -1,8 +1,29 @@
 import { constants as productConstants } from '#server/dl/schemas/product.js'
 
 export default async function pick_item(payload, { DL, _admin, utils }) {
-    const { id, barcode, action, finalAmount, missingReason, replacement } = payload
+    const { id, barcode, scannedBarcode, action, finalAmount, missingReason, replacement } = payload
     if (!id || !barcode || !action) throw { status: 400, message: 'id, barcode, action required' }
+
+    // Verify the physically scanned barcode matches the expected product.
+    // Client sends barcode = expected item barcode, scannedBarcode = what was actually scanned.
+    if (action === 'scan' && scannedBarcode != null && String(scannedBarcode).trim() !== '') {
+        const expected = String(barcode).trim()
+        const scanned = String(scannedBarcode).trim()
+        if (scanned !== expected) {
+            // allow alternate scannable barcodes of the same product
+            let allowed = [expected]
+            try {
+                const prod = await DL.Product.Model.findOne(
+                    { $or: [{ barcode: expected }, { scannableBarcodes: expected }, { id: expected }] },
+                    { _id: 0, barcode: 1, scannableBarcodes: 1 }
+                ).lean()
+                if (prod) allowed = [String(prod.barcode || '').trim(), ...((prod.scannableBarcodes || []).map(String).map(s => s.trim()))].filter(Boolean)
+            } catch { }
+            if (!allowed.includes(scanned)) {
+                throw { status: 400, message: `barcode mismatch: scanned ${scanned} does not match expected ${expected}` }
+            }
+        }
+    }
 
     const order = await DL.Order.readById(id)
     if (!order) throw { status: 404, message: 'order not found' }

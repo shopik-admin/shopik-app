@@ -22,7 +22,20 @@ export default function ScanProduct({ product = {}, orderId, onClose, onPicked, 
     const [loading, setLoading] = useState(false)
     const [phase, setPhase] = useState(initialPhase || 'scanning') // scanning | amount | weight
     const [scannedBarcode, setScannedBarcode] = useState(initialBarcode || '')
+    const [mismatch, setMismatch] = useState(null) // wrong barcode that was scanned
     const [supplied, setSupplied] = useState(initialSupplied != null ? String(initialSupplied) : '')
+
+    const normalizeBarcode = v => String(v ?? '').trim()
+    const expectedBarcodes = [
+        product.barcode,
+        ...(Array.isArray(product.scannableBarcodes) ? product.scannableBarcodes : [])
+    ].map(normalizeBarcode).filter(Boolean)
+    const isBarcodeMatch = scanned => {
+        const val = normalizeBarcode(scanned)
+        if (!val) return false
+        if (!expectedBarcodes.length) return true
+        return expectedBarcodes.includes(val)
+    }
 
     const price = product.price ?? product.prices?.[0]?.price ?? 36
     const ordered = product.amount || 22
@@ -44,13 +57,20 @@ export default function ScanProduct({ product = {}, orderId, onClose, onPicked, 
 
     async function proceedWithFinalAmount() {
         if (!canContinue || loading) return
+        // safety: never trust the scanned value as the item identifier —
+        // always pick by the expected product barcode, send scanned for server audit
+        if (!weight && scannedBarcode && !isBarcodeMatch(scannedBarcode)) {
+            setError(`הברקוד שנסרק (${scannedBarcode}) אינו תואם למוצר (${product.barcode || ''})`)
+            return
+        }
         setLoading(true)
         setError('')
         try {
             const action = weight ? 'weight' : 'scan'
             const res = await apiReq('order/ops/pick_item', {
                 id: orderId,
-                barcode: scannedBarcode || product.barcode,
+                barcode: product.barcode,
+                scannedBarcode: weight ? undefined : (scannedBarcode || undefined),
                 action,
                 finalAmount: suppliedNum
             })
@@ -67,16 +87,39 @@ export default function ScanProduct({ product = {}, orderId, onClose, onPicked, 
         }
     }
 
-    function handleScanned(scannedBarcodeValue) {
-        // stop camera
+    function stopCamera() {
         scanningRef.current = false
         setScanning(false)
         if (rafRef.current) cancelAnimationFrame(rafRef.current)
         if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop())
-        setScannedBarcode(scannedBarcodeValue)
+    }
+
+    function handleScanned(scannedBarcodeValue) {
+        const val = normalizeBarcode(scannedBarcodeValue)
+        if (!val) return
+        if (!isBarcodeMatch(val)) {
+            // wrong product — stay in scanning phase, show mismatch
+            stopCamera()
+            setMismatch(val)
+            setError(`הברקוד שנסרק (${val}) אינו תואם למוצר המבוקש (${product.barcode || ''}). נסו שוב.`)
+            return
+        }
+        // correct product
+        stopCamera()
+        setMismatch(null)
+        setScannedBarcode(val)
         setSupplied('')
         setPhase('amount')
         setError('')
+    }
+
+    async function handleRetryScan() {
+        setMismatch(null)
+        setError('')
+        setManualBarcode('')
+        setScanning(true)
+        scanningRef.current = true
+        await startCamera()
     }
 
     function handleManualSubmit(e) {
@@ -261,6 +304,21 @@ export default function ScanProduct({ product = {}, orderId, onClose, onPicked, 
             <Text size="s" bold>מוצר לא נסרק?</Text>
             <Button mode="text" size="s" onClick={() => setManualMode(m => !m)}>{manualMode ? 'מצלמה' : 'הזנה ידנית'}</Button>
         </Flex>
+        {product.barcode && (
+            <Flex center className={styles.notScannedRow}>
+                <Text size="xs" mode="sub">ברקוד מצופה: {product.barcode}</Text>
+            </Flex>
+        )}
+        {mismatch && (
+            <Flex col center gap={8} className={styles.warningBlock}>
+                <Flex alignItems="center" gap={6} className={styles.warningText}>
+                    <span className={styles.errorIcon}>!</span>
+                    <Text size="s" bold className={styles.warningRed}>הברקוד שנסרק אינו תואם למוצר</Text>
+                </Flex>
+                <Text size="xs" mode="sub">נסרק: {mismatch} • מצופה: {product.barcode || '—'}</Text>
+                <Button size="s" onClick={handleRetryScan}>סרוק שוב</Button>
+            </Flex>
+        )}
 
         <Flex col className={styles.cameraWrap}>
             <video ref={videoRef} autoPlay playsInline muted className={styles.video} />

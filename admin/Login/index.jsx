@@ -44,7 +44,7 @@ export default function Login() {
                     setFormState({})
                 }
             })
-            .catch(error => setFormState({ error }))
+            .catch(error => setFormState({ error: error.message }))
     }
 
     return <Flex center col className={styles.login}>
