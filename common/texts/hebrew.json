@@ -492,6 +492,7 @@
         "to_pick": "לליקוט",
         "wait_pick": "בבדיקה",
         "done_pick": "טופל",
-        "role_delete_button_disabled_tooltip": "לא ניתן למחוק תפקיד אב"
+        "role_delete_button_disabled_tooltip": "לא ניתן למחוק תפקיד אב",
+        "finish_pick": "סיום ליקוט"
     }
 }

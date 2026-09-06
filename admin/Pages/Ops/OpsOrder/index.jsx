@@ -143,14 +143,14 @@ function OrderPick({ order = {}, setStep, onPicked }) {
     const isScanned = p => p.finalAmount != null || !!p.missing
     const toPickItems = cart.filter(p => !isScanned(p))
     const donePickItems = cart.filter(p => isScanned(p))
-    const isDoneTab = tab === 'done_pick' || tab === 2
-    const isWaitTab = tab === 'wait_pick' || tab === 1
+    const isDoneTab = tab === 'done_pick'
+    const isWaitTab = tab === 'wait_pick'
     const displayed = isDoneTab ? donePickItems : isWaitTab ? [] : toPickItems
     const allHandled = toPickItems.length === 0 && cart.length > 0
 
-    // auto-focus done tab when there's nothing left in to-pick / wait
+
     useEffect(() => {
-        if (toPickItems.length === 0 && donePickItems.length > 0 && !isDoneTab) setTab(2)
+        if (toPickItems.length === 0 && donePickItems.length > 0 && !isDoneTab) setTab('done_pick')
     }, [toPickItems.length, donePickItems.length])
 
     function handleProductClick(product) {
@@ -204,7 +204,7 @@ function OrderPick({ order = {}, setStep, onPicked }) {
             ))}
         </Flex>
         <Flex center gap={20} className={styles.footer}>
-            <Button disabled={!allHandled} loading={completing} onClick={handleFinishPick} className={styles.finishBtn}>finish pick</Button>
+            <Button disabled={!allHandled} loading={completing} onClick={handleFinishPick} className={styles.finishBtn}>finish_pick</Button>
         </Flex>
     </Flex>
 }
