@@ -38,21 +38,21 @@ function EntryDetail({ entry }) {
 
     if (event?.type === 'order_status' && (changes.oldData?.status || changes.newData?.status))
         return <Flex gap={6} alignItems='center'>
-            {changes.oldData?.status && <Text size='s' mode='sub' lineThrough>{TR(changes.oldData.status)}</Text>}
-            <Icon name='left' size={12} />
-            <Text size='s' bold>{TR(changes.newData?.status || '')}</Text>
+            {changes.oldData?.status && <Text size='m' mode='sub' lineThrough>{TR(changes.oldData.status)}</Text>}
+            <Icon name='left' size={14} />
+            <Text size='m' bold>{TR(changes.newData?.status || '')}</Text>
         </Flex>
 
     if (context.amount != null)
-        return <Text size='s' mode='sub'>
+        return <Text size='m' mode='sub'>
             {render({ type: 'coin', value: context.amount })}{context.last4digits ? ` • ****${context.last4digits}` : ''}
         </Text>
 
     if (event?.type === 'order_coupon' && (context.code || changes.newData?.code))
-        return <Text size='s' mode='sub'>{context.code || changes.newData.code}</Text>
+        return <Text size='m' mode='sub'>{context.code || changes.newData.code}</Text>
 
     if (context.step)
-        return <Text size='s' mode='sub'>{context.step}</Text>
+        return <Text size='m' mode='sub'>{context.step}</Text>
 
     return null
 }
@@ -61,21 +61,21 @@ function TimelineEntry({ entry, isLast }) {
     const { TR } = useText()
     const failed = entry.outcome?.success === false
 
-    return <Flex gap={10} className={styles.timelineRow}>
+    return <Flex gap={12} className={styles.timelineRow}>
         <Flex col alignItems='center' className={styles.timelineMarker}>
             <div className={styles.timelineDot}>
-                <Icon name={EVENT_ICONS[entry.event?.type] || 'history'} size={13} />
+                <Icon name={EVENT_ICONS[entry.event?.type] || 'history'} size={16} />
             </div>
             {!isLast && <div className={styles.timelineLine} />}
         </Flex>
-        <Flex col gap={3} className={styles.timelineBody}>
+        <Flex col gap={4} className={styles.timelineBody}>
             <Flex gap={8} alignItems='center' wrap>
-                <Text size='s' bold>{`timeline_${entry.event?.type || 'change'}`}</Text>
-                <Text size='xs' mode='sub'>{entry.actor?.name || TR(entry.actor?.role === 'user' ? 'actor_user' : 'actor_system')}</Text>
-                <Text size='xs' mode='sub'>{render({ type: 'datetime', value: entry.createdAt })}</Text>
+                <Text size='l' bold>{`timeline_${entry.event?.type || 'change'}`}</Text>
+                <Text size='m' mode='sub'>{entry.actor?.name || TR(entry.actor?.role === 'user' ? 'actor_user' : 'actor_system')}</Text>
+                <Text size='m' mode='sub'>{render({ type: 'datetime', value: entry.createdAt })}</Text>
             </Flex>
             <EntryDetail entry={entry} />
-            {failed && entry.outcome?.errorMessage && <Text size='s' mode='error'>{entry.outcome.errorMessage}</Text>}
+            {failed && entry.outcome?.errorMessage && <Text size='m' mode='error'>{entry.outcome.errorMessage}</Text>}
         </Flex>
     </Flex>
 }
@@ -84,7 +84,7 @@ export default function OrderTimeline({ orderId }) {
     const { data, loading, error } = useApi('order/timeline', { orderId })
 
     if (loading) return <Loader />
-    if (error) return <Text size='s' mode='error'>{error.message}</Text>
+    if (error) return <Text size='m' mode='error'>{error.message}</Text>
 
     const entries = data || []
 

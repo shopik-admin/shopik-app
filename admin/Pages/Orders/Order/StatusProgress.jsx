@@ -51,7 +51,7 @@ export default function StatusProgress({ status, timeline }) {
                 <div className={styles.stepDot}>
                     {isCurrent && !isFailedStep
                         ? <div className={styles.stepDotInner} />
-                        : <Icon name={isFailedStep ? STEP_ICONS[status] : (isDone ? 'v' : STEP_ICONS[step])} size={isDone || isFailedStep ? 14 : 13} />}
+                        : <Icon name={isFailedStep ? STEP_ICONS[status] : (isDone ? 'v' : STEP_ICONS[step])} size={16} />}
                 </div>
                 <Text size='m' bold mode={isDone || isCurrent ? undefined : 'sub'} className={classNames(isFailedStep && styles.stepFailedText, isCurrent && styles.stepCurrentText)}>{step}</Text>
             </Flex>
