@@ -1,13 +1,15 @@
 import DataManager from 'features/DataManager'
+import { useNavigate } from 'react-router'
 import styles from './orders.module.css'
 
 export default function Orders({ }) {
+    const navigate = useNavigate()
     return <div className={styles.orders}>
         <DataManager
             apiRoute='order'
             actions={['export', 'refresh']}
             defaultSort={{ updatedAt: -1 }}
-            onRowClick={console.log}
+            onRowClick={row => navigate(`/orders/${row.id}`)}
             cols={[
                 { key: 'number' },
                 { key: 'name', type: 'name' },

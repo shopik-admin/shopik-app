@@ -63,7 +63,7 @@
     background-color: var(--bg-primary); */
     height: 100vh;
     flex-shrink: 0;
-    padding-inline-start: var(--sidebarWidth);
+    padding-inline-start: calc(var(--sidebarWidth) - 10px);
 
 
     @media screen and (max-width:650px) {
