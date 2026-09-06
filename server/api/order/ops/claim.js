@@ -5,7 +5,7 @@ export default async function claim(payload, { DL, _admin, utils }) {
     const fullAdmin = await DL.Admin.readById(_admin.id)
     const adminName = `${_admin.name?.first ?? ''} ${_admin.name?.last ?? ''}`.trim()
 
-    const order = await DL.Order.Model.findOneAndUpdate(
+    const order = await DL.Order.updateOne(
         { id, status: 'paid' },
         {
             $set: {
@@ -13,9 +13,8 @@ export default async function claim(payload, { DL, _admin, utils }) {
                 pickStart: new Date(),
                 picker: { adminId: _admin.id, name: adminName }
             }
-        },
-        { new: true }
-    ).lean()
+        }
+    )
 
     if (!order) throw { status: 409, message: 'order is already being picked or not available' }
 

@@ -33,11 +33,10 @@ export default async function pack(payload, { DL, _admin, utils, external }) {
     if (bags) set.bags = bags
     if (boxes) set.boxes = boxes
 
-    const updated = await DL.Order.Model.findOneAndUpdate(
+    const updated = await DL.Order.updateOne(
         { id, status: 'picked' },
-        { $set: set },
-        { new: true }
-    ).lean()
+        { $set: set }
+    )
 
     if (!updated) throw { status: 409, message: 'status changed' }
 

@@ -55,13 +55,16 @@ export default function OpsOrder({ }) {
     if (error) return <Text center mode='error'>{error.message}</Text>
     if (!order) return <Text center mode='error'>No order found</Text>
     async function claimOrder() {
-        const res = await apiReq('order/ops/claim', { id: order.id })
-        if (res.error) {
-            alert(res.error)
-            return
+        try {
+            const res = await apiReq('order/ops/claim', { id: order.id })
+            // apiReq returns the payload directly (throws on error):
+            // server returns the updated order doc itself, not wrapped in data
+            const newDoc = res?.cart ? res : res?.data || res
+            if (newDoc?.id) setData([newDoc])
+            setStep(STEPS.PICK)
+        } catch (e) {
+            alert(e.message || 'claim failed')
         }
-        setData([res.data])
-        setStep(STEPS.PICK)
     }
     function handlePicked(updatedOrder) {
         if (updatedOrder) {
@@ -144,6 +147,11 @@ function OrderPick({ order = {}, setStep, onPicked }) {
     const isWaitTab = tab === 'wait_pick' || tab === 1
     const displayed = isDoneTab ? donePickItems : isWaitTab ? [] : toPickItems
     const allHandled = toPickItems.length === 0 && cart.length > 0
+
+    // auto-focus done tab when there's nothing left in to-pick / wait
+    useEffect(() => {
+        if (toPickItems.length === 0 && donePickItems.length > 0 && !isDoneTab) setTab(2)
+    }, [toPickItems.length, donePickItems.length])
 
     function handleProductClick(product) {
         openModal(

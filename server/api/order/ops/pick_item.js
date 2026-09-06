@@ -88,12 +88,12 @@ export default async function pick_item(payload, { DL, _admin, utils }) {
     const updated = await DL.Order.Model.findOneAndUpdate(
         { id },
         update,
-        { new: true, arrayFilters }
+        { returnDocument: 'after', arrayFilters }
     ).lean()
     try {
         const { default: enrichCart } = await import('#server/utils/data/enrichCart.js')
         await enrichCart(updated, DL)
-    } catch {}
+    } catch { }
 
     // audit to pick_history
     try {
@@ -117,7 +117,7 @@ export default async function pick_item(payload, { DL, _admin, utils }) {
             windowDate: order.window?.date,
             totalItems: order.cart.length
         })
-    } catch {}
+    } catch { }
 
     return updated
 }

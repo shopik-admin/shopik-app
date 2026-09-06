@@ -12,11 +12,10 @@ export default async function start(payload, { DL, _admin, external, utils }) {
     const successIds = []
 
     for (const id of orderIds) {
-        const o = await DL.Order.Model.findOneAndUpdate(
+        const o = await DL.Order.updateOne(
             { id, status: 'packed', storeId: admin.currentStoreId },
-            { $set: { status: 'shipped', shipper: { adminId: _admin.id, name: adminName } } },
-            { new: true }
-        ).lean()
+            { $set: { status: 'shipped', shipper: { adminId: _admin.id, name: adminName } } }
+        )
         if (!o) {
             failures.push(id)
             continue

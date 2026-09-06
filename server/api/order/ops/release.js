@@ -6,13 +6,20 @@ export default async function release(payload, { DL, _admin, utils }) {
     if (!order) throw { status: 404, message: 'order not found' }
     if (!['picking', 'picked'].includes(order.status)) throw { status: 400, message: 'order not releasable' }
 
-    const updated = await DL.Order.Model.findOneAndUpdate(
+    const updated = await DL.Order.updateOne(
         { id },
-        { $set: { picker: null, status: 'paid', pickStart: null, pickingReleaseCount: (order.pickingReleaseCount || 0) + 1 }, $unset: { pickEnd: 1 } },
-        { new: true }
-    ).lean()
+        {
+            $set: {
+                picker: null,
+                status: 'paid',
+                pickStart: null,
+                pickingReleaseCount: (order.pickingReleaseCount || 0) + 1
+            },
+            $unset: { pickEnd: 1 }
+        }
+    )
 
-    try { await DL.Owner.updateOne({ orderId: id, adminId: _admin.id, type: 'picking', status: 'active' }, { status: 'done', end: new Date() }) } catch {}
+    try { await DL.Owner.updateOne({ orderId: id, adminId: _admin.id, type: 'picking', status: 'active' }, { status: 'done', end: new Date() }) } catch { }
 
     try {
         const { record, adminActor } = utils.data.timeline
@@ -24,7 +31,7 @@ export default async function release(payload, { DL, _admin, utils }) {
             context: { step: 'pick_release' },
             metadata: { source: 'order/ops/release' }
         })
-    } catch {}
+    } catch { }
 
     return updated
 }

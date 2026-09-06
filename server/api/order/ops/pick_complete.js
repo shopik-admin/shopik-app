@@ -64,7 +64,7 @@ export default async function pick_complete(payload, { DL, _admin, utils }) {
         }
     }
 
-    const updated = await DL.Order.Model.findOneAndUpdate(
+    const updated = await DL.Order.updateOne(
         { id, status: 'picking' },
         {
             $set: {
@@ -75,9 +75,8 @@ export default async function pick_complete(payload, { DL, _admin, utils }) {
                 finalSum: finalSumAdjusted,
                 finalSumNoCoupon: sum
             }
-        },
-        { new: true }
-    ).lean()
+        }
+    )
 
     if (!updated) throw { status: 409, message: 'status changed' }
 
