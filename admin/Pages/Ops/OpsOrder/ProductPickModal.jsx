@@ -118,7 +118,7 @@ function ProductDetails({ product = {}, orderId, onClose, onPicked, onScan, onRe
             <Text bold size="m" className={styles.productName}>{product.name || 'מוצר'}</Text>
             <Text size="xs" mode="sub">{unitInfo} • הוזמן: {orderedLabel}</Text>
 
-            <Flex col gap={8} className={styles.infoRows}>
+            {/*  <Flex col gap={8} className={styles.infoRows}>
                 <Flex gap={8} alignItems="center">
                     <Icon name="location" size={16} className={styles.rowIcon} />
                     <Text size="xs">{isCold ? 'אזור קירור • מעבר 16 • מדף 4' : 'אזור רגיל • מעבר 16 • מדף 4'}</Text>
@@ -138,13 +138,13 @@ function ProductDetails({ product = {}, orderId, onClose, onPicked, onScan, onRe
                     <Icon name={isCold ? 'snow' : 'stock'} size={16} className={styles.rowIcon} />
                     <Text size="xs">{isCold ? 'לשמור בקירור, לאחסן בנפרד' : 'פלסטיק צריך לקשור, צורה בר הבחנה'}</Text>
                 </Flex>
-            </Flex>
+            </Flex> */}
 
             {error && <Text size="s" mode="error">{error}</Text>}
 
             <Flex col gap={10} className={styles.actions}>
                 <Button loading={loading} onClick={onScan} className={styles.scanBtn}>{weight ? 'הזן משקל' : 'סריקה מוצר'}</Button>
-                <Button mode="text" loading={loading} onClick={onReplace || onScan} className={styles.missingBtn}>מוצר חסר</Button>
+                <Button mode="outline" loading={loading} onClick={onReplace || onScan} className={styles.missingBtn}>מוצר חסר</Button>
             </Flex>
         </Flex>
     </Flex>
