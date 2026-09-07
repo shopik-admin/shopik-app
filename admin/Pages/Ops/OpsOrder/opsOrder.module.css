@@ -1,8 +1,16 @@
+:global(.Main_):has(.opsOrder) {
+    padding: 0;
+}
+
+.opsOrder {
+    padding-top: calc(var(--admin-header-height));
+}
+
 .orderTitle {
     position: fixed;
     top: var(--safeTop, 0px);
     padding-top: calc(20px + var(--safeTop, 0px));
-    padding-inline-start: var(--safeLeft, 0px);
+    padding-inline-start: calc(var(--safeLeft, 0px) + var(--sidebarWidth));
     padding-inline-end: var(--safeRight, 0px);
     z-index: 999;
     background-color: var(--bg-primary);
@@ -27,9 +35,7 @@
 .orderPreview {
     height: calc(100dvh - 20px - var(--admin-header-height));
     position: relative;
-    padding-top: 20px;
-
-
+    padding-top: 5px;
 
     .startPickingBtn {
         width: 300px;
@@ -39,15 +45,12 @@
         font-size: 16px;
     }
 
-
-
-
     .intro {
         background-color: var(--status-bg);
         color: var(--status-color);
-        width: calc(100% + 32px);
+        /*  width: calc(100% + 32px);
         position: relative;
-        right: -16px;
+        right: -16px; */
         padding: 46px 30px;
 
         svg {
@@ -76,7 +79,7 @@
     }
 
     .priviewRow {
-        padding: 0 16px;
+        padding: 0 32px;
     }
 }
 
@@ -102,9 +105,8 @@
 
     .cartList {
         margin-block: 20px;
-        padding-bottom: calc(80px + var(--safeBottom, 0px));
-        padding-inline-start: var(--safeLeft, 0px);
-        padding-inline-end: var(--safeRight, 0px);
+        padding: 16px;
+        padding-bottom: calc(100px + var(--safeBottom, 0px));
     }
 
     .finishBtn {

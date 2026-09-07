@@ -1,4 +1,4 @@
-import { DeliveryMethodTag, formatWindow } from '../orderUtils'
+import { DeliveryMethodTag, formatWindow, RemainingTime } from '../orderUtils'
 import classNames from 'common/functions/classNames'
 import Button from 'common/components/Button'
 import Loader from 'common/components/Loader'
@@ -76,7 +76,7 @@ export default function OpsOrder({ }) {
         }
     }
 
-    return <>
+    return <div className={styles.opsOrder}>
         <Flex gap={15} alignItem='center' className={styles.orderTitle}>
             <Button icon='back' mode='text' onClick={() => navigate('/ops')} />
             <Text size='h3' bold >הזמנה {order.number}</Text>
@@ -89,7 +89,7 @@ export default function OpsOrder({ }) {
             setStep={setStep}
             onPicked={handlePicked}
         /> : null}
-    </>
+    </div>
 }
 
 function OrderPreview({ order = {}, claimOrder, isMine, cantPick, setStep }) {
@@ -97,26 +97,29 @@ function OrderPreview({ order = {}, claimOrder, isMine, cantPick, setStep }) {
 
     return <Flex col className={styles.orderPreview}>
         <Flex grow col gap={30}>
-            <Flex alignItems='center' justifyContent='space-between'>
+            <Flex alignItems='center' justifyContent='space-between' style={{ padding: 25, paddingBottom: 0, fontSize: 20 }}>
                 <DeliveryMethodTag deliveryMethod={order.deliveryMethod} />
-                <Text bold>{order.number}</Text>
+                <Text bold size='l'>{order.number}</Text>
             </Flex>
-            <Flex gap={5} className={classNames(styles.intro, styles[windowTime.isLate ? 'danger' : windowTime.isAlmostLate ? 'warning' : 'success'])}>
+            <Flex gap={10} className={classNames(styles.intro, styles[windowTime.isLate ? 'danger' : windowTime.isAlmostLate ? 'warning' : 'success'])}>
                 <Icon name='time' size={24} />
                 <Flex col gap={10} grow>
                     <Flex alignItems='center' justifyContent='space-between' grow>
                         <Text size='h2' bold>time_to_pick_title</Text>
-                        <Text size='h2' bold>{windowTime.text}</Text>
+                        <Text size='h2' bold>{order.window.end}:00</Text>
                     </Flex>
-                    <Text size='m' className={styles.subtitle}>time_to_pick_subtitle</Text>
+                    <Flex gap={5}>
+                        <Text size='m' className={styles.subtitle}>time_to_pick_subtitle</Text>
+                        <RemainingTime size='m' className={styles.subtitle} window={order.window} />
+                    </Flex>
                 </Flex>
             </Flex>
             <Flex col gap={25} className={styles.priviewRows}>
                 <PriviewRow icon='user' label='customer_name' value={order.phone || '0500000000'} />
                 <PriviewRow icon='location' label='customer_address' value={render({ type: 'address', value: order.address })} />
-                <PriviewRow icon='time' label='order_window' value={windowTime.dayText} />
-                <PriviewRow icon='replace' label='replace_and_missing' value={order.window?.replace} />
-                <PriviewRow icon='note' label='pick_notes' value={order.comments} />
+                <PriviewRow icon='time' label='order_window' value={windowTime.textLong} />
+                {/* <PriviewRow icon='replace' label='replace_and_missing' value={order.window?.replace} />
+                <PriviewRow icon='note' label='pick_notes' value={order.comments} /> */}
             </Flex>
         </Flex>
         <Flex center gap={20} col className={styles.footer}>

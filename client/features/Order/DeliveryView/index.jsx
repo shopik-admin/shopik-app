@@ -28,7 +28,7 @@ export default function DeliveryView({ }) {
     const
         { order = {}, setOrder } = useOrder(),
         { addresses = [], deliveryMethod: userMethod, onLogin } = useUser(),
-        { pickupStores } = useAppData(),
+        { pickupStores = [] } = useAppData(),
         [deliveryMethod, setDeliveryMethod] = useState(userMethod == deliveryMethods.pickup.text ?
             deliveryMethods.pickup.text : deliveryMethods.delivery.text),
         [popoverOpened, setPopoverOpened] = useState(false),
@@ -91,11 +91,11 @@ export default function DeliveryView({ }) {
         </Flex>
     </Flex>}>
         {() => <Flex col gap={25} className={styles.deliveryView}>
-            <Tabs
+            {pickupStores.length ? <Tabs
                 active={deliveryMethod}
                 onChange={handleDeliveryMethodChange}
                 options={Object.values(deliveryMethods)}
-            />
+            /> : null}
             {isSwitching ? <Loader /> : deliveryMethod == deliveryMethods.delivery.text ?
                 <Delivery open={popoverOpened} /> : <Pickup />}
         </Flex>}

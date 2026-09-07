@@ -1,4 +1,5 @@
 import { CACHE_STRATEGIES } from '#common/constants.js'
+import isValidIsraeliId from '#common/functions/isValidIsraeliId.js'
 import regex from '#common/functions/regex.js'
 
 const adminSchema = {
@@ -20,6 +21,10 @@ const adminSchema = {
         required: true,
         unique: true,
         match: regex.idNum,
+        validate: {
+            validator: isValidIsraeliId,
+            message: 'invalid id number'
+        },
         filter: true
     },
     roleId: {

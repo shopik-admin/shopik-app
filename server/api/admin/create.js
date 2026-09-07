@@ -1,4 +1,5 @@
 export default async function create(payload, { DL, validators, utils }) {
+    await validators.idNum(payload.idNum, arguments[1])
     await validators.roleId(payload.roleId, arguments[1])
 
     const name = utils.extractFields.getName(payload)
