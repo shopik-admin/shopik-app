@@ -5,6 +5,7 @@ import 'common/styles/global.css'
 import '../styles/admin.css'
 
 import TextProvider from 'common/texts/TextProvider.jsx'
+import ErrorBoundary from 'common/components/ErrorBoundary'
 import DigitsInput from 'common/components/DigitsInput'
 import ThemeToggle from 'components/ThemeToggle'
 import apiReq from 'common/functions/apiReq.js'
@@ -20,7 +21,9 @@ import Logo from '#common/components/Logo/index.jsx'
 ReactDOM
     .createRoot(document.getElementById('root'))
     .render(<TextProvider>
-        <Login />
+        <ErrorBoundary>
+            <Login />
+        </ErrorBoundary>
     </TextProvider>)
 
 
