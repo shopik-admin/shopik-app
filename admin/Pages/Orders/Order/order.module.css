@@ -1,5 +1,7 @@
 .page {
     gap: 15px;
+    height: 100%;
+    overflow: auto;
 }
 
 .backButton {
@@ -12,11 +14,12 @@
 }
 
 .orderHeader {
-    padding: 10px 5px;
+    padding: 0 5px 10px 5px;
 }
 
 .payDate {
     padding: 0px 5px;
+    padding-bottom: 15px;
 }
 
 .labelChip {
