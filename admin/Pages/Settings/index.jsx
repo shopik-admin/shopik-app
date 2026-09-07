@@ -24,7 +24,7 @@ const RENDER_TYPES = [
     'color-boolean', 'nis', 'coin', 'mr', 'config'
 ]
 
-function SettingModalContent({ setting, defaultCategory, defaultSubCategory, defaultFormType, defaultRenderType, onSuccess, onClose }) {
+function SettingModalContent({ setting, defaultCategory, defaultSubCategory, defaultDomainId, defaultFormType, defaultRenderType, onSuccess, onClose }) {
     const isEdit = !!setting
     const { isSuperAdmin: modalIsSuperAdmin, role } = useUser() || {}
     const initialIsConfig = setting?.formType === 'config' || setting?.renderType === 'config' || defaultFormType === 'config' || defaultRenderType === 'config'
@@ -33,7 +33,7 @@ function SettingModalContent({ setting, defaultCategory, defaultSubCategory, def
         value: setting?.value !== undefined ? setting.value : (initialIsConfig ? {} : ''),
         category: setting?.category || defaultCategory || 'General',
         subCategory: setting?.subCategory || defaultSubCategory || 'General',
-        domainId: setting?.domainId || 'default',
+        domainId: setting?.domainId || defaultDomainId || 'default',
         formType: setting?.formType || defaultFormType || 'text',
         renderType: setting?.renderType || defaultRenderType || 'string',
         public: setting?.public ?? false
@@ -185,6 +185,7 @@ function SettingModalContent({ setting, defaultCategory, defaultSubCategory, def
 export default function Settings() {
     const { data: rawSettings = [], callReq, loading } = useApi('setting/read')
     const [settings, setSettings] = useState([])
+    const [selectedDomain, setSelectedDomain] = useState('default')
     const [selectedCategory, setSelectedCategory] = useState(null)
     const [mobileView, setMobileView] = useState('sidebar') // 'sidebar' or 'content'
     const { openModal, closeModal } = useModal()
@@ -195,7 +196,6 @@ export default function Settings() {
     // Strict AND: import does both creates and updates, mirroring server permissions
     const canImport = isSuperAdmin || (canCreateSetting && canUpdateSetting)
     const fileInputRef = useRef(null)
-    const pendingScopeRef = useRef({})
 
     useEffect(() => {
         if (Array.isArray(rawSettings)) {
@@ -203,10 +203,16 @@ export default function Settings() {
         }
     }, [rawSettings])
 
+    // Work one domain at a time — export/import/add scope to selectedDomain
+    const domainSettings = useMemo(() => {
+        const target = selectedDomain || 'default'
+        return settings.filter((s) => (s.domainId || 'default') === target)
+    }, [settings, selectedDomain])
+
     // Extract unique categories & their item counts
     const categoryMap = useMemo(() => {
         const map = new Map()
-        settings.forEach((s) => {
+        domainSettings.forEach((s) => {
             const cat = s.category || 'General'
             if (!map.has(cat)) {
                 map.set(cat, [])
@@ -214,14 +220,14 @@ export default function Settings() {
             map.get(cat).push(s)
         })
         return map
-    }, [settings])
+    }, [domainSettings])
 
     const categories = useMemo(() => Array.from(categoryMap.keys()), [categoryMap])
 
-    // Select first category by default when available
+    // Select first category by default; reset when switching domains
     useEffect(() => {
-        if (!selectedCategory && categories.length > 0) {
-            setSelectedCategory(categories[0])
+        if (!categories.includes(selectedCategory)) {
+            setSelectedCategory(categories.length > 0 ? categories[0] : null)
         }
     }, [categories, selectedCategory])
 
@@ -252,12 +258,16 @@ export default function Settings() {
             <SettingModalContent
                 defaultCategory={targetCategory}
                 defaultSubCategory={targetSubCategory}
+                defaultDomainId={selectedDomain || 'default'}
                 defaultFormType={targetFormType}
                 defaultRenderType={targetRenderType}
                 onClose={closeModal}
                 onSuccess={(created) => {
                     callReq()
                     if (created) {
+                        if (created.domainId && created.domainId !== selectedDomain) {
+                            setSelectedDomain(created.domainId)
+                        }
                         setSettings((prev) => [...prev, created])
                         if (created.category) {
                             setSelectedCategory(created.category)
@@ -271,13 +281,13 @@ export default function Settings() {
 
     function scopeFileName(scope = {}) {
         const date = new Date().toISOString().slice(0, 10)
-        const parts = ['settings', scope.category, scope.subCategory].filter(Boolean)
+        const parts = ['settings', scope.domainId !== 'default' ? scope.domainId : null, scope.category, scope.subCategory].filter(Boolean)
             .map((p) => String(p).replace(/[^\w-]+/g, '-'))
         return `${parts.join('-') || 'settings'}-${date}.json`
     }
 
     async function handleExport(scope = {}) {
-        const data = await apiReq('setting/export', scope)
+        const data = await apiReq('setting/export', { domainId: selectedDomain || 'default', ...scope })
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
         const url = URL.createObjectURL(blob)
         const a = document.createElement('a')
@@ -289,8 +299,7 @@ export default function Settings() {
         setTimeout(() => URL.revokeObjectURL(url), 1000)
     }
 
-    function handleImportClick(scope = {}) {
-        pendingScopeRef.current = scope
+    function handleImportClick() {
         fileInputRef.current?.click()
     }
 
@@ -311,12 +320,13 @@ export default function Settings() {
             return
         }
         try {
-            const res = await apiReq('setting/import', { settings: list })
+            const targetDomain = selectedDomain || 'default'
+            const res = await apiReq('setting/import', { settings: list, domainId: targetDomain })
             callReq()
-            const lines = [`Created: ${res.created}`, `Updated: ${res.updated}`]
+            const lines = [`Domain: ${res.domainId || targetDomain}`, `Created: ${res.created}`, `Updated: ${res.updated}`]
             if (res.skippedConfig?.length) lines.push(`Skipped config (superAdmin only): ${res.skippedConfig.join(', ')}`)
             if (res.errors?.length) lines.push(`Errors: ${res.errors.map((x) => `${x.key}: ${x.message}`).join('; ')}`)
-            openModal(<div style={{ whiteSpace: 'pre-wrap' }}>{lines.join('\n')}</div>, { title: 'Import complete' })
+            openModal(<div style={{ whiteSpace: 'pre-wrap' }}>{lines.join('\n')}</div>, { title: `Import complete (${res.domainId || targetDomain})` })
         } catch (err) {
             openModal(<div>{err?.message || 'Import failed'}</div>, { title: 'Import failed' })
         }
@@ -357,10 +367,19 @@ export default function Settings() {
                 <div className={styles.sidebarHeaderRow}>
                     <h3 className={styles.sidebarHeader}>Settings</h3>
                     <span style={{ display: 'inline-flex', gap: '0.25rem' }}>
-                        <Button size="s" icon="download" onClick={() => handleExport({})} title="Export all settings" tooltip="Export all settings" />
-                        {canImport && <Button size="s" icon="upload" onClick={() => handleImportClick({})} title="Import all settings (merge)" tooltip="Import all settings (merge)" />}
+                        <Button size="s" icon="download" onClick={() => handleExport({})} title={`Export all settings (${selectedDomain})`} tooltip={`Export all settings (${selectedDomain})`} />
+                        {canImport && <Button size="s" icon="upload" onClick={() => handleImportClick()} title={`Import into "${selectedDomain}" (merge)`} tooltip={`Import into "${selectedDomain}" (merge)`} />}
                         {canCreateSetting && <Button size="s" icon="add" onClick={() => handleAddModal()} title="Add Setting" />}
                     </span>
+                </div>
+                <div style={{ padding: '0 0.5rem 0.5rem' }}>
+                    <Select
+                        options="domains"
+                        value={selectedDomain}
+                        onChange={(e) => { setSelectedDomain(e.target.value); setMobileView('sidebar') }}
+                        title="Working domain — list, export and new settings scope to it"
+                        name="domainId"
+                    />
                 </div>
                 <input ref={fileInputRef} type="file" accept=".json,application/json" onChange={handleImportFile} style={{ display: 'none' }} />
 
@@ -397,8 +416,8 @@ export default function Settings() {
                         <div className={styles.categoryTitleRow}>
                             <h2 className={styles.categoryTitle}>{selectedCategory}</h2>
                             <span style={{ display: 'inline-flex', gap: '0.25rem' }}>
-                                <Button size="s" icon="download" onClick={() => handleExport({ category: selectedCategory })} title={`Export "${selectedCategory}"`} tooltip={`Export "${selectedCategory}"`} />
-                                {canImport && <Button size="s" icon="upload" onClick={() => handleImportClick({ category: selectedCategory })} title="Import into category (merge)" tooltip="Import into category (merge)" />}
+                                <Button size="s" icon="download" onClick={() => handleExport({ category: selectedCategory })} title={`Export "${selectedCategory}" (${selectedDomain})`} tooltip={`Export "${selectedCategory}" (${selectedDomain})`} />
+{canImport && <Button size="s" icon="upload" onClick={() => handleImportClick()} title={`Import into "${selectedDomain}" (merge)`} tooltip={`Import into "${selectedDomain}" (merge)`} />}
                             </span>
                         </div>
 
@@ -414,8 +433,8 @@ export default function Settings() {
                                         <div key={subCat} className={styles.subCategoryGroup}>
                                             <div className={styles.subCategoryHeaderRow}>
                                                 <h4 className={styles.subCategoryHeader}>{subCat}</h4>
-                                                <Button icon="download" className={styles.subCategoryAddBtn} onClick={() => handleExport({ category: selectedCategory, subCategory: subCat })} title={`Export "${subCat}"`} tooltip={`Export "${subCat}"`} />
-                                                {canImport && <Button icon="upload" className={styles.subCategoryAddBtn} onClick={() => handleImportClick({ category: selectedCategory, subCategory: subCat })} title="Import into sub-category (merge)" tooltip="Import into sub-category (merge)" />}
+                                                <Button icon="download" className={styles.subCategoryAddBtn} onClick={() => handleExport({ category: selectedCategory, subCategory: subCat })} title={`Export "${subCat}" (${selectedDomain})`} tooltip={`Export "${subCat}" (${selectedDomain})`} />
+                                                {canImport && <Button icon="upload" className={styles.subCategoryAddBtn} onClick={() => handleImportClick()} title={`Import into "${selectedDomain}" (merge)`} tooltip={`Import into "${selectedDomain}" (merge)`} />}
                                                 {canAddHere && <Button icon="add" className={styles.subCategoryAddBtn} onClick={() => handleAddModal(selectedCategory, subCat, last?.formType, last?.renderType)} title={isConfigGroup ? 'Add config (superAdmin only)' : `Add setting to ${subCat}`} />}
                                             </div>
                                             <div className={styles.insetGroupCard}>

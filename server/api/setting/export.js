@@ -1,6 +1,8 @@
 export default async function exp(payload, { DL }) {
     const { category, subCategory, domainId } = payload || {}
 
+    // ponytail: frontend always sends explicit domainId (domain picker); router
+    // injects 'default' when missing so an omitted domainId still scopes to default
     const filter = {}
     if (category) filter.category = String(category).toLowerCase()
     if (subCategory) filter.subCategory = String(subCategory).toLowerCase()
@@ -12,16 +14,17 @@ export default async function exp(payload, { DL }) {
     return {
         exportedAt: new Date().toISOString(),
         scope: {
-            category: category || null,
-            subCategory: subCategory || null,
-            domainId: domainId || null
+            category: filter.category || null,
+            subCategory: filter.subCategory || null,
+            domainId: filter.domainId || null
         },
+        // ponytail: entries carry no domainId — the import target domain comes
+        // from the domain picker, so files move cleanly between domains
         settings: (docs || []).map((s) => ({
             key: s.key,
             value: s.value,
             category: s.category,
             subCategory: s.subCategory,
-            domainId: s.domainId,
             formType: s.formType,
             renderType: s.renderType,
             public: s.public

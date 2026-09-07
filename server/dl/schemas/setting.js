@@ -42,22 +42,26 @@ const constants = {
 const settingSchema = {
     key: {
         type: String,
-        required: true
+        required: true,
+        filter: true
     },
     value: {},
     domainId: {
         type: String,
-        required: true
+        required: true,
+        filter: true
     },
     category: {
         type: String,
         required: true,
-        lowercase: true
+        lowercase: true,
+        filter: true
     },
     subCategory: {
         type: String,
         required: true,
-        lowercase: true
+        lowercase: true,
+        filter: true
     },
     formType: {
         type: String,

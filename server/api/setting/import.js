@@ -1,9 +1,12 @@
 import diff from '#common/functions/diff.js'
 
-function normalizeEntry(raw) {
+function normalizeEntry(raw, targetDomainId) {
     if (!raw || typeof raw !== 'object') return null
     const key = typeof raw.key === 'string' ? raw.key.trim() : ''
-    const domainId = typeof raw.domainId === 'string' && raw.domainId ? raw.domainId : 'default'
+    // ponytail: explicit target (domain picker) wins so files move between
+    // domains; otherwise fall back to the entry's own domain for old files
+    const domainId = targetDomainId
+        || (typeof raw.domainId === 'string' && raw.domainId ? raw.domainId : 'default')
     if (!key) return null
     return {
         key,
@@ -37,10 +40,19 @@ export default async function imp(payload, { DL, _admin }) {
         throw { status: 400, message: 'import limited to 2000 settings per file' }
 
     const isSuperAdmin = !!_admin?.isSuperAdmin
+    // Target domain (domain picker) overrides per-entry domains; bare-array
+    // payloads without one keep their own domain for backward compat
+    const targetDomainId = !Array.isArray(payload) && typeof payload?.domainId === 'string' && payload.domainId
+        ? payload.domainId
+        : null
+    if (targetDomainId) {
+        const domain = await DL.Domain.readById(targetDomainId)
+        if (!domain) throw { status: 400, message: `invalid domain id "${targetDomainId}"` }
+    }
     // Last occurrence of a (domainId + key) pair wins
     const byScopeKey = new Map()
     for (const raw of rawList) {
-        const entry = normalizeEntry(raw)
+        const entry = normalizeEntry(raw, targetDomainId)
         if (!entry) continue
         byScopeKey.set(`${entry.domainId}::${entry.key}`, entry)
     }
@@ -83,7 +95,7 @@ export default async function imp(payload, { DL, _admin }) {
         }
     }
 
-    return { created, updated, skippedConfig, errors }
+    return { created, updated, skippedConfig, errors, domainId: targetDomainId }
 }
 
 imp.config = {
