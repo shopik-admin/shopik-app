@@ -232,6 +232,13 @@ export default function router(app, bootData) {
                     stack: error.stack
                 }),
                 missingFields: error.missingFields || undefined,
+                // structured error fields (e.g. payment failures) for client display
+                code: error.code || undefined,
+                providerCode: error.providerCode ?? undefined,
+                amount: error.amount ?? undefined,
+                authorizedAmount: error.authorizedAmount ?? undefined,
+                capturedTotal: error.capturedTotal ?? undefined,
+                delta: error.delta ?? undefined,
             }
             if (requestLog)
                 requestLogPromise = requestLog.error(errorRes)

@@ -1,6 +1,7 @@
 import uid from '#common/functions/uid.js'
 
-export default async function login_otp({ idNum, domainId }, { DL, external }) {
+export default async function login_otp({ idNum, domainId }, { DL, external, validators }) {
+    await validators.idNum(idNum, arguments[1])
     const admin = await DL.Admin.readOne({ idNum })
     if (!admin)
         throw { status: 400, message: 'invalid id number' }

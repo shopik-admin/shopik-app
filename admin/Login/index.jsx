@@ -44,7 +44,7 @@ export default function Login() {
                     setFormState({})
                 }
             })
-            .catch(error => setFormState({ error }))
+            .catch(error => setFormState({ error: error.message }))
     }
 
     return <Flex center col className={styles.login}>
@@ -62,7 +62,7 @@ export default function Login() {
                     <Input
                         required
                         name='idNum'
-                        type='isNum'
+                        type='idNum'
                         autoComplete='off'
                         info='idNum_input_description'
                         placeholder='idNum_placeholder'

@@ -1,5 +1,5 @@
 export default async function get(payload, { DL, _user, req, utils }) {
-    const { filter = {}, path, id, barcode, select } = payload
+    const { filter = {}, path, id, barcode, select, onSale } = payload
     const { mode, storeId } = await utils.data.withStock.resolveStockContext(req, { DL, utils }, _user)
     const wantFilter = mode === 'filter' && !!storeId
     const wantAnnotate = mode === 'annotate' && !!storeId
@@ -39,9 +39,21 @@ export default async function get(payload, { DL, _user, req, utils }) {
         }
         const effectiveFilter = wantFilter ? utils.data.withStock.applyStockFilter(filter, storeId, mode) : filter
         const selectForStock = wantAnnotate ? { ...(select || DL.Product.defaultSelect), storeIds: 1 } : (select || DL.Product.defaultSelect)
+        effectiveFilter.status = DL.Product.constants.STATUS.ACTIVE
+        if (onSale) {
+            // Better than `saleIds.0 exists`: verify against currently ACTIVE sales
+            // (saleIds is denormalized by sale/sync and can lag behind status rollover).
+            const activeSales = await DL.Sale.read(
+                { status: DL.Sale.constants.STATUS.ACTIVE },
+                { _id: 0, id: 1 },
+                { limit: 0 }
+            )
+            if (activeSales.length === 0) return { products: [], sales: {}, categoryName, categoryPath }
+            effectiveFilter.saleIds = { $in: activeSales.map(s => s.id) }
+        }
         // Pass effectiveFilter and selectForStock via payload while preserving pagination options
         const readPayload = { ...payload, filter: effectiveFilter, select: selectForStock }
-        effectiveFilter.status = DL.Product.constants.STATUS.ACTIVE
+        if (readPayload.sort == null) readPayload.sort = DL.Product.Model.defaultSort
         products = await DL.Product.read(effectiveFilter, selectForStock, readPayload)
         if (wantAnnotate) products = utils.data.withStock.annotateInStock(products, storeId, mode)
     }

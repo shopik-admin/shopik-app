@@ -13,7 +13,7 @@
     aspect-ratio: 1 / 1;
     object-fit: contain;
     display: block;
-    border-radius: 0;
+    border-radius: var(--radius-3xl);
     max-width: 100%;
 
     &.s {

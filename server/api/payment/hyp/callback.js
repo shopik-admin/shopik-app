@@ -213,6 +213,19 @@ export default async function callback(payload, info) {
         })
     } catch { }
 
+    try {
+        const { record } = utils.data.timeline
+        await record({
+            DL, order,
+            eventType: DL.Timeline.constants.EVENT_TYPES.ORDER_STATUS_UPDATE,
+            actor: null,
+            changes: { oldData: { status: order.status }, newData: { status: DL.Order.constants.ORDER_STATUS.PAID } },
+            context: { step: 'payment_authorized', provider: 'hyp', orderNumber },
+            outcome: { success: true },
+            metadata: { source: 'payment/hyp/callback', referenceOrderNumber: order.number }
+        })
+    } catch { }
+
     sendHtml({ ok: true, order })
 }
 

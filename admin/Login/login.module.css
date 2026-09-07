@@ -47,6 +47,7 @@
 
         .card {
             width: calc(100vw - 40px);
+            padding: 35px;
             /*  height: 100dvh;
             max-height: calc(100dvh - 100px);
             border-bottom-left-radius: 0;

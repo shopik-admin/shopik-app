@@ -1,4 +1,4 @@
-import { DeliveryMethodTag, formatWindow } from '../orderUtils'
+import { DeliveryMethodTag, formatWindow, RemainingTime } from '../orderUtils'
 import classNames from 'common/functions/classNames'
 import Button from 'common/components/Button'
 import Loader from 'common/components/Loader'
@@ -17,6 +17,7 @@ import ProductInline from 'common/components/ProductInline'
 import Stepper from 'common/components/Stepper'
 import { useModal } from 'common/components/Modal'
 import ProductPickModal from './ProductPickModal'
+import { formatAmount } from 'common/components/Product'
 
 const STEPS = {
     PREVIEW: 0,
@@ -55,13 +56,16 @@ export default function OpsOrder({ }) {
     if (error) return <Text center mode='error'>{error.message}</Text>
     if (!order) return <Text center mode='error'>No order found</Text>
     async function claimOrder() {
-        const res = await apiReq('order/ops/claim', { id: order.id })
-        if (res.error) {
-            alert(res.error)
-            return
+        try {
+            const res = await apiReq('order/ops/claim', { id: order.id })
+            // apiReq returns the payload directly (throws on error):
+            // server returns the updated order doc itself, not wrapped in data
+            const newDoc = res?.cart ? res : res?.data || res
+            if (newDoc?.id) setData([newDoc])
+            setStep(STEPS.PICK)
+        } catch (e) {
+            alert(e.message || 'claim failed')
         }
-        setData([res.data])
-        setStep(STEPS.PICK)
     }
     function handlePicked(updatedOrder) {
         if (updatedOrder) {
@@ -72,8 +76,8 @@ export default function OpsOrder({ }) {
         }
     }
 
-    return <>
-        <Flex gap={15} center className={styles.orderTitle}>
+    return <div className={styles.opsOrder}>
+        <Flex gap={15} alignItem='center' className={styles.orderTitle}>
             <Button icon='back' mode='text' onClick={() => navigate('/ops')} />
             <Text size='h3' bold >הזמנה {order.number}</Text>
         </Flex>
@@ -85,7 +89,7 @@ export default function OpsOrder({ }) {
             setStep={setStep}
             onPicked={handlePicked}
         /> : null}
-    </>
+    </div>
 }
 
 function OrderPreview({ order = {}, claimOrder, isMine, cantPick, setStep }) {
@@ -93,26 +97,29 @@ function OrderPreview({ order = {}, claimOrder, isMine, cantPick, setStep }) {
 
     return <Flex col className={styles.orderPreview}>
         <Flex grow col gap={30}>
-            <Flex alignItems='center' justifyContent='space-between'>
+            <Flex alignItems='center' justifyContent='space-between' style={{ padding: 25, paddingBottom: 0, fontSize: 20 }}>
                 <DeliveryMethodTag deliveryMethod={order.deliveryMethod} />
-                <Text bold>{order.number}</Text>
+                <Text bold size='l'>{order.number}</Text>
             </Flex>
-            <Flex gap={5} className={classNames(styles.intro, styles[windowTime.isLate ? 'danger' : windowTime.isAlmostLate ? 'warning' : 'success'])}>
+            <Flex gap={10} className={classNames(styles.intro, styles[windowTime.isLate ? 'danger' : windowTime.isAlmostLate ? 'warning' : 'success'])}>
                 <Icon name='time' size={24} />
                 <Flex col gap={10} grow>
                     <Flex alignItems='center' justifyContent='space-between' grow>
                         <Text size='h2' bold>time_to_pick_title</Text>
-                        <Text size='h2' bold>{windowTime.text}</Text>
+                        <Text size='h2' bold>{order.window.end}:00</Text>
                     </Flex>
-                    <Text size='m' className={styles.subtitle}>time_to_pick_subtitle</Text>
+                    <Flex gap={5}>
+                        <Text size='m' className={styles.subtitle}>time_to_pick_subtitle</Text>
+                        <RemainingTime size='m' className={styles.subtitle} window={order.window} />
+                    </Flex>
                 </Flex>
             </Flex>
             <Flex col gap={25} className={styles.priviewRows}>
                 <PriviewRow icon='user' label='customer_name' value={order.phone || '0500000000'} />
                 <PriviewRow icon='location' label='customer_address' value={render({ type: 'address', value: order.address })} />
-                <PriviewRow icon='time' label='order_window' value={windowTime.dayText} />
-                <PriviewRow icon='replace' label='replace_and_missing' value={order.window?.replace} />
-                <PriviewRow icon='note' label='pick_notes' value={order.comments} />
+                <PriviewRow icon='time' label='order_window' value={windowTime.textLong} />
+                {/* <PriviewRow icon='replace' label='replace_and_missing' value={order.window?.replace} />
+                <PriviewRow icon='note' label='pick_notes' value={order.comments} /> */}
             </Flex>
         </Flex>
         <Flex center gap={20} col className={styles.footer}>
@@ -138,12 +145,30 @@ function OrderPick({ order = {}, setStep, onPicked }) {
     const { openModal, closeModal } = useModal()
     const cart = order.cart || []
     const isScanned = p => p.finalAmount != null || !!p.missing
-    const toPickItems = cart.filter(p => !isScanned(p))
-    const donePickItems = cart.filter(p => isScanned(p))
-    const isDoneTab = tab === 'done_pick' || tab === 2
-    const isWaitTab = tab === 'wait_pick' || tab === 1
+    // group replaced originals with their replacer into one yellow linked card (image-3 style)
+    const byBarcode = new Map(cart.map(p => [p.barcode, p]))
+    const replacedPairs = []
+    const pairedBarcodes = new Set()
+    for (const p of cart) {
+        const repBarcode = p.replacement?.replacementBarcode
+        if (p.missing && repBarcode && byBarcode.has(repBarcode)) {
+            replacedPairs.push({ original: p, replacer: byBarcode.get(repBarcode) })
+            pairedBarcodes.add(p.barcode)
+            pairedBarcodes.add(repBarcode)
+        }
+    }
+    const toPickItems = cart.filter(p => !isScanned(p) && !pairedBarcodes.has(p.barcode))
+    const donePickItems = cart.filter(p => isScanned(p) && !pairedBarcodes.has(p.barcode))
+    const isDoneTab = tab === 'done_pick'
+    const isWaitTab = tab === 'wait_pick'
     const displayed = isDoneTab ? donePickItems : isWaitTab ? [] : toPickItems
+    const displayedPairs = isDoneTab ? replacedPairs : []
     const allHandled = toPickItems.length === 0 && cart.length > 0
+
+
+    useEffect(() => {
+        if (toPickItems.length === 0 && donePickItems.length > 0 && !isDoneTab) setTab('done_pick')
+    }, [toPickItems.length, donePickItems.length])
 
     function handleProductClick(product) {
         openModal(
@@ -180,9 +205,17 @@ function OrderPick({ order = {}, setStep, onPicked }) {
             options={[
                 { text: 'to_pick', badge: toPickItems.length },
                 { text: 'wait_pick', badge: 0 },
-                { text: 'done_pick', badge: donePickItems.length },
+                { text: 'done_pick', badge: donePickItems.length + replacedPairs.length },
             ]} />
         <Flex grow col gap={10} className={styles.cartList}>
+            {displayedPairs.map(({ original, replacer }) => (
+                <ReplacementCard
+                    key={(original.id || original.barcode) + '->' + (replacer.id || replacer.barcode)}
+                    original={original}
+                    replacer={replacer}
+                    onClick={() => handleProductClick(replacer)}
+                />
+            ))}
             {displayed.map(product => (
                 <ProductInline
                     key={product.id || product.barcode}
@@ -196,13 +229,30 @@ function OrderPick({ order = {}, setStep, onPicked }) {
             ))}
         </Flex>
         <Flex center gap={20} className={styles.footer}>
-            <Button disabled={!allHandled} loading={completing} onClick={handleFinishPick} className={styles.finishBtn}>finish pick</Button>
+            <Button disabled={!allHandled} loading={completing} onClick={handleFinishPick} className={styles.finishBtn}>finish_pick</Button>
         </Flex>
+    </Flex>
+}
+
+function ReplacementCard({ original = {}, replacer = {}, onClick }) {
+    return <Flex col gap={8} onClick={onClick} style={{ cursor: 'pointer' }} className={styles.replacedCard}>
+        <Flex alignItems="center" gap={6}>
+            <Icon name="replace" size={16} />
+            <Text size="s" bold>הוחלף</Text>
+        </Flex>
+        <Text size="xs" mode="sub">מקורי: {original.name || 'מוצר'} • הוזמן: {formatAmount(original, original.amount ?? 1)}</Text>
+        <ProductInline
+            product={replacer}
+            remove={false}
+            note={false}
+            admin
+        />
     </Flex>
 }
 
 function OrderPack({ order = {}, setStep, onPicked }) {
     const [loading, setLoading] = useState(false)
+    const [packError, setPackError] = useState(null)
     const [regular, setRegular] = useState(order.bags?.regular ?? 0)
     const [cold, setCold] = useState(order.bags?.cold ?? 0)
     const [freeze, setFreeze] = useState(order.bags?.freeze ?? 0)
@@ -210,6 +260,7 @@ function OrderPack({ order = {}, setStep, onPicked }) {
     async function handleTransfer() {
         if (loading) return
         setLoading(true)
+        setPackError(null)
         try {
             const bags = {
                 regular: Number(regular) || 0,
@@ -217,24 +268,31 @@ function OrderPack({ order = {}, setStep, onPicked }) {
                 freeze: Number(freeze) || 0,
             }
             const res = await apiReq('order/ops/pack', { id: order.id, bags })
-            if (res?.error) {
-                alert(res.error)
-                return
-            }
             const updated = res?.data || res
             if (updated?.id) onPicked?.(updated)
             setStep(STEPS.SHIP)
         } catch (e) {
-            alert(e.message || 'pack failed')
+            setPackError(e)
         } finally {
             setLoading(false)
         }
     }
 
+    const chargeAmount = packError?.amount ?? order.finalSumWithShipping ?? order.sumWithShipping ?? order.finalSum ?? order.sum
+
     return <Flex grow col className={styles.orderPack}>
         <Flex col gap={6} className={styles.packInstruction}>
             <Text bold size="m">נא להזין כמות אריזות מדויקת בסיום האריזה</Text>
         </Flex>
+        {packError ? <Flex col gap={8} className={styles.packError}>
+            <Text bold size="m" mode="error">החיוב נכשל — ההזמנה לא נארזה</Text>
+            <Text size="s" mode="error">{packError.message || 'שגיאת תשלום'}</Text>
+            {chargeAmount ? <Text size="s">סכום לחיוב: ₪{chargeAmount}</Text> : null}
+            {packError.capturedTotal > 0 ? <Text size="s">כבר חויב: ₪{packError.capturedTotal}{packError.delta > 0 ? `, נותר: ₪${packError.delta}` : null}</Text> : null}
+            {order.payment?.last4digits ? <Text size="s">כרטיס: ****{order.payment.last4digits}</Text> : null}
+            {packError.providerCode !== undefined ? <Text size="s">קוד שגיאה: {packError.providerCode}</Text> : null}
+            <Button mode="text-brand" onClick={handleTransfer}>נסה שוב</Button>
+        </Flex> : null}
 
         <Flex col gap={14} className={styles.packList}>
             <Flex justifyContent="space-between" alignItems="center" className={styles.packRow}>

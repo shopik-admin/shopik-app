@@ -1,4 +1,5 @@
 import classNames from 'common/functions/classNames'
+import isValidIsraeliId from 'common/functions/isValidIsraeliId'
 import { useText } from 'common/texts/TextProvider'
 import styles from './input.module.css'
 import Checkbox from '../Checkbox'
@@ -73,6 +74,8 @@ function Input(props) {
 }
 
 export default Input
+
+export { default as isValidIsraeliId } from 'common/functions/isValidIsraeliId'
 
 function getInputTag({ type }) {
     switch (type) {
@@ -252,6 +255,13 @@ function getInputInvalidError(value, props) {
             const tagRegex = /^[A-Za-z]{2}$/  // Basic tag validation format (2 chars)
             if (!tagRegex.test(value)) {
                 return 'Invalid tag'
+            }
+            break
+
+        // -------------------- Israeli ID Number Validation --------------------
+        case 'idNum':
+            if (!isValidIsraeliId(value)) {
+                return 'Invalid Israeli ID number'
             }
             break
 

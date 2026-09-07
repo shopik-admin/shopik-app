@@ -9,7 +9,7 @@ import apiReq from 'common/functions/apiReq'
 import classNames from 'common/functions/classNames'
 import { isWeightProduct, getUnitLabel, formatAmount } from 'common/components/Product'
 
-export default function ScanProduct({ product = {}, orderId, onClose, onPicked, initialPhase, initialSupplied, initialBarcode }) {
+export default function ScanProduct({ product = {}, orderId, onClose, onPicked, initialPhase, initialSupplied, initialBarcode, onReplace }) {
     const videoRef = useRef(null)
     const streamRef = useRef(null)
     const rafRef = useRef(null)
@@ -22,7 +22,20 @@ export default function ScanProduct({ product = {}, orderId, onClose, onPicked, 
     const [loading, setLoading] = useState(false)
     const [phase, setPhase] = useState(initialPhase || 'scanning') // scanning | amount | weight
     const [scannedBarcode, setScannedBarcode] = useState(initialBarcode || '')
+    const [mismatch, setMismatch] = useState(null) // wrong barcode that was scanned
     const [supplied, setSupplied] = useState(initialSupplied != null ? String(initialSupplied) : '')
+
+    const normalizeBarcode = v => String(v ?? '').trim()
+    const expectedBarcodes = [
+        product.barcode,
+        ...(Array.isArray(product.scannableBarcodes) ? product.scannableBarcodes : [])
+    ].map(normalizeBarcode).filter(Boolean)
+    const isBarcodeMatch = scanned => {
+        const val = normalizeBarcode(scanned)
+        if (!val) return false
+        if (!expectedBarcodes.length) return true
+        return expectedBarcodes.includes(val)
+    }
 
     const price = product.price ?? product.prices?.[0]?.price ?? 36
     const ordered = product.amount || 22
@@ -44,13 +57,20 @@ export default function ScanProduct({ product = {}, orderId, onClose, onPicked, 
 
     async function proceedWithFinalAmount() {
         if (!canContinue || loading) return
+        // safety: never trust the scanned value as the item identifier —
+        // always pick by the expected product barcode, send scanned for server audit
+        if (!weight && scannedBarcode && !isBarcodeMatch(scannedBarcode)) {
+            setError(`הברקוד שנסרק (${scannedBarcode}) אינו תואם למוצר (${product.barcode || ''})`)
+            return
+        }
         setLoading(true)
         setError('')
         try {
             const action = weight ? 'weight' : 'scan'
             const res = await apiReq('order/ops/pick_item', {
                 id: orderId,
-                barcode: scannedBarcode || product.barcode,
+                barcode: product.barcode,
+                scannedBarcode: weight ? undefined : (scannedBarcode || undefined),
                 action,
                 finalAmount: suppliedNum
             })
@@ -67,16 +87,39 @@ export default function ScanProduct({ product = {}, orderId, onClose, onPicked, 
         }
     }
 
-    function handleScanned(scannedBarcodeValue) {
-        // stop camera
+    function stopCamera() {
         scanningRef.current = false
         setScanning(false)
         if (rafRef.current) cancelAnimationFrame(rafRef.current)
         if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop())
-        setScannedBarcode(scannedBarcodeValue)
+    }
+
+    function handleScanned(scannedBarcodeValue) {
+        const val = normalizeBarcode(scannedBarcodeValue)
+        if (!val) return
+        if (!isBarcodeMatch(val)) {
+            // wrong product — stay in scanning phase, show mismatch
+            stopCamera()
+            setMismatch(val)
+            setError(`הברקוד שנסרק (${val}) אינו תואם למוצר המבוקש (${product.barcode || ''}). נסו שוב.`)
+            return
+        }
+        // correct product
+        stopCamera()
+        setMismatch(null)
+        setScannedBarcode(val)
         setSupplied('')
         setPhase('amount')
         setError('')
+    }
+
+    async function handleRetryScan() {
+        setMismatch(null)
+        setError('')
+        setManualBarcode('')
+        setScanning(true)
+        scanningRef.current = true
+        await startCamera()
     }
 
     function handleManualSubmit(e) {
@@ -102,7 +145,7 @@ export default function ScanProduct({ product = {}, orderId, onClose, onPicked, 
             if (!('BarcodeDetector' in window)) {
                 try {
                     await import('barcode-detector/polyfill')
-                } catch {}
+                } catch { }
             }
 
             if ('BarcodeDetector' in window) {
@@ -125,7 +168,7 @@ export default function ScanProduct({ product = {}, orderId, onClose, onPicked, 
                                 return
                             }
                         }
-                    } catch {}
+                    } catch { }
                     rafRef.current = requestAnimationFrame(loop)
                 }
                 rafRef.current = requestAnimationFrame(loop)
@@ -179,14 +222,14 @@ export default function ScanProduct({ product = {}, orderId, onClose, onPicked, 
             </Flex>
 
             <Flex col className={styles.productSummary}>
-                <Flex alignItems="center" gap={6} className={styles.topMeta}>
+                {/*  <Flex alignItems="center" gap={6} className={styles.topMeta}>
                     <Icon name="stock" size={14} />
                     <Text size="xs">❄️</Text>
                     <Text size="xs" bold>₪{price}</Text>
                     <Text size="xs" mode="sub">100 - 2</Text>
                     <Text size="xs" mode="sub">06:20</Text>
-                </Flex>
-            <ProductInline product={product} remove={false} note={false} admin />
+                </Flex> */}
+                <ProductInline product={product} remove={false} note={false} admin />
             </Flex>
 
             <Flex col center gap={6} className={styles.successBlock}>
@@ -247,13 +290,13 @@ export default function ScanProduct({ product = {}, orderId, onClose, onPicked, 
         </Flex>
 
         <Flex col className={styles.productSummary}>
-            <Flex alignItems="center" gap={6} className={styles.topMeta}>
+            {/*  <Flex alignItems="center" gap={6} className={styles.topMeta}>
                 <Icon name="stock" size={14} />
                 <Text size="xs">❄️</Text>
                 <Text size="xs" bold>₪{price}</Text>
                 <Text size="xs" mode="sub">100 - 2</Text>
                 <Text size="xs" mode="sub">06:20</Text>
-            </Flex>
+            </Flex> */}
             <ProductInline product={product} remove={false} note={false} admin />
         </Flex>
 
@@ -261,6 +304,21 @@ export default function ScanProduct({ product = {}, orderId, onClose, onPicked, 
             <Text size="s" bold>מוצר לא נסרק?</Text>
             <Button mode="text" size="s" onClick={() => setManualMode(m => !m)}>{manualMode ? 'מצלמה' : 'הזנה ידנית'}</Button>
         </Flex>
+        {product.barcode && (
+            <Flex center className={styles.notScannedRow}>
+                <Text size="xs" mode="sub">ברקוד מצופה: {product.barcode}</Text>
+            </Flex>
+        )}
+        {mismatch && (
+            <Flex col center gap={8} className={styles.warningBlock}>
+                <Flex alignItems="center" gap={6} className={styles.warningText}>
+                    <span className={styles.errorIcon}>!</span>
+                    <Text size="s" bold className={styles.warningRed}>הברקוד שנסרק אינו תואם למוצר</Text>
+                </Flex>
+                <Text size="xs" mode="sub">נסרק: {mismatch} • מצופה: {product.barcode || '—'}</Text>
+                <Button size="s" onClick={handleRetryScan}>סרוק שוב</Button>
+            </Flex>
+        )}
 
         <Flex col className={styles.cameraWrap}>
             <video ref={videoRef} autoPlay playsInline muted className={styles.video} />
@@ -287,7 +345,7 @@ export default function ScanProduct({ product = {}, orderId, onClose, onPicked, 
         </Flex>
 
         <Flex col gap={10} className={styles.actions}>
-            <Button mode="outline" loading={loading} onClick={handleMissing} className={styles.missingBtn}>מוצר חסר</Button>
+            <Button mode="outline" loading={loading} onClick={onReplace || handleMissing} className={styles.missingBtn}>מוצר חסר</Button>
         </Flex>
     </Flex>
 }

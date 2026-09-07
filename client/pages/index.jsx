@@ -1,4 +1,5 @@
 import Products from './Products'
+import Sales from './Sales'
 import Account from './Account'
 import Home from './Home'
 import Product from './Product'
@@ -18,6 +19,12 @@ export default [
         element: Products,
         title: 'מוצרים',
         description: 'קטלוג מוצרים'
+    },
+    {
+        path: '/sales',
+        element: Sales,
+        title: 'מבצעים',
+        description: 'מוצרים במבצע'
     },
     {
         path: '/search',

@@ -29,4 +29,12 @@
             transform: translateY(-1px);
         }
     }
+
+    .menu {
+        min-width: 160px;
+    }
+
+    .logoutButton {
+        width: 100%;
+    }
 }

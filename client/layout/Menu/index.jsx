@@ -7,5 +7,7 @@ export default function Menu({ }) {
         <Link to='/'><Text>home</Text></Link>
         <br />
         <Link to='/products'><Text>products</Text></Link>
+        <br />
+        <Link to='/sales'><Text>sales</Text></Link>
     </nav>
 }

@@ -7,7 +7,11 @@ const domainSchema = {
         unique: true,
         filter: true
     },
-    logo: String
+    logo: String,
+    url: {
+        type: String,
+        filter: true
+    }
 }
 
 export const meta = { cacheStrategy: CACHE_STRATEGIES.HASHSET }
