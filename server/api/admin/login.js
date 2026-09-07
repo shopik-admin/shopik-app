@@ -1,6 +1,7 @@
 import { ADMIN_TOKEN_EXPIRY_MS, ADMIN_TOKEN_COOKIE } from '#common/constants.js'
 
-export default async function login({ idNum, otpToken, otp }, { DL, utils, platform, setCookie }) {
+export default async function login({ idNum, otpToken, otp }, { DL, utils, platform, setCookie, validators }) {
+    await validators.idNum(idNum, arguments[1])
     const admin = await DL.Admin.readOne({ idNum })
     if (!admin)
         throw { message: 'login failed', status: 403 }

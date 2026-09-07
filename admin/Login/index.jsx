@@ -62,7 +62,7 @@ export default function Login() {
                     <Input
                         required
                         name='idNum'
-                        type='isNum'
+                        type='idNum'
                         autoComplete='off'
                         info='idNum_input_description'
                         placeholder='idNum_placeholder'

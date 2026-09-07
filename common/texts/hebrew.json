@@ -494,6 +494,7 @@
         "wait_pick": "בבדיקה",
         "done_pick": "טופל",
         "role_delete_button_disabled_tooltip": "לא ניתן למחוק תפקיד אב",
-        "finish_pick": "סיום ליקוט"
+        "finish_pick": "סיום ליקוט",
+        "Invalid Israeli ID number": "מספר תעודת זהות לא תקין"
     }
 }

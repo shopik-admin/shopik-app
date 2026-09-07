@@ -23,6 +23,10 @@ export default async function update(payload, { DL, validators, utils }) {
         await DL.redis?.del(`admin_auth:${id}`)
     }
 
+    if (update.idNum) {
+        await validators.idNum(update.idNum, arguments[1])
+    }
+
     const updated = await DL.Admin.updateOne({ id }, update)
     return updated
 }
