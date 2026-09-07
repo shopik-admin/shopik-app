@@ -154,8 +154,7 @@ const comaxSaleSchema = {
 }
 
 export const meta = {
-    index: [{ lastImportedAt: -1 }],
-    cacheStrategy: CACHE_STRATEGIES.VERSION
+    index: [{ lastImportedAt: -1 }]
 }
 
 export default comaxSaleSchema
