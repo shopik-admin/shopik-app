@@ -1,0 +1,274 @@
+.page {
+    gap: 15px;
+    height: 100%;
+    overflow: auto;
+}
+
+.backButton {
+    padding: 0 !important;
+
+    svg {
+        height: 24px;
+        width: 24px;
+    }
+}
+
+.orderHeader {
+    padding: 0 5px 10px 5px;
+}
+
+.payDate {
+    padding: 0px 5px;
+    padding-bottom: 15px;
+}
+
+.labelChip {
+    border-radius: var(--radius-full);
+    padding: 4px 10px;
+    white-space: nowrap;
+}
+
+/* ===== status section ===== */
+
+.statusSection {
+    background: var(--bg-primary);
+    width: 100%;
+    padding: 20px;
+}
+
+.statusExpanded {
+    max-height: 440px;
+    overflow-y: auto;
+}
+
+.stickyBar {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--bg-surface, var(--bg-primary));
+    padding-bottom: 12px;
+}
+
+.timelineToggle {
+    padding: 4px !important;
+
+    svg {
+        height: 22px;
+        width: 22px;
+    }
+}
+
+.timelineToggleActive {
+    color: var(--fg-brand-secondary);
+}
+
+.timelineHint {
+    margin-top: 2px;
+}
+
+/* ===== stepper ===== */
+
+.stepper {
+    gap: 0;
+}
+
+.step {
+    position: relative;
+    /* equal columns regardless of label length, so dots are evenly spaced */
+    flex: 1 1 0;
+    gap: 10px;
+    align-items: center;
+    min-width: 0;
+}
+
+/* connector segment spanning from the previous dot's center to this one */
+.stepLine {
+    position: absolute;
+    top: 15px;
+    inset-inline-end: 50%;
+    width: 100%;
+    height: 2px;
+    background: var(--border-secondary);
+    transition: background .2s;
+}
+
+.stepLineActive {
+    background: var(--fg-brand-secondary);
+}
+
+.stepLineFailed {
+    background: var(--danger-color);
+}
+
+.stepDot {
+    position: relative;
+    z-index: 1;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-full);
+    border: 2px solid var(--border-primary);
+    background: var(--bg-primary);
+    color: var(--fg-quaternary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-sizing: border-box;
+    margin-bottom: 12px;
+}
+
+.stepDone .stepDot {
+    background: var(--fg-brand-secondary);
+    border-color: var(--fg-brand-secondary);
+    color: var(--fg-white);
+}
+
+.stepCurrent .stepDot {
+    border: 3px solid var(--fg-brand-secondary);
+}
+
+.stepDotInner {
+    width: 12px;
+    height: 12px;
+    border-radius: var(--radius-full);
+    background: var(--fg-brand-secondary);
+}
+
+.stepFailed .stepDot {
+    background: var(--danger-color);
+    border-color: var(--danger-color);
+    color: var(--fg-white);
+}
+
+.stepFailedText {
+    color: var(--danger-color);
+}
+
+.stepCurrentText {
+    color: var(--fg-brand-secondary);
+    font-weight: 700 !important;
+}
+
+/* ===== timeline ===== */
+
+.timeline {
+    padding: 24px 4px 4px;
+}
+
+.timelineRow {
+    align-items: stretch;
+    min-height: 56px;
+}
+
+.timelineMarker {
+    width: 32px;
+    flex-shrink: 0;
+    align-items: center;
+}
+
+.timelineDot {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-full);
+    background: var(--bg-brand-secondary);
+    color: var(--fg-brand-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.timelineLine {
+    flex: 1;
+    width: 2px;
+    background: var(--border-secondary);
+    margin-top: 4px;
+}
+
+.timelineBody {
+    padding-top: 8px;
+    padding-bottom: 20px;
+    flex: 1;
+    min-width: 0;
+}
+
+/* ===== content columns ===== */
+
+.content {
+    align-items: flex-start;
+}
+
+.mainColumn {
+    min-width: 0;
+}
+
+.sidebar {
+    width: 360px;
+    flex-shrink: 0;
+}
+
+.productsCard {
+    background: var(--bg-primary);
+    flex: 1;
+    min-width: 0;
+    width: 100%;
+}
+
+.productsCardHeader {
+    padding: 10px;
+}
+
+.productsCardTitle {
+    padding: 10px;
+    font-weight: 700 !important;
+}
+
+.cardTitle {
+    margin-bottom: 24px;
+    font-weight: 700 !important;
+}
+
+.detailsCard {
+    padding: 20px;
+}
+
+.countPill {
+    margin-top: 4px;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-brand-secondary);
+    color: var(--fg-brand-secondary);
+    border-radius: var(--radius-full);
+}
+
+.infoIcon {
+    color: var(--fg-brand-secondary);
+    margin-top: 3px;
+    flex-shrink: 0;
+}
+
+.sumsSection {
+    border-top: 1px solid var(--border-secondary);
+    padding-top: 16px;
+}
+
+.totalRow {
+    background: var(--fg-brand-secondary);
+    color: var(--text-white);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+    margin-top: 8px;
+}
+
+@media (max-width: 900px) {
+    .content {
+        flex-direction: column-reverse;
+    }
+
+    .sidebar {
+        width: 100%;
+    }
+}

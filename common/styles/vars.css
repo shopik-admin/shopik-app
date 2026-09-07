@@ -128,11 +128,11 @@
     --bg-brand-section: #0E3432;
     --bg-brand-section-subtle: #12423F;
     --bg-error-primary: #F05050;
-    --bg-error-secondary: #FFF5F5;
+    --bg-error-secondary: #FEE2E2;
     --bg-warning-primary: #F0B928;
-    --bg-warning-secondary: #FFFCF0;
+    --bg-warning-secondary: #FEF9C3;
     --bg-success-primary: #28AA5F;
-    --bg-success-secondary: #F0FDF5;
+    --bg-success-secondary: #DCFCE7;
 
     /* Accent Colors (area groups) */
     --accent-group: #7C3AED;

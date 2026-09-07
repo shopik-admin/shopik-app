@@ -7,6 +7,7 @@ import Admins from 'Pages/Admins'
 import Stores from 'Pages/Stores'
 import Domains from 'Pages/Domains'
 import Orders from 'Pages/Orders'
+import Order from 'Pages/Orders/Order'
 import Users from 'Pages/Users'
 import Logs from 'Pages/Logs'
 import Sales from 'Pages/Sales'
@@ -25,6 +26,7 @@ const pages = [
     { key: 'products', name: 'Products', path: '/products', section: 'content', icon: 'products', component: Products, permission: 'product:read' },
     { key: 'users', name: 'users', path: '/users', section: 'content', icon: 'users', component: Users, permission: 'user:read' },
     { key: 'orders', name: 'orders', path: '/orders', section: 'content', icon: 'orders', component: Orders, permission: 'order:read' },
+    { key: 'order', name: ' ', path: '/orders/:orderId', section: 'content', icon: 'orders', component: Order, permission: 'order:read', notInMenu: true },
     { key: 'sales', name: 'Sales', path: '/sales', section: 'content', icon: 'sale', component: Sales, permission: 'sale:read' },
     { key: 'coupons', name: 'Coupons', path: '/coupons', section: 'content', icon: 'coupon', component: Coupons, permission: 'coupon:read' },
 
