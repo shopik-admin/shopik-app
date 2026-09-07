@@ -58,5 +58,5 @@ export function formatHour(h) {
 }
 
 export function formatHourRange(start, end) {
-    return `${formatHour(start)}–${end >= 24 ? '24:00' : formatHour(end)}`
+    return `${end >= 24 ? '24:00' : formatHour(end)} - ${formatHour(start)}`
 }

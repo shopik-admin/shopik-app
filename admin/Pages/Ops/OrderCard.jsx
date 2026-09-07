@@ -5,7 +5,7 @@ import Flex from 'common/components/Flex'
 import Icon from 'common/components/Icon'
 import Text from 'common/components/Text'
 import styles from './ops.module.css'
-import { DeliveryMethodTag, formatWindow } from './orderUtils'
+import { DeliveryMethodTag, formatWindow, RemainingTime } from './orderUtils'
 import render from '#common/functions/render.js'
 import ProgressGauge from '#common/components/ProgressGauge/index.jsx'
 
@@ -62,7 +62,7 @@ export default function OrderCard({ order = {} }) {
                 </Flex>
             </Flex>
             <Flex col gap={5} center>
-                <Text bold size='xl'>{windowTime.text}</Text>
+                <RemainingTime bold size='xl' window={order.window} />
                 <Text size='s' mode='sub'>לסיום ליקוט</Text>
             </Flex>
         </Flex>

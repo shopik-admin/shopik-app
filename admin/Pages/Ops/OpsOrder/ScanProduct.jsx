@@ -145,7 +145,7 @@ export default function ScanProduct({ product = {}, orderId, onClose, onPicked, 
             if (!('BarcodeDetector' in window)) {
                 try {
                     await import('barcode-detector/polyfill')
-                } catch {}
+                } catch { }
             }
 
             if ('BarcodeDetector' in window) {
@@ -168,7 +168,7 @@ export default function ScanProduct({ product = {}, orderId, onClose, onPicked, 
                                 return
                             }
                         }
-                    } catch {}
+                    } catch { }
                     rafRef.current = requestAnimationFrame(loop)
                 }
                 rafRef.current = requestAnimationFrame(loop)
@@ -222,14 +222,14 @@ export default function ScanProduct({ product = {}, orderId, onClose, onPicked, 
             </Flex>
 
             <Flex col className={styles.productSummary}>
-                <Flex alignItems="center" gap={6} className={styles.topMeta}>
+                {/*  <Flex alignItems="center" gap={6} className={styles.topMeta}>
                     <Icon name="stock" size={14} />
                     <Text size="xs">❄️</Text>
                     <Text size="xs" bold>₪{price}</Text>
                     <Text size="xs" mode="sub">100 - 2</Text>
                     <Text size="xs" mode="sub">06:20</Text>
-                </Flex>
-            <ProductInline product={product} remove={false} note={false} admin />
+                </Flex> */}
+                <ProductInline product={product} remove={false} note={false} admin />
             </Flex>
 
             <Flex col center gap={6} className={styles.successBlock}>
@@ -290,13 +290,13 @@ export default function ScanProduct({ product = {}, orderId, onClose, onPicked, 
         </Flex>
 
         <Flex col className={styles.productSummary}>
-            <Flex alignItems="center" gap={6} className={styles.topMeta}>
+            {/*  <Flex alignItems="center" gap={6} className={styles.topMeta}>
                 <Icon name="stock" size={14} />
                 <Text size="xs">❄️</Text>
                 <Text size="xs" bold>₪{price}</Text>
                 <Text size="xs" mode="sub">100 - 2</Text>
                 <Text size="xs" mode="sub">06:20</Text>
-            </Flex>
+            </Flex> */}
             <ProductInline product={product} remove={false} note={false} admin />
         </Flex>
 
