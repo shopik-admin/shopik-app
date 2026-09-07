@@ -3,8 +3,13 @@
     cursor: pointer;
 
     &.disabled {
-        opacity: 0.5;
-        pointer-events: none;
+        cursor: default;
+
+        > :not(:last-child),
+        .actionButton,
+        .noService {
+            opacity: 0.5;
+        }
     }
 
     &.active {
