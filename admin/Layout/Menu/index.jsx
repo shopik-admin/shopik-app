@@ -11,10 +11,10 @@ export default function Menu({ }) {
     const
         { mini } = useSidebar(),
         pages = usePages()
-
+    const filteredPages = pages.filter(p => !p.notInMenu)
     return <div className={classNames(styles.menu, [styles.mini, mini])}>
-        {pages.filter(p => !p.notInMenu).map((page, i) => <Fragment key={page.path}>
-            {(!i || page.section != pages[i - 1].section) ? <Text className={styles.sectiontitle}>{page.section}</Text> : null}
+        {filteredPages.map((page, i) => <Fragment key={page.path}>
+            {(!i || page.section != filteredPages[i - 1].section) ? <Text className={styles.sectiontitle}>{page.section}</Text> : null}
             <NavLink end key={page.path}
                 to={page.path}
                 className={({ isActive }) =>

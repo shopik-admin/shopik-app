@@ -35,6 +35,7 @@ const pages = [
     { key: 'stores', name: 'Stores', path: '/stores', section: 'management', icon: 'stores', component: Stores, permission: 'store:read' },
     { key: 'supply-areas', name: 'Supply Areas', path: '/supply-areas', section: 'management', icon: 'map', component: SupplyAreas, permission: 'supply_area:read' },
     { key: 'windows', name: 'Windows', path: '/windows', section: 'management', icon: 'calendar', component: Windows, permission: 'order_window_template:read' },
+
     { key: 'ops', name: 'ops-page', path: '/ops', section: 'operations', icon: 'orders', component: Ops, permission: ['order:read', 'order:pick', 'order:ship'] },
     { key: 'ops-order', name: ' ', path: '/ops-order/:orderId', section: 'operations', icon: 'orders', component: OpsOrder, permission: ['order:read', 'order:pick', 'order:ship'], notInMenu: true },
 
