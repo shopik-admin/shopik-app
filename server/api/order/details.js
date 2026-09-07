@@ -1,3 +1,5 @@
+import { MAX_ATTEMPTS } from '#server/cron/refundRetry.js'
+
 const DETAILS_SELECT = {
     _id: 0,
     id: 1,
@@ -23,6 +25,11 @@ const DETAILS_SELECT = {
     coupons: 1,
     payment: 1,
     refundedTotal: 1,
+    refundedShipping: 1,
+    refundPending: 1,
+    refundPendingAttempts: 1,
+    finalSumAfterRefunds: 1,
+    cancelDate: 1,
     bags: 1,
     sum: 1,
     sumNoCoupon: 1,
@@ -52,7 +59,12 @@ export default async function details({ id }, { DL }) {
         paidAt = firstAuth?.createdAt
     }
 
-    return { ...order, paidAt }
+    // Manual-refund UI gate: auto-retry had its chance (attempts exhausted)
+    // and a balance is still owed — only then show the banner + input.
+    const refundPending = Number(order.refundPending || 0)
+    const manualRequired = refundPending > 0 && Number(order.refundPendingAttempts || 0) >= MAX_ATTEMPTS
+
+    return { ...order, paidAt, manualRequired }
 }
 
 details.config = {

@@ -5,6 +5,7 @@ import router from './router.js'
 import boot from './boot.js'
 import ssr from './ssr.js'
 import startImageWorker from '#server/workers/imageWorker.js'
+import startRefundRetry from '#server/cron/refundRetry.js'
 import startNightlySync from '#server/cron/nightlySync.js'
 import startHolidaySeed from '#server/cron/holidaySeed.js'
 import log from '#server/utils/log.js'
@@ -35,6 +36,7 @@ router(app, bootData)
 
 try {
     await startImageWorker({ DL: bootData.DL })
+    startRefundRetry(bootData)
     if (!NO_NIGHT_SYNC || PRODUCTION) {
         startNightlySync(bootData)
         startHolidaySeed(bootData)
