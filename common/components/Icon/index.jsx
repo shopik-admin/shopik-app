@@ -59,6 +59,7 @@ const iconsList = {
     release: LuMonitorSmartphone,
     refund: LuUndo2,
     receipt: LuReceipt,
+    invoice: LuFileText,
     expand: LuUnfoldVertical,
     collapse: LuFoldVertical,
     load: LuLoader,

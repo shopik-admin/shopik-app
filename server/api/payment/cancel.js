@@ -1,4 +1,5 @@
 import { round2 } from '#common/functions/calcOrder/utils.js'
+import { remainderRefundItems } from '#common/functions/refundCalc.js'
 import { planRefundLegs, executeRefundPlan } from '#server/utils/data/refundCaptures.js'
 
 export default async function cancel(payload, info) {
@@ -137,7 +138,7 @@ export default async function cancel(payload, info) {
             noPlanMsg = `Remaining ${remaining} cannot be covered by captured legs (${legsTotal}) — a credit may have been issued manually via Hyp Console`
         } else {
             ;({ completed, failed } = await executeRefundPlan({
-                DL, external, order, plan, reason: fallbackReason, items: undefined, source: 'payment/cancel:refund_fallback'
+                DL, external, order, plan, reason: fallbackReason, items: remainderRefundItems(order), source: 'payment/cancel:refund_fallback'
             }))
         }
         const coveredTotal = round2(completed.reduce((acc, c) => acc + Number(c.amount || 0), 0))
@@ -191,7 +192,7 @@ export default async function cancel(payload, info) {
         await record({
             DL, order, eventType: DL.Timeline.constants.EVENT_TYPES.REFUND,
             actor: adminActor(_admin),
-            context: { step: 'refund', provider: 'hyp', providerTxnId: newId, parentProviderTxnId: completed[0]?.parentProviderTxnId, amount: remaining, cancelCode, reason: fallbackReason, ...(multi ? { refunds: completed } : {}) },
+            context: { step: 'refund', provider: 'hyp', providerTxnId: newId, parentProviderTxnId: completed[0]?.parentProviderTxnId, amount: remaining, cancelCode, reason: fallbackReason, items: remainderRefundItems(order), ...(multi ? { refunds: completed } : {}) },
             changes: { oldData: { refundedTotal: prevRefunded }, newData: { refundedTotal: prevRefunded + remaining } },
             outcome: { success: true },
             metadata: { source: 'payment/cancel:refund_fallback' }

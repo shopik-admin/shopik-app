@@ -6,7 +6,6 @@ import Button from 'common/components/Button'
 import Popover from 'common/components/Popover'
 import apiReq from 'common/functions/apiReq'
 import render from 'common/functions/render'
-import { getRemaining } from 'common/functions/refundCalc'
 import { useText } from 'common/texts/TextProvider'
 import styles from './order.module.css'
 
@@ -52,12 +51,11 @@ export default function PaymentDetailsCard({ order, onChanged }) {
                 {order.sum != null && <SumRow label={'sum'} value={coin((order.coupons || []).length > 0 ? (order.finalSum ?? order.sum) : order.sum)} />}
                 {(order.finalShipping ?? order.shipping) != null && <SumRow label={'shipping_cost'} value={coin(order.finalShipping ?? order.shipping)} />}
                 {order.refundedTotal > 0 && <SumRow label={'refunded'} value={coin(order.refundedTotal)} />}
-                {order.refundedShipping > 0 && <SumRow label={'refunded_shipping'} value={coin(order.refundedShipping)} />}
-                {order.paid && <SumRow label={'refund_remaining'} value={coin(getRemaining(order))} />}
+                {order.refundedTotal > 0 && <SumRow label={'total_after_refunds'} value={coin(order.finalSumAfterRefunds ?? (Number(order.finalSumWithShipping ?? order.finalSum ?? order.sum ?? 0) - Number(order.refundedTotal || 0)))} />}
                 {pending > 0 && <SumRow label={'refund_pending'} value={coin(pending)} />}
                 {pending > 0 && !order.manualRequired && <Text size='s' mode='sub' style={{ lineHeight: '18px' }}>{'refund_auto_retry_note'}</Text>}
                 {order.manualRequired && <Popover
-                    button={<Button mode='outline' permission='order:payment'>{TR('register_manual_refund')}</Button>}
+                    button={<Button mode='outline' permission='order:payment'>register_manual_refund</Button>}
                 >
                     {({ close }) => <Flex col gap={10} className={styles.cancelPopover}>
                         <Text size='s' mode='sub'>{'manual_refund_hint'}</Text>
@@ -70,9 +68,9 @@ export default function PaymentDetailsCard({ order, onChanged }) {
                         />
                         {manualError ? <Text size='s' mode='error'>{manualError}</Text> : null}
                         <Flex gap={8}>
-                            <Button mode='outline' onClick={() => { setManualError(''); close() }}>{'cancel'}</Button>
+                            <Button mode='outline' onClick={() => { setManualError(''); close() }}>cancel</Button>
                             <Button
-                                externalLoading={manualBusy}
+                                loading={manualBusy}
                                 disabled={!(manualAmt > 0) || manualAmt - pending > 0.001}
                                 onClick={async () => {
                                     setManualBusy(true)
@@ -88,7 +86,7 @@ export default function PaymentDetailsCard({ order, onChanged }) {
                                         setManualBusy(false)
                                     }
                                 }}
-                            >{'manual_refund_confirm'}</Button>
+                            >manual_refund_confirm</Button>
                         </Flex>
                     </Flex>}
                 </Popover>}

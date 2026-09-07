@@ -120,110 +120,161 @@ function buildSignQuery({ masof, key, passp, amount, orderNumber, orderId, custo
     return params.toString()
 }
 
+// Secrets must never reach the logs: PassP/KEY/token/CC, in objects and URLs.
+const SECRET_KEY_RE = /^(passp|key|token|cc|password|cvv|sign)$/i
+function redact(value) {
+    if (typeof value === 'string')
+        return value.replace(/(KEY|PassP|Token|CC)=([^&\s]*)/g, '$1=***')
+    if (Array.isArray(value)) return value.map(redact)
+    if (value && typeof value === 'object') {
+        const out = {}
+        for (const [k, v] of Object.entries(value)) out[k] = SECRET_KEY_RE.test(k) ? '***' : redact(v)
+        return out
+    }
+    return value
+}
+
 export default function hypFactory({ DL }) {
-    async function createPaymentUrl({ order, amount, customer }) {
-        const { masof, key, passp, baseUrl } = getConfig()
-        const query = buildSignQuery({
-            masof, key, passp,
-            amount,
-            orderNumber: order.number,
-            orderId: order.id,
-            customer: customer || { name: order.name, phone: order.phone, email: order.email },
-            tmp: 6,
-            sendInvoiceEmail: Boolean(order.email)
-        })
-        const text = await hypFetch(`${baseUrl}?${query}`)
-        if (!text || text.includes('CCode') && text.includes('CCode=')) {
-            // Some error responses are still query strings with CCode !=0
-            const parsed = parseHypResponse(text)
-            if (parsed.CCode && parsed.CCode !== 0) {
-                throw { status: 502, message: `Hyp SIGN failed: ${CCODE_MESSAGES[parsed.CCode] || parsed.CCode}`, providerCode: parsed.CCode, raw: parsed }
-            }
+    // Provider traffic log (Logs admin page, action `hyp:<name>`) — same
+    // pattern as external/sms. Secrets (PassP/KEY/token/CC) are redacted and
+    // every logging step is guarded so logging can never break a payment.
+    async function logged(name, request, fn) {
+        let logger = null
+        try {
+            logger = DL?.Log?.start?.({
+                action: `hyp:${name}`,
+                direction: DL?.Log?.constants?.DIRECTION?.OUT || 'out',
+                data: { request: redact(request) }
+            })
+            try { logger?.actor?.({ type: DL?.Log?.constants?.ACTOR?.API || 'api' }) } catch { }
+        } catch { logger = null }
+        const done = async (ok, payload) => {
+            try { await logger?.[ok ? 'success' : 'error']?.(payload) } catch { }
         }
-        // Success: text is signed param string
-        const trimmed = text.trim()
-        return `${baseUrl}?${trimmed}`
+        try {
+            const result = await fn()
+            const code = Number(result?.CCode ?? 0)
+            await done(code === 0 || code === 700 || code === 777, redact(result))
+            return result
+        } catch (e) {
+            await done(false, { message: e?.message || 'error', providerCode: e?.providerCode })
+            throw e
+        }
+    }
+
+    async function createPaymentUrl({ order, amount, customer }) {
+        return logged('sign', { amount, orderNumber: order.number, orderId: order.id }, async () => {
+            const { masof, key, passp, baseUrl } = getConfig()
+            const query = buildSignQuery({
+                masof, key, passp,
+                amount,
+                orderNumber: order.number,
+                orderId: order.id,
+                customer: customer || { name: order.name, phone: order.phone, email: order.email },
+                tmp: 6,
+                sendInvoiceEmail: Boolean(order.email)
+            })
+            const text = await hypFetch(`${baseUrl}?${query}`)
+            if (!text || text.includes('CCode') && text.includes('CCode=')) {
+                // Some error responses are still query strings with CCode !=0
+                const parsed = parseHypResponse(text)
+                if (parsed.CCode && parsed.CCode !== 0) {
+                    throw { status: 502, message: `Hyp SIGN failed: ${CCODE_MESSAGES[parsed.CCode] || parsed.CCode}`, providerCode: parsed.CCode, raw: parsed }
+                }
+            }
+            // Success: text is signed param string
+            const trimmed = text.trim()
+            return `${baseUrl}?${trimmed}`
+        })
     }
 
     async function verifyRedirect({ query, rawQueryString }) {
-        const { masof, key, passp, baseUrl } = getConfig()
-        // Preserve original param order: use rawQueryString if provided, else build from query
-        let redirectPart = rawQueryString || new URLSearchParams(query).toString()
-        // hyp expects all redirect params appended after Masof/KEY/PassP in original order
-        const verifyQuery = `action=APISign&What=VERIFY&Masof=${encodeURIComponent(masof)}&KEY=${encodeURIComponent(key)}&PassP=${encodeURIComponent(passp)}&${redirectPart}`
-        const text = await hypFetch(`${baseUrl}?${verifyQuery}`)
-        const parsed = parseHypResponse(text)
-        return parsed // CCode=0 means valid
+        return logged('verify', { query: redact(query) }, async () => {
+            const { masof, key, passp, baseUrl } = getConfig()
+            // Preserve original param order: use rawQueryString if provided, else build from query
+            let redirectPart = rawQueryString || new URLSearchParams(query).toString()
+            // hyp expects all redirect params appended after Masof/KEY/PassP in original order
+            const verifyQuery = `action=APISign&What=VERIFY&Masof=${encodeURIComponent(masof)}&KEY=${encodeURIComponent(key)}&PassP=${encodeURIComponent(passp)}&${redirectPart}`
+            const text = await hypFetch(`${baseUrl}?${verifyQuery}`)
+            const parsed = parseHypResponse(text)
+            return parsed // CCode=0 means valid
+        })
     }
 
     async function getToken(providerTxnId) {
-        const { masof, passp, baseUrl } = getConfig()
-        const params = new URLSearchParams({ action: 'getToken', Masof: masof, PassP: passp, TransId: String(providerTxnId) })
-        const text = await hypFetch(`${baseUrl}?${params.toString()}`)
-        const parsed = parseHypResponse(text)
-        return parsed // { Token, Tokef, CCode }
+        return logged('getToken', { TransId: String(providerTxnId) }, async () => {
+            const { masof, passp, baseUrl } = getConfig()
+            const params = new URLSearchParams({ action: 'getToken', Masof: masof, PassP: passp, TransId: String(providerTxnId) })
+            const text = await hypFetch(`${baseUrl}?${params.toString()}`)
+            const parsed = parseHypResponse(text)
+            return parsed // { Token, Tokef, CCode }
+        })
     }
 
     async function capture({ order, amount }) {
-        const { masof, passp, baseUrl } = getConfig()
-        const p = order.payment || {}
         const captureAmount = amount ?? order.finalSumWithShipping
-        const authorizedAmount = p.authorizedAmount
-        if (!p.cardToken || !p.cardExpiry) throw { status: 400, message: 'Missing card token for capture' }
-        if (!p.authCode) throw { status: 400, message: 'Missing authCode for capture' }
-        const { tmonth, tyear } = parseTokef(p.cardExpiry)
-        const payerId = p.providerPayerId || '000000000'
-        const clientName = decodeEntities(`${order.name?.first || ''} ${order.name?.last || ''}`.trim()) || 'Customer'
-        const originalAmountAgorot = Math.round(Number(authorizedAmount) * 100)
-        const providerUid = p.providerUid
+        return logged('capture', { orderNumber: order.number, amount: captureAmount }, async () => {
+            const { masof, passp, baseUrl } = getConfig()
+            const p = order.payment || {}
+            const authorizedAmount = p.authorizedAmount
+            if (!p.cardToken || !p.cardExpiry) throw { status: 400, message: 'Missing card token for capture' }
+            if (!p.authCode) throw { status: 400, message: 'Missing authCode for capture' }
+            const { tmonth, tyear } = parseTokef(p.cardExpiry)
+            const payerId = p.providerPayerId || '000000000'
+            const clientName = decodeEntities(`${order.name?.first || ''} ${order.name?.last || ''}`.trim()) || 'Customer'
+            const originalAmountAgorot = Math.round(Number(authorizedAmount) * 100)
+            const providerUid = p.providerUid
 
-        const params = new URLSearchParams()
-        params.set('action', 'soft')
-        params.set('UTF8', 'True')
-        params.set('Masof', masof)
-        params.set('PassP', passp)
-        params.set('UserId', payerId)
-        params.set('ClientName', clientName)
-        params.set('Token', 'True')
-        params.set('CC', p.cardToken)
-        params.set('Tmonth', tmonth)
-        params.set('Tyear', tyear)
-        params.set('AuthNum', p.authCode)
-        params.set('Amount', String(captureAmount))
-        params.set('inputObj.originalAmount', String(originalAmountAgorot))
-        params.set('inputObj.originalUid', String(providerUid || ''))
-        params.set('inputObj.authorizationCodeManpik', '7')
-        if (order.id) params.set('Info', order.id)
+            const params = new URLSearchParams()
+            params.set('action', 'soft')
+            params.set('UTF8', 'True')
+            params.set('Masof', masof)
+            params.set('PassP', passp)
+            params.set('UserId', payerId)
+            params.set('ClientName', clientName)
+            params.set('Token', 'True')
+            params.set('CC', p.cardToken)
+            params.set('Tmonth', tmonth)
+            params.set('Tyear', tyear)
+            params.set('AuthNum', p.authCode)
+            params.set('Amount', String(captureAmount))
+            params.set('inputObj.originalAmount', String(originalAmountAgorot))
+            params.set('inputObj.originalUid', String(providerUid || ''))
+            params.set('inputObj.authorizationCodeManpik', '7')
+            if (order.id) params.set('Info', order.id)
 
-        const text = await hypFetch(`${baseUrl}?${params.toString()}`)
-        const parsed = parseHypResponse(text)
-        return parsed // { Id, CCode, ... }
+            const text = await hypFetch(`${baseUrl}?${params.toString()}`)
+            const parsed = parseHypResponse(text)
+            return parsed // { Id, CCode, ... }
+        })
     }
 
     async function chargeToken({ order, amount }) {
         // immediate token charge, no J4 refs (no originalUid/originalAmount)
-        // used for over-capture overflow and post-capture deltas
-        const { masof, passp, baseUrl } = getConfig()
-        const p = order.payment || {}
-        if (!p.cardToken || !p.cardExpiry) throw { status: 400, message: 'Missing card token for charge' }
-        const { tmonth, tyear } = parseTokef(p.cardExpiry)
-        const payerId = p.providerPayerId || '000000000'
-        const clientName = decodeEntities(`${order.name?.first || ''} ${order.name?.last || ''}`.trim()) || 'Customer'
-        const params = new URLSearchParams()
-        params.set('action', 'soft')
-        params.set('Masof', masof)
-        params.set('PassP', passp)
-        params.set('UserId', payerId)
-        params.set('ClientName', clientName)
-        params.set('Token', 'True')
-        params.set('CC', p.cardToken)
-        params.set('Tmonth', tmonth)
-        params.set('Tyear', tyear)
-        params.set('Amount', String(amount))
-        if (order.id) params.set('Info', order.id)
-        const text = await hypFetch(`${baseUrl}?${params.toString()}`)
-        const parsed = parseHypResponse(text)
-        return parsed // { Id, CCode, ... }
+        // used for over-capture overflow and post-capture delta
+        return logged('chargeToken', { orderNumber: order.number, amount }, async () => {
+            const { masof, passp, baseUrl } = getConfig()
+            const p = order.payment || {}
+            if (!p.cardToken || !p.cardExpiry) throw { status: 400, message: 'Missing card token for charge' }
+            const { tmonth, tyear } = parseTokef(p.cardExpiry)
+            const payerId = p.providerPayerId || '000000000'
+            const clientName = decodeEntities(`${order.name?.first || ''} ${order.name?.last || ''}`.trim()) || 'Customer'
+            const params = new URLSearchParams()
+            params.set('action', 'soft')
+            params.set('Masof', masof)
+            params.set('PassP', passp)
+            params.set('UserId', payerId)
+            params.set('ClientName', clientName)
+            params.set('Token', 'True')
+            params.set('CC', p.cardToken)
+            params.set('Tmonth', tmonth)
+            params.set('Tyear', tyear)
+            params.set('Amount', String(amount))
+            if (order.id) params.set('Info', order.id)
+            const text = await hypFetch(`${baseUrl}?${params.toString()}`)
+            const parsed = parseHypResponse(text)
+            return parsed // { Id, CCode, ... }
+        })
     }
 
     async function captureOverCaptureSplit({ order, captureAmount }) {
@@ -238,31 +289,37 @@ export default function hypFactory({ DL }) {
     }
 
     async function refund({ providerTxnId, amount }) {
-        const { masof, passp, baseUrl } = getConfig()
-        const params = new URLSearchParams({ action: 'zikoyAPI', Masof: masof, PassP: passp, TransId: String(providerTxnId), Amount: String(amount) })
-        const text = await hypFetch(`${baseUrl}?${params.toString()}`)
-        const parsed = parseHypResponse(text)
-        return parsed // { Id (new), CCode }
+        return logged('refund', { TransId: String(providerTxnId), Amount: String(amount) }, async () => {
+            const { masof, passp, baseUrl } = getConfig()
+            const params = new URLSearchParams({ action: 'zikoyAPI', Masof: masof, PassP: passp, TransId: String(providerTxnId), Amount: String(amount) })
+            const text = await hypFetch(`${baseUrl}?${params.toString()}`)
+            const parsed = parseHypResponse(text)
+            return parsed // { Id (new), CCode }
+        })
     }
 
     async function cancel({ providerTxnId }) {
-        const { masof, passp, baseUrl } = getConfig()
-        const params = new URLSearchParams({ action: 'CancelTrans', Masof: masof, PassP: passp, TransId: String(providerTxnId) })
-        const text = await hypFetch(`${baseUrl}?${params.toString()}`)
-        const parsed = parseHypResponse(text)
-        return parsed // { ReversalStatus, CCode }
+        return logged('cancel', { TransId: String(providerTxnId) }, async () => {
+            const { masof, passp, baseUrl } = getConfig()
+            const params = new URLSearchParams({ action: 'CancelTrans', Masof: masof, PassP: passp, TransId: String(providerTxnId) })
+            const text = await hypFetch(`${baseUrl}?${params.toString()}`)
+            const parsed = parseHypResponse(text)
+            return parsed // { ReversalStatus, CCode }
+        })
     }
 
     async function invoiceLink(providerTxnId) {
-        const { masof, key, passp, baseUrl } = getConfig()
-        const params = new URLSearchParams({ action: 'APISign', What: 'SIGN', Masof: masof, KEY: key, PassP: passp, TransId: String(providerTxnId), type: 'EZCOUNT', ACTION: 'PrintHesh' })
-        const text = await hypFetch(`${baseUrl}?${params.toString()}`)
-        const trimmed = text.trim()
-        if (!trimmed || trimmed.includes('CCode') && trimmed.includes('Error')) {
-            const parsed = parseHypResponse(trimmed)
-            if (parsed.CCode && parsed.CCode !== 0) throw { status: 502, message: `PrintHesh failed: ${CCODE_MESSAGES[parsed.CCode] || parsed.CCode}`, providerCode: parsed.CCode }
-        }
-        return `${baseUrl}?${trimmed}`
+        return logged('invoiceLink', { TransId: String(providerTxnId) }, async () => {
+            const { masof, key, passp, baseUrl } = getConfig()
+            const params = new URLSearchParams({ action: 'APISign', What: 'SIGN', Masof: masof, KEY: key, PassP: passp, TransId: String(providerTxnId), type: 'EZCOUNT', ACTION: 'PrintHesh' })
+            const text = await hypFetch(`${baseUrl}?${params.toString()}`)
+            const trimmed = text.trim()
+            if (!trimmed || trimmed.includes('CCode') && trimmed.includes('Error')) {
+                const parsed = parseHypResponse(trimmed)
+                if (parsed.CCode && parsed.CCode !== 0) throw { status: 502, message: `PrintHesh failed: ${CCODE_MESSAGES[parsed.CCode] || parsed.CCode}`, providerCode: parsed.CCode }
+            }
+            return `${baseUrl}?${trimmed}`
+        })
     }
 
     function ccodeMessage(code) {

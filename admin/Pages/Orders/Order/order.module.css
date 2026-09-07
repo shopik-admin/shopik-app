@@ -244,6 +244,18 @@
     border-radius: var(--radius-full);
 }
 
+.sumPill {
+    margin-top: 4px;
+    padding: 2px 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-brand-secondary);
+    color: var(--fg-brand-secondary);
+    border-radius: var(--radius-full);
+    white-space: nowrap;
+}
+
 .infoIcon {
     color: var(--fg-brand-secondary);
     margin-top: 3px;
@@ -281,6 +293,12 @@
 
 .actionBtn {
     width: 120px !important;
+}
+
+/* compact outline pill: same look as the order invoice button, small size */
+.invoiceBtn {
+    padding: 2px 8px;
+    font-size: 12px;
 }
 
 .refundActive {

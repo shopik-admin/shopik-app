@@ -3,6 +3,7 @@ import log from '#server/utils/log.js'
 import { acquireLock } from '#server/utils/redisLock.js'
 import { round2 } from '#common/functions/calcOrder/utils.js'
 import { planRefundLegs, executeRefundPlan } from '#server/utils/data/refundCaptures.js'
+import { remainderRefundItems } from '#common/functions/refundCalc.js'
 
 const LOCK_KEY = 'refund-retry:lock'
 const LOCK_TTL_SECONDS = 30 * 60
@@ -57,7 +58,7 @@ async function retryOrder({ DL, external, utils, order }) {
 
     const { completed, failed } = await executeRefundPlan({
         DL, external, order: fresh, plan,
-        reason: 'auto_refund_retry', items: undefined, source: 'cron/refund-retry'
+        reason: 'auto_refund_retry', items: remainderRefundItems(fresh), source: 'cron/refund-retry'
     })
     const covered = round2(completed.reduce((acc, c) => acc + Number(c.amount || 0), 0))
     const prevRefunded = Number(fresh.refundedTotal || 0)
@@ -72,7 +73,7 @@ async function retryOrder({ DL, external, utils, order }) {
             DL, order: fresh,
             eventType: DL.Timeline.constants.EVENT_TYPES.REFUND,
             actor: systemActor,
-            context: { ...ctx(), refunds: completed },
+            context: { ...ctx(), refunds: completed, items: remainderRefundItems(fresh) },
             changes: { oldData: { refundedTotal: prevRefunded, refundPending: pending }, newData: { refundedTotal: round2(prevRefunded + covered), refundPending: 0 } },
             outcome: { success: true },
             metadata: { source: 'cron/refund-retry', referenceOrderNumber: fresh.number }

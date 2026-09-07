@@ -10,6 +10,7 @@ import Flex from 'common/components/Flex'
 import OrderStatusSection from './OrderStatusSection'
 import OrderActions from './OrderActions'
 import RefundSection from './RefundSection'
+import RefundsSection from './RefundsSection'
 import ProductsSection from './ProductsSection'
 import OrderDetailsCard from './OrderDetailsCard'
 import PaymentDetailsCard from './PaymentDetailsCard'
@@ -27,7 +28,7 @@ function LabelChip({ label }) {
     const style = label.style || {}
     return <Flex gap={4} alignItems='center' className={styles.labelChip} style={{ backgroundColor: style.backgroundColor, color: style.color }}>
         {style.iconName && <Icon name={style.iconName} size={12} />}
-        <Text size='xs' bold style={{ color: style.color }}>{label.label || label.name}</Text>
+        <Text size='s' bold style={{ color: style.color }}>{label.label || label.name}</Text>
     </Flex>
 }
 
@@ -72,6 +73,7 @@ export default function Order() {
                 {refundMode
                     ? <RefundSection order={order} onDone={async () => { await refresh(); setRefundMode(false) }} onExit={() => setRefundMode(false)} />
                     : <ProductsSection order={order} />}
+                {Number(order.refundedTotal || 0) > 0 && <RefundsSection order={order} />}
             </Flex>
             <Flex col gap={15} className={styles.sidebar}>
                 <OrderDetailsCard order={order} />

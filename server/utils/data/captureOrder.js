@@ -1,4 +1,5 @@
 import getShippingConfig from './getShippingConfig.js'
+import { attachInvoiceUrl } from './orderInvoice.js'
 import { calcShipping } from '#common/functions/shipping.js'
 import { round2 } from '#common/functions/calcOrder/utils.js'
 
@@ -74,12 +75,15 @@ async function failClosed({ DL, utils, actor, external, order, totals, amount, a
     }
 }
 
-async function okCapture({ DL, utils, actor, order, amount, providerTxnId, providerData, step, capturedTotal, authorizedAmount, source }) {
+async function okCapture({ DL, utils, actor, external, order, amount, providerTxnId, providerData, step, capturedTotal, authorizedAmount, source }) {
     await persistCaptureTxn({
         DL, order,
         status: DL.PaymentTransaction.constants.TRANSACTION_STATUS.SUCCESS,
         amount, providerTxnId, providerCode: 0, providerData
     })
+    // Eager single-issuance invoice doc for this capture leg. Best-effort:
+    // a missing link means payment/invoice generates it on first click.
+    await attachInvoiceUrl({ DL, external, providerTxnId }).catch(() => { })
     await recordCapture({
         DL, utils, actor, order, ok: true, step,
         providerTxnId, amount, authorizedAmount, capturedTotal,

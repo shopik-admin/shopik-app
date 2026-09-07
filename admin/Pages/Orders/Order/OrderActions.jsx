@@ -22,10 +22,30 @@ export default function OrderActions({ order, refundMode, onToggleRefund, onChan
 
     const isCanceled = order.status === 'canceled'
     const isFailed = order.status === 'failed'
-    const canCancel = !isCanceled
+    const isCart = order.status === 'cart'
+    const canCancel = !isCanceled && !isCart
     const remaining = getRemaining(order)
     const canRefund = Boolean(order.paid && order.payment?.captureProviderTxnId)
-        && remaining > 0.001 && !isCanceled && !isFailed
+        && remaining > 0.001 && !isCanceled && !isFailed && !isCart
+    const canInvoice = Boolean(order.paid && order.payment?.captureProviderTxnId)
+        && ['packed', 'shipped', 'done', 'canceled'].includes(order.status)
+        && !order.paymentVoided
+    const [invoiceBusy, setInvoiceBusy] = useState(false)
+    const [invoiceError, setInvoiceError] = useState('')
+
+    async function openInvoice() {
+        setInvoiceBusy(true)
+        setInvoiceError('')
+        try {
+            const res = await apiReq('payment/invoice', { orderId: order.id })
+            if (res?.url) window.open(res.url, '_blank', 'noopener')
+            else setInvoiceError('invoice_failed')
+        } catch (e) {
+            setInvoiceError(e?.message || 'invoice_failed')
+        } finally {
+            setInvoiceBusy(false)
+        }
+    }
 
     async function confirmCancel(close) {
         setPending(true)
@@ -45,7 +65,7 @@ export default function OrderActions({ order, refundMode, onToggleRefund, onChan
     return <Flex col gap={10}>
         <Flex gap={8} wrap className={styles.actionsBar}>
             {canCancel && canPay && <Popover
-                button={<Button mode='outline' className={styles.actionBtn}>{TR('cancel_order')}</Button>}
+                button={<Button mode='outline' className={styles.actionBtn}>cancel_order</Button>}
             >
                 {({ close }) => <Flex col gap={10} className={styles.cancelPopover}>
                     <Text size='h3' bold>{'cancel_order_confirm_title'}</Text>
@@ -60,7 +80,7 @@ export default function OrderActions({ order, refundMode, onToggleRefund, onChan
                     {error ? <Text size='s' mode='error'>{error}</Text> : null}
                     <Flex gap={8}>
                         <Button mode='outline' onClick={() => { setError(''); close() }}>{'cancel'}</Button>
-                        <Button onClick={() => confirmCancel(close)} externalLoading={pending}>{'confirm'}</Button>
+                        <Button onClick={() => confirmCancel(close)} loading={pending}>{'confirm'}</Button>
                     </Flex>
                 </Flex>}
             </Popover>}
@@ -70,9 +90,20 @@ export default function OrderActions({ order, refundMode, onToggleRefund, onChan
                 onClick={onToggleRefund}
                 className={classNames(styles.actionBtn, refundMode && styles.refundActive)}
             >
-                {TR('refund')}
+                {'refund'}
+            </Button>}
+            {canInvoice && <Button
+                mode='outline'
+                icon='invoice'
+                permission='order:payment'
+                onClick={openInvoice}
+                loading={invoiceBusy}
+                className={styles.actionBtn}
+            >
+                invoice_link
             </Button>}
         </Flex>
+        {invoiceError ? <Text size='s' mode='error'>{invoiceError}</Text> : null}
         {order.manualRequired && <Card className={styles.pendingCard}>
             <Flex col gap={4}>
                 <Text size='s' bold>{TR('refund_manual_required')}</Text>

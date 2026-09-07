@@ -119,16 +119,16 @@ export default function RefundSection({ order, onDone, onExit }) {
                         <Flex col gap={6} grow={1}>
                             <Flex gap={8} alignItems='center' justifyContent='space-between'>
                                 <Text size='m' bold ellipsis={1}>{line.name || line.barcode}</Text>
-                                <Text size='xs' mode='sub'>{coin(line.totalSum)} · {TR('refund_max')}: {coin(max)}</Text>
+                                <Text size='s' mode='sub'>{coin(line.totalSum)} · {TR('refund_max')}: {coin(max)}</Text>
                             </Flex>
                             {line.barcode && <Flex alignItems='center' gap={4}>
                                 <Icon name='barcode' size={12} />
-                                <Text size='xs' mode='sub'>{line.barcode}</Text>
+                                <Text size='s' mode='sub'>{line.barcode}</Text>
                             </Flex>}
                             {!refundable
-                                ? <Text size='xs' mode='error' bold>{TR('refund_not_supplied')}</Text>
+                                ? <Text size='s' mode='error' bold>refund_not_supplied</Text>
                                 : <>
-                                    {refunded > 0 && <Text size='xs' mode='sub'>{TR('refunded')}: {coin(refunded)}</Text>}
+                                    {refunded > 0 && <Text size='s' mode='sub'>{TR('refunded')}: {coin(refunded)}</Text>}
                                     <Flex gap={8} alignItems='center' wrap>
                                         <Flex gap={4} alignItems='center' className={styles.qtyStepper}>
                                             <button type='button' className={styles.stepBtn} disabled={minusDisabled} onClick={() => onQty(line, i, qty - step)} aria-label='minus'>-</button>
@@ -158,7 +158,7 @@ export default function RefundSection({ order, onDone, onExit }) {
                     aria-label='refund_shipping'
                 />
             </Flex>
-            <Text size='xs' mode='sub'>{TR('refund_shipping_max')}: {coin(maxShip)}</Text>
+            <Text size='s' mode='sub'>{TR('refund_shipping_max')}: {coin(maxShip)}</Text>
             <textarea
                 className={styles.reasonInput}
                 value={reason}
@@ -173,8 +173,8 @@ export default function RefundSection({ order, onDone, onExit }) {
             {over && <Text size='s' mode='error'>{'refund_exceeds_remaining'}</Text>}
             {error ? <Text size='s' mode='error'>{error}</Text> : null}
             <Flex gap={8}>
-                <Button mode='outline' onClick={onExit}>{'cancel'}</Button>
-                <Button onClick={confirm} externalLoading={pending} disabled={!canConfirm}>{'refund_confirm'}</Button>
+                <Button mode='outline' onClick={onExit}>cancel</Button>
+                <Button onClick={confirm} loading={pending} disabled={!canConfirm}>refund_confirm</Button>
             </Flex>
         </Flex>
     </Card>

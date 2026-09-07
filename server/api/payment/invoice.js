@@ -4,6 +4,7 @@ export default async function invoice(payload, info) {
     const q = query || {}
     const orderId = body.orderId || q.orderId || q.order_id
     if (!orderId) throw { status: 400, message: 'orderId required' }
+    const wantedTxnId = body.providerTxnId || q.providerTxnId
 
     const order = await DL.Order.readById(orderId)
     if (!order) throw { status: 404, message: 'Order not found' }
@@ -25,8 +26,26 @@ export default async function invoice(payload, info) {
     // find latest successful transaction for invoice (capture preferred, then auth)
     // try PaymentTransaction collection
 
+    // specific transaction requested (e.g. one refund's own invoice doc) —
+    // must be a successful txn of this order
+    let providerTxnId = null
+    let cachedUrl = null
+    if (wantedTxnId) {
+        let wanted = null
+        try {
+            const found = await DL.PaymentTransaction.read(
+                { orderId: order.id, providerTxnId: String(wantedTxnId), status: 'success' },
+                { _id: 0, providerTxnId: 1, invoiceUrl: 1 }
+            )
+            if (Array.isArray(found) && found[0]) wanted = found[0]
+        } catch { }
+        if (!wanted?.providerTxnId) throw { status: 404, message: 'Transaction not found for this order' }
+        providerTxnId = wanted.providerTxnId
+        cachedUrl = wanted.invoiceUrl || null
+    }
+
     // fallback: no PaymentTransaction yet but order has payment.providerTxnId
-    let providerTxnId = order.payment?.captureProviderTxnId || order.payment?.providerTxnId
+    if (!providerTxnId) providerTxnId = order.payment?.captureProviderTxnId || order.payment?.providerTxnId
     if (!providerTxnId) {
         let txn = null
         if (!txn) {
@@ -54,7 +73,12 @@ export default async function invoice(payload, info) {
             throw { status: 404, message: 'No invoice available yet' }
 
         providerTxnId = txn?.providerTxnId
+        cachedUrl = txn?.invoiceUrl || null
     }
+
+    // Single issuance: serve the stored doc when present, otherwise generate
+    // once, persist it, and only then record the timeline entry.
+    if (cachedUrl) return { url: cachedUrl, providerTxnId: String(providerTxnId), cached: true }
 
     let url
     try {
@@ -62,6 +86,12 @@ export default async function invoice(payload, info) {
     } catch (e) {
         throw { status: e.status || 502, message: e.message || 'Failed to generate invoice link' }
     }
+    try {
+        await DL.PaymentTransaction?.Model?.updateOne(
+            { orderId: order.id, providerTxnId: String(providerTxnId) },
+            { invoiceUrl: url }
+        )
+    } catch { }
 
     try {
         const { record, adminActor, userActor } = utils.data.timeline
@@ -80,5 +110,6 @@ export default async function invoice(payload, info) {
 }
 
 invoice.config = {
-    log: true
+    log: true,
+    preventMultiple: (body) => ':' + (body?.providerTxnId || body?.orderId || '')
 }

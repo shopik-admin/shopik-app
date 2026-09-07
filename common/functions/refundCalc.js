@@ -140,3 +140,25 @@ export function validateRefundRequest(order, items = [], shippingAmount = 0) {
     if (totalRefund - remaining > REFUND_EPS) errors.push(`Refund exceeds remaining amount (${remaining})`)
     return { totalRefund, remaining, errors }
 }
+
+// Audit rows for an order-level remainder refund (cancel fallback, auto-retry):
+// every line's still-refundable share + shipping remainder, same item shape
+// as payment/refund (shipping as the __shipping pseudo-item).
+export function remainderRefundItems(order) {
+    const items = []
+    for (const line of (order?.cart || [])) {
+        if (line?.missing || lineAvailableQty(line) <= 0) continue
+        const max = lineMaxRefundable(line, order)
+        if (max > 0) {
+            items.push({
+                productId: String(line.id || line.barcode),
+                barcode: line.barcode,
+                name: line.name,
+                amount: max
+            })
+        }
+    }
+    const ship = shippingRemaining(order)
+    if (ship > 0) items.push({ productId: '__shipping', name: 'shipping', amount: ship })
+    return items
+}

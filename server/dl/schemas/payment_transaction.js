@@ -61,7 +61,10 @@ const paymentTransactionSchema = {
     }],
     reason: String,
     providerData: Object,
-    error: String
+    error: String,
+    // Single-issuance invoice doc (PrintHesh link): generated eagerly on
+    // capture/refund success, served from here on later requests.
+    invoiceUrl: String
 }
 
 const index = [

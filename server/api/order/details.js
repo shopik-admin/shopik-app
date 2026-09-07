@@ -64,7 +64,20 @@ export default async function details({ id }, { DL }) {
     const refundPending = Number(order.refundPending || 0)
     const manualRequired = refundPending > 0 && Number(order.refundPendingAttempts || 0) >= MAX_ATTEMPTS
 
-    return { ...order, paidAt, manualRequired }
+    // A successfully voided payment (CancelTrans) leaves no invoice doc behind,
+    // unlike a cancel that went through refunds. Only void paths write a
+    // SUCCESS cancel transaction, so its presence means "not invoiceable".
+    let paymentVoided = false
+    if (order.status === 'canceled') {
+        const [voidTxn] = await DL.PaymentTransaction.read(
+            { orderId: id, kind: 'cancel', status: 'success' },
+            { _id: 0, providerTxnId: 1 },
+            { limit: 1 }
+        )
+        paymentVoided = Boolean(voidTxn)
+    }
+
+    return { ...order, paidAt, manualRequired, paymentVoided }
 }
 
 details.config = {
