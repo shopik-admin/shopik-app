@@ -27,10 +27,9 @@ export default function PaymentDetailsCard({ order }) {
             <Flex col gap={16}>
                 {payment.provider && <SumRow label={'payment_provider'} value={payment.provider} />}
                 {payment.cardCompany && <SumRow label={'card_company'} value={payment.cardCompany} />}
-                {payment.last4digits && <SumRow label={'card'} value={`**** ${payment.last4digits}`} />}
+                {payment.last4digits && <SumRow label={'card'} value={<bdi>****{payment.last4digits}</bdi>} />}
                 {expiry && <SumRow label={'card_expiry'} value={expiry} />}
-                {payment.authCode && <SumRow label={'auth_code'} value={payment.authCode} />}
-                {payment.authorizedAmount != null && <SumRow label={'authorized_amount'} value={coin(payment.authorizedAmount)} />}
+                {payment.captureProviderTxnId && <SumRow label={'transaction_id'} value={payment.captureProviderTxnId} />}
                 {payment.capturedAt && <SumRow label={'captured_at'} value={render({ type: 'datetime', value: payment.capturedAt })} />}
             </Flex>
             <Flex col gap={16} className={styles.sumsSection}>
