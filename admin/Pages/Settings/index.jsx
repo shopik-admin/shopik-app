@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { useModal } from 'common/components/Modal'
 import { useUser } from 'features/User'
 import Button from 'common/components/Button'
@@ -191,6 +191,11 @@ export default function Settings() {
     const { isSuperAdmin, role: adminRole } = useUser()
     const canDeleteSetting = isSuperAdmin || adminRole?.permissions?.includes('setting:delete')
     const canCreateSetting = isSuperAdmin || adminRole?.permissions?.includes('setting:create')
+    const canUpdateSetting = isSuperAdmin || adminRole?.permissions?.includes('setting:update')
+    // Strict AND: import does both creates and updates, mirroring server permissions
+    const canImport = isSuperAdmin || (canCreateSetting && canUpdateSetting)
+    const fileInputRef = useRef(null)
+    const pendingScopeRef = useRef({})
 
     useEffect(() => {
         if (Array.isArray(rawSettings)) {
@@ -264,8 +269,60 @@ export default function Settings() {
         )
     }
 
-    function handleEditModal(settingToEdit) {
-        openModal(
+    function scopeFileName(scope = {}) {
+        const date = new Date().toISOString().slice(0, 10)
+        const parts = ['settings', scope.category, scope.subCategory].filter(Boolean)
+            .map((p) => String(p).replace(/[^\w-]+/g, '-'))
+        return `${parts.join('-') || 'settings'}-${date}.json`
+    }
+
+    async function handleExport(scope = {}) {
+        const data = await apiReq('setting/export', scope)
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = scopeFileName(data?.scope || scope)
+        document.body.appendChild(a)
+        a.click()
+        a.remove()
+        setTimeout(() => URL.revokeObjectURL(url), 1000)
+    }
+
+    function handleImportClick(scope = {}) {
+        pendingScopeRef.current = scope
+        fileInputRef.current?.click()
+    }
+
+    async function handleImportFile(e) {
+        const file = e.target.files?.[0]
+        e.target.value = ''
+        if (!file) return
+        let parsed
+        try {
+            parsed = JSON.parse(await file.text())
+        } catch {
+            openModal(<div>Invalid JSON file — expected a settings export (.json).</div>, { title: 'Import failed' })
+            return
+        }
+        const list = Array.isArray(parsed?.settings) ? parsed.settings : Array.isArray(parsed) ? parsed : null
+        if (!list) {
+            openModal(<div>Invalid file format — expected a settings export file.</div>, { title: 'Import failed' })
+            return
+        }
+        try {
+            const res = await apiReq('setting/import', { settings: list })
+            callReq()
+            const lines = [`Created: ${res.created}`, `Updated: ${res.updated}`]
+            if (res.skippedConfig?.length) lines.push(`Skipped config (superAdmin only): ${res.skippedConfig.join(', ')}`)
+            if (res.errors?.length) lines.push(`Errors: ${res.errors.map((x) => `${x.key}: ${x.message}`).join('; ')}`)
+            openModal(<div style={{ whiteSpace: 'pre-wrap' }}>{lines.join('\n')}</div>, { title: 'Import complete' })
+        } catch (err) {
+            openModal(<div>{err?.message || 'Import failed'}</div>, { title: 'Import failed' })
+        }
+    }
+
+    function handleEditModal(settingToEdit) {        openModal(
             <SettingModalContent
                 setting={settingToEdit}
                 onClose={closeModal}
@@ -299,8 +356,13 @@ export default function Settings() {
             <div className={styles.categoriesSidebar}>
                 <div className={styles.sidebarHeaderRow}>
                     <h3 className={styles.sidebarHeader}>Settings</h3>
-                    {canCreateSetting && <Button size="s" icon="add" onClick={() => handleAddModal()} title="Add Setting" />}
+                    <span style={{ display: 'inline-flex', gap: '0.25rem' }}>
+                        <Button size="s" icon="download" onClick={() => handleExport({})} title="Export all settings" tooltip="Export all settings" />
+                        {canImport && <Button size="s" icon="upload" onClick={() => handleImportClick({})} title="Import all settings (merge)" tooltip="Import all settings (merge)" />}
+                        {canCreateSetting && <Button size="s" icon="add" onClick={() => handleAddModal()} title="Add Setting" />}
+                    </span>
                 </div>
+                <input ref={fileInputRef} type="file" accept=".json,application/json" onChange={handleImportFile} style={{ display: 'none' }} />
 
                 <ul className={styles.categoryList}>
                     {categories.map((cat) => {
@@ -334,6 +396,10 @@ export default function Settings() {
                     <>
                         <div className={styles.categoryTitleRow}>
                             <h2 className={styles.categoryTitle}>{selectedCategory}</h2>
+                            <span style={{ display: 'inline-flex', gap: '0.25rem' }}>
+                                <Button size="s" icon="download" onClick={() => handleExport({ category: selectedCategory })} title={`Export "${selectedCategory}"`} tooltip={`Export "${selectedCategory}"`} />
+                                {canImport && <Button size="s" icon="upload" onClick={() => handleImportClick({ category: selectedCategory })} title="Import into category (merge)" tooltip="Import into category (merge)" />}
+                            </span>
                         </div>
 
                         {Object.keys(activeCategorySettings).length === 0 ? (
@@ -348,6 +414,8 @@ export default function Settings() {
                                         <div key={subCat} className={styles.subCategoryGroup}>
                                             <div className={styles.subCategoryHeaderRow}>
                                                 <h4 className={styles.subCategoryHeader}>{subCat}</h4>
+                                                <Button icon="download" className={styles.subCategoryAddBtn} onClick={() => handleExport({ category: selectedCategory, subCategory: subCat })} title={`Export "${subCat}"`} tooltip={`Export "${subCat}"`} />
+                                                {canImport && <Button icon="upload" className={styles.subCategoryAddBtn} onClick={() => handleImportClick({ category: selectedCategory, subCategory: subCat })} title="Import into sub-category (merge)" tooltip="Import into sub-category (merge)" />}
                                                 {canAddHere && <Button icon="add" className={styles.subCategoryAddBtn} onClick={() => handleAddModal(selectedCategory, subCat, last?.formType, last?.renderType)} title={isConfigGroup ? 'Add config (superAdmin only)' : `Add setting to ${subCat}`} />}
                                             </div>
                                             <div className={styles.insetGroupCard}>
