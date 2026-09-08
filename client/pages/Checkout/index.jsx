@@ -86,8 +86,7 @@ export default function Checkout() {
     const iframeRef = useRef(null)
     useEffect(() => {
         function onMessage(e) {
-            const allowedOrigins = [window.location.origin, 'https://shopik.co.il']
-            if (!allowedOrigins.includes(e.origin)) return
+            if (e.origin !== window.location.origin) return
             const data = e.data || {}
             if (data.type !== 'hyp_callback') return
             if (data.ok && data.orderNumber) {
