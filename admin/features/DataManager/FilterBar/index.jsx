@@ -405,7 +405,7 @@ function DateRangeCalendar({ value, TR, onChange }) {
         if (iso > cur) onChange({ $gte: cur, $lte: iso })
         else onChange({ $gte: iso, $lte: cur })
     }
-    const weekDays = [0, 1, 2, 3, 4, 5, 6].map(i => TR(`day-${i}-short`) || ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'שבת'][i])
+    const weekDays = [0, 1, 2, 3, 4, 5, 6].map(i => TR(`day-${i}-short`))
     return <div className={styles.calendar}>
         <div className={styles.calendarHeader}>
             <button type='button' className={styles.calendarNav} onClick={() => setView(new Date(y, m - 1, 1))}><Icon name='right' /></button>
@@ -484,6 +484,6 @@ function FilterChips({ filter, setFilter, TR, storeMap }) {
                 <button className={styles.chipX} onClick={c.onRemove} aria-label='remove'><Icon name='x' /></button>
             </span>
         ))}
-        <button className={styles.clearAll} onClick={() => setFilter({})}>{TR('clearAll') || 'נקה הכל'}</button>
+        <button className={styles.clearAll} onClick={() => setFilter({})}>{TR('clearAll')}</button>
     </Flex>
 }

@@ -1,4 +1,6 @@
 .table {
+    flex: 1 1 0;
+    min-height: 0;
     max-height: calc(100vh - 140px - var(--header-height));
     max-height: calc(100dvh - 140px - var(--header-height));
     overflow: auto;

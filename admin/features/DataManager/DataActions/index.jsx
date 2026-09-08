@@ -1,6 +1,6 @@
 import usePermission from 'common/permissions/usePermision'
+import ContextMenu from 'common/components/ContextMenu'
 import { useText } from 'common/texts/TextProvider'
-import Button from 'common/components/Button'
 import styles from './dataActions.module.css'
 import apiReq from 'common/functions/apiReq'
 import { useData } from '../DataProvider'
@@ -31,15 +31,29 @@ export default function DataActions({ actions = [], cols = [] }) {
     }
 
     const defaultActions = {
-        add: { icon: 'add', onClick: () => createUpdate(), hide: !createPermission },
-        export: { icon: 'csv', tooltip: 'export_csv_tooltip', onClick: exportCurrentView, loading: exporting, hide: !exportPermission },
-        refresh: { icon: 'refresh', tooltip: 'refresh_tooltip', onClick: () => callReq() }
+        add: { icon: 'add', text: 'action_add', onClick: () => createUpdate(), hide: !createPermission, mode: 'brand' },
+        export: { icon: 'csv', text: 'action_export', tooltip: 'export_csv_tooltip', seperator: true, onClick: exportCurrentView, loading: exporting, hide: !exportPermission },
+        refresh: { icon: 'refresh', text: 'action_refresh', tooltip: 'refresh_tooltip', onClick: () => callReq() }
     }
 
+    const resolved = actions
+        .map(action => typeof action == 'string' ? defaultActions[action] : action)
+        .filter(Boolean)
+
+    // Wrap toolbar handlers: they expect a `{ refresh }` payload, not the click event.
+    // Falls back both ways so callers specify only one of text/tooltip when they match.
+    const toOption = action => {
+        const { onClick, text, tooltip, ...rest } = action
+        return {
+            ...rest,
+            text: text || TR?.(tooltip) || tooltip,
+            tooltip: tooltip || text,
+            onClick: () => onClick?.({ refresh: callReq }),
+        }
+    }
+
+    // ContextMenu hides denied items and renders null / inline icon / ⋯ menu for 0 / 1 / 2+.
     return <Flex reverse gap={10} className={styles.dataActions} alignItems='center'>
-        {actions
-            .map(action => typeof action == 'string' ? defaultActions[action] : action)
-            .filter(a => !a.hide)
-            .map(({ text, hide, onClick, ...action }) => <Button key={`data_action_${action.icon}`} {...action} onClick={() => onClick({ refresh: callReq })} />)}
+        <ContextMenu options={resolved.map(toOption)} />
     </Flex>
 }
