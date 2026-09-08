@@ -187,7 +187,8 @@ const defaultSelect = {
     addresses: 1,
     deliveryMethod: 1,
     pickupStoreId: 1,
-    getOffers: 1
+    getOffers: 1,
+    domainId: 1
 }
 
 export const meta = {

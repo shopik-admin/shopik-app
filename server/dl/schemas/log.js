@@ -23,7 +23,9 @@ const constants = {
         ADMIN: 'admin',
         USER: 'user',
         API: 'api',
-        ANONYMOUS: 'anonymous'
+        ANONYMOUS: 'anonymous',
+        SYSTEM: 'system',
+        BOT: 'bot'
     },
     DIRECTION: {
         IN: 'in',

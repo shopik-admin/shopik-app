@@ -1,11 +1,12 @@
 import allPermissions from '#server/utils/auth/permissions.js'
+import apiKeyPermissions from '#common/constants/apiKeyPermissions.js'
 import resolveDomainId from '#server/utils/resolveDomainId.js'
 import pkg from '#package.json' with { type: 'json' }
 import uid from '#common/functions/uid.js'
 
 const appVersion = pkg?.version || 'unknown'
 
-const allPermissionsHash = allPermissions.reduce((acc, curr) => {
+const allPermissionsHash = [...allPermissions, ...apiKeyPermissions].reduce((acc, curr) => {
     acc[curr] = true
     return acc
 }, {})

@@ -24,9 +24,22 @@ export default async function callback(payload, info) {
     const providerCode = ccodeRaw !== undefined ? Number(ccodeRaw) : undefined
     const amountRaw = q.Amount
 
+    // Framing: global helmet sets X-Frame-Options: SAMEORIGIN, which blocks
+    // the checkout iframe when Hyp redirects here cross-origin (prod callback
+    // vs localhost parent). Strip it for this loader page only and allow
+    // known storefront parents via frame-ancestors. Everything else keeps SAMEORIGIN.
+    function frameHeaders() {
+        try { res.removeHeader('X-Frame-Options') } catch { }
+        res.setHeader(
+            'Content-Security-Policy',
+            "frame-ancestors 'self' https://shopik.co.il https://*.shopik.co.il http://localhost:1337 http://localhost:1990"
+        )
+    }
+
     // Helper to send minimal loader HTML (no bundle) + postMessage to parent
     function sendHtml({ ok, order, errorMessage }) {
         const html = buildLoaderHtml({ ok, orderNumber: order?.number || orderNumber, errorMessage })
+        frameHeaders()
         res.status(ok ? 200 : 400).type('html').send(html)
     }
 
@@ -81,6 +94,7 @@ export default async function callback(payload, info) {
     }
     const order = await DL.Order.readOne({ number: String(orderNumber) })
     if (!order) {
+        frameHeaders()
         res.status(404).type('html').send(buildLoaderHtml({ ok: false, orderNumber, errorMessage: 'ההזמנה לא נמצאה' }))
         return
     }

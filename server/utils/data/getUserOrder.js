@@ -21,7 +21,8 @@ export default async function getUserOrder({ DL, _user }) {
 
     const order = {
         userId: _user.id,
-        deliveryMethod: _user.deliveryMethod
+        deliveryMethod: _user.deliveryMethod,
+        domainId: _user.domainId
     }
 
     if (activeAddress && order.deliveryMethod === DELIVERY_METHOD.DELIVERY) {
@@ -37,7 +38,6 @@ export default async function getUserOrder({ DL, _user }) {
             }
         }
     }
-
 
     try {
         order.number = await DL.Order.getNumber()

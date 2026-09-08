@@ -37,8 +37,8 @@ const OWNER_STATUS = {
 
 const ORDER_STATUS = {
     CART: 'cart',
-    PAID: 'paid',
     PAID_EDIT: 'paid-edit',
+    PAID: 'paid',
     PICKING: 'picking',
     PICKED: 'picked',
     PACKED: 'packed',
