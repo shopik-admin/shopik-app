@@ -9,7 +9,7 @@ function haversine(a, b) {
     return 2 * R * Math.asin(Math.sqrt(s))
 }
 
-export default async function route(payload, { DL, _admin }) {
+export default async function route(payload, { DL, _admin, external }) {
     const { shipmentId, origin } = payload
     if (!shipmentId) throw { status: 400, message: 'shipmentId required' }
 
@@ -23,7 +23,7 @@ export default async function route(payload, { DL, _admin }) {
     for (const o of orders) {
         if (!o.address?.location?.coordinates?.length) {
             try {
-                const geocoded = await DL.geocode?.address?.(o.address) || o.address
+                const geocoded = await external?.geocode?.address?.(o.address) || o.address
                 if (geocoded?.location?.coordinates?.length) {
                     await DL.Order.Model.updateOne({ id: o.id }, { $set: { 'address.location': geocoded.location } })
                     o.address.location = geocoded.location

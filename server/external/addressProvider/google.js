@@ -1,4 +1,4 @@
-import geocode from '#server/external/geocode.js'
+import geocodeFactory, { fetchFromGoogle } from '#server/external/geocode.js'
 
 const GOOGLE_PLACES_URL = 'https://maps.googleapis.com/maps/api/place/autocomplete/json'
 const GOOGLE_DETAILS_URL = 'https://maps.googleapis.com/maps/api/place/details/json'
@@ -40,10 +40,13 @@ export async function searchGoogle({ q, city, street, type = 'street' }) {
     }
 }
 
-export async function geocodeGoogle({ city, street, building }) {
+export async function geocodeGoogle({ DL, city, street, building }) {
     try {
         const address = { city, street, building }
+        const geocode = DL ? geocodeFactory({ DL }) : { address: fetchFromGoogle }
         const res = await geocode.address(address)
+        if (!res?.location) return res
+        if (res.source) return res
         return { ...res, source: 'google' }
     } catch (e) {
         console.warn('[google] geocode failed', e.message)

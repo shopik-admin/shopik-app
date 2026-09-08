@@ -35,7 +35,7 @@ export async function validateAddress({ DL, city, street, building }) {
         const found = await DL.GovAddress.readOne({ city, street, building: String(building) }, { _id: 0, location: 1 })
         if (found?.location) return { ...found, source: 'govmap', city, street, building }
     }
-    // Fallback to Google geocode for coordinates/hasService
+    // Fallback to Google geocode (read-through geocode cache) for coordinates/hasService
     const { geocodeGoogle } = await import('./google.js')
-    return geocodeGoogle({ city, street, building })
+    return geocodeGoogle({ DL, city, street, building })
 }
