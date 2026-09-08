@@ -9,23 +9,28 @@ import Button from 'common/components/Button'
 import ConfirmButton from 'common/components/ConfirmButton'
 import Flex from 'common/components/Flex'
 import StoreListEditor from './StoreListEditor'
+import VectorBasemap from './VectorBasemap'
 import styles from './supplyAreas.module.css'
 
 const SNAP_THRESHOLD_PX = 20
 const TILESET_STORAGE_KEY = 'supplyMapTileset'
 const snapKeyFor = (lat, lng) => `${Math.floor(lat * 100)}_${Math.floor(lng * 100)}`
 
-// All basemaps are free to use (attribution required) — Hebrew labels forced via lang=he where supported (CARTO)
+// CARTO light/dark render as vector (MapLibre GL style) with raster PNG fallback
+// when no API key is configured. OSM + satellite stay raster-only.
 
 const ATTR_CARTO = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+const HAS_CARTO_KEY = typeof CARTO_KEY !== 'undefined' && !!CARTO_KEY
 const TILESETS = {
     light: {
         label: 'supply_map_minimal',
+        style: `https://basemaps.cartocdn.com/gl/positron-gl-style/style.json?key=${CARTO_KEY}`,
         url: `https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png?lang=he&key=${CARTO_KEY}`,
         attribution: ATTR_CARTO,
     },
     dark: {
         label: 'supply_map_dark',
+        style: `https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json?key=${CARTO_KEY}`,
         url: `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png?lang=he&key=${CARTO_KEY}`,
         attribution: ATTR_CARTO,
     },
@@ -649,11 +654,19 @@ export default function SupplyAreaMap({
                 scrollWheelZoom
                 preferCanvas
             >
-                <TileLayer
-                    key={tilesetId}
-                    url={tileset.url}
-                    attribution={tileset.attribution}
-                />
+                {tileset.style && HAS_CARTO_KEY ? (
+                    <VectorBasemap
+                        key={tilesetId}
+                        styleUrl={tileset.style}
+                        labelScale={1.3}
+                    />
+                ) : (
+                    <TileLayer
+                        key={tilesetId}
+                        url={tileset.url}
+                        attribution={tileset.attribution}
+                    />
+                )}
                 <MapController
                     areas={areas}
                     servedAreaIds={servedAreaIds}
