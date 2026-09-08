@@ -57,6 +57,25 @@ body .Table_ {
     }
 }
 
+/* DataManager: Table should flex to fill remaining space.
+   FilterBar height varies (chips wrap, separator), so fixed max-height
+   would either leave gap or overflow — flex makes it automatic. */
+body .DataManager_ .Table_,
+body .DataTable_ .Table_ {
+    flex: 1 1 0;
+    min-height: 0;
+    max-height: none !important;
+    height: auto;
+    overflow: auto;
+}
+
+@media screen and (max-width: 650px) {
+    body .DataManager_ .Table_,
+    body .DataTable_ .Table_ {
+        max-height: none !important;
+    }
+}
+
 body .Table_ table th {
     text-transform: uppercase;
     font-size: var(--text-xs);

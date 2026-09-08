@@ -7,6 +7,7 @@ import Text from 'common/components/Text'
 import Icon from 'common/components/Icon'
 import { useText } from 'common/texts/TextProvider'
 import { useUser } from 'features/User'
+import { useState } from 'react'
 import styles from './contextMenu.module.css'
 
 const dangerModes = new Set(['red', 'danger', 'error'])
@@ -37,6 +38,8 @@ export default function ContextMenu({ options = [], iconOnStart = true, row, pas
     const user = useUser()
     const { TR } = useText?.() || {}
     const { role = {}, isSuperAdmin } = user || {}
+    // Item awaiting its async handler — shows the spinner, blocks re-clicks.
+    const [pending, setPending] = useState(null)
     // Same rule as usePermission, but array-safe (no hooks in a loop).
     const can = p => !p || isSuperAdmin || role.permissions?.includes(p)
     const visible = options.filter(o => o && !o.hide && can(o.permission))
@@ -45,7 +48,7 @@ export default function ContextMenu({ options = [], iconOnStart = true, row, pas
 
     // Single action renders inline (icon-only, like the old toolbar/row buttons).
     if (visible.length === 1) {
-        const [{ hide, seperator, separator, text, permission, ...single }] = visible[0]
+        const { hide, seperator, separator, text, permission, ...single } = visible[0]
         return <Button preventDefault stopPropagation {...single} />
     }
 
@@ -78,11 +81,38 @@ export default function ContextMenu({ options = [], iconOnStart = true, row, pas
         {({ close }) => <div className={styles.contextMenu} role='menu' onKeyDown={e => onKeyDown(e, close)}>
             {visible.map((option, idx) => {
                 const
+                    itemKey = option.id ?? `${option.text}-${option.icon}-${idx}`,
                     hasSeparator = (option.separator ?? option.seperator) && idx > 0,
-                    disabled = option.disabled || option.loading
+                    busy = option.loading || pending === itemKey,
+                    disabled = option.disabled || busy
+
+                // Sync handlers (e.g. opening a modal) close right away;
+                // async ones keep the menu open with a spinner until they settle.
+                function run(e) {
+                    if (disabled || pending) return
+                    e.stopPropagation()
+                    e.preventDefault()
+                    let result
+                    try {
+                        result = option.onClick?.(payload ?? e, e)
+                    } catch (err) {
+                        console.error(err)
+                        close(e)
+                        return
+                    }
+                    if (result && typeof result.then == 'function') {
+                        setPending(itemKey)
+                        result.then(
+                            () => close(e),
+                            err => { console.error(err); close(e) },
+                        ).finally(() => setPending(null))
+                    } else {
+                        close(e)
+                    }
+                }
 
                 return <Flex
-                    key={option.id ?? `${option.text}-${option.icon}-${idx}`}
+                    key={itemKey}
                     role='menuitem'
                     tabIndex={disabled ? -1 : 0}
                     aria-disabled={disabled || undefined}
@@ -94,31 +124,20 @@ export default function ContextMenu({ options = [], iconOnStart = true, row, pas
                     className={classNames(
                         styles.menuItem,
                         normalizeMode(option.mode),
-                        [styles.separator, hasSeparator],
+                        [styles.seperator || styles.separator, hasSeparator],
                         [styles.disabled, disabled],
                     )}
-                    onClick={async e => {
-                        if (disabled) return
-                        e.stopPropagation()
-                        e.preventDefault()
-                        try {
-                            await option.onClick?.(payload ?? e, e)
-                        } catch (err) {
-                            console.error(err)
-                        } finally {
-                            close()
-                        }
-                    }}
+                    onClick={run}
                     onKeyDown={e => {
-                        if (disabled) return
+                        if (disabled || pending) return
                         if (e.key === 'Enter' || e.key === ' ') {
                             e.preventDefault()
-                            e.currentTarget.click()
+                            run(e)
                         }
                     }}
                 >
                     <Text size='l' ellipsis>{option.text}</Text>
-                    {option.loading ? <Loader size={16} /> :
+                    {busy ? <Loader size={16} className={styles.loaderSlot} /> :
                         typeof option.icon == 'string'
                             ? <Icon name={option.icon} className={styles.icon} />
                             : option.icon}
