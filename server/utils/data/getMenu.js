@@ -15,7 +15,7 @@ export default async function getMenu({ DL }) {
     // TODO: add storeId
     const cached = await DL.redis?.get('menu')
     if (cached) {
-        // return JSON.parse(cached)
+        return JSON.parse(cached)
     }
     const categoriesIds = await DL.Product.Model.distinct('category.pathIds', {
         status: DL.Product.constants.STATUS.ACTIVE
