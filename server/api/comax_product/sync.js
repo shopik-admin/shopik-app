@@ -32,7 +32,7 @@ function buildUnit(comax, DL) {
     }
 }
 
-function buildProduct(comax, DL) {
+function buildProduct(comax, DL, defaultDomainId, existing) {
     const category = {}
     if (comax.subGroup) {
         category.id = comax.subGroupCode
@@ -43,11 +43,16 @@ function buildProduct(comax, DL) {
         category.title = comax.group
         category.pathIds = [comax.superDepartmentCode, comax.departmentCode, comax.groupCode]
     }
+    // No image file = hidden. Re-evaluated every sync, so products flip back to
+    // ACTIVE on the first sync after the image worker attaches their image.
+    const hasImages = (existing?.images?.product || []).length > 0
     const status = comax.archived ?
         DL.Product.constants.STATUS.ARCHIVED :
-        comax.showInWeb ?
-            DL.Product.constants.STATUS.ACTIVE :
-            DL.Product.constants.STATUS.HIDDEN
+        !hasImages ?
+            DL.Product.constants.STATUS.HIDDEN :
+            comax.showInWeb ?
+                DL.Product.constants.STATUS.ACTIVE :
+                DL.Product.constants.STATUS.HIDDEN
 
     return {
         barcode: comax.barcode,
@@ -55,13 +60,21 @@ function buildProduct(comax, DL) {
         description: comax.description,
         producer: comax.manufacturer,
         category,
-        prices: comax.price != null ? [{ domainId: 'default', price: comax.price }] : [],
+        prices: mergePrices(existing?.prices, defaultDomainId, comax.price),
         status,
         nutrients: {
             alcohol: comax.alcohol
         },
         unit: buildUnit(comax, DL)
     }
+}
+
+// Comax owns only the default domain's price entry — entries for other domains
+// are preserved so a sync never hides products elsewhere (no price = not sold).
+function mergePrices(existingPrices, defaultDomainId, comaxPrice) {
+    const kept = (existingPrices || []).filter(p => p?.domainId && p.domainId !== defaultDomainId)
+    if (comaxPrice != null) kept.push({ domainId: defaultDomainId, price: comaxPrice })
+    return kept
 }
 
 export default async function syncComax(payload, { DL }) {
@@ -108,12 +121,30 @@ export default async function syncComax(payload, { DL }) {
         return { synced: 0, updated: 0, created: 0 }
     }
 
-    const productsToSync = comaxProducts.map(c => buildProduct(c, DL))
+    const defaultDomain = await DL.Domain.readOne({ isDefault: true, active: true }, { _id: 0, id: 1 })
+    if (!defaultDomain?.id) throw { status: 500, message: 'no default domain configured' }
+
+    // Existing per-domain prices + images so the sync merges prices instead of
+    // replacing the array, and hides products with no image file
+    const existingProducts = await DL.Product.read(
+        { barcode: { $in: comaxProducts.map(c => c.barcode) } },
+        { _id: 0, barcode: 1, prices: 1, images: 1 },
+        { limit: 0 }
+    )
+    const existingByBarcode = new Map((existingProducts || []).map(p => [p.barcode, p]))
+
+    const productsToSync = comaxProducts.map(c => buildProduct(c, DL, defaultDomain.id, existingByBarcode.get(c.barcode)))
+    const hiddenNoImage = productsToSync.filter(p =>
+        p.status === DL.Product.constants.STATUS.HIDDEN &&
+        (existingByBarcode.get(p.barcode)?.images?.product || []).length === 0
+    ).length
 
     const result = await DL.Product.bulkWrite({
         docs: productsToSync,
         getFilter: p => ({ barcode: p.barcode }),
-        getUpsert: p => p.status === DL.Product.constants.STATUS.ACTIVE
+        // Upsert everything except archived: imageless HIDDEN products must exist
+        // as docs or the image worker would never pick them up (deadlock).
+        getUpsert: p => p.status !== DL.Product.constants.STATUS.ARCHIVED
     })
 
     const syncedIds = comaxProducts.map(p => p.comaxId)
@@ -122,7 +153,7 @@ export default async function syncComax(payload, { DL }) {
         { syncedAt: new Date() }
     )
 
-    console.log(`[Comax Sync] Created ${result.upsertedCount}, updated ${result.modifiedCount}`)
+    console.log(`[Comax Sync] Created ${result.upsertedCount}, updated ${result.modifiedCount}, hidden (no image): ${hiddenNoImage}`)
 
     try {
         const enqueued = await enqueueChangedImages(DL)
@@ -134,7 +165,8 @@ export default async function syncComax(payload, { DL }) {
     return {
         synced: comaxProducts.length,
         created: result.upsertedCount,
-        updated: result.modifiedCount
+        updated: result.modifiedCount,
+        hiddenNoImage
     }
 }
 

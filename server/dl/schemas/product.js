@@ -44,7 +44,7 @@ const productSchema = {
     regulatoryInfo: String,
     prices: {
         type: [{
-            domainId: String,
+            domainId: { type: String, filter: true },
             price: Number,
             _id: false
         }],
@@ -236,7 +236,8 @@ export const meta = {
     defaultSort,
     index: [
         { storeIds: 1 },
-        { status: 1, 'category.pathIds': 1 }
+        { status: 1, 'category.pathIds': 1 },
+        { status: 1, 'prices.domainId': 1 }
     ]
 }
 

@@ -467,7 +467,7 @@
         "picked": "מוכן לאריזה",
         "packed": "מוכן למשלוח",
         "window.endTimestamp": "אספקה עד",
-        "category.pathIds": "מזהה קטגוריה",
+        "category.pathIds": "מזהה קטגוריות אב",
         "keywords": "מילות מפתח",
         "hidden": "מוסתר",
         "addresses.city": "עיר",
@@ -596,7 +596,12 @@
         "timeline_sms_message": "הודעת SMS",
         "actor_user": "הלקוח",
         "actor_system": "המערכת",
+        "isdefault": "ברירת מחדל",
+        "url": "כתובת URL",
         "read": "קריאה",
-        "update": "עדכון"
+        "update": "עדכון",
+        "prices.domainId": "מזהה דומיין",
+        "category.id": "מזהה קטגוריה",
+        "saleIds": "מזהה מבצע"
     }
 }

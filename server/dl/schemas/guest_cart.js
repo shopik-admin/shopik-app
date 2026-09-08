@@ -20,7 +20,7 @@ const couponEntrySchema = {
 const guestCartSchema = {
     domainId: {
         type: String,
-        default: 'default'
+        required: true
     },
     cart: cartSchema,
     sales: Object,

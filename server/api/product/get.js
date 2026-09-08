@@ -1,8 +1,12 @@
 export default async function get(payload, { DL, _user, req, utils }) {
-    const { filter = {}, path, id, barcode, select, onSale } = payload
+    const { filter = {}, path, id, barcode, select, onSale, domainId } = payload
     const { mode, storeId } = await utils.data.withStock.resolveStockContext(req, { DL, utils }, _user)
     const wantFilter = mode === 'filter' && !!storeId
     const wantAnnotate = mode === 'annotate' && !!storeId
+    // Storefront scoping: no price entry for the domain = not sold in that domain.
+    // Admin callers send no domainId and stay unfiltered.
+    const domainPriceFilter = domainId ? { 'prices.domainId': domainId } : {}
+    const hasDomainPrice = (p) => !domainId || !Array.isArray(p?.prices) || p.prices.some(e => e?.domainId === domainId)
 
     let products = []
     let categoryName
@@ -12,17 +16,19 @@ export default async function get(payload, { DL, _user, req, utils }) {
         const sel = wantAnnotate ? { ...DL.Product.defaultSelectOne, storeIds: 1 } : DL.Product.defaultSelectOne
         const product = await DL.Product.readOne({
             barcode,
-            status: DL.Product.constants.STATUS.ACTIVE
+            status: DL.Product.constants.STATUS.ACTIVE,
+            ...domainPriceFilter
         }, sel)
-        products = product ? [product] : []
+        products = product && hasDomainPrice(product) ? [product] : []
         if (wantAnnotate) products = utils.data.withStock.annotateInStock(products, storeId, mode)
     } else if (id) {
         const sel = wantAnnotate ? { ...DL.Product.defaultSelectOne, storeIds: 1 } : DL.Product.defaultSelectOne
         const product = await DL.Product.readOne({
             id,
-            status: DL.Product.constants.STATUS.ACTIVE
+            status: DL.Product.constants.STATUS.ACTIVE,
+            ...domainPriceFilter
         }, sel)
-        products = product ? [product] : []
+        products = product && hasDomainPrice(product) ? [product] : []
         if (product?.category?.id) {
             const category = await DL.Category.readOne({ id: product.category.id }, { _id: 0, path: 1 })
             categoryPath = category?.path
@@ -40,6 +46,7 @@ export default async function get(payload, { DL, _user, req, utils }) {
         const effectiveFilter = wantFilter ? utils.data.withStock.applyStockFilter(filter, storeId, mode) : filter
         const selectForStock = wantAnnotate ? { ...(select || DL.Product.defaultSelect), storeIds: 1 } : (select || DL.Product.defaultSelect)
         effectiveFilter.status = DL.Product.constants.STATUS.ACTIVE
+        Object.assign(effectiveFilter, domainPriceFilter)
         if (onSale) {
             // Better than `saleIds.0 exists`: verify against currently ACTIVE sales
             // (saleIds is denormalized by sale/sync and can lag behind status rollover).

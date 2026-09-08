@@ -1,4 +1,5 @@
 import allPermissions from '#server/utils/auth/permissions.js'
+import resolveDomainId from '#server/utils/resolveDomainId.js'
 import pkg from '#package.json' with { type: 'json' }
 import uid from '#common/functions/uid.js'
 
@@ -46,10 +47,6 @@ export default function router(app, bootData) {
     validateApi()
     app.use('/api', async (req, res, next) => {
         const { headers, body = {}, files, ip } = req
-        // Domain middleware - ensure every payload has domainId (default for now)
-        if (body && typeof body === 'object' && !Array.isArray(body) && body.domainId == null) {
-            body.domainId = 'default'
-        }
         const platform = utils.getPlatform(req)
         const route = req.path.replace(/^api\/?/, '').replace(/\/$/, '')
         const apiFunction = apiRoutes[route]
@@ -61,6 +58,12 @@ export default function router(app, bootData) {
             requestLogPromise,
             info
         try {
+            // Domain middleware - storefront traffic without an explicit domainId resolves
+            // from Origin/Referer, falling back to the single isDefault domain.
+            // Admin traffic is left untouched; API-key actor domain still wins below.
+            if (body && typeof body === 'object' && !Array.isArray(body) && body.domainId == null) {
+                body.domainId = await resolveDomainId(req, DL)
+            }
             if (apiFunction?.config?.log !== false) {
                 const logData = {
                     requestId,
@@ -137,7 +140,7 @@ export default function router(app, bootData) {
                         if (typeof permissions === 'string') {
                             hasPermission = _admin.hasPermission(permissions)
                         } else if (Array.isArray(permissions)) {
-                            hasPermission = permissions.every(p => _admin.hasPermission(p))
+                            hasPermission = permissions.some(p => _admin.hasPermission(p))
                         }
                         if (!hasPermission)
                             throw { status: 403, message: 'Forbidden' }

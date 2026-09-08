@@ -2,6 +2,18 @@ import { updateSalesAndProducts } from '../sale/sync.js'
 import { findInflatedBarcode } from '#server/utils/data/validateSalePrice.js'
 const IGNORE_PROMO_TYPES = [18, 19, 5, 6, 9, 10]
 
+// Lowest regular price across all domains — a global sale must discount every domain.
+function minAcrossDomains(prices) {
+    if (!Array.isArray(prices)) return undefined
+    let min
+    for (const p of prices) {
+        const v = Number(p?.price)
+        if (!Number.isFinite(v)) continue
+        if (min === undefined || v < min) min = v
+    }
+    return min
+}
+
 function deduplicateKey(cs) {
     const items = (cs.items || []).map(i => String(i.Kod || i)).sort()
     const getItems = (cs.getItems || []).map(i => String(i.Kod || i)).sort()
@@ -152,7 +164,7 @@ function buildSale(cs, kodToBarcodeMap, activeBarcodesSet, barcodeToPriceMap, DL
     }
 
     // Block inflated kind=price sales: sale price must be strictly lower than
-    // regular total (prices[0] x amount) for every barcode — skip otherwise
+    // regular total (min domain price x amount) for every barcode — skip otherwise
     if (kind === KINDS.PRICE && price != null && barcodeToPriceMap) {
         const inflated = findInflatedBarcode(
             { kind, price, amount, barcodes: validBarcodes },
@@ -250,7 +262,7 @@ export default async function syncComaxSales(payload, { DL }) {
         console.log(`[Comax Sales Sync] Deduplicated ${deduplicateSaleIds.size} duplicate sales`)
     }
 
-    // Get active product barcodes + regular prices (prices[0])
+    // Get active product barcodes + regular prices (min across domains)
     const activeProducts = await DL.Product.read(
         { status: DL.Product.constants.STATUS.ACTIVE },
         { _id: 0, barcode: 1, prices: 1 },
@@ -258,7 +270,7 @@ export default async function syncComaxSales(payload, { DL }) {
     )
     const activeBarcodesSet = new Set((activeProducts || []).map(p => p.barcode))
     const barcodeToPriceMap = new Map(
-        (activeProducts || []).map(p => [p.barcode, p?.prices?.[0]?.price])
+        (activeProducts || []).map(p => [p.barcode, minAcrossDomains(p?.prices)])
     )
 
     // Collect all item Kods for barcode resolution

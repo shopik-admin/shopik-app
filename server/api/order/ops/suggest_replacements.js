@@ -21,20 +21,25 @@ export default async function suggest_replacements(payload, { DL, _admin }) {
 
     const q = String(search ?? '').trim()
 
+    // Picker replacements must be sellable in the order's domain:
+    // only products with a price entry for order.domainId are candidates.
+    const domainPriceFilter = order.domainId ? { 'prices.domainId': order.domainId } : {}
+
     // Exact barcode fast-path (scanner): numeric scan jumps straight to that product
     if (q && /^\d+$/.test(q)) {
         const exact = await DL.Product.readOne(
             { $or: [{ barcode: q }, { scannableBarcodes: q }] },
             select
         )
-        if (exact && exact.status !== DL.Product.constants.STATUS.ARCHIVED) {
+        if (exact && exact.status !== DL.Product.constants.STATUS.ARCHIVED
+            && (!order.domainId || (exact.prices || []).some(p => p?.domainId === order.domainId))) {
             const sales = await collectSales([exact], DL)
             return { products: [exact], sales }
         }
         // fall through to text search if no exact hit
     }
 
-    const baseFilter = { status: STATUS, barcode: { $ne: barcode } }
+    const baseFilter = { status: STATUS, barcode: { $ne: barcode }, ...domainPriceFilter }
 
     // Scope to same category when known (original item category or live product category)
     let categoryId = item.category?.id || null
@@ -66,7 +71,7 @@ export default async function suggest_replacements(payload, { DL, _admin }) {
     // Fallback: no same-category candidates → broaden to same storage type
     if (!products?.length && !q && (categoryId || categoryPathIds?.length)) {
         try {
-            const broad = { status: STATUS, barcode: { $ne: barcode } }
+            const broad = { status: STATUS, barcode: { $ne: barcode }, ...domainPriceFilter }
             if (item.storageType) broad.storageType = item.storageType
             products = await DL.Product.read(broad, select, { limit: lim, sort: { totalSalesUnits: -1 } })
         } catch {

@@ -23,15 +23,20 @@ export function useProductCart(product, sales = {}) {
         const neededIds = [...new Set([...(order?.cart || []).flatMap(i => i.saleIds || []), ...(product.saleIds || [])])]
         const missing = neededIds.filter(id => !cachedSales[id])
         if (!missing.length) {
-            const optimisticOrder = calcOrder({
-                order: order || {},
-                product,
-                amount: newAmount,
-                sales: cachedSales,
-                shippingConfig,
-                user
-            })
-            setOrder(optimisticOrder)
+            try {
+                const optimisticOrder = calcOrder({
+                    order: order || {},
+                    product,
+                    amount: newAmount,
+                    sales: cachedSales,
+                    shippingConfig,
+                    user
+                })
+                setOrder(optimisticOrder)
+            } catch {
+                // product not priced in this domain (or other calc error) —
+                // skip optimistic update; the server sync below returns the error
+            }
         } else {
             console.log('skip optimistic - missing sales', missing)
         }

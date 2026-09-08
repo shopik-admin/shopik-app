@@ -1,17 +1,13 @@
 export default async function getShippingConfig(DL, domainId) {
     try {
-        const domain = domainId || 'default'
-        const setting = await DL.Setting.readOne({ key: 'shipping', domainId: domain })
+        if (!domainId) return null
+        const setting = await DL.Setting.readOne({ key: 'shipping', domainId })
         if (setting?.value) return setting.value
-        // fallback to default domain if not found
-        if (domain !== 'default') {
-            const fallback = await DL.Setting.readOne({ key: 'shipping', domainId: 'default' })
+        // fallback to the default domain's config when this domain has none
+        const def = await DL.Domain.readOne({ isDefault: true, active: true }, { _id: 0, id: 1 })
+        if (def?.id && def.id !== domainId) {
+            const fallback = await DL.Setting.readOne({ key: 'shipping', domainId: def.id })
             if (fallback?.value) return fallback.value
-        }
-        // legacy: maybe stored without domainId filter or different domain
-        if (!setting) {
-            const any = await DL.Setting.readOne({ key: 'shipping' })
-            if (any?.value) return any.value
         }
         return null
     } catch {
