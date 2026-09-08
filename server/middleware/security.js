@@ -38,7 +38,15 @@ export default async function setupSecurity(app, bootData) {
 
     // Lenient start: CSP + COEP disabled (SSR inlines <style> and window.__SD__).
     // Tighten with nonces in a follow-up.
-    app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }))
+    // DISABLE_FRAMEGUARD=true lifts X-Frame-Options / frame-ancestors (e.g. so the
+    // Hyp payment iframe can frame the callback cross-origin in test envs).
+    // NEVER honored in prod — fail-safe default is helmet ON everywhere.
+    const disableFrameguard = process.env.DISABLE_FRAMEGUARD === 'true'
+    app.use(helmet({
+        contentSecurityPolicy: false,
+        crossOriginEmbedderPolicy: false,
+        frameguard: disableFrameguard ? false : undefined
+    }))
 
     if (!isProdEnv()) return { allowedOrigins: null }
 
