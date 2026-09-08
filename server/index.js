@@ -20,6 +20,19 @@ const
 
 await setupSecurity(app, bootData)
 
+// Domain invariant: exactly one isDefault domain. Storefront requests without a
+// resolvable Origin depend on it — zero means they 500, more than one is ambiguous.
+try {
+    const defaults = await bootData.DL.Domain.read({ isDefault: true }, { _id: 0, id: 1, name: 1 }, { limit: 0 })
+    if (defaults.length === 0) {
+        log.error('[Domain] No default domain configured (isDefault) — storefront requests without resolvable Origin will fail. Mark one via the Domains admin page.')
+    } else if (defaults.length > 1) {
+        log.error(`[Domain] Multiple default domains (${defaults.map(d => d.id).join(', ')}) — expected exactly one. First match wins until fixed via the Domains admin page.`)
+    }
+} catch (e) {
+    log.warn('[Domain] Default-domain check skipped:', e?.message || e)
+}
+
 app.use((req, res, next) => {
     if (/\.php$/i.test(req.path)) return res.redirect(301, 'https://0.0.0.0')
     next()

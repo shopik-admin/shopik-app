@@ -34,7 +34,7 @@ function SettingModalContent({ setting, defaultCategory, defaultSubCategory, def
         value: setting?.value !== undefined ? setting.value : (initialIsConfig ? {} : ''),
         category: setting?.category || defaultCategory || 'General',
         subCategory: setting?.subCategory || defaultSubCategory || 'General',
-        domainId: setting?.domainId || defaultDomainId || 'default',
+        domainId: setting?.domainId || defaultDomainId || '',
         formType: setting?.formType || defaultFormType || 'text',
         renderType: setting?.renderType || defaultRenderType || 'string',
         public: setting?.public ?? false
@@ -189,12 +189,20 @@ export default function Settings() {
     const { data: rawSettings, callReq, loading } = useApi('setting/read')
     const [settings, setSettings] = useState([])
     const rawRef = useRef()
-    const [selectedDomain, setSelectedDomain] = useState('default')
+    const [selectedDomain, setSelectedDomain] = useState(null)
     const [selectedCategory, setSelectedCategory] = useState(null)
     const [mobileView, setMobileView] = useState('sidebar') // 'sidebar' or 'content'
     const { openModal, closeModal } = useModal()
     const { isSuperAdmin, role: adminRole } = useUser()
     const { domains = EMPTY_DOMAINS } = useLists() || {}
+    // Default the working domain to the isDefault domain (first domain as fallback)
+    useEffect(() => {
+        if (!selectedDomain && domains.length) {
+            const def = domains.find((d) => d?.isDefault)
+            const first = def ?? domains[0]
+            setSelectedDomain(first?.value ?? first)
+        }
+    }, [domains, selectedDomain])
     const selectedDomainName = useMemo(() => {
         const found = domains.find((d) => (d?.value ?? d) === selectedDomain)
         return found?.text || found?.name || selectedDomain
@@ -219,8 +227,8 @@ export default function Settings() {
 
     // Work one domain at a time — export/import/add scope to selectedDomain
     const domainSettings = useMemo(() => {
-        const target = selectedDomain || 'default'
-        return settings.filter((s) => (s.domainId || 'default') === target)
+        if (!selectedDomain) return []
+        return settings.filter((s) => s.domainId === selectedDomain)
     }, [settings, selectedDomain])
 
     // Extract unique categories & their item counts
@@ -272,7 +280,7 @@ export default function Settings() {
             <SettingModalContent
                 defaultCategory={targetCategory}
                 defaultSubCategory={targetSubCategory}
-                defaultDomainId={selectedDomain || 'default'}
+                defaultDomainId={selectedDomain || ''}
                 defaultFormType={targetFormType}
                 defaultRenderType={targetRenderType}
                 onClose={closeModal}
@@ -295,13 +303,14 @@ export default function Settings() {
 
     function scopeFileName(scope = {}) {
         const date = new Date().toISOString().slice(0, 10)
-        const parts = ['settings', scope.domainId !== 'default' ? scope.domainId : null, scope.category, scope.subCategory].filter(Boolean)
+        const parts = ['settings', scope.domainId || null, scope.category, scope.subCategory].filter(Boolean)
             .map((p) => String(p).replace(/[^\w-]+/g, '-'))
         return `${parts.join('-') || 'settings'}-${date}.json`
     }
 
     async function handleExport(scope = {}) {
-        const data = await apiReq('setting/export', { domainId: selectedDomain || 'default', ...scope })
+        if (!selectedDomain) return
+        const data = await apiReq('setting/export', { domainId: selectedDomain, ...scope })
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
         const url = URL.createObjectURL(blob)
         const a = document.createElement('a')
@@ -334,7 +343,11 @@ export default function Settings() {
             return
         }
         try {
-            const targetDomain = selectedDomain || 'default'
+            const targetDomain = selectedDomain
+            if (!targetDomain) {
+                openModal(<div>No domain selected.</div>, { title: 'Import failed' })
+                return
+            }
             const res = await apiReq('setting/import', { settings: list, domainId: targetDomain })
             callReq()
             const lines = [`Domain: ${domainNameOf(res.domainId || targetDomain)}`, `Created: ${res.created}`, `Updated: ${res.updated}`]

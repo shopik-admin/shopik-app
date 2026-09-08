@@ -12,6 +12,7 @@ export default function Domains({ }) {
             cols={[
                 { key: 'name' },
                 { key: 'url' },
+                { key: 'isDefault', type: 'boolean' },
                 { key: 'createdAt', type: 'date' },
                 { key: 'updatedAt', type: 'datetime' },
                 { key: 'active', type: 'boolean' },
@@ -19,6 +20,7 @@ export default function Domains({ }) {
             form={[
                 { name: 'name', required: true },
                 { name: 'url', placeholder: 'domain.com' },
+                { name: 'isDefault', type: 'checkbox' },
             ]}
         />
     </div>

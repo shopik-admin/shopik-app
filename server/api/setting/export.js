@@ -1,8 +1,9 @@
 export default async function exp(payload, { DL }) {
     const { category, subCategory, domainId } = payload || {}
 
-    // ponytail: frontend always sends explicit domainId (domain picker); router
-    // injects 'default' when missing so an omitted domainId still scopes to default
+    // ponytail: frontend always sends explicit domainId (domain picker); the
+    // router resolves one for storefront callers, so an omitted domainId here
+    // means unscoped export
     const filter = {}
     if (category) filter.category = String(category).toLowerCase()
     if (subCategory) filter.subCategory = String(subCategory).toLowerCase()

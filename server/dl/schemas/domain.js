@@ -11,6 +11,11 @@ const domainSchema = {
     url: {
         type: String,
         filter: true
+    },
+    isDefault: {
+        type: Boolean,
+        default: false,
+        filter: true
     }
 }
 

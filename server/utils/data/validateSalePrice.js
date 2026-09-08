@@ -1,14 +1,26 @@
 const round2 = n => Math.round(Number(n) * 100) / 100
 
+// Lowest regular price across all domains — a global sale must discount every domain.
+function minPrice(prices) {
+    if (!Array.isArray(prices)) return undefined
+    let min
+    for (const p of prices) {
+        const v = Number(p?.price)
+        if (!Number.isFinite(v)) continue
+        if (min === undefined || v < min) min = v
+    }
+    return min
+}
+
 function resolvePriceKind(DL) {
     return DL?.Sale?.constants?.KINDS?.PRICE ?? 'price'
 }
 
 /**
  * Block sales whose sale price is not a real discount:
- * sale.price must be strictly lower than regularTotal (prices[0].price x amount)
+ * sale.price must be strictly lower than regularTotal (min domain price x amount)
  * for EVERY barcode. Throws 400 on the first offending barcode.
- * Unknown barcodes / products without prices[0] are skipped (fail-open).
+ * Unknown barcodes / products without any domain price are skipped (fail-open).
  */
 export async function validateSalePrice({ kind, price, amount, barcodes }, { DL }) {
     const PRICE = resolvePriceKind(DL)
@@ -24,7 +36,7 @@ export async function validateSalePrice({ kind, price, amount, barcodes }, { DL 
         { limit: 0 }
     )
     const priceByBarcode = new Map(
-        (products || []).map(p => [p.barcode, p?.prices?.[0]?.price])
+        (products || []).map(p => [p.barcode, minPrice(p?.prices)])
     )
 
     for (const barcode of barcodes) {

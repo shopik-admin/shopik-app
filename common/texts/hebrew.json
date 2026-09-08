@@ -549,6 +549,8 @@
         "timeline_external_coupon": "קופון חיצוני",
         "timeline_sms_message": "הודעת SMS",
         "actor_user": "הלקוח",
-        "actor_system": "המערכת"
+        "actor_system": "המערכת",
+        "isdefault": "ברירת מחדל",
+        "url": "כתובת URL"
     }
 }

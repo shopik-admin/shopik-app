@@ -236,7 +236,8 @@ export const meta = {
     defaultSort,
     index: [
         { storeIds: 1 },
-        { status: 1, 'category.pathIds': 1 }
+        { status: 1, 'category.pathIds': 1 },
+        { status: 1, 'prices.domainId': 1 }
     ]
 }
 

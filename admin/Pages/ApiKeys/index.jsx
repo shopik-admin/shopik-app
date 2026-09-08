@@ -13,6 +13,7 @@ import apiReq from 'common/functions/apiReq'
 import useApi from 'common/functions/useApi'
 import { useUser } from 'features/User'
 import apiKeyPermissions from 'common/constants/apiKeyPermissions.js'
+import { useLists } from 'common/features/Lists'
 import styles from './apiKeys.module.css'
 
 function groupPermissions(list) {
@@ -28,7 +29,15 @@ function groupPermissions(list) {
 
 function CreateKeyForm({ onClose, onCreated }) {
     const [name, setName] = useState('')
-    const [domainId, setDomainId] = useState('default')
+    const { domains = [] } = useLists() || {}
+    const [domainId, setDomainId] = useState('')
+    useEffect(() => {
+        if (!domainId && domains.length) {
+            const def = domains.find((d) => d?.isDefault)
+            const first = def ?? domains[0]
+            setDomainId(first?.value ?? first ?? '')
+        }
+    }, [domains, domainId])
     const [error, setError] = useState(null)
     const [loading, setLoading] = useState(false)
     const [createdKey, setCreatedKey] = useState(null)

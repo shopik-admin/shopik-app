@@ -11,7 +11,8 @@ export async function getGuestCart({ req, DL }) {
     return guest ? filterClientOrder(guest) : undefined
 }
 
-export async function getOrCreateGuestCart({ cookies, DL, setCookie, domainId = 'default' }) {
+export async function getOrCreateGuestCart({ cookies, DL, setCookie, domainId }) {
+    if (!domainId) throw { status: 500, message: 'missing domainId for guest cart' }
     let guest
     if (cookies?.[GUEST_CART_TOKEN_COOKIE]) {
         guest = await DL.GuestCart.readOne({ id: cookies[GUEST_CART_TOKEN_COOKIE], active: true }, DL.GuestCart.defaultSelect)

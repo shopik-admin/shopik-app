@@ -32,7 +32,7 @@ function buildUnit(comax, DL) {
     }
 }
 
-function buildProduct(comax, DL) {
+function buildProduct(comax, DL, defaultDomainId, existingPrices) {
     const category = {}
     if (comax.subGroup) {
         category.id = comax.subGroupCode
@@ -55,13 +55,21 @@ function buildProduct(comax, DL) {
         description: comax.description,
         producer: comax.manufacturer,
         category,
-        prices: comax.price != null ? [{ domainId: 'default', price: comax.price }] : [],
+        prices: mergePrices(existingPrices, defaultDomainId, comax.price),
         status,
         nutrients: {
             alcohol: comax.alcohol
         },
         unit: buildUnit(comax, DL)
     }
+}
+
+// Comax owns only the default domain's price entry — entries for other domains
+// are preserved so a sync never hides products elsewhere (no price = not sold).
+function mergePrices(existingPrices, defaultDomainId, comaxPrice) {
+    const kept = (existingPrices || []).filter(p => p?.domainId && p.domainId !== defaultDomainId)
+    if (comaxPrice != null) kept.push({ domainId: defaultDomainId, price: comaxPrice })
+    return kept
 }
 
 export default async function syncComax(payload, { DL }) {
@@ -108,7 +116,18 @@ export default async function syncComax(payload, { DL }) {
         return { synced: 0, updated: 0, created: 0 }
     }
 
-    const productsToSync = comaxProducts.map(c => buildProduct(c, DL))
+    const defaultDomain = await DL.Domain.readOne({ isDefault: true, active: true }, { _id: 0, id: 1 })
+    if (!defaultDomain?.id) throw { status: 500, message: 'no default domain configured' }
+
+    // Existing per-domain prices so the sync merges instead of replacing the array
+    const existingProducts = await DL.Product.read(
+        { barcode: { $in: comaxProducts.map(c => c.barcode) } },
+        { _id: 0, barcode: 1, prices: 1 },
+        { limit: 0 }
+    )
+    const pricesByBarcode = new Map((existingProducts || []).map(p => [p.barcode, p.prices]))
+
+    const productsToSync = comaxProducts.map(c => buildProduct(c, DL, defaultDomain.id, pricesByBarcode.get(c.barcode)))
 
     const result = await DL.Product.bulkWrite({
         docs: productsToSync,

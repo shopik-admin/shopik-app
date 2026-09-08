@@ -1,12 +1,13 @@
 import diff from '#common/functions/diff.js'
 
-function normalizeEntry(raw, targetDomainId) {
+function normalizeEntry(raw, targetDomainId, defaultDomainId) {
     if (!raw || typeof raw !== 'object') return null
     const key = typeof raw.key === 'string' ? raw.key.trim() : ''
     // ponytail: explicit target (domain picker) wins so files move between
-    // domains; otherwise fall back to the entry's own domain for old files
+    // domains; otherwise fall back to the entry's own domain for old files,
+    // then to the default domain. No magic 'default' id.
     const domainId = targetDomainId
-        || (typeof raw.domainId === 'string' && raw.domainId ? raw.domainId : 'default')
+        || (typeof raw.domainId === 'string' && raw.domainId ? raw.domainId : defaultDomainId)
     if (!key) return null
     return {
         key,
@@ -49,10 +50,17 @@ export default async function imp(payload, { DL, _admin }) {
         const domain = await DL.Domain.readById(targetDomainId)
         if (!domain) throw { status: 400, message: `invalid domain id "${targetDomainId}"` }
     }
+    // Default-domain fallback for entries without their own domain
+    let defaultDomainId = null
+    if (!targetDomainId && rawList.some(raw => !(typeof raw?.domainId === 'string' && raw.domainId))) {
+        const def = await DL.Domain.readOne({ isDefault: true, active: true }, { _id: 0, id: 1 })
+        if (!def?.id) throw { status: 500, message: 'no default domain configured' }
+        defaultDomainId = def.id
+    }
     // Last occurrence of a (domainId + key) pair wins
     const byScopeKey = new Map()
     for (const raw of rawList) {
-        const entry = normalizeEntry(raw, targetDomainId)
+        const entry = normalizeEntry(raw, targetDomainId, defaultDomainId)
         if (!entry) continue
         byScopeKey.set(`${entry.domainId}::${entry.key}`, entry)
     }
