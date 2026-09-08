@@ -406,17 +406,48 @@
     position: relative;
 }
 
-.tilePicker {
+.tilePickerWrap {
     position: absolute;
     top: .6rem;
     right: .6rem;
     z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: .4rem;
+}
+
+.tilePicker {
     display: flex;
     overflow: hidden;
     border: 1px solid var(--border-primary);
     border-radius: var(--radius-sm);
     background: var(--bg-primary);
     box-shadow: 0 1px 4px rgba(0, 0, 0, .25);
+}
+
+.labelScaleRow {
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    padding: .3rem .5rem;
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm);
+    background: var(--bg-primary);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, .25);
+}
+
+.labelScaleIcon {
+    flex: none;
+    font-size: 1.5rem;
+    color: var(--bg-brand-primary);
+}
+
+.labelScaleSlider {
+    flex: 1;
+    min-width: 0;
+    accent-color: var(--bg-brand-primary);
+    cursor: pointer;
 }
 
 .tileBtn {

@@ -80,6 +80,7 @@ export default function VectorBasemap({ styleUrl, labelScale = 1 }) {
     const liveRef = useRef(null)
     const scaleRef = useRef(labelScale)
     scaleRef.current = labelScale
+    const appliedScaleRef = useRef(null)
 
     useEffect(() => {
         let layer = null
@@ -112,6 +113,7 @@ export default function VectorBasemap({ styleUrl, labelScale = 1 }) {
                 })
                 liveRef.current = { mbMap, sizeOriginals }
                 applyLabelScale(mbMap, sizeOriginals, scaleRef.current)
+                appliedScaleRef.current = scaleRef.current
             })
             mbMap.on('error', (e) => console.error('[VectorBasemap] maplibre error:', e?.error || e))
         }
@@ -127,10 +129,19 @@ export default function VectorBasemap({ styleUrl, labelScale = 1 }) {
         }
     }, [map, styleUrl])
 
-    // Re-scale from captured originals whenever labelScale changes.
+    // Re-scale from captured originals once the user stops sliding for 200ms.
+    // The slider thumb itself stays instant (controlled upstream); only the
+    // ~30 setLayoutProperty calls are debounced. Tracks the last applied
+    // value so mount / style-load application never double-fires.
     useEffect(() => {
-        const live = liveRef.current
-        if (live) applyLabelScale(live.mbMap, live.sizeOriginals, labelScale)
+        if (appliedScaleRef.current === labelScale) return
+        const t = setTimeout(() => {
+            const live = liveRef.current
+            if (!live) return
+            applyLabelScale(live.mbMap, live.sizeOriginals, labelScale)
+            appliedScaleRef.current = labelScale
+        }, 200)
+        return () => clearTimeout(t)
     }, [labelScale])
 
     return null

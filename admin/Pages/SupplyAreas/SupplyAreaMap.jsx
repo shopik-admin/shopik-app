@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { TbTextSize } from 'react-icons/tb'
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -14,6 +15,14 @@ import styles from './supplyAreas.module.css'
 
 const SNAP_THRESHOLD_PX = 20
 const TILESET_STORAGE_KEY = 'supplyMapTileset'
+const LABEL_SCALE_STORAGE_KEY = 'supplyMapLabelScale'
+const LABEL_SCALE_MIN = 1
+const LABEL_SCALE_MAX = 1.6
+const clampLabelScale = (v) => {
+    const n = typeof v === 'number' ? v : parseFloat(v)
+    if (!Number.isFinite(n)) return LABEL_SCALE_MIN
+    return Math.min(LABEL_SCALE_MAX, Math.max(LABEL_SCALE_MIN, n))
+}
 const snapKeyFor = (lat, lng) => `${Math.floor(lat * 100)}_${Math.floor(lng * 100)}`
 
 // CARTO light/dark render as vector (MapLibre GL style) with raster PNG fallback
@@ -633,6 +642,15 @@ export default function SupplyAreaMap({
     }
 
     const tileset = TILESETS[tilesetId] || TILESETS.osm
+    const isVector = !!(tileset.style && HAS_CARTO_KEY)
+    // Vector label size multiplier (1–1.6) — raster PNGs bake labels in, so
+    // the slider only shows for vector basemaps. Persists across sessions.
+    const [labelScale, setLabelScale] = useState(() => clampLabelScale(localStorage.getItem(LABEL_SCALE_STORAGE_KEY)))
+    const changeLabelScale = (v) => {
+        const next = clampLabelScale(v)
+        localStorage.setItem(LABEL_SCALE_STORAGE_KEY, String(next))
+        setLabelScale(next)
+    }
 
     const storePins = useMemo(() => stores.filter(s => {
         const c = s.address?.location?.coordinates
@@ -654,11 +672,11 @@ export default function SupplyAreaMap({
                 scrollWheelZoom
                 preferCanvas
             >
-                {tileset.style && HAS_CARTO_KEY ? (
+                {isVector ? (
                     <VectorBasemap
                         key={tilesetId}
                         styleUrl={tileset.style}
-                        labelScale={1.3}
+                        labelScale={labelScale}
                     />
                 ) : (
                     <TileLayer
@@ -770,18 +788,35 @@ export default function SupplyAreaMap({
                 )}
                 <FlyToPoint point={activeFlyPoint} />
             </MapContainer>
-            <div className={styles.tilePicker}>
-                {Object.entries(TILESETS).map(([id, ts]) => (
-                    <button
-                        key={id}
-                        type="button"
-                        title={`${TR('supply_basemap')}: ${TR(ts.label)}`}
-                        className={id === tilesetId ? `${styles.tileBtn} ${styles.tileBtnActive}` : styles.tileBtn}
-                        onClick={() => pickTileset(id)}
-                    >
-                        <Text size="none">{ts.label}</Text>
-                    </button>
-                ))}
+            <div className={styles.tilePickerWrap}>
+                <div className={styles.tilePicker}>
+                    {Object.entries(TILESETS).map(([id, ts]) => (
+                        <button
+                            key={id}
+                            type="button"
+                            title={`${TR('supply_basemap')}: ${TR(ts.label)}`}
+                            className={id === tilesetId ? `${styles.tileBtn} ${styles.tileBtnActive}` : styles.tileBtn}
+                            onClick={() => pickTileset(id)}
+                        >
+                            <Text size="none">{ts.label}</Text>
+                        </button>
+                    ))}
+                </div>
+                {isVector && (
+                    <div className={styles.labelScaleRow}>
+                        <TbTextSize className={styles.labelScaleIcon} />
+                        <input
+                            type="range"
+                            min={LABEL_SCALE_MIN}
+                            max={LABEL_SCALE_MAX}
+                            step={0.01}
+                            value={labelScale}
+                            title={labelScale.toFixed(2)}
+                            onChange={e => changeLabelScale(e.target.value)}
+                            className={styles.labelScaleSlider}
+                        />
+                    </div>
+                )}
             </div>
         </div>
     )
