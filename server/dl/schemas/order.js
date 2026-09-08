@@ -328,6 +328,13 @@ const orderSchema = {
         captureProviderTxnId: String
     },
     refundedTotal: { type: Number, default: 0 },
+    refundedShipping: { type: Number, default: 0 },
+    // Remainder owed to the customer after a cancel-through (provider declined
+    // the zikoy): the order shows canceled, an auto-retry cron keeps attempting
+    // the zikoy (refundPendingAttempts counts tries), finance can credit manually
+    // via Hyp Console and register it via payment/refund { manual: true }.
+    refundPending: { type: Number, default: 0 },
+    refundPendingAttempts: { type: Number, default: 0 },
     invoice: invoiceSchema,
     receipt: {
         url: String,

@@ -1,6 +1,10 @@
+import { round2 } from '#common/functions/calcOrder/utils.js'
+import { remainderRefundItems } from '#common/functions/refundCalc.js'
+import { planRefundLegs, executeRefundPlan } from '#server/utils/data/refundCaptures.js'
+
 export default async function cancel(payload, info) {
     const { DL, external, utils, _admin } = info
-    const { orderId } = payload
+    const { orderId, reason } = payload
 
     const order = await DL.Order.readById(orderId)
     if (!order) throw { status: 404, message: 'Order not found' }
@@ -9,6 +13,20 @@ export default async function cancel(payload, info) {
     const { record, adminActor } = utils.data.timeline
     const hasCapture = Boolean(order.paid && order.payment?.captureProviderTxnId)
     const hasAuth = Boolean(order.payment?.providerTxnId)
+
+    // Every other status transition records ORDER_STATUS_UPDATE (stepper history
+    // + timeline status pill depend on it) — cancel must do the same.
+    async function recordStatusCanceled() {
+        await record({
+            DL, order,
+            eventType: DL.Timeline.constants.EVENT_TYPES.ORDER_STATUS_UPDATE,
+            actor: adminActor(_admin),
+            context: { step: 'order_canceled', reason },
+            changes: { oldData: { status: order.status }, newData: { status: 'canceled' } },
+            outcome: { success: true },
+            metadata: { source: 'payment/cancel' }
+        })
+    }
 
     if (!hasAuth && !hasCapture) throw { status: 400, message: 'No payment to cancel' }
 
@@ -48,20 +66,21 @@ export default async function cancel(payload, info) {
             status: DL.PaymentTransaction.constants.TRANSACTION_STATUS.SUCCESS,
             amount: order.payment.authorizedAmount, providerTxnId: targetId, providerCode: 0, providerData: res
         }).catch(() => { })
-        await DL.Order.updateOne({ id: order.id }, { status: DL.Order.constants.ORDER_STATUS.CANCELED, cancelDate: new Date(), paymentError: null })
+        await DL.Order.updateOne({ id: order.id }, { status: DL.Order.constants.ORDER_STATUS.CANCELED, cancelDate: new Date(), paymentError: null, ...(reason ? { cancelReason: String(reason) } : {}) })
         await record({
             DL, order,
             eventType: DL.Timeline.constants.EVENT_TYPES.PAYMENT,
             actor: adminActor(_admin),
-            context: { step: 'payment_canceled_hold_released', provider: 'hyp', providerTxnId: targetId, amount: order.payment.authorizedAmount },
+            context: { step: 'payment_canceled_hold_released', provider: 'hyp', providerTxnId: targetId, amount: order.payment.authorizedAmount, reason },
             changes: { oldData: { status: order.status }, newData: { status: 'canceled' } },
             outcome: { success: true },
             metadata: { source: 'payment/cancel' }
         })
+        await recordStatusCanceled()
         return { canceled: true, mode: 'hold_released' }
     }
 
-    // Case 2 & 3: has capture — try CancelTrans first, on 920 fallback to full refund
+    // Case 2 & 3: has capture — try CancelTrans first, fall back to full refund
     const captureId = String(order.payment.captureProviderTxnId)
     let cancelRes
     try {
@@ -80,59 +99,100 @@ export default async function cancel(payload, info) {
             amount: order.finalSumWithShipping ?? order.finalSum,
             providerTxnId: captureId, providerCode: 0, providerData: cancelRes
         }).catch(() => { })
-        await DL.Order.updateOne({ id: order.id }, { status: DL.Order.constants.ORDER_STATUS.CANCELED, cancelDate: new Date(), paymentError: null })
+        await DL.Order.updateOne({ id: order.id }, { status: DL.Order.constants.ORDER_STATUS.CANCELED, cancelDate: new Date(), paymentError: null, ...(reason ? { cancelReason: String(reason) } : {}) })
         await record({
             DL, order,
             eventType: DL.Timeline.constants.EVENT_TYPES.PAYMENT,
             actor: adminActor(_admin),
-            context: { step: 'payment_canceled', provider: 'hyp', providerTxnId: captureId },
+            context: { step: 'payment_canceled', provider: 'hyp', providerTxnId: captureId, reason },
             changes: { oldData: { status: order.status }, newData: { status: 'canceled' } },
             outcome: { success: true },
             metadata: { source: 'payment/cancel' }
         })
+        await recordStatusCanceled()
         return { canceled: true, mode: 'cancel_trans' }
     }
 
-    if (Number(cancelRes.CCode) === 920) {
-        // fallback: refund entire remaining amount
+    // Case 2 & 3: has capture — CancelTrans only voids pre-transmission deals
+    // (same business day, roughly until 22:00 IL). Any other outcome
+    // (920 already-transmitted, 4 not-approved on old deals, ...) means the
+    // deal is out of the void window, so fall back to a full zikoy refund.
+    const cancelCode = Number(cancelRes.CCode)
+
+    if (!cancelOk) {
+        // fallback: refund entire remaining amount, distributed across the
+        // capture legs (needsSplit orders were captured in 2+ legs — a single
+        // zikoy of the full amount fails with "Refund exceeds original amount")
         const remaining = Number((order.finalSumWithShipping ?? order.finalSum ?? 0) - (order.refundedTotal || 0))
         if (remaining <= 0.001) {
-            await DL.Order.updateOne({ id: order.id }, { status: DL.Order.constants.ORDER_STATUS.CANCELED, cancelDate: new Date() })
+            await DL.Order.updateOne({ id: order.id }, { status: DL.Order.constants.ORDER_STATUS.CANCELED, cancelDate: new Date(), ...(reason ? { cancelReason: String(reason) } : {}) })
+            await recordStatusCanceled()
             return { canceled: true, mode: 'already_refunded' }
         }
-        let refundRes
-        try {
-            refundRes = await external.hyp.refund({ providerTxnId: captureId, amount: remaining })
-        } catch (e) {
-            throw { status: e.status || 502, message: e.message || 'Refund fallback failed' }
+        const fallbackReason = reason || 'cancel_fallback_refund'
+        const { plan, legsTotal } = await planRefundLegs(DL, order, remaining)
+        let completed = []
+        let failed = null
+        let noPlanMsg = null
+        if (!plan || plan.length === 0) {
+            noPlanMsg = `Remaining ${remaining} cannot be covered by captured legs (${legsTotal}) — a credit may have been issued manually via Hyp Console`
+        } else {
+            ;({ completed, failed } = await executeRefundPlan({
+                DL, external, order, plan, reason: fallbackReason, items: remainderRefundItems(order), source: 'payment/cancel:refund_fallback'
+            }))
         }
-        if (Number(refundRes.CCode) !== 0) {
-            const msg = external.hyp.ccodeMessage(refundRes.CCode)
+        const coveredTotal = round2(completed.reduce((acc, c) => acc + Number(c.amount || 0), 0))
+        const multi = (plan || []).length > 1
+        if (failed || noPlanMsg) {
+            // Cancel through: the provider declined the zikoy (e.g. Shva code 4
+            // on an unsettled deal). The customer sees a regular cancellation;
+            // the unrefunded remainder is flagged for manual refund by finance.
+            const failMsg = noPlanMsg || failed.message
+            const pendingAmount = round2(remaining - coveredTotal)
+            const prevRefunded = Number(order.refundedTotal || 0)
+            if (coveredTotal > 0) {
+                await DL.Order.Model.updateOne({ id: order.id }, { $inc: { refundedTotal: coveredTotal } }).catch(() => { })
+                await DL.Order.Model.updateOne({ id: order.id }, { finalSumAfterRefunds: round2(Number(order.finalSumWithShipping ?? 0) - (prevRefunded + coveredTotal)) }).catch(() => { })
+            }
+            await DL.Order.updateOne({ id: order.id }, {
+                status: DL.Order.constants.ORDER_STATUS.CANCELED, cancelDate: new Date(),
+                refundPending: pendingAmount,
+                ...(reason ? { cancelReason: String(reason) } : {})
+            })
             await record({
                 DL, order, eventType: DL.Timeline.constants.EVENT_TYPES.REFUND,
                 actor: adminActor(_admin),
-                context: { step: 'refund_failed', provider: 'hyp', parentProviderTxnId: captureId, amount: remaining },
-                outcome: { success: false, errorMessage: msg },
+                context: {
+                    step: 'refund_failed', provider: 'hyp', amount: remaining, coveredTotal, pendingRefund: pendingAmount, cancelCode,
+                    refunds: completed, ...(failed ? { failedLeg: { providerTxnId: failed.providerTxnId, amount: failed.amount, providerData: failed.hypRes } } : { legsTotal })
+                },
+                outcome: { success: false, errorMessage: failMsg },
                 metadata: { source: 'payment/cancel:refund_fallback' }
             })
-            throw { status: 502, message: msg }
+            await record({
+                DL, order, eventType: DL.Timeline.constants.EVENT_TYPES.PAYMENT,
+                actor: adminActor(_admin),
+                context: { step: 'payment_canceled', provider: 'hyp', pendingRefund: pendingAmount },
+                changes: { oldData: { status: order.status }, newData: { status: 'canceled' } },
+                outcome: { success: true },
+                metadata: { source: 'payment/cancel' }
+            })
+            await recordStatusCanceled()
+            return {
+                canceled: true, mode: 'refund_pending', refunded: coveredTotal, pendingRefund: pendingAmount,
+                ...(completed[0] ? { providerTxnId: completed[0].providerTxnId } : {}),
+                ...(multi ? { refunds: completed } : {})
+            }
         }
-        const newId = refundRes.Id ? String(refundRes.Id) : undefined
-        await DL.PaymentTransaction.create({
-            domainId: order.domainId, storeId: order.storeId,
-            orderId: order.id, orderNumber: order.number, userId: order.userId,
-            provider: 'hyp', kind: DL.PaymentTransaction.constants.TRANSACTION_KIND.REFUND,
-            status: DL.PaymentTransaction.constants.TRANSACTION_STATUS.SUCCESS,
-            amount: remaining, providerTxnId: newId, parentProviderTxnId: captureId, providerCode: 0, providerData: refundRes, reason: 'cancel_fallback_refund'
-        }).catch(() => { })
+        const newId = completed[0]?.providerTxnId
         const prevRefunded = Number(order.refundedTotal || 0)
         await DL.Order.Model.updateOne({ id: order.id }, { $inc: { refundedTotal: remaining } }).catch(() => { })
-        await DL.Order.Model.updateOne({ id: order.id }, { finalSumAfterRefunds: Number((order.finalSumWithShipping ?? 0) - (prevRefunded + remaining)) }).catch(() => { })
-        await DL.Order.updateOne({ id: order.id }, { status: DL.Order.constants.ORDER_STATUS.CANCELED, cancelDate: new Date() })
+        await DL.Order.Model.updateOne({ id: order.id }, { finalSumAfterRefunds: round2(Number(order.finalSumWithShipping ?? 0) - (prevRefunded + remaining)) }).catch(() => { })
+        await DL.Order.updateOne({ id: order.id }, { status: DL.Order.constants.ORDER_STATUS.CANCELED, cancelDate: new Date(), ...(reason ? { cancelReason: String(reason) } : {}) })
         await record({
             DL, order, eventType: DL.Timeline.constants.EVENT_TYPES.REFUND,
             actor: adminActor(_admin),
-            context: { step: 'refund', provider: 'hyp', providerTxnId: newId, parentProviderTxnId: captureId, amount: remaining, reason: 'cancel_fallback_refund' },
+            context: { step: 'refund', provider: 'hyp', providerTxnId: newId, parentProviderTxnId: completed[0]?.parentProviderTxnId, amount: remaining, cancelCode, reason: fallbackReason, items: remainderRefundItems(order), ...(multi ? { refunds: completed } : {}) },
             changes: { oldData: { refundedTotal: prevRefunded }, newData: { refundedTotal: prevRefunded + remaining } },
             outcome: { success: true },
             metadata: { source: 'payment/cancel:refund_fallback' }
@@ -145,11 +205,9 @@ export default async function cancel(payload, info) {
             outcome: { success: true },
             metadata: { source: 'payment/cancel' }
         })
-        return { canceled: true, mode: 'refund_fallback', refunded: remaining, providerTxnId: newId }
+        await recordStatusCanceled()
+        return { canceled: true, mode: 'refund_fallback', refunded: remaining, providerTxnId: newId, ...(multi ? { refunds: completed } : {}) }
     }
-
-    const msg = external.hyp.ccodeMessage(cancelRes.CCode)
-    throw { status: 502, message: msg }
 }
 
 cancel.config = {
