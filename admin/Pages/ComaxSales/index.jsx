@@ -5,7 +5,6 @@ export default function ComaxSales({ }) {
     const importSales = {
         icon: 'download',
         text: 'action_import',
-        tooltip: 'action_import',
         onClick: async ({ refresh }) => {
             await apiReq(`comax_sale/import`)
             refresh?.()
@@ -15,7 +14,6 @@ export default function ComaxSales({ }) {
     const syncSales = {
         icon: 'sync',
         text: 'action_sync',
-        tooltip: 'action_sync',
         onClick: async ({ refresh }) => {
             await apiReq(`comax_sale/sync`)
             refresh?.()

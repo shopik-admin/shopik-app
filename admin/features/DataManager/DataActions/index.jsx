@@ -41,13 +41,13 @@ export default function DataActions({ actions = [], cols = [] }) {
         .filter(Boolean)
 
     // Wrap toolbar handlers: they expect a `{ refresh }` payload, not the click event.
-    // Falls back to the tooltip translation so custom icon-only actions still get a menu label.
+    // Falls back both ways so callers specify only one of text/tooltip when they match.
     const toOption = action => {
         const { onClick, text, tooltip, ...rest } = action
         return {
             ...rest,
             text: text || TR?.(tooltip) || tooltip,
-            tooltip,
+            tooltip: tooltip || text,
             onClick: () => onClick?.({ refresh: callReq }),
         }
     }
