@@ -1,4 +1,5 @@
 import usePermission from 'common/permissions/usePermision'
+import ContextMenu from 'common/components/ContextMenu'
 import styles from './dataRowActions.module.css'
 import Button from 'common/components/Button'
 import Flex from 'common/components/Flex'
@@ -43,14 +44,19 @@ export default function DataRowActions({ row, actions = [] }) {
         if (typeof a === 'function') return a(row)
         if (typeof a === 'string') return defaultActions[a]
         return a
-    }).filter(Boolean)
+    }).filter(Boolean).filter(a => !a.hide)
+
+    if (!resolved.length) return null
+
+    // A single visible action renders inline; multiple collapse into a ⋯ menu.
+    if (resolved.length === 1) {
+        const [{ hide, seperator, separator, ...single }] = resolved
+        return <Flex reverse gap={10} className={styles.dataActions} alignItems='center'>
+            <Button preventDefault stopPropagation {...single} />
+        </Flex>
+    }
 
     return <Flex reverse gap={10} className={styles.dataActions} alignItems='center'>
-        {resolved
-            .filter(a => !a.hide)
-            .map(({ text, hide, ...action }, i) => <Button
-                preventDefault
-                stopPropagation
-                key={text + action.icon + i} {...action} />)}
+        <ContextMenu options={resolved} row={row} />
     </Flex>
 }
