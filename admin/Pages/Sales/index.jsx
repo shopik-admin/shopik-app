@@ -5,6 +5,8 @@ import styles from './sales.module.css'
 export default function Sales({ }) {
     const syncSales = {
         icon: 'sync',
+        text: 'action_sync',
+        tooltip: 'action_sync',
         onClick: async ({ refresh }) => {
             await apiReq(`sale/sync`)
             refresh?.()

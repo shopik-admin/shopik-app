@@ -5,6 +5,8 @@ import Loader from 'common/components/Loader'
 import Flex from 'common/components/Flex'
 import Text from 'common/components/Text'
 import Icon from 'common/components/Icon'
+import { useText } from 'common/texts/TextProvider'
+import { useUser } from 'features/User'
 import styles from './contextMenu.module.css'
 
 const dangerModes = new Set(['red', 'danger', 'error'])
@@ -18,9 +20,13 @@ function normalizeMode(mode) {
 }
 
 /** 
+ * ContextMenu — ported from lavy `ui/components/ContextMenu`.
+ *
+ * Filters out `hide`d and permission-denied options, then renders nothing
+ * for 0, an inline icon Button for 1, and a ⋯ popover menu for 2+.
  *
  * @param {Object} props
- * @param {Array} props.options - items: { text, icon, mode, separator|seperator, tooltip, disabled, hide, onClick }
+ * @param {Array} props.options - items: { text, icon, mode, separator|seperator, tooltip, disabled, hide, permission, onClick }
  * @param {boolean} [props.iconOnStart=false] - same as lavy: text first, icon at the end, space-between.
  * Pass `true` for icon-first, start-aligned layout.
  * @param {*} [props.row] - payload forwarded to `onClick` (lavy called this `pass`)
@@ -28,13 +34,18 @@ function normalizeMode(mode) {
  */
 export default function ContextMenu({ options = [], iconOnStart = true, row, pass, button, btnClassName, triggerIcon = 'options', ...popoverProps }) {
     const payload = pass ?? row
-    const visible = options.filter(Boolean).filter(o => !o.hide)
+    const user = useUser()
+    const { TR } = useText?.() || {}
+    const { role = {}, isSuperAdmin } = user || {}
+    // Same rule as usePermission, but array-safe (no hooks in a loop).
+    const can = p => !p || isSuperAdmin || role.permissions?.includes(p)
+    const visible = options.filter(o => o && !o.hide && can(o.permission))
 
     if (!visible.length) return null
 
-    // Single action renders inline instead of a one-item menu.
+    // Single action renders inline (icon-only, like the old toolbar/row buttons).
     if (visible.length === 1) {
-        const [{ hide, seperator, separator, ...single }] = visible[0]
+        const [{ hide, seperator, separator, text, permission, ...single }] = visible[0]
         return <Button preventDefault stopPropagation {...single} />
     }
 
@@ -75,8 +86,9 @@ export default function ContextMenu({ options = [], iconOnStart = true, row, pas
                     role='menuitem'
                     tabIndex={disabled ? -1 : 0}
                     aria-disabled={disabled || undefined}
-                    title={typeof option.tooltip == 'string' ? option.tooltip : undefined}
+                    title={typeof option.tooltip == 'string' ? TR?.(option.tooltip) || option.tooltip : undefined}
                     alignItems='center'
+                    reverse={iconOnStart}
                     gap={iconOnStart ? 12 : 20}
                     justifyContent={iconOnStart ? 'start' : 'space-between'}
                     className={classNames(
@@ -104,12 +116,12 @@ export default function ContextMenu({ options = [], iconOnStart = true, row, pas
                             e.currentTarget.click()
                         }
                     }}
-                >{option.loading ? <Loader size={16} /> :
-                    typeof option.icon == 'string'
-                        ? <Icon name={option.icon} className={styles.icon} />
-                        : option.icon}
+                >
                     <Text size='l' ellipsis>{option.text}</Text>
-
+                    {option.loading ? <Loader size={16} /> :
+                        typeof option.icon == 'string'
+                            ? <Icon name={option.icon} className={styles.icon} />
+                            : option.icon}
                 </Flex>
             })}
         </div>}

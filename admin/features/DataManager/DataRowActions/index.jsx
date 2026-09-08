@@ -1,7 +1,7 @@
 import usePermission from 'common/permissions/usePermision'
 import ContextMenu from 'common/components/ContextMenu'
+import { useText } from 'common/texts/TextProvider'
 import styles from './dataRowActions.module.css'
-import Button from 'common/components/Button'
 import Flex from 'common/components/Flex'
 import { useData } from '../DataProvider'
 import { useModal } from 'common/components/Modal'
@@ -11,13 +11,14 @@ export default function DataRowActions({ row, actions = [] }) {
     const
         { apiRoute, createUpdate, updateData } = useData(),
         { openModal } = useModal(),
+        { TR } = useText(),
         updatePermission = usePermission(`${apiRoute}:update`),
         cashPerm = usePermission('cash_register:read')
 
     const defaultActions = {
-        edit: { icon: 'edit', onClick: () => createUpdate(row), hide: !updatePermission },
+        edit: { icon: 'edit', text: 'action_edit', onClick: () => createUpdate(row), hide: !updatePermission },
         active: (!row.active ? {
-            text: 'הפוך לפעיל',
+            text: 'action_activate',
             icon: 'v',
             mode: 'color1',
             onClick: () => updateData({ id: row.id, active: true }),
@@ -25,7 +26,7 @@ export default function DataRowActions({ row, actions = [] }) {
             hide: !updatePermission
         } :
             {
-                text: 'הפוך ללא פעיל',
+                text: 'action_deactivate',
                 icon: 'x',
                 mode: 'red',
                 onClick: () => updateData({ id: row.id, active: false }),
@@ -34,8 +35,9 @@ export default function DataRowActions({ row, actions = [] }) {
             }),
         cashRegister: {
             icon: 'stockSync',
-            text: 'קופה',
-            onClick: () => openModal(<CashRegisterForm storeId={row.id} storeName={row.name} />, { title: `קופה — ${row.name || row.id}` }),
+            text: 'action_cash_register',
+            seperator: true,
+            onClick: () => openModal(<CashRegisterForm storeId={row.id} storeName={row.name} />, { title: `${TR('action_cash_register')} — ${row.name || row.id}` }),
             hide: apiRoute !== 'store' || !cashPerm
         }
     }
@@ -44,18 +46,9 @@ export default function DataRowActions({ row, actions = [] }) {
         if (typeof a === 'function') return a(row)
         if (typeof a === 'string') return defaultActions[a]
         return a
-    }).filter(Boolean).filter(a => !a.hide)
+    }).filter(Boolean)
 
-    if (!resolved.length) return null
-
-    // A single visible action renders inline; multiple collapse into a ⋯ menu.
-    if (resolved.length === 1) {
-        const [{ hide, seperator, separator, ...single }] = resolved
-        return <Flex reverse gap={10} className={styles.dataActions} alignItems='center'>
-            <Button preventDefault stopPropagation {...single} />
-        </Flex>
-    }
-
+    // ContextMenu hides denied items and renders null / inline icon / ⋯ menu for 0 / 1 / 2+.
     return <Flex reverse gap={10} className={styles.dataActions} alignItems='center'>
         <ContextMenu options={resolved} row={row} />
     </Flex>

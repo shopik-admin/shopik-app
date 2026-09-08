@@ -1,7 +1,6 @@
 import usePermission from 'common/permissions/usePermision'
 import ContextMenu from 'common/components/ContextMenu'
 import { useText } from 'common/texts/TextProvider'
-import Button from 'common/components/Button'
 import styles from './dataActions.module.css'
 import apiReq from 'common/functions/apiReq'
 import { useData } from '../DataProvider'
@@ -32,38 +31,29 @@ export default function DataActions({ actions = [], cols = [] }) {
     }
 
     const defaultActions = {
-        add: { icon: 'add', onClick: () => createUpdate(), hide: !createPermission, mode: 'brand' },
-        export: { icon: 'csv', tooltip: 'export_csv_tooltip', onClick: exportCurrentView, loading: exporting, hide: !exportPermission },
-        refresh: { icon: 'refresh', tooltip: 'refresh_tooltip', onClick: () => callReq() }
+        add: { icon: 'add', text: 'action_add', onClick: () => createUpdate(), hide: !createPermission, mode: 'brand' },
+        export: { icon: 'csv', text: 'action_export', tooltip: 'export_csv_tooltip', seperator: true, onClick: exportCurrentView, loading: exporting, hide: !exportPermission },
+        refresh: { icon: 'refresh', text: 'action_refresh', tooltip: 'refresh_tooltip', onClick: () => callReq() }
     }
 
     const resolved = actions
         .map(action => typeof action == 'string' ? defaultActions[action] : action)
-        .filter(a => a && !a.hide)
-
-    if (!resolved.length) return null
+        .filter(Boolean)
 
     // Wrap toolbar handlers: they expect a `{ refresh }` payload, not the click event.
-    // Toolbar defaults are icon+tooltip only, so the menu needs short labels
-    // (tooltips are full sentences, e.g. 'ייצוא כל הנתונים לקובץ CSV').
-    const menuText = { add: 'הוסף', export: 'ייצוא CSV', refresh: 'רענן' }
+    // Falls back to the tooltip translation so custom icon-only actions still get a menu label.
     const toOption = action => {
         const { onClick, text, tooltip, ...rest } = action
         return {
             ...rest,
-            text: text || menuText[action.icon] || TR?.(tooltip) || tooltip,
+            text: text || TR?.(tooltip) || tooltip,
             tooltip,
             onClick: () => onClick?.({ refresh: callReq }),
         }
     }
 
-    // A single visible action renders inline; multiple collapse into a ⋯ menu.
-    if (resolved.length === 1) {
-        const [{ hide, onClick, ...single }] = resolved
-        return <Flex reverse gap={10} className={styles.dataActions} alignItems='center'>
-            <Button {...single} onClick={() => onClick?.({ refresh: callReq })} />
-        </Flex>
-    }
-
-    return <ContextMenu options={resolved.map(toOption)} />
+    // ContextMenu hides denied items and renders null / inline icon / ⋯ menu for 0 / 1 / 2+.
+    return <Flex reverse gap={10} className={styles.dataActions} alignItems='center'>
+        <ContextMenu options={resolved.map(toOption)} />
+    </Flex>
 }

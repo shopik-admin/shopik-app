@@ -4,6 +4,7 @@ import apiReq from 'common/functions/apiReq'
 export default function ComaxProducts({ }) {
     const importProducts = {
         icon: 'download',
+        text: 'comax_products_import',
         tooltip: 'comax_products_import',
         onClick: async ({ refresh }) => {
             await apiReq(`comax_product/import`)
@@ -13,6 +14,7 @@ export default function ComaxProducts({ }) {
     }
     const syncProducts = {
         icon: 'sync',
+        text: 'comax_products_sync',
         tooltip: 'comax_products_sync',
         onClick: async ({ refresh }) => {
             await apiReq(`comax_product/sync`)
@@ -22,6 +24,7 @@ export default function ComaxProducts({ }) {
     }
     const syncStock = {
         icon: 'stockSync',
+        text: 'comax_products_stock_sync',
         tooltip: 'comax_products_stock_sync',
         onClick: async ({ refresh }) => {
             await apiReq(`cash_register/sync`, {})

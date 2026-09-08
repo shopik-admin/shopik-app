@@ -15,7 +15,7 @@ export default function DataSearch({ className = '' }) {
 
     return <Input
         className={`${styles.search} ${className}`}
-        placeholder='חיפוש..'
+        placeholder='search'
         defaultValue={searchValue}
         onChange={search}
         type='search'
