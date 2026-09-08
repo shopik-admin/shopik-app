@@ -9,8 +9,8 @@ const STATUS_SELECT = {
     deliveryMethod: 1,
     storeName: 1,
     address: 1,
-    shipmentId: 1,
-    finalSumWithShipping: 1
+    finalSumWithShipping: 1,
+    userId: 1
 }
 
 // Courier on the road vs. still handled at the branch (per dev spec §א:
@@ -34,26 +34,41 @@ export default async function order_status(payload, info) {
 
     const user = await resolveBotUser({ DL, utils, domainId, userToken, phone })
 
-    const full = await DL.Order.readOne({ number: orderNumber }, { ...STATUS_SELECT, userId: 1 })
+    const full = await DL.Order.readOne({ number: orderNumber }, STATUS_SELECT)
     if (!full) throw { status: 404, message: 'Order not found' }
     if (String(full.userId) !== String(user.id))
         throw { status: 403, message: 'Not your order' }
-    const { userId: _omit, ...order } = full
 
-    // Last status-change timeline entry (best effort)
+    // Last status-change timeline entry (best effort, internal id only)
     let lastUpdate = null
     try {
         const [entry] = await DL.Timeline.read(
-            { orderId: order.id, eventType: 'order_status' },
+            { orderId: full.id, eventType: 'order_status' },
             { _id: 0, createdAt: 1, context: 1 },
             { sort: { createdAt: -1 }, limit: 1 }
         )
         lastUpdate = entry?.createdAt || null
     } catch { }
 
+    // Explicit allowlist — internal ids (id, userId), shipmentId, window
+    // internals (leadTimestamp etc.) and address internals (areaId, GPS)
+    // never leave the server.
     return {
-        ...order,
-        dispatchState: dispatchState(order.status),
+        number: full.number,
+        status: full.status,
+        dispatchState: dispatchState(full.status),
+        window: full.window ? {
+            date: full.window.date,
+            start: full.window.start,
+            end: full.window.end
+        } : null,
+        deliveryMethod: full.deliveryMethod,
+        address: full.address ? {
+            city: full.address.city,
+            street: full.address.street,
+            building: full.address.building
+        } : null,
+        finalSumWithShipping: full.finalSumWithShipping,
         lastUpdate
     }
 }

@@ -16,8 +16,7 @@ function formatDate(d) {
  * - city+street required for accurate results (per dev feedback).
  * - zip/mikud is NOT supported (no zip field in address model) — if a
  *   `zip` param is sent it is rejected explicitly.
- * Returns: { hasService, city, street, building, areaName, storeId,
- *   shipping, minSum, deliveryDays }
+ * Returns: { hasService, city, street, building, shipping, minSum, deliveryDays }
  */
 export default async function delivery_check(payload, { DL }) {
     const { city, street, building, domainId, zip, mikud, postalCode } = payload || {}
@@ -86,8 +85,6 @@ export default async function delivery_check(payload, { DL }) {
         city: validated.city || city,
         street: validated.street || street,
         building: validated.building || building || null,
-        areaName: area?.name || null,
-        storeId,
         shipping: shippingConfig,
         minSum,
         deliveryDays

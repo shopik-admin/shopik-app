@@ -3,17 +3,17 @@ import resolveBotUser from '#server/utils/auth/resolveBotUser.js'
 /**
  * POST /api/bot/invoice_link
  * Auth: API key with `bot:invoice` permission (router enforces).
- * Body: { orderNumber, userToken, providerTxnId? }
+ * Body: { orderNumber, userToken }
  * - Ownership enforced via userToken (per dev spec: user token +
  *   order number required).
- * - Invoices are issued via HYP (PrintHesh) only — NOT Komax
- *   (Komax integration is catalog-only). Reuses the same lookup,
- *   cache and single-issuance logic as payment/invoice.
- * Returns: { url, providerTxnId, cached }
+ * - Invoices are issued for the capture transaction only
+ *   (order.payment.captureProviderTxnId) via HYP
+ *   (Komax integration is catalog-only).
+ * Returns: { url }
  */
 export default async function invoice_link(payload, info) {
     const { DL, external, utils } = info
-    const { orderNumber, userToken, phone, domainId, providerTxnId: wantedTxnId } = payload || {}
+    const { orderNumber, userToken, phone, domainId } = payload || {}
     if (orderNumber == null) throw { status: 400, message: 'orderNumber required' }
 
     const user = await resolveBotUser({ DL, utils, domainId, userToken, phone })
@@ -23,48 +23,19 @@ export default async function invoice_link(payload, info) {
     if (String(order.userId) !== String(user.id))
         throw { status: 403, message: 'Not your order' }
 
-    // --- same resolution as payment/invoice.js ---
-    let providerTxnId = null
-    let cachedUrl = null
+    // Capture-only: the invoice belongs to the capture transaction.
+    const providerTxnId = order.payment?.captureProviderTxnId
+    if (!providerTxnId)
+        throw { status: 404, message: 'No invoice available yet' }
 
-    if (wantedTxnId) {
-        let wanted = null
-        try {
-            const found = await DL.PaymentTransaction.read(
-                { orderId: order.id, providerTxnId: String(wantedTxnId), status: 'success' },
-                { _id: 0, providerTxnId: 1, invoiceUrl: 1 }
-            )
-            if (Array.isArray(found) && found[0]) wanted = found[0]
-        } catch { }
-        if (!wanted?.providerTxnId) throw { status: 404, message: 'Transaction not found for this order' }
-        providerTxnId = wanted.providerTxnId
-        cachedUrl = wanted.invoiceUrl || null
-    }
-
-    if (!providerTxnId) providerTxnId = order.payment?.captureProviderTxnId || order.payment?.providerTxnId
-    if (!providerTxnId) {
-        let txn = null
-        try {
-            const Model = DL.PaymentTransaction?.Model
-            if (Model) {
-                txn = await Model.findOne({ orderId: order.id, status: 'success', kind: { $in: ['capture', 'auth'] } }).sort({ createdAt: -1 }).lean()
-                if (!txn)
-                    txn = await Model.findOne({ orderId: order.id, status: 'success' }).sort({ createdAt: -1 }).lean()
-            }
-        } catch { }
-        if (!txn) {
-            try {
-                const list = await DL.PaymentTransaction.read({ orderId: order.id, status: 'success' }, { _id: 0 }, { sort: { createdAt: -1 }, limit: 1 })
-                if (Array.isArray(list) && list[0]) txn = list[0]
-            } catch { }
-        }
-        if (!txn?.providerTxnId)
-            throw { status: 404, message: 'No invoice available yet' }
-        providerTxnId = txn?.providerTxnId
-        cachedUrl = txn?.invoiceUrl || null
-    }
-
-    if (cachedUrl) return { url: cachedUrl, providerTxnId: String(providerTxnId), cached: true }
+    // Single issuance: serve the stored doc when present.
+    try {
+        const txn = await DL.PaymentTransaction.readOne(
+            { orderId: order.id, providerTxnId: String(providerTxnId) },
+            { _id: 0, invoiceUrl: 1 }
+        )
+        if (txn?.invoiceUrl) return { url: txn.invoiceUrl }
+    } catch { }
 
     let url
     try {
@@ -91,12 +62,12 @@ export default async function invoice_link(payload, info) {
         })
     } catch { }
 
-    return { url, providerTxnId: String(providerTxnId) }
+    return { url }
 }
 
 invoice_link.config = {
     auth: 'none',
     permissions: ['bot:invoice'],
     required: ['orderNumber'],
-    preventMultiple: (body) => ':' + (body?.providerTxnId || body?.orderNumber || '')
+    preventMultiple: (body) => ':' + (body?.orderNumber || '')
 }

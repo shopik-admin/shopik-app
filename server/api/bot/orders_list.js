@@ -2,14 +2,11 @@ import resolveBotUser from '#server/utils/auth/resolveBotUser.js'
 
 const LIST_SELECT = {
     _id: 0,
-    id: 1,
     number: 1,
     status: 1,
     time: 1,
     window: 1,
     deliveryMethod: 1,
-    storeId: 1,
-    storeName: 1,
     finalSumWithShipping: 1
 }
 

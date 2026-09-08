@@ -4,16 +4,18 @@ import { isCouponEligible, calcOrderDiscount } from '#common/functions/coupon.js
 /**
  * POST /api/bot/coupon_validate
  * Auth: API key with `bot:coupon` permission (router enforces).
- * Body: { code, userToken?, phone?, orderSum? }
+ * Body: { code, userToken?, phone? }
  * - User must be identified first (personal coupons depend on
  *   whitelist / condition.phones) — pass the userToken from
  *   bot/otp_verify, or a phone fallback.
+ * - The cart sum is read server-side from the user's active cart
+ *   order (plain read, never creates a cart).
  * - Read-only: never applies the coupon, only explains validity.
  * Returns: { valid, reason, discount, minSum, maxSum, isMinSumBlock }
  */
 export default async function coupon_validate(payload, info) {
     const { DL, utils } = info
-    const { code, userToken, phone, orderSum = 0, domainId } = payload || {}
+    const { code, userToken, phone, domainId } = payload || {}
     if (!code) throw { status: 400, message: 'code required' }
 
     const user = await resolveBotUser({ DL, utils, domainId, userToken, phone })
@@ -26,7 +28,16 @@ export default async function coupon_validate(payload, info) {
     if ((coupon.start && now < new Date(coupon.start)) || (coupon.end && now > new Date(coupon.end)))
         return { valid: false, reason: 'Coupon is expired or not yet valid' }
 
-    const sum = Number(orderSum) || 0
+    // Live cart sum (pre-coupon total, same basis as minSum enforcement).
+    // Plain read — never creates a cart order as a side effect.
+    let sum = 0
+    try {
+        const cartOrder = await DL.Order.readOne(
+            { userId: user.id, status: 'cart', active: true },
+            { _id: 0, sum: 1, sumNoCoupon: 1 }
+        )
+        sum = Number(cartOrder?.sumNoCoupon ?? cartOrder?.sum ?? 0) || 0
+    } catch { sum = 0 }
     const result = isCouponEligible(coupon, user, sum)
     if (!result.eligible)
         return {

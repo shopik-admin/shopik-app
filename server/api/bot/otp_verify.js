@@ -5,8 +5,9 @@ import { USER_TOKEN_EXPIRY_MS } from '#common/constants.js'
  * Auth: API key with `bot:otp` permission (router enforces).
  * Body: { phone, otpToken, otp }
  * Verifies the OTP issued by bot/otp_request and returns a userToken
- * the bot must send on every subsequent bot/* call (per dev spec).
- * Returns: { userToken, userId }
+ * the bot must send on every subsequent bot/* call (per dev spec),
+ * plus the customer's first name so the bot can address them.
+ * Returns: { userToken, firstName }
  */
 export default async function otp_verify(payload, { DL, utils }) {
     const { phone, otpToken, otp, domainId } = payload || {}
@@ -28,7 +29,7 @@ export default async function otp_verify(payload, { DL, utils }) {
     try { await DL.redis?.del(`user_auth:${user.id}`) } catch { }
     try { await DL.Otp.deleteOne({ _id: storedOtp._id }) } catch { }
 
-    return { userToken, userId: user.id }
+    return { userToken, firstName: user.name?.first || null }
 }
 
 otp_verify.config = {
