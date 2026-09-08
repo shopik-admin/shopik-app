@@ -13,10 +13,10 @@ import resolveBotUser from '#server/utils/auth/resolveBotUser.js'
  */
 export default async function invoice_link(payload, info) {
     const { DL, external, utils } = info
-    const { orderNumber, userToken, phone, domainId } = payload || {}
+    const { orderNumber, userToken, domainId } = payload || {}
     if (orderNumber == null) throw { status: 400, message: 'orderNumber required' }
 
-    const user = await resolveBotUser({ DL, utils, domainId, userToken, phone })
+    const user = await resolveBotUser({ DL, utils, domainId, userToken })
 
     const order = await DL.Order.readOne({ number: orderNumber })
     if (!order) throw { status: 404, message: 'Order not found' }
@@ -68,6 +68,6 @@ export default async function invoice_link(payload, info) {
 invoice_link.config = {
     auth: 'none',
     permissions: ['bot:invoice'],
-    required: ['orderNumber'],
+    required: ['orderNumber', 'userToken'],
     preventMultiple: (body) => ':' + (body?.orderNumber || '')
 }

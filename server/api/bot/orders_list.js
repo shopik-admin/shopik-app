@@ -18,9 +18,9 @@ const LIST_SELECT = {
  */
 export default async function orders_list(payload, info) {
     const { DL, utils } = info
-    const { userToken, phone, domainId, limit = 20, skip = 0 } = payload || {}
+    const { userToken, domainId, limit = 20, skip = 0 } = payload || {}
 
-    const user = await resolveBotUser({ DL, utils, domainId, userToken, phone })
+    const user = await resolveBotUser({ DL, utils, domainId, userToken })
 
     const docs = await DL.Order.Model.find(
         { userId: user.id, status: { $ne: 'cart' } },
@@ -35,5 +35,6 @@ export default async function orders_list(payload, info) {
 
 orders_list.config = {
     auth: 'none',
-    permissions: ['bot:order']
+    permissions: ['bot:order'],
+    required: ['userToken']
 }

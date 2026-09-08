@@ -90,7 +90,8 @@ const tokenSchema = {
 const tokensSchema = {
     web: tokenSchema,
     web_mobile: tokenSchema,
-    web_app: tokenSchema
+    web_app: tokenSchema,
+    bot: tokenSchema
 }
 
 const userSchema = {

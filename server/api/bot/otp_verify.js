@@ -1,4 +1,4 @@
-import { USER_TOKEN_EXPIRY_MS } from '#common/constants.js'
+import { BOT_TOKEN_EXPIRY_MS } from '#common/constants.js'
 
 /**
  * POST /api/bot/otp_verify
@@ -21,7 +21,7 @@ export default async function otp_verify(payload, { DL, utils }) {
     const user = await DL.User.readOne(userFilter)
     if (!user) throw { message: 'login failed', status: 403 }
 
-    const userToken = utils.auth.createToken(user.id, USER_TOKEN_EXPIRY_MS)
+    const userToken = utils.auth.createToken(user.id, BOT_TOKEN_EXPIRY_MS)
     await DL.User.updateOne(
         { id: user.id },
         { lastLogin: new Date(), [`tokens.bot`]: userToken }

@@ -29,10 +29,10 @@ function dispatchState(status) {
  */
 export default async function order_status(payload, info) {
     const { DL, utils } = info
-    const { orderNumber, userToken, phone, domainId } = payload || {}
+    const { orderNumber, userToken, domainId } = payload || {}
     if (orderNumber == null) throw { status: 400, message: 'orderNumber required' }
 
-    const user = await resolveBotUser({ DL, utils, domainId, userToken, phone })
+    const user = await resolveBotUser({ DL, utils, domainId, userToken })
 
     const full = await DL.Order.readOne({ number: orderNumber }, STATUS_SELECT)
     if (!full) throw { status: 404, message: 'Order not found' }
@@ -76,5 +76,5 @@ export default async function order_status(payload, info) {
 order_status.config = {
     auth: 'none',
     permissions: ['bot:order'],
-    required: ['orderNumber']
+    required: ['orderNumber', 'userToken']
 }

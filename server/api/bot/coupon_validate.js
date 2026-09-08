@@ -4,10 +4,10 @@ import { isCouponEligible, calcOrderDiscount } from '#common/functions/coupon.js
 /**
  * POST /api/bot/coupon_validate
  * Auth: API key with `bot:coupon` permission (router enforces).
- * Body: { code, userToken?, phone? }
+ * Body: { code, userToken }
  * - User must be identified first (personal coupons depend on
  *   whitelist / condition.phones) — pass the userToken from
- *   bot/otp_verify, or a phone fallback.
+ *   bot/otp_verify.
  * - The cart sum is read server-side from the user's active cart
  *   order (plain read, never creates a cart).
  * - Read-only: never applies the coupon, only explains validity.
@@ -15,10 +15,10 @@ import { isCouponEligible, calcOrderDiscount } from '#common/functions/coupon.js
  */
 export default async function coupon_validate(payload, info) {
     const { DL, utils } = info
-    const { code, userToken, phone, domainId } = payload || {}
+    const { code, userToken, domainId } = payload || {}
     if (!code) throw { status: 400, message: 'code required' }
 
-    const user = await resolveBotUser({ DL, utils, domainId, userToken, phone })
+    const user = await resolveBotUser({ DL, utils, domainId, userToken })
 
     const couponCode = String(code).trim().toLowerCase()
     const coupon = await DL.Coupon.readOne({ code: couponCode })
@@ -62,5 +62,5 @@ export default async function coupon_validate(payload, info) {
 coupon_validate.config = {
     auth: 'none',
     permissions: ['bot:coupon'],
-    required: ['code']
+    required: ['code', 'userToken']
 }
