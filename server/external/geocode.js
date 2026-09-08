@@ -1,6 +1,8 @@
+import { buildGeocodeKey, normalizeAddressParts } from './addressProvider/geocodeKey.js'
+
 const GOOGLE_MAPS_GEOCODE_URL = 'https://maps.googleapis.com/maps/api/geocode/json'
 
-async function geocodeAddress(address) {
+async function fetchFromGoogle(address) {
     const apiKey = process.env.GOOGLE_MAPS_API_KEY
     if (!apiKey)
         throw new Error('Missing Google Maps API Key')
@@ -38,5 +40,38 @@ async function geocodeAddress(address) {
     }
 }
 
-const geocode = { address: geocodeAddress }
-export default geocode
+function geocodeFactory({ DL }) {
+    async function address(input) {
+        const key = buildGeocodeKey(input || {})
+        if (key && DL?.GeocodeCache) {
+            try {
+                const hit = await DL.GeocodeCache.readById(key)
+                if (hit?.location?.coordinates?.length)
+                    return { ...input, location: hit.location, accuracy: 'ROOFTOP', source: 'cache' }
+            } catch {}
+        }
+
+        const res = await fetchFromGoogle(input)
+
+        if (key && res?.location?.coordinates?.length && res?.accuracy === 'ROOFTOP' && DL?.GeocodeCache) {
+            try {
+                const parts = normalizeAddressParts(input)
+                await DL.GeocodeCache.create({
+                    id: key,
+                    ...parts,
+                    location: res.location,
+                    accuracy: 'ROOFTOP'
+                })
+            } catch (e) {
+                if (e?.code !== 11000) console.warn('[geocode-cache] write failed', e?.message || e)
+            }
+        }
+
+        return res
+    }
+
+    return { address }
+}
+
+export default geocodeFactory
+export { fetchFromGoogle }

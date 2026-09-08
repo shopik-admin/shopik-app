@@ -1,4 +1,10 @@
-import { useText } from 'common/texts/TextProvider'
+import hebrewTexts from 'common/texts/hebrew.json'
+
+// NOTE: this module is intentionally hook-free (plain JSON lookup, same as
+// TextProvider). render() is called conditionally inside JSX across the app,
+// so it must never call hooks (Rules of Hooks).
+const texts = hebrewTexts.texts || {}
+const TR = key => texts[key] || texts[key?.toLowerCase()] || key
 
 const dateFormatter = new Intl.DateTimeFormat('he', { day: '2-digit', month: '2-digit', year: '2-digit' })
 const timeFormatter = new Intl.DateTimeFormat('he', { hour: '2-digit', minute: '2-digit', hour12: false })
@@ -27,7 +33,6 @@ const _date = (v, includeTime) => {
  * @returns {string} Formatted string
  */
 export default function render({ type, value, ...props } = {}) {
-    const { TR } = useText()
     if (value === undefined || value === null) return ''
 
     switch (type) {

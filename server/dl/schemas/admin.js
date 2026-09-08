@@ -35,7 +35,6 @@ const adminSchema = {
         type: String,
         match: regex.email,
         lowercase: true,
-        required: true,
         filter: true
     },
     name: {

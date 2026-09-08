@@ -1,6 +1,10 @@
+import { useState } from 'react'
 import Card from 'common/components/Card'
 import Flex from 'common/components/Flex'
 import Text from 'common/components/Text'
+import Button from 'common/components/Button'
+import Popover from 'common/components/Popover'
+import apiReq from 'common/functions/apiReq'
 import render from 'common/functions/render'
 import { useText } from 'common/texts/TextProvider'
 import styles from './order.module.css'
@@ -12,9 +16,13 @@ function SumRow({ label, value, bold, className }) {
     </Flex>
 }
 
-export default function PaymentDetailsCard({ order }) {
+export default function PaymentDetailsCard({ order, onChanged }) {
     const { TR } = useText()
     const coin = value => render({ type: 'coin', value })
+    const [manualAmt, setManualAmt] = useState(0)
+    const [manualBusy, setManualBusy] = useState(false)
+    const [manualError, setManualError] = useState('')
+    const pending = Number(order.refundPending || 0)
     const payment = order.payment || {}
     // provider sends the expiry as YYMM
     const expiry = /^\d{4}$/.test(payment.cardExpiry || '')
@@ -43,6 +51,45 @@ export default function PaymentDetailsCard({ order }) {
                 {order.sum != null && <SumRow label={'sum'} value={coin((order.coupons || []).length > 0 ? (order.finalSum ?? order.sum) : order.sum)} />}
                 {(order.finalShipping ?? order.shipping) != null && <SumRow label={'shipping_cost'} value={coin(order.finalShipping ?? order.shipping)} />}
                 {order.refundedTotal > 0 && <SumRow label={'refunded'} value={coin(order.refundedTotal)} />}
+                {order.refundedTotal > 0 && <SumRow label={'total_after_refunds'} value={coin(order.finalSumAfterRefunds ?? (Number(order.finalSumWithShipping ?? order.finalSum ?? order.sum ?? 0) - Number(order.refundedTotal || 0)))} />}
+                {pending > 0 && <SumRow label={'refund_pending'} value={coin(pending)} />}
+                {pending > 0 && !order.manualRequired && <Text size='s' mode='sub' style={{ lineHeight: '18px' }}>{'refund_auto_retry_note'}</Text>}
+                {order.manualRequired && <Popover
+                    button={<Button mode='outline' permission='order:payment'>register_manual_refund</Button>}
+                >
+                    {({ close }) => <Flex col gap={10} className={styles.cancelPopover}>
+                        <Text size='s' mode='sub'>{'manual_refund_hint'}</Text>
+                        <input
+                            type='number' min={0} max={pending} step={0.01}
+                            value={manualAmt}
+                            onChange={e => setManualAmt(Number(e.target.value || 0))}
+                            className={styles.amountInput}
+                            aria-label='manual_refund_amount'
+                        />
+                        {manualError ? <Text size='s' mode='error'>{manualError}</Text> : null}
+                        <Flex gap={8}>
+                            <Button mode='outline' onClick={() => { setManualError(''); close() }}>cancel</Button>
+                            <Button
+                                loading={manualBusy}
+                                disabled={!(manualAmt > 0) || manualAmt - pending > 0.001}
+                                onClick={async () => {
+                                    setManualBusy(true)
+                                    setManualError('')
+                                    try {
+                                        await apiReq('payment/refund', { orderId: order.id, manual: true, amount: manualAmt })
+                                        setManualAmt(0)
+                                        close()
+                                        await onChanged?.()
+                                    } catch (e) {
+                                        setManualError(e?.message || 'refund_failed')
+                                    } finally {
+                                        setManualBusy(false)
+                                    }
+                                }}
+                            >manual_refund_confirm</Button>
+                        </Flex>
+                    </Flex>}
+                </Popover>}
                 <SumRow label={'total_to_pay'} value={coin(order.finalSumWithShipping ?? order.finalSum ?? order.sum)} bold className={styles.totalRow} />
             </Flex>
         </Flex>

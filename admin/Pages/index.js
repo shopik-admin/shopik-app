@@ -19,6 +19,7 @@ import Windows from 'Pages/Windows'
 import Ops from 'Pages/Ops'
 import OpsOrder from 'Pages/Ops/OpsOrder'
 import ApiKeys from 'Pages/ApiKeys'
+import DevTools from 'Pages/DevTools'
 
 const pages = [
     { key: 'dashboard', name: 'Dashboard', path: '/', section: 'main', icon: 'desktop', component: Dashboard,/*  permission: 'dashboard:read' */ },
@@ -43,9 +44,10 @@ const pages = [
     { key: 'comax-sales', name: 'Comax Sales', path: '/comax-sales', section: 'comax', icon: 'sale', component: ComaxSales, permission: 'comax_sale:read' },
 
     { key: 'logs', name: 'Logs', path: '/logs', section: 'system', icon: 'log', component: Logs, permission: 'log:read' },
-    { key: 'permissions', name: 'permissions', path: '/permissions', section: 'system', icon: 'key', component: Permissions, permission: 'permission:read' },
+    { key: 'permissions', name: 'permissions', path: '/permissions', section: 'system', icon: 'key', component: Permissions, permission: 'role:edit' },
     { key: 'api-keys', name: 'API Keys', path: '/api-keys', section: 'system', icon: 'key', component: ApiKeys, permission: 'api_key:read' },
     { key: 'settings', name: 'Settings', path: '/settings', section: 'system', icon: 'settings', component: Settings, permission: 'setting:read' },
+    { key: 'dev-tools', name: 'Dev Tools', path: '/dev-tools', section: 'system', icon: 'log', component: DevTools, permission: 'admin:super' },
 ]
 
 export default function usePages() {
