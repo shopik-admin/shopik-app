@@ -115,6 +115,14 @@ function getSchemaFields(schema) {
         }
 
         for (const [key, value] of Object.entries(node)) {
+            // Mongoose type wrapper (e.g. prices: { type: [{ domainId }], validate })
+            // — the element fields live at the parent path, not under ".type".
+            // A real sub-field literally named "type" always holds a definition
+            // object, never a bare Array/constructor, so it still gets its segment.
+            if (key === 'type' && (Array.isArray(value) || typeof value === 'function')) {
+                walk(value, prefix)
+                continue
+            }
             const path = prefix ? `${prefix}.${key}` : key
             walk(value, path)
         }

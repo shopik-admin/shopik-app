@@ -44,7 +44,7 @@ const productSchema = {
     regulatoryInfo: String,
     prices: {
         type: [{
-            domainId: String,
+            domainId: { type: String, filter: true },
             price: Number,
             _id: false
         }],
