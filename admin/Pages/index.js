@@ -12,6 +12,7 @@ import Users from 'Pages/Users'
 import Logs from 'Pages/Logs'
 import Sales from 'Pages/Sales'
 import Coupons from 'Pages/Coupons'
+import DisplayBlocks from 'Pages/DisplayBlocks'
 import ComaxProducts from 'Pages/ComaxProducts'
 import SupplyAreas from 'Pages/SupplyAreas'
 import ComaxSales from 'Pages/ComaxSales'
@@ -30,6 +31,7 @@ const pages = [
     { key: 'order', name: ' ', path: '/orders/:orderId', section: 'content', icon: 'orders', component: Order, permission: 'order:read', notInMenu: true },
     { key: 'sales', name: 'Sales', path: '/sales', section: 'content', icon: 'sale', component: Sales, permission: 'sale:read' },
     { key: 'coupons', name: 'Coupons', path: '/coupons', section: 'content', icon: 'coupon', component: Coupons, permission: 'coupon:read' },
+    { key: 'display-blocks', name: 'display_blocks', path: '/display-blocks', section: 'content', icon: 'blocks', component: DisplayBlocks, permission: 'display_block:read' },
 
     { key: 'admins', name: 'Admins', path: '/admins', section: 'management', icon: 'persons', component: Admins, permission: 'admin:read' },
     { key: 'domains', name: 'Domains', path: '/domains', section: 'management', icon: 'domains', component: Domains, permission: 'domain:read' },

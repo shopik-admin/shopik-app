@@ -1,0 +1,145 @@
+.page {
+    padding: 24px;
+}
+
+.contextBar {
+    padding: 16px 20px;
+}
+
+.contextRow {
+    align-items: flex-end;
+    flex-wrap: wrap;
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 180px;
+}
+
+.checkRow {
+    display: flex;
+    align-items: flex-end;
+    padding-bottom: 6px;
+}
+
+.list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 18px;
+    cursor: grab;
+    flex-wrap: wrap;
+}
+
+.row:active {
+    cursor: grabbing;
+}
+
+.dropTarget {
+    outline: 2px dashed #888;
+    outline-offset: -2px;
+}
+
+.grip {
+    cursor: grab;
+    opacity: 0.5;
+    font-size: 18px;
+}
+
+.kindIcon {
+    opacity: 0.55;
+    flex-shrink: 0;
+}
+
+.thumb {
+    width: 144px;
+    height: 90px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+/* Banner thumbs show the whole image (fit); radius lives on the image. */
+.thumbFit img {
+    width: 100%;
+    object-fit: contain;
+    border-radius: var(--radius-md);
+}
+
+.kindTag {
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+.previewStrip {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-shrink: 1;
+    min-width: 0;
+    max-width: min(320px, 90%);
+    overflow-x: auto;
+    padding-bottom: 2px;
+}
+
+.previewThumb {
+    width: 56px;
+    height: 56px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+    flex-shrink: 0;
+}
+
+.meta {
+    flex: 1;
+    min-width: 150px;
+}
+
+.rowActions {
+    margin-inline-start: auto;
+}
+
+.editor {
+    min-width: min(560px, 80vw);
+    max-width: 500px;
+    padding-inline: 16px;
+}
+
+.slide {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 8px;
+}
+
+.slidePreview {
+    width: 96px;
+    height: 64px;
+    flex-shrink: 0;
+}
+
+.slideFields {
+    flex: 1;
+    min-width: 0;
+}
+
+.fileBtn {
+    cursor: pointer;
+    padding: 6px 10px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 13px;
+    white-space: nowrap;
+}

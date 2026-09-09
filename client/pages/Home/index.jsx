@@ -1,19 +1,19 @@
-import Button from 'common/components/Button'
-import events from 'common/features/events'
+import apiReq from '#common/functions/apiReq'
+import { usePage } from 'layout/Page'
+import DisplayBlocks from 'features/Display/DisplayBlocks'
 import styles from './home.module.css'
-import Text from '#common/components/Text/index.jsx'
 
-export default function Home({ }) {
+export default function Home() {
+    const { pageData } = usePage()
     return <div className={styles.home}>
-        <Text center bold size='h1'>Shopik Home Page</Text>
+        <DisplayBlocks blocks={pageData?.data?.blocks} />
     </div>
 }
 
 Home.init = async function init({ } = {}) {
+    const data = await apiReq('display_block/get', { path: '/' }).catch(() => ({ blocks: [] }))
     return {
         title: 'home page',
-        data: {
-            sales: 'sales data'
-        }
+        data
     }
 }

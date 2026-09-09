@@ -114,13 +114,18 @@ const methods = Log => {
             appVersion,
             ...logData
         }
-        const logPromise = Log.create(logBody)
+        // Request bodies can be huge (e.g. base64 image uploads) — truncate to
+        // fit the 64KB data validator. Logging must never fail the request.
+        if (logBody.data)
+            logBody.data = truncateLogData(logBody.data)
+        const logPromise = Log.create(logBody).catch(() => null)
         let actorData
         async function end(updateData) {
             const responseTime = new Date
             const requestEnd = performance.now()
             const duration = +(requestEnd - requestStart).toFixed(4)
             const log = await logPromise
+            if (!log) return
             const update = {
                 responseTime,
                 duration,

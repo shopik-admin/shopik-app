@@ -6,23 +6,29 @@ export default function Sales() {
     const { loading, pageData } = usePage()
     const data = pageData?.data
 
-    return <ProductList
-        data={data}
-        loading={loading}
-        notFound={pageData?.notFound}
-        title={data?.categoryName || pageData?.title || 'מבצעים'}
-        breadcrumbPath='/sales'
-        resetKey='sales'
-        emptyText='אין מבצעים כרגע'
-        fetchPage={({ skip, limit }) => apiReq('product/get', { onSale: true, skip, limit })}
-    />
+    return <>
+        <ProductList
+            data={data}
+            loading={loading}
+            notFound={pageData?.notFound}
+            title={data?.categoryName || pageData?.title || 'מבצעים'}
+            breadcrumbPath='/sales'
+            resetKey='sales'
+            emptyText='אין מבצעים כרגע'
+            blocks={data?.blocks}
+            fetchPage={({ skip, limit }) => apiReq('product/get', { onSale: true, skip, limit })}
+        />
+    </>
 }
 
 Sales.init = async function () {
-    const res = await apiReq('product/get', { onSale: true, limit: PRODUCT_LIST_LIMIT })
+    const [res, display] = await Promise.all([
+        apiReq('product/get', { onSale: true, limit: PRODUCT_LIST_LIMIT }),
+        apiReq('display_block/get', { path: '/sales' }).catch(() => ({ blocks: [] }))
+    ])
     return {
         title: 'מבצעים',
         description: 'מוצרים במבצע',
-        data: res
+        data: { ...res, blocks: display.blocks || [] }
     }
 }

@@ -127,13 +127,6 @@
     max-width: 300px;
 }
 
-.popoverTitle {
-    font-weight: 600;
-    margin-bottom: 8px;
-    font-size: 14px;
-    color: var(--text-primary);
-}
-
 .overflowContent {
     padding: 8px;
     max-height: 60vh;
@@ -199,16 +192,6 @@
     overflow: auto;
 }
 
-.clearBtn {
-    margin-top: 6px;
-    font-size: 12px;
-    background: none;
-    border: none;
-    color: var(--text-brand);
-    cursor: pointer;
-    text-decoration: underline;
-}
-
 .chips {
     padding: 2px 0 2px;
     border-top: none;
@@ -248,87 +231,6 @@
     cursor: pointer;
     color: var(--text-brand);
     white-space: nowrap;
-}
-
-.calendar {
-    direction: rtl;
-    user-select: none;
-    color: var(--text-primary);
-}
-
-.calendarHeader {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    font-weight: 600;
-    margin-bottom: 8px;
-    color: var(--text-primary);
-}
-
-.calendarNav {
-    border: 1px solid var(--border-secondary);
-    background: var(--bg-primary);
-    color: var(--text-primary);
-    border-radius: var(--radius-md);
-    width: 28px;
-    height: 28px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-}
-
-.calendarNav:hover {
-    background: var(--bg-secondary-hover);
-}
-
-.calendarGrid {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 2px;
-}
-
-.calendarWeekDay {
-    text-align: center;
-    font-size: 12px;
-    color: var(--text-tertiary);
-    opacity: 1;
-    padding: 4px 0;
-}
-
-.calendarDay {
-    border: 1px solid transparent;
-    background: var(--bg-primary);
-    color: var(--text-primary);
-    border-radius: var(--radius-md);
-    height: 32px;
-    cursor: pointer;
-    padding: 0 12px;
-}
-
-.calendarDay:hover {
-    background: var(--bg-secondary-hover);
-    border-color: var(--border-secondary);
-}
-
-.calendarDaySelected {
-    background: var(--bg-brand-primary) !important;
-    color: var(--text-primary-on-brand) !important;
-    border-color: var(--border-brand) !important;
-}
-
-.calendarDayRange {
-    background: var(--bg-brand-secondary) !important;
-    color: var(--text-primary) !important;
-}
-
-.calendarFooter {
-    margin-top: 8px;
-    text-align: center;
-    font-size: 12px;
-    color: var(--text-tertiary);
-    opacity: 1;
-    direction: ltr;
 }
 
 .overflowDateHeader {

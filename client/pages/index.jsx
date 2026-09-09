@@ -3,6 +3,7 @@ import Sales from './Sales'
 import Account from './Account'
 import Home from './Home'
 import Product from './Product'
+import Carousel from './Carousel'
 import Checkout from './Checkout'
 import Search from './Search'
 import NotFound from './NotFound'
@@ -43,6 +44,12 @@ export default [
         element: Product,
         title: 'מוצר',
         description: 'דף מוצר'
+    },
+    {
+        path: 'carousel/:carouselId',
+        element: Carousel,
+        title: 'קטלוג',
+        description: 'מוצרים'
     },
     {
         path: 'checkout',

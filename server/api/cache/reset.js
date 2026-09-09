@@ -1,16 +1,6 @@
 import { CACHE_STRATEGIES } from '#common/constants.js'
+import { scanDel } from '#server/utils/data/displayBlocks.js'
 import log from '#server/utils/log.js'
-
-async function scanDel(redis, pattern) {
-    let cursor = '0'
-    let deleted = 0
-    do {
-        const [next, keys] = await redis.scan(cursor, 'MATCH', pattern, 'COUNT', 500)
-        cursor = next
-        if (keys?.length) deleted += await redis.del(keys)
-    } while (cursor !== '0')
-    return deleted
-}
 
 export default async function reset(payload, { DL, _admin }) {
     if (_admin?.isApiKey) throw { status: 403, message: 'Forbidden' }

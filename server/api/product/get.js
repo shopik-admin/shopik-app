@@ -50,13 +50,9 @@ export default async function get(payload, { DL, _user, req, utils }) {
         if (onSale) {
             // Better than `saleIds.0 exists`: verify against currently ACTIVE sales
             // (saleIds is denormalized by sale/sync and can lag behind status rollover).
-            const activeSales = await DL.Sale.read(
-                { status: DL.Sale.constants.STATUS.ACTIVE },
-                { _id: 0, id: 1 },
-                { limit: 0 }
-            )
-            if (activeSales.length === 0) return { products: [], sales: {}, categoryName, categoryPath }
-            effectiveFilter.saleIds = { $in: activeSales.map(s => s.id) }
+            const activeSaleIds = await DL.Sale.Model.distinct('id', { status: DL.Sale.constants.STATUS.ACTIVE })
+            if (activeSaleIds.length === 0) return { products: [], sales: {}, categoryName, categoryPath }
+            effectiveFilter.saleIds = { $in: activeSaleIds }
         }
         // Pass effectiveFilter and selectForStock via payload while preserving pagination options
         const readPayload = { ...payload, filter: effectiveFilter, select: selectForStock }
