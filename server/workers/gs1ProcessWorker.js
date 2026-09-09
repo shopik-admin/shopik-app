@@ -17,16 +17,11 @@ export async function handleProcessJob(job, { DL }) {
         )
         if (!product) return { skipped: 'no-product' }
 
-        const { urls } = await processStagedZip({
-            productId, gtin, path: stagingPath, mediaAssets
+        const { images } = await processStagedZip({
+            productId, gtin, path: stagingPath, mediaAssets, fingerprint
         })
 
-        const update = {
-            'images.product': [
-                { main: true, sourceUrl: `gs1://${gtin}`, hash: fingerprint, sizes: urls }
-            ],
-            gs1SyncedAt: new Date()
-        }
+        const update = { 'images.product': images, gs1SyncedAt: new Date() }
         // Mirror the Comax image-gating rule: first image flips imageless HIDDEN → ACTIVE.
         // (status itself stays Comax-owned — only this first-image flip is applied.)
         if ((product.images?.product || []).length === 0 && product.status === 'hidden')
