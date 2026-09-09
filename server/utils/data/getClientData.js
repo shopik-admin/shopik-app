@@ -34,5 +34,8 @@ export default async function getClientData(req, bootData) {
         pickupStores: pickupStoresResult.status === 'fulfilled' ? pickupStoresResult.value : undefined,
         settings: settingsResult.status === 'fulfilled' ? settingsResult.value : undefined,
         menu: menuResult.status === 'fulfilled' ? menuResult.value : undefined,
+        env: {
+            FILES_BASE_URL: process.env.FILES_BASE_URL || 'https://files.shopik.co.il',
+        },
     }
 }

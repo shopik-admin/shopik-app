@@ -4,6 +4,7 @@ import ErrorBoundary from 'common/components/ErrorBoundary'
 import App from './App'
 
 const sd = __SD__ || {}
+window.__ENV__ = sd.env || {}
 delete window.__SD__
 
 hydrateRoot(
