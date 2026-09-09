@@ -100,10 +100,11 @@ export async function processStagedZip({ productId, gtin, path, mediaAssets, fin
     mem(`zip-inflated gtin=${gtin} main=${main.name} alts=${alternates.length}`)
     log.info(`[GS1] Picked ${main.name} + ${alternates.length} alternates for GTIN ${gtin}`)
     // Sequential per image to bound peak memory (512MB boxes).
+    // Sizes within an image are also serial (one-at-a-time end to end).
     const processOne = async (entry, key, isMain) => {
         try {
-            const sizes = await resize(entry.data)
-            return await upload({ productId, sizes, key })
+            const sizes = await resize(entry.data, undefined, { serial: true })
+            return await upload({ productId, sizes, key, serial: true })
         } finally {
             entry.data = null // release the inflated buffer ASAP
         }
