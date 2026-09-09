@@ -3,6 +3,7 @@ import { unzipSync } from 'fflate'
 import storage from '#server/external/storage.js'
 import resize from '#server/services/image/resize.js'
 import upload from '#server/services/image/upload.js'
+import { mem } from './memlog.js'
 import log from '#server/utils/log.js'
 
 export const hashFingerprint = fp => createHash('sha1').update(fp).digest('hex')
@@ -94,22 +95,37 @@ export function pickImageEntry(zipBuffer, mediaAssets) {
 
 export async function processStagedZip({ productId, gtin, path, mediaAssets, fingerprint }) {
     const zipBuffer = await downloadStaged(path)
+    mem(`zip-downloaded gtin=${gtin} bytes=${zipBuffer.length}`)
     const { main, alternates } = pickImageEntries(zipBuffer, mediaAssets)
+    mem(`zip-inflated gtin=${gtin} main=${main.name} alts=${alternates.length}`)
     log.info(`[GS1] Picked ${main.name} + ${alternates.length} alternates for GTIN ${gtin}`)
     // Sequential per image to bound peak memory (512MB boxes).
     const processOne = async (entry, key, isMain) => {
-        const sizes = await resize(entry.data)
-        const urls = await upload({ productId, sizes, key })
-        return {
-            main: isMain,
-            sourceUrl: isMain ? `gs1://${gtin}` : `gs1://${gtin}/${entry.asset?.id || baseName(entry.name)}`,
-            hash: fingerprint,
-            sizes: urls
+        try {
+            const sizes = await resize(entry.data)
+            return await upload({ productId, sizes, key })
+        } finally {
+            entry.data = null // release the inflated buffer ASAP
         }
     }
-    const images = [await processOne(main, '', true)]
+    const mainUrls = await processOne(main, '', true)
+    mem(`img-done gtin=${gtin} key=main`)
+    const images = [{
+        main: true,
+        sourceUrl: `gs1://${gtin}`,
+        hash: fingerprint,
+        sizes: mainUrls
+    }]
     for (let i = 0; i < alternates.length; i++) {
-        images.push(await processOne(alternates[i], `alt-${i + 1}`, false))
+        const alt = alternates[i]
+        const urls = await processOne(alt, `alt-${i + 1}`, false)
+        mem(`img-done gtin=${gtin} key=alt-${i + 1}`)
+        images.push({
+            main: false,
+            sourceUrl: `gs1://${gtin}/${alt.asset?.id || baseName(alt.name)}`,
+            hash: fingerprint,
+            sizes: urls
+        })
     }
     return { images, assetFile: main.asset?.filename || baseName(main.name) }
 }

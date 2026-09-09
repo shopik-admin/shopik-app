@@ -2,6 +2,7 @@ import pLimit from 'p-limit'
 import { enqueueProcessJobs } from '#server/queues/gs1Queues.js'
 import { bufferProduct, bufferRaw, bufferProgress, flush } from './bulk.js'
 import { stageZip, buildFingerprint, hashFingerprint, countStills } from './images.js'
+import { mem } from './memlog.js'
 import log from '#server/utils/log.js'
 
 const enrichBatchSize = () => Number(process.env.GS1_ENRICH_BATCH || 500)
@@ -87,6 +88,7 @@ export async function enrichBatch({ DL, external, runId, onlyInStock = true }) {
 
     bufferProgress(runId, { processed: page.length })
     await flush()
+    mem(`enrich-batch done=${enriched + skipped} enriched=${enriched}`)
     return { done: false, enriched, skipped, total: page.length }
 }
 
@@ -195,6 +197,7 @@ export async function runImages({ DL, external, runId, force = false, limit = 0 
         bufferProgress(runId, { processed: raws.length })
         await flush()
         taken += raws.length
+        mem(`images-batch taken=${taken} queued=${totals.queued} noZip=${totals.noZip}`)
     }
     await flush()
     log.success(`[GS1] Images launch done: ${totals.queued} queued, ${totals.noZip} no-zip, ${totals.skipped} skipped`)

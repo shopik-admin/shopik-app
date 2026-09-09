@@ -56,6 +56,9 @@ export function resolveSizing() {
 
     try {
         sharp.concurrency(Math.max(1, vCPU - 1))
+        // libvips operation cache defaults to ~100MB native and never shrinks —
+        // fatal on 512MB boxes. Cap it; slight CPU cost on cache misses.
+        sharp.cache({ memory: 25, items: 20, files: 20 })
     } catch {
         // sharp tuning is best-effort
     }
@@ -63,7 +66,10 @@ export function resolveSizing() {
     // here would be a no-op (and the old UV_THREADPOOLSIZE name was read by nothing).
     // Set UV_THREADPOOL_SIZE as a deploy-time env (Dockerfile/Cloud Run), not here.
 
-    const sizing = { vCPU, containerMB, fetchConcurrency, cpuConcurrency, maxPerMinute }
+    const sizing = {
+        vCPU, containerMB, fetchConcurrency, cpuConcurrency, maxPerMinute,
+        zipMaxMB: Math.round(Number(process.env.GS1_ZIP_MAX_BYTES || 20 * 1024 * 1024) / 1024 / 1024)
+    }
     log.info(`[GS1] Sizing: ${JSON.stringify(sizing)}`)
     return sizing
 }
