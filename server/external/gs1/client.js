@@ -60,7 +60,7 @@ export async function getMediaZip(gtin, { type } = {}) {
     const buffer = await get(`/external/product/${encodeURIComponent(gtin)}/files?${q}`, {
         timeoutMs: ZIP_TIMEOUT_MS,
         binary: true,
-        maxBytes: Number(process.env.GS1_ZIP_MAX_BYTES || 100 * 1024 * 1024)
+        maxBytes: Number(process.env.GS1_ZIP_MAX_BYTES || 20 * 1024 * 1024)
     })
     if (!buffer?.length) {
         log.warn(`[GS1] Empty media zip for GTIN ${gtin}`)

@@ -11,7 +11,7 @@ const productWrites = new Map() // barcode -> fields (later wins)
 const rawWrites = new Map() // barcode -> rawDoc
 const progressWrites = new Map() // runId -> { processed, failed }
 
-const batchSize = () => Number(process.env.GS1_BULK_SIZE || 200)
+const batchSize = () => Number(process.env.GS1_BULK_SIZE || 100)
 const intervalMs = () => Number(process.env.GS1_BULK_MS || 5000)
 
 export function initBulkFlusher(DL) {

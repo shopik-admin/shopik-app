@@ -9,16 +9,17 @@ const imageBatchSize = () => Number(process.env.GS1_IMAGE_BATCH || 200)
 const zipConcurrency = () => Number(process.env.GS1_ZIP_CONCURRENCY || 2)
 
 // Phase 2: enrich products from the local gs1_products collection.
-// Bulk reads ($in) + buffered bulkWrite — no GS1 calls, no per-doc writes, no images.
+// Two-pass to bound memory: page barcode-only docs, gate in bulk, then load
+// full raws ONLY for passers. No GS1 calls, no per-doc writes, no images.
 export async function enrichBatch({ DL, external, runId, onlyInStock = true }) {
-    const raws = await DL.Gs1Product.read(
+    const page = await DL.Gs1Product.read(
         { status: 'fetched' },
-        { _id: 0, barcode: 1, raw: 1 },
+        { _id: 0, barcode: 1 },
         { limit: enrichBatchSize() }
     )
-    if (!raws?.length) return { done: true, enriched: 0, skipped: 0, total: 0 }
+    if (!page?.length) return { done: true, enriched: 0, skipped: 0, total: 0 }
 
-    const barcodes = [...new Set(raws.map(r => r?.barcode).filter(Boolean))]
+    const barcodes = [...new Set(page.map(r => r?.barcode).filter(Boolean))]
     const [products, comax] = await Promise.all([
         DL.Product.read(
             { barcode: { $in: barcodes } },
@@ -37,43 +38,56 @@ export async function enrichBatch({ DL, external, runId, onlyInStock = true }) {
 
     let enriched = 0
     let skipped = 0
-    for (const stored of raws) {
-        const barcode = stored?.barcode
-        if (!barcode || !stored?.raw) {
-            bufferRaw({ barcode, status: 'skipped', skipReason: 'empty-raw' })
-            skipped++
-            continue
-        }
+    const passing = []
+    for (const barcode of barcodes) {
         const reason = !productSet.has(barcode) ? 'no-product'
             : !comaxSet.has(barcode) ? 'no-comax'
             : (onlyInStock && !inStockSet.has(barcode)) ? 'out-of-stock' : null
         if (reason) {
             bufferRaw({ barcode, status: 'skipped', skipReason: reason })
             skipped++
-            continue
-        }
-        let mapped
-        try {
-            mapped = external.gs1.mapGs1ToProduct(stored.raw)
-        } catch (e) {
-            bufferRaw({ barcode, status: 'skipped', skipReason: `map-error: ${e?.message || e}` })
-            skipped++
-            continue
-        }
-        // Supplier removed/unchecked images → clear local images (status untouched).
-        if (mapped.removal.deleted || mapped.removal.unchecked) {
-            bufferProduct(barcode, { ...mapped.doc, 'images.product': [] })
-            log.warn(`[GS1] Images cleared for ${barcode} (supplier removal flag)`)
         } else {
-            bufferProduct(barcode, mapped.doc)
+            passing.push(barcode)
         }
-        bufferRaw({ barcode, status: 'enriched' })
-        enriched++
     }
 
-    bufferProgress(runId, { processed: raws.length })
+    if (passing.length) {
+        const full = await DL.Gs1Product.read(
+            { barcode: { $in: passing } },
+            { _id: 0, barcode: 1, raw: 1 },
+            { limit: 0 }
+        )
+        const fullByBarcode = new Map((full || []).map(r => [r?.barcode, r]))
+        for (const barcode of passing) {
+            const stored = fullByBarcode.get(barcode)
+            if (!stored?.raw) {
+                bufferRaw({ barcode, status: 'skipped', skipReason: 'empty-raw' })
+                skipped++
+                continue
+            }
+            let mapped
+            try {
+                mapped = external.gs1.mapGs1ToProduct(stored.raw)
+            } catch (e) {
+                bufferRaw({ barcode, status: 'skipped', skipReason: `map-error: ${e?.message || e}` })
+                skipped++
+                continue
+            }
+            // Supplier removed/unchecked images → clear local images (status untouched).
+            if (mapped.removal.deleted || mapped.removal.unchecked) {
+                bufferProduct(barcode, { ...mapped.doc, 'images.product': [] })
+                log.warn(`[GS1] Images cleared for ${barcode} (supplier removal flag)`)
+            } else {
+                bufferProduct(barcode, mapped.doc)
+            }
+            bufferRaw({ barcode, status: 'enriched' })
+            enriched++
+        }
+    }
+
+    bufferProgress(runId, { processed: page.length })
     await flush()
-    return { done: false, enriched, skipped, total: raws.length }
+    return { done: false, enriched, skipped, total: page.length }
 }
 
 export async function runEnrich(opts) {
