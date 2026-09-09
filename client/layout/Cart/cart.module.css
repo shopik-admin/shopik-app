@@ -84,6 +84,8 @@
 
 .cart.open {
     inset-inline-end: max(var(--safeRight, 0px), calc((100vw - var(--max-width)) / 2 + var(--safeRight, 0px)));
+
+    box-shadow: rgba(0, 0, 0, 0.1) 5px 0 5px;
 }
 
 @media (max-width: 1023px) {
