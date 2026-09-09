@@ -50,7 +50,7 @@ export default function BlockEditor({ block, domainId, domainName, placement, ca
     const [startDate, setStartDate] = useState(initialStart.date)
     const [startTime, setStartTime] = useState(initialStart.time || '00:00')
     const [endDate, setEndDate] = useState(initialEnd.date)
-    const [endTime, setEndTime] = useState(initialEnd.time || '00:00')
+    const [endTime, setEndTime] = useState(initialEnd.time || '23:59')
     const [layout, setLayout] = useState(block?.banner?.layout || 'carousel')
     const [bannerAutoplay, setBannerAutoplay] = useState(block?.banner?.autoplaySec ?? 5)
     const [slides, setSlides] = useState(() =>
@@ -197,7 +197,7 @@ export default function BlockEditor({ block, domainId, domainName, placement, ca
                     name="endTime"
                     label="display_end_time"
                     className={styles.field}
-                    defaultValue={endDate ? endTime : ''}
+                    defaultValue={endDate ? endTime : '23:59'}
                     onChange={e => setEndTime(e.target.value)}
                 />
             </Flex>
