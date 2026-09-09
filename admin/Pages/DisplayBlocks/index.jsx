@@ -104,6 +104,7 @@ export default function DisplayBlocks() {
             <BlockEditor
                 block={block}
                 domainId={domainId}
+                domainName={domains.find(d => d.id === domainId)?.name || ''}
                 placement={placement}
                 categories={pickerCategories}
                 allCategories={categories}

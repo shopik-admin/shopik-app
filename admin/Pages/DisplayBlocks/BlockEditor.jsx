@@ -39,7 +39,7 @@ function splitLocal(iso) {
     } catch { return { date: '', time: '' } }
 }
 
-export default function BlockEditor({ block, domainId, placement, categories = [], allCategories = [], onClose, onSaved }) {
+export default function BlockEditor({ block, domainId, domainName, placement, categories = [], allCategories = [], onClose, onSaved }) {
     const { TR } = useText()
     const [kind, setKind] = useState(block?.kind || 'banner')
     const [name, setName] = useState(block?.name || '')
@@ -126,11 +126,17 @@ export default function BlockEditor({ block, domainId, placement, categories = [
     }
 
     return <Flex col gap={10} className={styles.editor}>
-
-        <Text size="s" mode="sub">
-            {TR('display_placement')}: {placement.type === 'path' ? placement.path : placement.categoryId}
-            {' · '}{TR('display_domain')}: {domainId}
-        </Text>
+        <Flex gap={10} justifyContent='space-between'>
+            <span className={styles.checkRow}>
+                <Checkbox label={TR('active')} checked={active} onChange={e => setActive(e.target.checked)} />
+            </span>
+            <Text size="s" mode="sub">
+                {TR('display_domain')}: {domainName || domainId}
+                {' · '}{TR('display_placement')}: {placement.type === 'path'
+                    ? placement.path
+                    : (allCategories.find(c => c.id === placement.categoryId)?.path || placement.categoryId)}
+            </Text>
+        </Flex>
         <Flex gap={8}>
             <Input
                 type="select"
@@ -164,9 +170,6 @@ export default function BlockEditor({ block, domainId, placement, categories = [
                 onChange={e => setTitle(e.target.value)}
                 placeholder="display_title_ph"
             />}
-            <span className={styles.checkRow}>
-                <Checkbox label={TR('active')} checked={active} onChange={e => setActive(e.target.checked)} />
-            </span>
         </Flex>
         <Flex col gap={6}>
             <Text size="s">display_schedule</Text>
