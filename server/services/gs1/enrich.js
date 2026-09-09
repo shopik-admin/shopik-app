@@ -92,12 +92,16 @@ export async function runEnrich(opts) {
 
 // Phase 3 launcher: download zips (bounded concurrency), stage to GCS,
 // enqueue CPU process jobs. Reads enriched raws; skips imageless/removed.
-export async function runImages({ DL, external, runId }) {
+// force: reprocess even when imagesDone or the main fingerprint matches
+// (needed to backfill alternates onto pre-alternates mains).
+export async function runImages({ DL, external, runId, force = false }) {
     const limit = pLimit(zipConcurrency())
     const totals = { queued: 0, noZip: 0, skipped: 0 }
     for (;;) {
         const raws = await DL.Gs1Product.read(
-            { status: 'enriched', assetCount: { $gt: 0 }, imagesDone: { $ne: true } },
+            force
+                ? { status: 'enriched', assetCount: { $gt: 0 } }
+                : { status: 'enriched', assetCount: { $gt: 0 }, imagesDone: { $ne: true } },
             { _id: 0, barcode: 1, raw: 1 },
             { limit: imageBatchSize() }
         )
@@ -135,7 +139,7 @@ export async function runImages({ DL, external, runId }) {
             const fingerprint = hashFingerprint(
                 buildFingerprint(barcode, mapped.mediaAssets, mapped.modificationTime))
             const main = (product.images?.product || []).find(i => i?.main)
-            if (main?.sourceUrl?.startsWith('gs1://') && main?.hash === fingerprint) {
+            if (!force && main?.sourceUrl?.startsWith('gs1://') && main?.hash === fingerprint) {
                 bufferRaw({ barcode, imagesDone: true })
                 return
             }

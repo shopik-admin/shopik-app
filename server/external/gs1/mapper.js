@@ -151,7 +151,7 @@ export function mapGs1ToProduct(item) {
     const gtin = String(main.GTIN || '').trim()
     if (!gtin) throw new Error('GS1 item missing Main_Fields.GTIN')
 
-    const name = main.Trade_Item_Description || main.Short_Description || ''
+    const name = main.Short_Description || main.Trade_Item_Description || ''
     const marketingTexts = [
         general.Additional_Trade_Item_Description_1,
         marketing.Trade_Item_Marketing_Message,
