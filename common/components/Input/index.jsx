@@ -51,7 +51,10 @@ function Input(props) {
 
     useImperativeHandle(ref, () => innerRef.current)
 
-    function onInputChange(e) { setValue(e?.target ? e.target.value : e); onChange?.(e) }
+    function onInputChange(e) {
+        const next = e?.target?.type === 'checkbox' ? !!e.target.checked : (e?.target ? e.target.value : e)
+        setValue(next); onChange?.(e)
+    }
     function onBlur(e) { setTimeout(() => setVisited(true), 100); externalOnBlur?.(e) }
 
     return <label className={classNames(styles.input, className, [styles.invalid, invalidError], [styles.visited, visited], [styles.withIcon, icon])}>
@@ -124,7 +127,7 @@ function getInputInvalidError(value, props) {
     // -------------------- Required Field Check --------------------
     if ((typeof value === 'undefined' || value == null) || value.length === 0) {
         if (props.required)
-            return 'שדה חובה' // "Field is required" in Hebrew 
+            return 'שדה חובה' // "Field is required" in Hebrew
         else
             return
     }
