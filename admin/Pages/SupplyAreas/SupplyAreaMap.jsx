@@ -30,6 +30,7 @@ const snapKeyFor = (lat, lng) => `${Math.floor(lat * 100)}_${Math.floor(lng * 10
 
 const ATTR_CARTO = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
 const HAS_CARTO_KEY = typeof CARTO_KEY !== 'undefined' && !!CARTO_KEY
+console.log(CARTO_KEY)
 const TILESETS = {
     light: {
         label: 'supply_map_minimal',
