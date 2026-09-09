@@ -26,11 +26,11 @@ export default function Form({ className = '', children, submitText, error, load
         }
 
         if (typeof action == 'function') {
-            const formData = new FormData(e.target)
+            const formData = getFormData(e)
             setActionError('')
             setActionLoading(true)
             try {
-                await action(Object.fromEntries(formData))
+                await action(formData)
             } catch (err) {
                 setActionError(err)
             } finally {
@@ -39,9 +39,26 @@ export default function Form({ className = '', children, submitText, error, load
         }
     }
 
+    function getFormData(e) {
+        const formData = new FormData(e.target)
+        const parsedData = {}
+        for (const [key, value] of formData.entries()) {
+            const keys = key.split('.')
+            let current = parsedData
+            for (let i = 0; i < keys.length - 1; i++) {
+                if (!current[keys[i]]) {
+                    current[keys[i]] = {}
+                }
+                current = current[keys[i]]
+            }
+            current[keys[keys.length - 1]] = value
+        }
+        return parsedData
+    }
+
     function handleChange(e) {
-        const formData = new FormData(e.currentTarget)
-        onChange?.(Object.fromEntries(formData))
+        const formData = getFormData(e)
+        onChange?.(formData)
     }
 
     const currentError = actionError?.message || actionError || error
