@@ -80,6 +80,14 @@ const productSchema = {
         type: String,
         trim: true
     },
+    gs1ProductCode: {
+        type: String,
+        trim: true,
+        index: true,
+        filter: true
+    },
+    gs1SyncedAt: Date,
+    gs1Raw: {},
     label: {
         type: String,
         trim: true,

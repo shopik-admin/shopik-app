@@ -5,8 +5,12 @@ import router from './router.js'
 import boot from './boot.js'
 import ssr from './ssr.js'
 import startImageWorker from '#server/workers/imageWorker.js'
+import startGs1FetchWorker from '#server/workers/gs1FetchWorker.js'
+import startGs1ProcessWorker from '#server/workers/gs1ProcessWorker.js'
+import { resolveSizing } from '#server/services/gs1/sizing.js'
 import startRefundRetry from '#server/cron/refundRetry.js'
 import startNightlySync from '#server/cron/nightlySync.js'
+import startGs1Sync from '#server/cron/gs1Sync.js'
 import startHolidaySeed from '#server/cron/holidaySeed.js'
 import log from '#server/utils/log.js'
 import compression from 'compression'
@@ -49,9 +53,13 @@ router(app, bootData)
 
 try {
     await startImageWorker({ DL: bootData.DL })
+    const sizing = resolveSizing()
+    await startGs1FetchWorker({ DL: bootData.DL, external: bootData.external, sizing })
+    await startGs1ProcessWorker({ DL: bootData.DL, sizing })
     startRefundRetry(bootData)
     if (!NO_NIGHT_SYNC || PRODUCTION) {
         startNightlySync(bootData)
+        startGs1Sync(bootData)
         startHolidaySeed(bootData)
     }
 } catch (e) {
