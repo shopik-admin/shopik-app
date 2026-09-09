@@ -57,43 +57,57 @@ function Mosaic({ slides }) {
 
 function SlideCarousel({ slides, autoplaySec }) {
     const { TR } = useText()
-    const [pos, setPos] = useState(0)
+    // Infinite in BOTH directions via clones on both ends:
+    //   [cloneLast, slide0..slideN-1, cloneFirst]
+    // Physical pos 0 = cloneLast, 1..count = real slides, count+1 = cloneFirst.
+    // Stepping onto a clone animates one slide, then snaps (no transition)
+    // to the matching real slide — so movement is always a single step,
+    // never a long rewind across the whole track.
+    const [pos, setPos] = useState(1)
     const [anim, setAnim] = useState(true)
     const [paused, setPaused] = useState(false)
     const count = slides.length
-    const posRef = useRef(0)
+    const posRef = useRef(1)
 
     useEffect(() => {
-        posRef.current = 0
-        setPos(0)
+        posRef.current = 1
+        setPos(1)
         setAnim(true)
     }, [count])
 
+    const logical = ((pos - 1) % count + count) % count
+
     function goTo(i) {
-        posRef.current = ((i % count) + count) % count
+        posRef.current = ((i % count) + count) % count + 1
         setAnim(true)
         setPos(posRef.current)
     }
 
-    // Forward is infinite: position `count` shows a clone of slide 0, then
-    // snaps back to 0 with the transition off (see onTransitionEnd).
     function goNext() {
-        posRef.current = posRef.current >= count ? 1 : posRef.current + 1
+        // Already sitting on the trailing clone — wait for the snap.
+        if (posRef.current >= count + 1) return
+        posRef.current = posRef.current + 1
         setAnim(true)
         setPos(posRef.current)
     }
 
     function goPrev() {
-        posRef.current = (posRef.current - 1 + count) % count
+        // Already sitting on the leading clone — wait for the snap.
+        if (posRef.current <= 0) return
+        posRef.current = posRef.current - 1
         setAnim(true)
         setPos(posRef.current)
     }
 
     function handleTransitionEnd() {
-        if (posRef.current === count) {
-            posRef.current = 0
+        if (posRef.current === count + 1) {
+            posRef.current = 1
             setAnim(false)
-            setPos(0)
+            setPos(1)
+        } else if (posRef.current === 0) {
+            posRef.current = count
+            setAnim(false)
+            setPos(count)
         }
     }
 
@@ -127,12 +141,15 @@ function SlideCarousel({ slides, autoplaySec }) {
             }}
             onTransitionEnd={handleTransitionEnd}
         >
+            <SlideLink key="clone-last" slide={slides[count - 1]} className={styles.heroSlide} aria-hidden="true">
+                <SlideImage slide={slides[count - 1]} />
+            </SlideLink>
             {slides.map((slide, i) => (
                 <SlideLink key={i} slide={slide} className={styles.heroSlide}>
                     <SlideImage slide={slide} />
                 </SlideLink>
             ))}
-            <SlideLink key="clone" slide={slides[0]} className={styles.heroSlide} aria-hidden="true">
+            <SlideLink key="clone-first" slide={slides[0]} className={styles.heroSlide} aria-hidden="true">
                 <SlideImage slide={slides[0]} />
             </SlideLink>
         </div>
@@ -148,7 +165,7 @@ function SlideCarousel({ slides, autoplaySec }) {
                 {slides.map((_, i) => (
                     <button
                         key={i}
-                        className={`${styles.dot} ${pos % count === i ? styles.dotActive : ''}`}
+                        className={`${styles.dot} ${logical === i ? styles.dotActive : ''}`}
                         onClick={() => goTo(i)}
                         aria-label={`${TR('display_slide')} ${i + 1}`}
                     />
