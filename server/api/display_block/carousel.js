@@ -2,9 +2,14 @@
 // Replays the carousel's stored filter with live pagination (always uncached —
 // deep pages are rare and skip-paginated on indexed queries).
 export default async function carousel(payload, { DL, _user, req, utils }) {
-    const { id, skip = 0, limit = 30, domainId } = payload
-    if (!id) throw { status: 400, message: 'id required' }
-    if (!domainId) throw { status: 400, message: 'domainId required' }
+    if (typeof payload.id !== 'string' || !payload.id)
+        throw { status: 400, message: 'id required' }
+    if (typeof payload.domainId !== 'string' || !payload.domainId)
+        throw { status: 400, message: 'domainId required' }
+    const id = payload.id
+    const domainId = payload.domainId
+    const skip = Math.max(Number(payload.skip) || 0, 0)
+    const limit = payload.limit
 
     const display = utils.data.displayBlocks
     const block = await DL.DisplayBlock.readOne(
@@ -34,13 +39,13 @@ export default async function carousel(payload, { DL, _user, req, utils }) {
     let products
     if (search) {
         products = await DL.Product.search(search, effectiveFilter, {
-            skip: Number(skip) || 0,
+            skip,
             limit: pageLimit,
             select
         })
     } else {
         products = await DL.Product.read(effectiveFilter, select, {
-            skip: Number(skip) || 0,
+            skip,
             limit: pageLimit,
             sort: display.resolveCarouselSort(DL, block.carousel)
         })
@@ -48,6 +53,7 @@ export default async function carousel(payload, { DL, _user, req, utils }) {
     if (mode === 'annotate' && storeId) {
         products = utils.data.withStock.annotateInStock(products, storeId, mode)
     }
+    products = display.stripStoreIds(products)
     const sales = await display.collectSales(DL, products)
     return { block: carouselMeta(block), products, sales }
 }

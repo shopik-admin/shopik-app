@@ -20,7 +20,8 @@ export function formatDateRange(gte, lte, TR) {
         if (gte === lte) return formatHebrewDate(gte, TR)
         return `${formatHebrewDate(gte, TR)} – ${formatHebrewDate(lte, TR)}`
     }
-    return null
+    if (gte) return `${TR('fromDate')}: ${formatHebrewDate(gte, TR)}`
+    return `${TR('toDate')}: ${formatHebrewDate(lte, TR)}`
 }
 
 // Shared day-precision date-range picker (promoted from DataManager FilterBar).
@@ -34,8 +35,9 @@ export default function DateRangeCalendar({ value, onChange }) {
     const initial = gte ? new Date(gte) : new Date()
     const [view, setView] = useState(new Date(initial.getFullYear(), initial.getMonth(), 1))
     useEffect(() => {
-        if (gte) setView(new Date(new Date(gte).getFullYear(), new Date(gte).getMonth(), 1))
-    }, [gte])
+        const anchor = gte || lte
+        if (anchor) setView(new Date(new Date(anchor).getFullYear(), new Date(anchor).getMonth(), 1))
+    }, [gte, lte])
     const y = view.getFullYear(), m = view.getMonth()
     const monthName = tr(`month-${m}`) || tr(`month-${m}-short`) || `${m + 1}`
     const daysInMonth = new Date(y, m + 1, 0).getDate()

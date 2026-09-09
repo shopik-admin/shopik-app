@@ -17,6 +17,8 @@ export const constants = {
 //   images/display-blocks/<blockId>/<slideKey>/<size>.webp
 // Resolved client-side via common/functions/displayImageUrl.js + VITE_FILES_BASE_URL.
 const slideSchema = {
+    // Stable client-generated id: row keys + GCS slideKey across reorders.
+    key: String,
     image: String,
     mobileImage: String,
     link: String,

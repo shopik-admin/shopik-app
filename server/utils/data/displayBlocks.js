@@ -1,4 +1,5 @@
 import crypto from 'crypto'
+import log from '#server/utils/log.js'
 
 export const DISPLAY_CACHE_TTL_SEC = 3600
 export const DEFAULT_BASE_LIMIT = 10
@@ -36,7 +37,7 @@ export const getBaseLimit = (DL, domainId) =>
 export const getPreviewLimit = (DL, domainId) =>
     getDisplayLimit(DL, domainId, PREVIEW_LIMIT_KEY, DEFAULT_PREVIEW_LIMIT)
 
-async function scanDel(redis, pattern) {
+export async function scanDel(redis, pattern) {
     let cursor = '0'
     let deleted = 0
     do {
@@ -68,7 +69,9 @@ export async function invalidateDisplayCache(DL, domainId, block) {
                 : '/products'
             return await scanDel(redis, `display:${domainId}:${prefix}*`)
         }
-    } catch { }
+    } catch (e) {
+        log.warn('[Display] cache invalidation failed:', e?.message || e)
+    }
     return 0
 }
 
@@ -92,7 +95,7 @@ export async function resolveCarouselFilter(DL, carousel, domainId) {
     }
     if (f.onSale) {
         const activeSaleIds = await DL.Sale.Model.distinct('id', { status: DL.Sale.constants.STATUS.ACTIVE })
-        if (activeSaleIds.length === 0) return { products: [], sales: {}, categoryName, categoryPath }
+        if (activeSaleIds.length === 0) return null
         filter.saleIds = { $in: activeSaleIds }
     }
     if (Array.isArray(f.barcodes) && f.barcodes.length) {
@@ -173,8 +176,7 @@ export function applyStockView(products, mode, storeId, limit) {
     return list.slice(0, limit)
 }
 
-export function filterSalesFor(products, sales) {
-    const ids = new Set()
+export function filterSalesFor(products, sales) {    const ids = new Set()
     for (const p of products || []) {
         if (Array.isArray(p?.saleIds)) {
             for (const id of p.saleIds) ids.add(id)
@@ -185,6 +187,18 @@ export function filterSalesFor(products, sales) {
     )
 }
 
-export function sha1(text) {
-    return crypto.createHash('sha1').update(String(text)).digest('hex')
+export function sha1(data) {
+    return crypto.createHash('sha1')
+        .update(Buffer.isBuffer(data) ? data : String(data))
+        .digest('hex')
+}
+
+// storeIds is internal routing data (which stores carry the product) —
+// never expose it to shoppers.
+export function stripStoreIds(products) {
+    return (products || []).map(p => {
+        if (!p || !('storeIds' in p)) return p
+        const { storeIds, ...rest } = p
+        return rest
+    })
 }

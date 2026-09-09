@@ -32,8 +32,10 @@ export function usePage(initialData) {
                     pageData.prevPath = pathname
                     setData(pageData)
                     document.title = `Shopik | ${pageData.title}`
-                    document.description = pageData.description
+                    document.querySelector("meta[name='description']")
+                        ?.setAttribute('content', pageData.description || '')
                 })
+                .catch(() => setData({ notFound: true, title: '404', prevPath: pathname }))
                 .finally(() => setLoading(false))
         }
     }, [page.path, params, pathname, initialData])

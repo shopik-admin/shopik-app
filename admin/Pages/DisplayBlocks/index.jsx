@@ -12,6 +12,7 @@ import Select from 'common/components/Select'
 import { useModal } from 'common/components/Modal'
 import { useText } from 'common/texts/TextProvider'
 import { getDisplayImageUrl } from 'common/functions/displayImageUrl'
+import { getProductImageUrl } from 'common/functions/productImageUrl'
 import BlockEditor from './BlockEditor'
 import styles from './displayBlocks.module.css'
 
@@ -31,6 +32,7 @@ export default function DisplayBlocks() {
     const [path, setPath] = useState('/')
     const [categoryId, setCategoryId] = useState('')
     const [blocks, setBlocks] = useState([])
+    const [previews, setPreviews] = useState({})
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState()
     const [dragIndex, setDragIndex] = useState(null)
@@ -63,7 +65,23 @@ export default function DisplayBlocks() {
                 ? { domainId, 'placement.path': placement.path }
                 : { domainId, 'placement.categoryId': placement.categoryId }
             const data = await apiReq('display_block/read', { filter, limit: 0, sort: { order: 1 } })
-            setBlocks(Array.isArray(data) ? data : [])
+            const list = Array.isArray(data) ? data : []
+            setBlocks(list)
+            // Carousel content preview: first products of each carousel's filter.
+            const carousels = list.filter(b => b.kind === 'product_carousel')
+            if (carousels.length) {
+                const entries = await Promise.all(carousels.map(async b => {
+                    try {
+                        const res = await apiReq('display_block/carousel', { id: b.id, domainId, limit: 5 })
+                        return [b.id, res.products || []]
+                    } catch {
+                        return [b.id, []]
+                    }
+                }))
+                setPreviews(Object.fromEntries(entries))
+            } else {
+                setPreviews({})
+            }
         } catch (e) {
             setError(e?.message || TR('display_load_failed'))
         } finally {
@@ -88,16 +106,24 @@ export default function DisplayBlocks() {
     }
 
     async function handleDelete(block) {
-        await apiReq('display_block/delete', { id: block.id })
-        fetchBlocks()
+        try {
+            await apiReq('display_block/delete', { id: block.id })
+            fetchBlocks()
+        } catch (e) {
+            setError(e?.message || TR('display_load_failed'))
+        }
     }
 
     async function handleToggleSub(block) {
-        await apiReq('display_block/update', {
-            id: block.id,
-            placement: { ...block.placement, includeSubcategories: !block.placement?.includeSubcategories }
-        })
-        fetchBlocks()
+        try {
+            await apiReq('display_block/update', {
+                id: block.id,
+                placement: { ...block.placement, includeSubcategories: !block.placement?.includeSubcategories }
+            })
+            fetchBlocks()
+        } catch (e) {
+            setError(e?.message || TR('display_load_failed'))
+        }
     }
 
     async function handleDrop() {
@@ -192,13 +218,13 @@ export default function DisplayBlocks() {
                                 onDragEnd={() => { setDragIndex(null); setDropIndex(null) }}
                             >
                                 <span className={styles.grip} title={TR('display_drag_hint')}>⠿</span>
-                                <div className={styles.thumb}>
-                                    {block.kind === 'banner' && block.banner?.slides?.[0]?.image
-                                        ? <Image src={getDisplayImageUrl(block.banner.slides[0].image, 's')} />
-                                        : <span className={styles.kindTag}>
-                                            {block.kind === 'banner' ? `🖼 ${TR('display_banner')}` : `🛒 ${TR('display_carousel')}`}
-                                        </span>}
-                                </div>
+                                {block.kind === 'banner'
+                                    ? <div className={`${styles.thumb} ${styles.thumbFit}`}>
+                                        {block.banner?.slides?.[0]?.image
+                                            ? <Image src={getDisplayImageUrl(block.banner.slides[0].image, 's')} />
+                                            : <span className={styles.kindTag}>🖼 {TR('display_banner')}</span>}
+                                    </div>
+                                    : <PreviewStrip products={previews[block.id]} TR={TR} />}
                                 <Flex col gap={2} className={styles.meta}>
                                     <Text bold>{block.name}{block.active === false ? ` ${TR('display_inactive')}` : ''}</Text>
                                     <Text size="s">{block.title || '—'}</Text>
@@ -215,7 +241,7 @@ export default function DisplayBlocks() {
                                         onChange={handleToggleSub.bind(null, block)}
                                     />
                                 )}
-                                <Flex gap={4}>
+                                <Flex gap={4} className={styles.rowActions}>
                                     <Button size="s" icon="edit" mode="text" onClick={() => openEditor(block)} />
                                     <ConfirmButton
                                         size="s" icon="trash" mode="text"
@@ -227,6 +253,17 @@ export default function DisplayBlocks() {
                         ))}
                     </div>}
     </Flex>
+}
+
+function PreviewStrip({ products, TR }) {
+    if (!products?.length) {
+        return <span className={styles.kindTag}>🛒 {TR('display_carousel')}</span>
+    }
+    return <div className={styles.previewStrip}>
+        {products.slice(0, 5).map(p => (
+            <Image key={p.id} src={getProductImageUrl(p.id, 's')} className={styles.previewThumb} />
+        ))}
+    </div>
 }
 
 function carouselSummary(block, TR) {

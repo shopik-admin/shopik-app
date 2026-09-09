@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 import Image from '#common/components/Image'
 import Button from '#common/components/Button'
 import Flex from '#common/components/Flex'
+import { useText } from '#common/texts/TextProvider'
 import { getDisplayImageUrl } from '#common/functions/displayImageUrl'
 import styles from './display.module.css'
 
@@ -21,21 +22,27 @@ function SlideLink({ slide, children, className }) {
     return <Link to={slide.link} className={className}>{children}</Link>
 }
 
+// <picture> loads exactly one variant (mobile OR desktop) — unlike the
+// previous dual-<img> version, the hidden variant never downloads.
 function SlideImage({ slide }) {
-    return <>
-        {slide.mobileImage && (
-            <Image
-                src={getDisplayImageUrl(slide.mobileImage, 'm')}
-                alt={slide.alt || ''}
-                className={`${styles.slideImg} ${styles.mobileOnly}`}
-            />
-        )}
-        <Image
-            src={getDisplayImageUrl(slide.image, 'xl')}
+    const desktop = slide.image ? getDisplayImageUrl(slide.image, 'xl') : ''
+    const mobile = slide.mobileImage ? getDisplayImageUrl(slide.mobileImage, 'm') : ''
+    if (!desktop && !mobile) return null
+    if (!desktop || !mobile) {
+        return <Image
+            src={desktop || mobile}
             alt={slide.alt || ''}
-            className={`${styles.slideImg} ${slide.mobileImage ? styles.desktopOnly : ''}`}
+            className={styles.slideImg}
         />
-    </>
+    }
+    return <picture className={styles.slideImg}>
+        <source media="(max-width: 700px)" srcSet={mobile} />
+        <Image
+            src={desktop}
+            alt={slide.alt || ''}
+            className={styles.slideImg}
+        />
+    </picture>
 }
 
 function Mosaic({ slides }) {
@@ -49,6 +56,7 @@ function Mosaic({ slides }) {
 }
 
 function SlideCarousel({ slides, autoplaySec }) {
+    const { TR } = useText()
     const [index, setIndex] = useState(0)
     const [paused, setPaused] = useState(false)
     const count = slides.length
@@ -57,8 +65,10 @@ function SlideCarousel({ slides, autoplaySec }) {
 
     useEffect(() => {
         const sec = Number(autoplaySec)
-        if (!sec || sec <= 0 || count < 2 || paused || document.hidden) return
-        const timer = setInterval(() => setIndex(i => (i + 1) % count), sec * 1000)
+        if (!sec || sec <= 0 || count < 2 || paused) return
+        const timer = setInterval(() => {
+            if (!document.hidden) setIndex(i => (i + 1) % count)
+        }, sec * 1000)
         return () => clearInterval(timer)
     }, [autoplaySec, count, paused])
 
@@ -79,18 +89,39 @@ function SlideCarousel({ slides, autoplaySec }) {
             </SlideLink>
         ))}
         <Flex className={styles.heroNav}>
-            <Button icon="right" mode="text" onClick={() => setIndex((index - 1 + count) % count)} aria-label="previous" />
+            <Button
+                icon="right"
+                mode="text"
+                onClick={() => setIndex((index - 1 + count) % count)}
+                aria-label={TR('display_prev_slide')}
+                style={arrowBg}
+            />
             <Flex className={styles.dots} gap={6}>
                 {slides.map((_, i) => (
                     <button
                         key={i}
                         className={`${styles.dot} ${i === index ? styles.dotActive : ''}`}
                         onClick={() => setIndex(i)}
-                        aria-label={`slide ${i + 1}`}
+                        aria-label={`${TR('display_slide')} ${i + 1}`}
                     />
                 ))}
             </Flex>
-            <Button icon="left" mode="text" onClick={() => setIndex((index + 1) % count)} aria-label="next" />
+            <Button
+                icon="left"
+                mode="text"
+                onClick={() => setIndex((index + 1) % count)}
+                aria-label={TR('display_next_slide')}
+                style={arrowBg}
+            />
         </Flex>
     </div>
+}
+
+// Translucent backdrop so arrows stay visible over any banner image.
+const arrowBg = {
+    background: 'rgba(0, 0, 0, 0.45)',
+    color: '#fff',
+    borderRadius: '50%',
+    width: 36,
+    height: 36
 }

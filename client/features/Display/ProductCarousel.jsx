@@ -5,10 +5,12 @@ import Flex from '#common/components/Flex'
 import Text from '#common/components/Text'
 import Icon from '#common/components/Icon'
 import { setSalesCache } from '#common/functions/salesCache.js'
+import { useText } from '#common/texts/TextProvider'
 import ProductCard from 'pages/Products/ProductCard'
 import styles from './display.module.css'
 
 export default function ProductCarousel({ block }) {
+    const { TR } = useText()
     const { title } = block
     const { showAll, showAllText, autoplaySec } = block.carousel || {}
     const products = block.products || []
@@ -21,7 +23,7 @@ export default function ProductCarousel({ block }) {
             <Text size="h1" bold>{title || block.name}</Text>
             {showAll !== false && (
                 <Link to={`/carousel/${block.id}`} className={styles.showAll}>
-                    <Text mode="link" bold size='xl'>{showAllText || 'הצג הכל'}</Text>
+                    <Text mode="link" bold size='xl'>{showAllText || TR('display_show_all_default')}</Text>
                     <Icon name="left" size={14} />
                 </Link>
             )}

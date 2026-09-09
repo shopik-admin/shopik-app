@@ -20,18 +20,19 @@ export default function ProductList({ data, loading, notFound, title, breadcrumb
     const products = [...(data?.products || []), ...extra.flatMap(e => e.products)]
     const sales = extra.reduce((acc, e) => ({ ...acc, ...e.sales }), data?.sales || {})
     useEffect(() => { if (sales && Object.keys(sales).length) setSalesCache(sales) }, [sales])
-    useEffect(() => { if (data?.sales) setSalesCache(data.sales) }, [data?.sales])
 
     // NOTE: data can arrive AFTER resetKey changes (client-side navigation keeps
     // the previous page's data while init runs — e.g. Home has no products).
-    // Recomputing when the incoming count changes un-sticks hasMore.
+    // Recomputing when the incoming snapshot changes un-sticks hasMore. The
+    // fingerprint (count + first id) also catches same-count product swaps.
     const incomingCount = data?.products?.length || 0
+    const incomingFirstId = data?.products?.[0]?.id || ''
     useEffect(() => {
         ++latestRequest.current
         setExtra([])
         setHasMore(incomingCount === PRODUCT_LIST_LIMIT)
         setLoadingMore(false)
-    }, [resetKey, incomingCount])
+    }, [resetKey, incomingCount, incomingFirstId])
 
     async function loadMore() {
         if (loadingMore || !hasMore) return
@@ -70,7 +71,7 @@ export default function ProductList({ data, loading, notFound, title, breadcrumb
                     key={p.id}
                     product={p}
                     sales={(p.saleIds || []).reduce((acc, sId) => sales[sId] ? { ...acc, [sId]: sales[sId] } : acc, {})}
-                >{p.name}</ProductCard>)}
+                />)}
         </div>
         {!loading && products.length === 0 && emptyText && <Text>{emptyText}</Text>}
         {!loading && hasMore && <div ref={sentinelRef} className={styles.sentinel} />}

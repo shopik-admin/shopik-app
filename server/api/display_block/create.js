@@ -8,8 +8,12 @@ export default async function create(payload, { DL, utils }) {
     if (!validKinds.includes(kind))
         throw { status: 400, message: `kind must be one of ${validKinds.join(', ')}` }
 
-    if (placement.type === DL.DisplayBlock.constants.PLACEMENT.PATH && !placement.path)
-        throw { status: 400, message: 'placement.path required for path placement' }
+    if (placement.type === DL.DisplayBlock.constants.PLACEMENT.PATH) {
+        if (!placement.path)
+            throw { status: 400, message: 'placement.path required for path placement' }
+        if (!placement.path.startsWith('/'))
+            placement.path = `/${placement.path}`
+    }
 
     if (placement.type === DL.DisplayBlock.constants.PLACEMENT.CATEGORY) {
         if (!placement.categoryId)

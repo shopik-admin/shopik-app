@@ -4,9 +4,15 @@
 //   annotate → cached wide base (with storeIds), inStock flags added per request
 //   filter   → cached wide base, store-filtered + sliced per request
 export default async function get(payload, { DL, _user, req, utils }) {
-    const { path, domainId } = payload
-    if (!path) throw { status: 400, message: 'path required' }
-    if (!domainId) throw { status: 400, message: 'domainId required' }
+    // Strict types: body values are client-controlled; objects slip past the
+    // `required` check and either throw (path.startsWith) or silently drop
+    // filter keys in processFilter (fail-open cross-domain read).
+    if (typeof payload.path !== 'string' || !payload.path)
+        throw { status: 400, message: 'path required' }
+    if (typeof payload.domainId !== 'string' || !payload.domainId)
+        throw { status: 400, message: 'domainId required' }
+    const path = payload.path
+    const domainId = payload.domainId
     // Leading slash is canonical: '/sales' matches admin-stored paths and
     // keeps cache keys + category prefix logic consistent.
     const pagePath = path.startsWith('/') ? path : `/${path}`
@@ -18,7 +24,7 @@ export default async function get(payload, { DL, _user, req, utils }) {
     const key = display.displayCacheKey(domainId, pagePath, mode)
     try {
         const cached = await DL.redis?.get(key)
-        if (cached) return deriveView(JSON.parse(cached), mode, storeId, previewLimit)
+        if (cached) return deriveView(JSON.parse(cached), mode, storeId, previewLimit, display)
     } catch {}
 
     const now = new Date()
@@ -70,10 +76,11 @@ export default async function get(payload, { DL, _user, req, utils }) {
         const { products, sales } = await display.fetchCarouselBase(DL, block, domainId, baseLimit)
         if (mode === 'off') {
             const limit = Math.min(block.carousel?.limit || previewLimit, previewLimit)
+            const sliced = display.stripStoreIds(products.slice(0, limit))
             withProducts.push({
                 ...block,
-                products: products.slice(0, limit),
-                sales: display.filterSalesFor(products.slice(0, limit), sales)
+                products: sliced,
+                sales: display.filterSalesFor(sliced, sales)
             })
         } else {
             withProducts.push({ ...block, products, sales })
@@ -85,37 +92,21 @@ export default async function get(payload, { DL, _user, req, utils }) {
         await DL.redis?.set(key, JSON.stringify(response), 'EX', display.DISPLAY_CACHE_TTL_SEC)
     } catch {}
 
-    return deriveView(response, mode, storeId, previewLimit)
+    return deriveView(response, mode, storeId, previewLimit, display)
 }
 
-function deriveView(response, mode, storeId, previewLimit) {
-    // off entries are already final — deriveView is a no-op for them.
-    if (mode === 'off' || !storeId) return response
+function deriveView(response, mode, storeId, previewLimit, display) {
+    // The cached base always carries storeIds (needed to derive per-store
+    // views); responses never do. Re-deriving is idempotent, so off-mode
+    // entries (already sliced) pass through unchanged.
     return {
         blocks: (response.blocks || []).map(block => {
             if (block.kind !== 'product_carousel' || !Array.isArray(block.products)) return block
             const limit = Math.min(block.carousel?.limit || previewLimit, previewLimit)
-            let products = block.products
-            if (mode === 'filter') {
-                products = products.filter(p =>
-                    Array.isArray(p.storeIds) && p.storeIds.includes(storeId))
-            } else if (mode === 'annotate') {
-                products = products.map(p => ({
-                    ...p,
-                    inStock: Array.isArray(p.storeIds) ? p.storeIds.includes(storeId) : true
-                }))
-            }
-            products = products.slice(0, limit)
-            const ids = new Set()
-            for (const p of products) {
-                if (Array.isArray(p?.saleIds)) {
-                    for (const id of p.saleIds) ids.add(id)
-                }
-            }
-            const sales = Object.fromEntries(
-                Object.entries(block.sales || {}).filter(([id]) => ids.has(id))
+            const products = display.stripStoreIds(
+                display.applyStockView(block.products, mode, storeId, limit)
             )
-            return { ...block, products, sales }
+            return { ...block, products, sales: display.filterSalesFor(products, block.sales) }
         })
     }
 }

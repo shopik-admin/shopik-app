@@ -1,6 +1,7 @@
 import storage from '#server/external/storage.js'
 import download from '#server/services/image/download.js'
 import resize from '#server/services/image/resize.js'
+import { buildDisplayObjectPath } from '#server/services/image/paths.js'
 import { BANNER_SIZES } from '#server/services/image/constants.js'
 import uid from '#common/functions/uid.js'
 import { sha1 } from '#server/utils/data/displayBlocks.js'
@@ -19,27 +20,32 @@ export default async function upload_image(payload) {
 
     let buffer
     if (imageBase64) {
-        if (Buffer.byteLength(imageBase64, 'utf8') > MAX_BYTES)
-            throw { status: 400, message: 'image too large' }
-        buffer = Buffer.from(imageBase64, 'base64')
+        try {
+            buffer = Buffer.from(String(imageBase64).split(',').pop(), 'base64')
+        } catch {
+            throw { status: 400, message: 'invalid image' }
+        }
     } else {
         buffer = await download(sourceUrl)
     }
-    if (!buffer?.length || buffer.length > 20 * 1024 * 1024)
+    // Single post-decode check (base64 inflates ~33%, so string-length checks lie).
+    if (!buffer?.length || buffer.length > MAX_BYTES)
         throw { status: 400, message: 'image too large' }
 
-    const sizes = await resize(buffer, BANNER_SIZES)
-    const basePath = [
-        'images',
-        'display-blocks',
-        blockId || `tmp-${uid()}`,
-        slideKey || uid()
-    ].join('/')
+    let sizes
+    try {
+        sizes = await resize(buffer, BANNER_SIZES)
+    } catch {
+        throw { status: 400, message: 'invalid image' }
+    }
+    const blockDir = blockId || `tmp-${uid()}`
+    const key = slideKey || uid()
+    const basePath = `images/display-blocks/${blockDir}/${key}`
 
     await Promise.all(
         Object.entries(sizes).map(([name, data]) =>
             storage.uploadFile({
-                path: `${basePath}/${name}.webp`,
+                path: buildDisplayObjectPath(blockDir, key, name),
                 data,
                 contentType: 'image/webp',
                 cacheControl: 'public, max-age=31536000, immutable'
@@ -47,9 +53,9 @@ export default async function upload_image(payload) {
         )
     )
 
-    return { basePath, sizes: Object.keys(sizes), hash: sha1(basePath) }
+    return { basePath, sizes: Object.keys(sizes), hash: sha1(buffer) }
 }
 
 upload_image.config = {
-    permissions: ['display_block:update']
+    permissions: ['display_block:create', 'display_block:update']
 }

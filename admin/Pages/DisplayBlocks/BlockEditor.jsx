@@ -17,6 +17,14 @@ const SORT_OPTIONS = [
     { value: 'popular', text: 'display_sort_popular' }
 ]
 
+// Stable per-row ids so SlideRow local state (typed URL, upload indicator)
+// doesn't jump rows on reorder/delete. Local uniqueness is enough — the GCS
+// path already includes the block id, so no crypto needed.
+let slideSeq = 0
+function newSlideKey() {
+    return `slide-${Date.now().toString(36)}-${(slideSeq++).toString(36)}${Math.random().toString(36).slice(2, 6)}`
+}
+
 // Split an ISO datetime into local date + time parts for the calendar/time inputs.
 function splitLocal(iso) {
     if (!iso) return { date: '', time: '' }
@@ -45,7 +53,8 @@ export default function BlockEditor({ block, domainId, placement, categories = [
     const [endTime, setEndTime] = useState(initialEnd.time || '00:00')
     const [layout, setLayout] = useState(block?.banner?.layout || 'carousel')
     const [bannerAutoplay, setBannerAutoplay] = useState(block?.banner?.autoplaySec ?? 5)
-    const [slides, setSlides] = useState(block?.banner?.slides || [])
+    const [slides, setSlides] = useState(() =>
+        (block?.banner?.slides || []).map(s => ({ key: newSlideKey(), ...s })))
     const [carouselCategory, setCarouselCategory] = useState(block?.carousel?.filter?.categoryId || '')
     const [onSale, setOnSale] = useState(!!block?.carousel?.filter?.onSale)
     const [search, setSearch] = useState(block?.carousel?.filter?.search || '')
@@ -79,6 +88,7 @@ export default function BlockEditor({ block, domainId, placement, categories = [
                     layout,
                     autoplaySec: Number(bannerAutoplay) || 0,
                     slides: slides.map(s => ({
+                        ...(s.key ? { key: s.key } : {}),
                         ...(s.image ? { image: s.image } : {}),
                         ...(s.mobileImage ? { mobileImage: s.mobileImage } : {}),
                         ...(s.link ? { link: s.link } : {}),
@@ -149,9 +159,9 @@ export default function BlockEditor({ block, domainId, placement, categories = [
                 onChange={e => setTitle(e.target.value)}
                 placeholder="display_title_ph"
             />}
-            <label className={styles.checkRow}>
+            <span className={styles.checkRow}>
                 <Checkbox label={TR('active')} checked={active} onChange={e => setActive(e.target.checked)} />
-            </label>
+            </span>
         </Flex>
         <Text size="s" mode="sub">
             {TR('display_placement')}: {placement.type === 'path' ? placement.path : placement.categoryId}
@@ -175,7 +185,7 @@ export default function BlockEditor({ block, domainId, placement, categories = [
                     name="startTime"
                     label="display_start_time"
                     className={styles.field}
-                    defaultValue={startTime}
+                    defaultValue={startDate ? startTime : ''}
                     onChange={e => setStartTime(e.target.value)}
                 />
                 <Input
@@ -183,7 +193,7 @@ export default function BlockEditor({ block, domainId, placement, categories = [
                     name="endTime"
                     label="display_end_time"
                     className={styles.field}
-                    defaultValue={endTime}
+                    defaultValue={endDate ? endTime : ''}
                     onChange={e => setEndTime(e.target.value)}
                 />
             </Flex>
@@ -262,7 +272,7 @@ function BannerFields({ layout, setLayout, autoplay, setAutoplay, slides, setSli
         </Flex>
         {slides.map((slide, i) => (
             <SlideRow
-                key={i}
+                key={slide.key || `new-${i}`}
                 slide={slide}
                 index={i}
                 blockId={blockId}
@@ -271,7 +281,7 @@ function BannerFields({ layout, setLayout, autoplay, setAutoplay, slides, setSli
                 onRemove={() => setSlides(prev => prev.filter((_, idx) => idx !== i))}
             />
         ))}
-        <Button size="s" icon="add" onClick={() => setSlides(prev => [...prev, {}])}>
+        <Button size="s" icon="add" onClick={() => setSlides(prev => [...prev, { key: newSlideKey() }])}>
             display_add_slide
         </Button>
     </Flex>
@@ -289,7 +299,7 @@ function SlideRow({ slide, index, blockId, onPatch, onMove, onRemove }) {
         try {
             const res = await apiReq('display_block/upload_image', {
                 imageBase64: base64,
-                ...(blockId ? { blockId, slideKey: `slide-${index}` } : {})
+                ...(blockId ? { blockId, slideKey: slide.key || `slide-${index}` } : {})
             })
             onPatch({ [basePath]: res.basePath })
         } catch (e) {
@@ -318,7 +328,7 @@ function SlideRow({ slide, index, blockId, onPatch, onMove, onRemove }) {
         try {
             const res = await apiReq('display_block/upload_image', {
                 sourceUrl: url.trim(),
-                ...(blockId ? { blockId, slideKey: `slide-${index}` } : {})
+                ...(blockId ? { blockId, slideKey: slide.key || `slide-${index}` } : {})
             })
             onPatch({ [basePath]: res.basePath })
             setUrl('')

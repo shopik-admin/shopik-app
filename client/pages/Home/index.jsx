@@ -3,7 +3,7 @@ import { usePage } from 'layout/Page'
 import DisplayBlocks from 'features/Display/DisplayBlocks'
 import styles from './home.module.css'
 
-export default function Home({ }) {
+export default function Home() {
     const { pageData } = usePage()
     return <div className={styles.home}>
         <DisplayBlocks blocks={pageData?.data?.blocks} />

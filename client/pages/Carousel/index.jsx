@@ -1,4 +1,5 @@
 import apiReq from '#common/functions/apiReq'
+import TR from '#common/texts/TR'
 import { usePage } from 'layout/Page'
 import ProductList, { PRODUCT_LIST_LIMIT } from 'pages/Products/ProductList'
 
@@ -24,7 +25,7 @@ Carousel.init = async function (path) {
     try {
         const res = await apiReq('display_block/carousel', { id, limit: PRODUCT_LIST_LIMIT })
         return {
-            title: res.block?.title || 'carousel',
+            title: res.block?.title || TR('display_fallback_title'),
             description: res.block?.title,
             data: res
         }

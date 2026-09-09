@@ -1,11 +1,14 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react'
+import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react'
 import classNames from 'common/functions/classNames'
+import { useText } from 'common/texts/TextProvider'
 import styles from './horizontalScroll.module.css'
 import Button from '../Button'
 import Flex from '../Flex'
 import Text from '../Text'
 
 export default function HorizontalScroll({ items = [], children = items, className = '', itemClassName = '', autoplaySec = 0 }) {
+    const { TR } = (useText?.() || {})
+    const tr = TR || (k => k)
     const scrollContainerRef = useRef(null)
     const [showLeftArrow, setShowLeftArrow] = useState(false)
     const [showRightArrow, setShowRightArrow] = useState(false)
@@ -37,7 +40,17 @@ export default function HorizontalScroll({ items = [], children = items, classNa
         }
     }, [])
 
-    const contentList = Array.isArray(children) && children.length > 0 ? children : (Array.isArray(items) ? items : [])
+    // Normalized once per input identity: single child isn't dropped, and the
+    // wrapper inherits a stable key from the child when it has one.
+    const contentList = useMemo(() => {
+        const raw = Array.isArray(children) && children.length > 0 ? children
+            : (Array.isArray(items) ? items : [items].filter(v => v != null && v !== false))
+        return raw.map((item, index) => ({
+            key: (React.isValidElement(item) && item.key != null) ? item.key : `item-${index}`,
+            item
+        }))
+    }, [children, items])
+    const contentLength = contentList.length
 
     useEffect(() => {
         const el = scrollContainerRef.current
@@ -65,7 +78,7 @@ export default function HorizontalScroll({ items = [], children = items, classNa
             el.removeEventListener('scroll', checkScrollPosition)
             window.removeEventListener('resize', checkScrollPosition)
         }
-    }, [contentList, checkScrollPosition])
+    }, [contentLength, checkScrollPosition])
 
     const hoverScrollRef = useRef(null)
 
@@ -154,7 +167,7 @@ export default function HorizontalScroll({ items = [], children = items, classNa
             cancelAnimationFrame(rafId)
             cancelAnimationFrame(initialRafId)
         }
-    }, [contentList, scrollToActive])
+    }, [contentLength, scrollToActive])
 
     const scroll = (direction) => {
         stopHoverScroll()
@@ -187,7 +200,7 @@ export default function HorizontalScroll({ items = [], children = items, classNa
             el.scrollBy({ left: dirRef.current * el.clientWidth * 0.75, behavior: 'smooth' })
         }, sec * 1000)
         return () => clearInterval(timer)
-    }, [autoplaySec, contentList])
+    }, [autoplaySec, contentLength])
 
     return (
         <Flex className={classNames(styles.wrapper, className)} alignItems='center'
@@ -205,7 +218,7 @@ export default function HorizontalScroll({ items = [], children = items, classNa
                     onMouseLeave={stopHoverScroll}
                     onTouchStart={() => startHoverScroll('left')}
                     onTouchEnd={stopHoverScroll}
-                    aria-label='Scroll left'
+                    aria-label={tr('display_scroll_left')}
                 />
             )}
 
@@ -214,8 +227,8 @@ export default function HorizontalScroll({ items = [], children = items, classNa
                 className={styles.scrollContainer}
                 gap={10}
             >
-                {contentList.map((item, index) => (
-                    <Flex key={index} className={classNames(styles.item, itemClassName)} shrink={0}>
+                {contentList.map(({ key, item }) => (
+                    <Flex key={key} className={classNames(styles.item, itemClassName)} shrink={0}>
                         {typeof item === 'string' ? <Text>{item}</Text> : item}
                     </Flex>
                 ))}
@@ -230,7 +243,7 @@ export default function HorizontalScroll({ items = [], children = items, classNa
                     onMouseLeave={stopHoverScroll}
                     onTouchStart={() => startHoverScroll('right')}
                     onTouchEnd={stopHoverScroll}
-                    aria-label='Scroll right'
+                    aria-label={tr('display_scroll_right')}
                 />
             )}
         </Flex>

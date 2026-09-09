@@ -23,7 +23,7 @@ export default function Products() {
 
 
 Products.init = async function (path) {
-    const pagePath = path.startsWith('/') ? path : `/${path}`
+    const pagePath = `/${String(path).replace(/^\//, '')}`
     const [res, display] = await Promise.all([
         apiReq('product/get', { path, limit: PRODUCT_LIST_LIMIT }),
         apiReq('display_block/get', { path: pagePath }).catch(() => ({ blocks: [] }))
@@ -35,7 +35,7 @@ Products.init = async function (path) {
     if (categoryRequested && !res.categoryName) {
         return { notFound: true, title: '404' }
     }
-    const title = decodeURIComponent(path).split('/').pop()
+    const title = decodeURIComponent(path).split('/').filter(Boolean).pop() || ''
     if (res.products[0]) {
         const product = res.products[0]
         return {
@@ -45,7 +45,7 @@ Products.init = async function (path) {
         }
     }
     return {
-        title: decodeURI(title),
+        title,
         description: title,
         data: { ...res, blocks }
     }
