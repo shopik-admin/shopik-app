@@ -39,7 +39,7 @@ function splitLocal(iso) {
     } catch { return { date: '', time: '' } }
 }
 
-export default function BlockEditor({ block, domainId, placement, categories = [], onClose, onSaved }) {
+export default function BlockEditor({ block, domainId, placement, categories = [], allCategories = [], onClose, onSaved }) {
     const { TR } = useText()
     const [kind, setKind] = useState(block?.kind || 'banner')
     const [name, setName] = useState(block?.name || '')
@@ -126,6 +126,11 @@ export default function BlockEditor({ block, domainId, placement, categories = [
     }
 
     return <Flex col gap={10} className={styles.editor}>
+
+        <Text size="s" mode="sub">
+            {TR('display_placement')}: {placement.type === 'path' ? placement.path : placement.categoryId}
+            {' · '}{TR('display_domain')}: {domainId}
+        </Text>
         <Flex gap={8}>
             <Input
                 type="select"
@@ -163,10 +168,6 @@ export default function BlockEditor({ block, domainId, placement, categories = [
                 <Checkbox label={TR('active')} checked={active} onChange={e => setActive(e.target.checked)} />
             </span>
         </Flex>
-        <Text size="s" mode="sub">
-            {TR('display_placement')}: {placement.type === 'path' ? placement.path : placement.categoryId}
-            {' · '}{TR('display_domain')}: {domainId}
-        </Text>
         <Flex col gap={6}>
             <Text size="s">display_schedule</Text>
             <DateRangeCalendar
@@ -208,6 +209,7 @@ export default function BlockEditor({ block, domainId, placement, categories = [
             />
             : <CarouselFields
                 categories={categories}
+                allCategories={allCategories}
                 category={carouselCategory} setCategory={setCarouselCategory}
                 onSale={onSale} setOnSale={setOnSale}
                 search={search} setSearch={setSearch}
@@ -394,12 +396,20 @@ function SlideRow({ slide, index, blockId, onPatch, onMove, onRemove }) {
 function CarouselFields(props) {
     const { TR } = useText()
     const {
-        categories, category, setCategory,
+        categories, allCategories = [], category, setCategory,
         onSale, setOnSale, search, setSearch,
         barcodes, setBarcodes, sort, setSort,
         limit, setLimit, autoplay, setAutoplay,
         showAll, setShowAll, showAllText, setShowAllText
     } = props
+    // Preserve a deeper category chosen before the two-level limit (or via API)
+    // so editing never silently wipes it.
+    const missingCategory = category && !categories.some(c => c.id === category)
+        ? [{
+            value: category,
+            text: allCategories.find(c => c.id === category)?.path || category
+        }]
+        : []
     return <Flex col gap={8}>
         <Flex gap={8}>
             <Input
@@ -411,7 +421,8 @@ function CarouselFields(props) {
                 onChange={e => setCategory(e.target.value)}
                 options={[
                     { value: '', text: 'display_all' },
-                    ...categories.map(c => ({ value: c.id, text: c.path || c.name }))
+                    ...categories.map(c => ({ value: c.id, text: c.path || c.name })),
+                    ...missingCategory
                 ]}
             />
             <Input
@@ -449,6 +460,7 @@ function CarouselFields(props) {
             name="barcodes"
             label="display_barcodes_label"
             className={styles.field}
+            style={{ borderRadius: '20px' }}
             rows={3}
             defaultValue={barcodes}
             onChange={e => setBarcodes(e.target.value)}

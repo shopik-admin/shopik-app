@@ -8,6 +8,7 @@ import Flex from 'common/components/Flex'
 import Card from 'common/components/Card'
 import Text from 'common/components/Text'
 import Image from 'common/components/Image'
+import Icon from 'common/components/Icon'
 import Select from 'common/components/Select'
 import { useModal } from 'common/components/Modal'
 import { useText } from 'common/texts/TextProvider'
@@ -56,6 +57,13 @@ export default function DisplayBlocks() {
 
     const placementReady = placement.type === 'path' || !!placement.categoryId
 
+    // Category pickers (page context + carousel filter) show only the first
+    // two levels — deeper leaves stay reachable through their parents.
+    const pickerCategories = useMemo(() => {
+        const topIds = new Set(categories.filter(c => !c.parentId).map(c => c.id))
+        return categories.filter(c => !c.parentId || topIds.has(c.parentId))
+    }, [categories])
+
     async function fetchBlocks() {
         if (!domainId || !placementReady) return
         setLoading(true)
@@ -97,7 +105,8 @@ export default function DisplayBlocks() {
                 block={block}
                 domainId={domainId}
                 placement={placement}
-                categories={categories}
+                categories={pickerCategories}
+                allCategories={categories}
                 onClose={closeModal}
                 onSaved={() => { closeModal(); fetchBlocks() }}
             />,
@@ -189,7 +198,7 @@ export default function DisplayBlocks() {
                             onChange={e => setCategoryId(e.target.value)}
                             options={[
                                 { value: '', text: 'display_choose_category' },
-                                ...categories.map(c => ({ value: c.id, text: c.path || c.name }))
+                                ...pickerCategories.map(c => ({ value: c.id, text: c.path || c.name }))
                             ]}
                         />
                     </label>}
@@ -218,13 +227,11 @@ export default function DisplayBlocks() {
                                 onDragEnd={() => { setDragIndex(null); setDropIndex(null) }}
                             >
                                 <span className={styles.grip} title={TR('display_drag_hint')}>⠿</span>
-                                {block.kind === 'banner'
-                                    ? <div className={`${styles.thumb} ${styles.thumbFit}`}>
-                                        {block.banner?.slides?.[0]?.image
-                                            ? <Image src={getDisplayImageUrl(block.banner.slides[0].image, 's')} />
-                                            : <span className={styles.kindTag}>🖼 {TR('display_banner')}</span>}
-                                    </div>
-                                    : <PreviewStrip products={previews[block.id]} TR={TR} />}
+                                <Icon
+                                    name={block.kind === 'banner' ? 'blocks' : 'carousel'}
+                                    size={22}
+                                    className={styles.kindIcon}
+                                />
                                 <Flex col gap={2} className={styles.meta}>
                                     <Text bold>{block.name}{block.active === false ? ` ${TR('display_inactive')}` : ''}</Text>
                                     <Text size="s">{block.title || '—'}</Text>
@@ -234,6 +241,13 @@ export default function DisplayBlocks() {
                                             : carouselSummary(block, TR)}
                                     </Text>
                                 </Flex>
+                                {block.kind === 'banner'
+                                    ? <div className={`${styles.thumb} ${styles.thumbFit}`}>
+                                        {block.banner?.slides?.[0]?.image
+                                            ? <Image src={getDisplayImageUrl(block.banner.slides[0].image, 's')} />
+                                            : <span className={styles.kindTag}>{TR('display_banner')}</span>}
+                                    </div>
+                                    : <PreviewStrip products={previews[block.id]} TR={TR} />}
                                 {block.placement?.type === 'category' && (
                                     <Checkbox
                                         label={TR('display_include_sub')}
@@ -257,7 +271,7 @@ export default function DisplayBlocks() {
 
 function PreviewStrip({ products, TR }) {
     if (!products?.length) {
-        return <span className={styles.kindTag}>🛒 {TR('display_carousel')}</span>
+        return <span className={styles.kindTag}>{TR('display_carousel')}</span>
     }
     return <div className={styles.previewStrip}>
         {products.slice(0, 5).map(p => (

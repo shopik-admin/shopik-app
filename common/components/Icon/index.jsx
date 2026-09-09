@@ -11,7 +11,7 @@ import {
     LuShoppingBag, LuArrowUpDown, LuCode, LuPackage, LuStore, LuGlobe, LuPercent, LuTicket,
     LuSun, LuMoon, LuCloudUpload, LuMap, LuClock, LuTruck, LuCreditCard, LuBarcode, LuAlignLeft,
     LuListPlus, LuNotebookPen, LuPanelRightClose, LuPanelRightOpen, LuCalendarPlus, LuSlidersHorizontal,
-    LuBoxes, LuLightbulb, LuSnowflake, LuImage, LuBadgePercent, LuGalleryVerticalEnd,    LuHistory, LuPhone, LuMail, LuMessageSquare, LuArrowRightLeft, LuCalculator, LuArchiveRestore,
+    LuBoxes, LuLightbulb, LuSnowflake, LuImage, LuBadgePercent, LuGalleryVerticalEnd, LuGalleryHorizontalEnd,    LuHistory, LuPhone, LuMail, LuMessageSquare, LuArrowRightLeft, LuCalculator, LuArchiveRestore,
     LuUpload
 } from 'react-icons/lu'
 import { BsFileEarmarkExcel } from 'react-icons/bs'
@@ -115,7 +115,8 @@ const iconsList = {
     calculator: LuCalculator,
     restore: LuArchiveRestore,
     upload: LuUpload,
-    blocks: LuGalleryVerticalEnd
+    blocks: LuGalleryVerticalEnd,
+    carousel: LuGalleryHorizontalEnd
 }
 
 /**

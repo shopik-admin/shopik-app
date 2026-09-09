@@ -54,6 +54,11 @@
     font-size: 18px;
 }
 
+.kindIcon {
+    opacity: 0.55;
+    flex-shrink: 0;
+}
+
 .thumb {
     width: 144px;
     height: 90px;
