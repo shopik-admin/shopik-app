@@ -25,35 +25,41 @@ const clampLabelScale = (v) => {
 }
 const snapKeyFor = (lat, lng) => `${Math.floor(lat * 100)}_${Math.floor(lng * 100)}`
 
+import { runtimeEnv } from 'common/functions/runtimeEnv.js'
+
 // CARTO light/dark render as vector (MapLibre GL style) with raster PNG fallback
 // when no API key is configured. OSM + satellite stay raster-only.
+// Key resolves lazily (SSR window.__ENV__ first, baked build-time fallback)
+// so it works regardless of module-eval order vs index.jsx.
+const getCartoKey = () => runtimeEnv('CARTO_KEY', typeof CARTO_KEY !== 'undefined' ? CARTO_KEY : '')
 
 const ATTR_CARTO = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-const HAS_CARTO_KEY = typeof CARTO_KEY !== 'undefined' && !!CARTO_KEY
-console.log(CARTO_KEY)
-const TILESETS = {
-    light: {
-        label: 'supply_map_minimal',
-        style: `https://basemaps.cartocdn.com/gl/positron-gl-style/style.json?key=${CARTO_KEY}`,
-        url: `https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png?lang=he&key=${CARTO_KEY}`,
-        attribution: ATTR_CARTO,
-    },
-    dark: {
-        label: 'supply_map_dark',
-        style: `https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json?key=${CARTO_KEY}`,
-        url: `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png?lang=he&key=${CARTO_KEY}`,
-        attribution: ATTR_CARTO,
-    },
-    osm: {
-        label: 'supply_map_standard',
-        url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-    },
-    satellite: {
-        label: 'supply_map_satellite',
-        url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-        attribution: 'Tiles &copy; Esri',
-    },
+const getTilesets = () => {
+    const key = getCartoKey()
+    return {
+        light: {
+            label: 'supply_map_minimal',
+            style: `https://basemaps.cartocdn.com/gl/positron-gl-style/style.json?key=${key}`,
+            url: `https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png?lang=he&key=${key}`,
+            attribution: ATTR_CARTO,
+        },
+        dark: {
+            label: 'supply_map_dark',
+            style: `https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json?key=${key}`,
+            url: `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png?lang=he&key=${key}`,
+            attribution: ATTR_CARTO,
+        },
+        osm: {
+            label: 'supply_map_standard',
+            url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        },
+        satellite: {
+            label: 'supply_map_satellite',
+            url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+            attribution: 'Tiles &copy; Esri',
+        },
+    }
 }
 
 const polygonStyle = ({ selected, draftMember, groupMember, served }) => {
@@ -622,7 +628,7 @@ export default function SupplyAreaMap({
     // Tileset: explicit user pick persists; otherwise follows the admin dark/light theme
     const [tilesetId, setTilesetId] = useState(() => {
         const stored = localStorage.getItem(TILESET_STORAGE_KEY)
-        if (stored && TILESETS[stored]) return stored
+        if (stored && getTilesets()[stored]) return stored
         return document.documentElement.getAttribute('data-theme')
     })
     const [customTileset, setCustomTileset] = useState(() => !!localStorage.getItem(TILESET_STORAGE_KEY))
@@ -642,8 +648,9 @@ export default function SupplyAreaMap({
         setTilesetId(id)
     }
 
-    const tileset = TILESETS[tilesetId] || TILESETS.osm
-    const isVector = !!(tileset.style && HAS_CARTO_KEY)
+    const tilesets = useMemo(getTilesets, [])
+    const tileset = tilesets[tilesetId] || tilesets.osm
+    const isVector = !!(tileset.style && getCartoKey())
     // Vector label size multiplier (1–1.6) — raster PNGs bake labels in, so
     // the slider only shows for vector basemaps. Persists across sessions.
     const [labelScale, setLabelScale] = useState(() => clampLabelScale(localStorage.getItem(LABEL_SCALE_STORAGE_KEY)))
@@ -791,7 +798,7 @@ export default function SupplyAreaMap({
             </MapContainer>
             <div className={styles.tilePickerWrap}>
                 <div className={styles.tilePicker}>
-                    {Object.entries(TILESETS).map(([id, ts]) => (
+                    {Object.entries(tilesets).map(([id, ts]) => (
                         <button
                             key={id}
                             type="button"

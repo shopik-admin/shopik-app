@@ -8,5 +8,11 @@ export default async function getAdminData(req, bootData) {
         catch (e) { console.log('lists error', e) }
     }
 
-    return { user, lists }
+    return {
+        user, lists,
+        env: {
+            CARTO_KEY: process.env.CARTO_KEY || '',
+            FILES_BASE_URL: process.env.FILES_BASE_URL || 'https://files.shopik.co.il',
+        },
+    }
 }

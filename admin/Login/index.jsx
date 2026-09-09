@@ -18,6 +18,11 @@ import Flex from 'common/components/Flex'
 import { useState } from 'react'
 import Logo from '#common/components/Logo/index.jsx'
 
+try {
+    window.__ENV__ = (typeof __SD__ !== 'undefined' && __SD__?.env) || {}
+} catch { window.__ENV__ = {} }
+try { delete window.__SD__ } catch { }
+
 ReactDOM
     .createRoot(document.getElementById('root'))
     .render(<TextProvider>

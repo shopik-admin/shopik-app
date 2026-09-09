@@ -1,5 +1,5 @@
 import react from '@vitejs/plugin-react'
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import path from 'path'
 import fs from 'fs'
 
@@ -16,7 +16,10 @@ const alias = {
   common: path.resolve(currentDir, '..', 'common'),
 }
 
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  const fileEnv = loadEnv(mode, path.resolve(currentDir, '..'), '')
+  const FILES_BASE_URL_VAL = process.env.FILES_BASE_URL || fileEnv.FILES_BASE_URL || 'https://files.shopik.co.il'
+  return {
   root: currentDir,
   cacheDir: '../node_modules/.vite-client',
 
@@ -24,7 +27,7 @@ export default defineConfig({
   plugins: [react()],
   define: {
     APP_VERSION: JSON.stringify(version),
-    VITE_FILES_BASE_URL: JSON.stringify(process.env.FILES_BASE_URL || 'https://files.shopik.co.il')
+    VITE_FILES_BASE_URL: JSON.stringify(FILES_BASE_URL_VAL)
   },
 
   build: {
@@ -47,5 +50,6 @@ export default defineConfig({
         return `${fn}_${lowerCaseFN == name ? '' : name}`
       }
     },
+  }
   }
 })
