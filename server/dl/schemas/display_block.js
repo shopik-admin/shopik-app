@@ -31,7 +31,7 @@ const displayBlockSchema = {
         type: String,
         enum: Object.values(constants.KIND),
         required: true,
-        filter: true
+        filter: 'exact'
     },
     name: {
         type: String,
@@ -45,10 +45,11 @@ const displayBlockSchema = {
         trim: true
     },
     // Blocks are always domain-scoped — no "all domains" fallback.
+    // Exact: prefix match would let one domainId match another's prefix.
     domainId: {
         type: String,
         required: true,
-        filter: true
+        filter: 'exact'
     },
     // Single placement per block: to show the same content on two pages,
     // duplicate the block. This keeps one order sequence per page.
@@ -58,8 +59,9 @@ const displayBlockSchema = {
             enum: Object.values(constants.PLACEMENT),
             required: true
         },
-        path: { type: String, filter: true },
-        categoryId: { type: String, filter: true },
+        // Exact: prefix match makes '/' match '/sales' (see processFilter).
+        path: { type: String, filter: 'exact' },
+        categoryId: { type: String, filter: 'exact' },
         includeSubcategories: { type: Boolean, default: false }
     },
     order: {

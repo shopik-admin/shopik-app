@@ -65,11 +65,25 @@ async function loadSchemaFile(filePath) {
     return { default: mod.default, meta: mod.meta }
 }
 
+function isExactFilterKey(key, node) {
+    // Explicit opt-out: { filter: 'exact' }
+    if (node?.filter === 'exact') return true
+    // ID-like: id, domainId, storeId, categoryId, parentIds, ...
+    const last = key.split('.').pop() || ''
+    if (/^(id|.*Ids?)$/i.test(last)) return true
+    // Path-like: path, placement.path — prefix match makes '/' match everything
+    if (last.toLowerCase() === 'path') return true
+    // Enum-constrained strings — prefix match can over-match, exact is correct
+    if (Array.isArray(node?.enum) && node.enum.length) return true
+    return false
+}
+
 function getSchemaFields(schema) {
     const searchFields = {}
     const searchPrefixFields = {}
     const searchFuzzyFields = {}
     const filterFields = new Set()
+    const filterExactFields = new Set()
     const userEditableFields = new Set()
 
     walk(schema)
@@ -79,6 +93,7 @@ function getSchemaFields(schema) {
         searchPrefixFields,
         searchFuzzyFields,
         filterFields,
+        filterExactFields,
         userEditableFields
     }
 
@@ -95,6 +110,7 @@ function getSchemaFields(schema) {
             typeof node.searchPrefixBoost === 'number' ||
             typeof node.searchFuzzy === 'number' ||
             node.filter === true ||
+            node.filter === 'exact' ||
             node.userEditable === true
 
         if (isLeaf) {
@@ -105,8 +121,11 @@ function getSchemaFields(schema) {
             if (typeof node.searchFuzzy === 'number')
                 searchFuzzyFields[prefix] = node.searchFuzzy
 
-            if (node.filter === true)
+            if (node.filter === true || node.filter === 'exact') {
                 filterFields.add(prefix)
+                if (isExactFilterKey(prefix, node))
+                    filterExactFields.add(prefix)
+            }
 
             if (node.userEditable === true)
                 userEditableFields.add(prefix)
@@ -323,6 +342,7 @@ async function createModelFromSchema(schemaPath) {
         searchPrefixFields,
         searchFuzzyFields,
         filterFields,
+        filterExactFields,
         userEditableFields
     } = getSchemaFields(schema)
 
@@ -336,6 +356,8 @@ async function createModelFromSchema(schemaPath) {
 
     if (filterFields.size)
         Model.filterFields = filterFields
+    if (filterExactFields.size)
+        Model.filterExactFields = filterExactFields
 
     Model.processFilter = (filter, search) => {
         const processed = { ...filter }
@@ -346,10 +368,16 @@ async function createModelFromSchema(schemaPath) {
             else {
                 const val = processed[key]
                 // ponytail: per-field string prefix search — "^value" (case-insensitive, escaped)
+                // Exact fields (IDs, paths, enums) use plain equality: prefix
+                // match would make '/' match '/sales' and 'abc' match 'abcd'.
                 if (typeof val === 'string') {
                     if (get(schema, `${key}.type`) === String) {
                         const trimmed = val.trim()
                         if (!trimmed) { delete processed[key]; return }
+                        if (Model.filterExactFields?.has(key)) {
+                            processed[key] = trimmed
+                            return
+                        }
                         const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
                         processed[key] = new RegExp('^' + escaped, 'i')
                     }
