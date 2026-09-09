@@ -18,7 +18,10 @@ export default async function list(payload, { DL, _admin }) {
         search
     } = payload || {}
 
-    const filter = { active: true, status: { $ne: 'cart' } }
+    const filter = {
+        active: true,
+        status: { $in: ['paid', 'picking', 'picked', 'packed', 'shipped'] }
+    }
 
     if (canRead) {
         if (admin?.currentStoreId) {
@@ -137,7 +140,7 @@ export default async function list(payload, { DL, _admin }) {
     try {
         const { enrichOrders } = await import('#server/utils/data/enrichCart.js')
         await enrichOrders(docs, DL)
-    } catch {}
+    } catch { }
 
     // Annotate isMine
     return docs.map(d => ({

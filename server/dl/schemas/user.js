@@ -90,7 +90,8 @@ const tokenSchema = {
 const tokensSchema = {
     web: tokenSchema,
     web_mobile: tokenSchema,
-    web_app: tokenSchema
+    web_app: tokenSchema,
+    bot: tokenSchema
 }
 
 const userSchema = {
@@ -187,7 +188,8 @@ const defaultSelect = {
     addresses: 1,
     deliveryMethod: 1,
     pickupStoreId: 1,
-    getOffers: 1
+    getOffers: 1,
+    domainId: 1
 }
 
 export const meta = {

@@ -31,39 +31,39 @@ export async function updateSaleStatuses({ DL }) {
 export async function syncProductSaleIds({ DL }) {
     const { STATUS } = DL.Sale.constants
 
-    // Get all active sales with their barcodes and ids
+    // Get all active sales with their barcodes and ids, most recent start first
+    // so the newest sale wins when a barcode appears in several sales.
+    // A product ends up with saleIds of at most 1 element: [newestSaleId].
     const activeSales = await DL.Sale.read(
         { status: STATUS.ACTIVE },
-        { _id: 0, id: 1, barcodes: 1 },
+        { _id: 0, id: 1, barcodes: 1, start: 1 },
         { limit: 0 }
     )
 
-    // Build barcode -> saleIds map (empty when no active sales — stale cleanup below still runs)
-    const barcodeToSaleIds = new Map()
+    activeSales.sort((a, b) => new Date(b.start) - new Date(a.start))
+
+    // Build barcode -> single saleId map (first = most recent wins,
+    // later/older sales for the same barcode are ignored)
+    const barcodeToSaleId = new Map()
 
     for (const sale of activeSales) {
         if (!sale.id || !sale.barcodes) continue
         for (const barcode of sale.barcodes) {
-            const existing = barcodeToSaleIds.get(barcode) || []
-            if (!existing.includes(sale.id)) {
-                existing.push(sale.id)
-                barcodeToSaleIds.set(barcode, existing)
+            if (!barcodeToSaleId.has(barcode)) {
+                barcodeToSaleId.set(barcode, sale.id)
             }
         }
     }
 
-    // Group barcodes by identical saleIds combination for efficient bulk updates
+    // Group barcodes by saleId for efficient bulk updates
     const MAX_BARCODES_PER_UPDATE = 1000
     const updatesBySaleIds = new Map()
 
-    for (const [barcode, saleIds] of barcodeToSaleIds) {
-        const sortedSaleIds = [...saleIds].sort()
-        const key = JSON.stringify(sortedSaleIds)
-
-        let update = updatesBySaleIds.get(key)
+    for (const [barcode, saleId] of barcodeToSaleId) {
+        let update = updatesBySaleIds.get(saleId)
         if (!update) {
-            update = { saleIds: sortedSaleIds, barcodes: [] }
-            updatesBySaleIds.set(key, update)
+            update = { saleIds: [saleId], barcodes: [] }
+            updatesBySaleIds.set(saleId, update)
         }
         update.barcodes.push(barcode)
     }
@@ -95,7 +95,7 @@ export async function syncProductSaleIds({ DL }) {
     // (Computed via distinct + $in chunks so any active-barcode volume is safe.)
     let clearedProducts = 0
     const saleBarcodes = await DL.Product.Model.distinct('barcode', { saleIds: { $exists: true, $ne: [] } })
-    const staleBarcodes = saleBarcodes.filter(b => !barcodeToSaleIds.has(b))
+    const staleBarcodes = saleBarcodes.filter(b => !barcodeToSaleId.has(b))
     for (let i = 0; i < staleBarcodes.length; i += MAX_BARCODES_PER_UPDATE) {
         const res = await DL.Product.update(
             { barcode: { $in: staleBarcodes.slice(i, i + MAX_BARCODES_PER_UPDATE) } },
