@@ -1,7 +1,7 @@
 import pLimit from 'p-limit'
 import { enqueueProcessJobs } from '#server/queues/gs1Queues.js'
 import { bufferProduct, bufferRaw, bufferProgress, flush } from './bulk.js'
-import { stageZip, buildFingerprint, hashFingerprint } from './images.js'
+import { stageZip, buildFingerprint, hashFingerprint, countStills } from './images.js'
 import log from '#server/utils/log.js'
 
 const enrichBatchSize = () => Number(process.env.GS1_ENRICH_BATCH || 500)
@@ -108,10 +108,15 @@ export async function runEnrich(opts) {
 // enqueue CPU process jobs. Reads enriched raws; skips imageless/removed.
 // force: reprocess even when imagesDone or the main fingerprint matches
 // (needed to backfill alternates onto pre-alternates mains).
-export async function runImages({ DL, external, runId, force = false }) {
-    const limit = pLimit(zipConcurrency())
+// limit: max raw docs to take this call (0 = all) — keeps single HTTP calls
+// inside Cloud Run request timeouts; repeat until queued=0.
+export async function runImages({ DL, external, runId, force = false, limit = 0 }) {
+    const cap = Number(limit || process.env.GS1_IMAGE_LIMIT || 0)
+    const limitZip = pLimit(zipConcurrency())
     const totals = { queued: 0, noZip: 0, skipped: 0 }
+    let taken = 0
     for (;;) {
+        if (cap && taken >= cap) break;
         const raws = await DL.Gs1Product.read(
             force
                 ? { status: 'enriched', assetCount: { $gt: 0 } }
@@ -129,7 +134,7 @@ export async function runImages({ DL, external, runId, force = false }) {
         )
         const productByBarcode = new Map((products || []).map(p => [p.barcode, p]))
 
-        await Promise.all(raws.map(stored => limit(async () => {
+        await Promise.all(raws.map(stored => limitZip(async () => {
             const barcode = stored.barcode
             const product = productByBarcode.get(barcode)
             if (!product) {
@@ -153,7 +158,10 @@ export async function runImages({ DL, external, runId, force = false }) {
             const fingerprint = hashFingerprint(
                 buildFingerprint(barcode, mapped.mediaAssets, mapped.modificationTime))
             const main = (product.images?.product || []).find(i => i?.main)
-            if (!force && main?.sourceUrl?.startsWith('gs1://') && main?.hash === fingerprint) {
+            const mainMatches = main?.sourceUrl?.startsWith('gs1://') && main?.hash === fingerprint
+            // Single-still products gain nothing from reprocessing: with a matching
+            // main there are no alternates to backfill (also bounds force runs).
+            if (mainMatches && (countStills(mapped.mediaAssets) < 2 || !force)) {
                 bufferRaw({ barcode, imagesDone: true })
                 return
             }
@@ -186,6 +194,7 @@ export async function runImages({ DL, external, runId, force = false }) {
 
         bufferProgress(runId, { processed: raws.length })
         await flush()
+        taken += raws.length
     }
     await flush()
     log.success(`[GS1] Images launch done: ${totals.queued} queued, ${totals.noZip} no-zip, ${totals.skipped} skipped`)

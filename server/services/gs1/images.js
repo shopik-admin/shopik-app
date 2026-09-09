@@ -39,6 +39,15 @@ export async function deleteStaged(path) {
 const IMAGE_EXT = /\.(jpe?g|png|webp)$/i
 const baseName = p => String(p || '').split('/').pop()
 
+// S-type stills only (same semantics as pickImageEntries): 360° frames and
+// E containers never qualify, so products with <2 stills gain nothing from reprocessing.
+export function countStills(mediaAssets) {
+    return (mediaAssets || []).filter(a =>
+        String(a?.image_type || 'S').toUpperCase() === 'S'
+        && IMAGE_EXT.test(a?.filename || '')
+    ).length
+}
+
 // Multi-pick: S-type stills only (360° EL spin sets deferred).
 // Main = default_image match; alternates = other S matches, capped.
 // Falls back to the legacy single largest pick when nothing matches.
@@ -107,5 +116,5 @@ export async function processStagedZip({ productId, gtin, path, mediaAssets, fin
 
 export default {
     hashFingerprint, buildFingerprint, stagingPath, stageZip,
-    downloadStaged, deleteStaged, pickImageEntry, pickImageEntries, processStagedZip
+    downloadStaged, deleteStaged, pickImageEntry, pickImageEntries, countStills, processStagedZip
 }
