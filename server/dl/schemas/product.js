@@ -238,6 +238,7 @@ const {
 const defaultSelectOne = {
     ...defaultSelectBase,
     images: 1,
+    gs1: 1,
     storageType: 1,
     shelflife: 1,
     category: 1,
