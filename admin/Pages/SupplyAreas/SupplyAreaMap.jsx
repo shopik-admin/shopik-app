@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { TbTextSize } from 'react-icons/tb'
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -9,23 +10,36 @@ import Button from 'common/components/Button'
 import ConfirmButton from 'common/components/ConfirmButton'
 import Flex from 'common/components/Flex'
 import StoreListEditor from './StoreListEditor'
+import VectorBasemap from './VectorBasemap'
 import styles from './supplyAreas.module.css'
 
 const SNAP_THRESHOLD_PX = 20
 const TILESET_STORAGE_KEY = 'supplyMapTileset'
+const LABEL_SCALE_STORAGE_KEY = 'supplyMapLabelScale'
+const LABEL_SCALE_MIN = 1
+const LABEL_SCALE_MAX = 1.6
+const clampLabelScale = (v) => {
+    const n = typeof v === 'number' ? v : parseFloat(v)
+    if (!Number.isFinite(n)) return LABEL_SCALE_MIN
+    return Math.min(LABEL_SCALE_MAX, Math.max(LABEL_SCALE_MIN, n))
+}
 const snapKeyFor = (lat, lng) => `${Math.floor(lat * 100)}_${Math.floor(lng * 100)}`
 
-// All basemaps are free to use (attribution required) — Hebrew labels forced via lang=he where supported (CARTO)
+// CARTO light/dark render as vector (MapLibre GL style) with raster PNG fallback
+// when no API key is configured. OSM + satellite stay raster-only.
 
 const ATTR_CARTO = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+const HAS_CARTO_KEY = typeof CARTO_KEY !== 'undefined' && !!CARTO_KEY
 const TILESETS = {
     light: {
         label: 'supply_map_minimal',
+        style: `https://basemaps.cartocdn.com/gl/positron-gl-style/style.json?key=${CARTO_KEY}`,
         url: `https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png?lang=he&key=${CARTO_KEY}`,
         attribution: ATTR_CARTO,
     },
     dark: {
         label: 'supply_map_dark',
+        style: `https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json?key=${CARTO_KEY}`,
         url: `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png?lang=he&key=${CARTO_KEY}`,
         attribution: ATTR_CARTO,
     },
@@ -628,6 +642,15 @@ export default function SupplyAreaMap({
     }
 
     const tileset = TILESETS[tilesetId] || TILESETS.osm
+    const isVector = !!(tileset.style && HAS_CARTO_KEY)
+    // Vector label size multiplier (1–1.6) — raster PNGs bake labels in, so
+    // the slider only shows for vector basemaps. Persists across sessions.
+    const [labelScale, setLabelScale] = useState(() => clampLabelScale(localStorage.getItem(LABEL_SCALE_STORAGE_KEY)))
+    const changeLabelScale = (v) => {
+        const next = clampLabelScale(v)
+        localStorage.setItem(LABEL_SCALE_STORAGE_KEY, String(next))
+        setLabelScale(next)
+    }
 
     const storePins = useMemo(() => stores.filter(s => {
         const c = s.address?.location?.coordinates
@@ -649,11 +672,19 @@ export default function SupplyAreaMap({
                 scrollWheelZoom
                 preferCanvas
             >
-                <TileLayer
-                    key={tilesetId}
-                    url={tileset.url}
-                    attribution={tileset.attribution}
-                />
+                {isVector ? (
+                    <VectorBasemap
+                        key={tilesetId}
+                        styleUrl={tileset.style}
+                        labelScale={labelScale}
+                    />
+                ) : (
+                    <TileLayer
+                        key={tilesetId}
+                        url={tileset.url}
+                        attribution={tileset.attribution}
+                    />
+                )}
                 <MapController
                     areas={areas}
                     servedAreaIds={servedAreaIds}
@@ -757,18 +788,35 @@ export default function SupplyAreaMap({
                 )}
                 <FlyToPoint point={activeFlyPoint} />
             </MapContainer>
-            <div className={styles.tilePicker}>
-                {Object.entries(TILESETS).map(([id, ts]) => (
-                    <button
-                        key={id}
-                        type="button"
-                        title={`${TR('supply_basemap')}: ${TR(ts.label)}`}
-                        className={id === tilesetId ? `${styles.tileBtn} ${styles.tileBtnActive}` : styles.tileBtn}
-                        onClick={() => pickTileset(id)}
-                    >
-                        <Text size="none">{ts.label}</Text>
-                    </button>
-                ))}
+            <div className={styles.tilePickerWrap}>
+                <div className={styles.tilePicker}>
+                    {Object.entries(TILESETS).map(([id, ts]) => (
+                        <button
+                            key={id}
+                            type="button"
+                            title={`${TR('supply_basemap')}: ${TR(ts.label)}`}
+                            className={id === tilesetId ? `${styles.tileBtn} ${styles.tileBtnActive}` : styles.tileBtn}
+                            onClick={() => pickTileset(id)}
+                        >
+                            <Text size="none">{ts.label}</Text>
+                        </button>
+                    ))}
+                </div>
+                {isVector && (
+                    <div className={styles.labelScaleRow}>
+                        <TbTextSize className={styles.labelScaleIcon} />
+                        <input
+                            type="range"
+                            min={LABEL_SCALE_MIN}
+                            max={LABEL_SCALE_MAX}
+                            step={0.01}
+                            value={labelScale}
+                            title={labelScale.toFixed(2)}
+                            onChange={e => changeLabelScale(e.target.value)}
+                            className={styles.labelScaleSlider}
+                        />
+                    </div>
+                )}
             </div>
         </div>
     )
