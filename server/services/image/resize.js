@@ -1,10 +1,10 @@
 import sharp from 'sharp'
 import { IMAGE_SIZES } from './constants.js'
 
-export default async function resize(buffer) {
+export default async function resize(buffer, sizes = IMAGE_SIZES) {
     const basePipeline = sharp(buffer)
     const entries = await Promise.all(
-        Object.entries(IMAGE_SIZES).map(async ([name, width]) => {
+        Object.entries(sizes).map(async ([name, width]) => {
             const data = await basePipeline
                 .clone()
                 .resize({ width, withoutEnlargement: true })

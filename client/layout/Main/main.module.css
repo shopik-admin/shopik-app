@@ -1,17 +1,23 @@
 .main {
     width: 100%;
     padding-top: 20px;
-    padding-bottom: var(--safeBottom, 0px);
+    padding-bottom: calc(20px + var(--safeBottom, 0px));
     padding-inline-start: var(--safeLeft, 0px);
     padding-inline-end: var(--safeRight, 0px);
     min-height: calc(100dvh - var(--header-height) - var(--safeTop, 0px) - 50px);
-    max-width: min(var(--max-width), calc(100vw - 20px - var(--safeLeft, 0px) - var(--safeRight, 0px)));
+    max-width: min(var(--max-width), calc(100vw - 60px - var(--safeLeft, 0px) - var(--safeRight, 0px)));
     margin: auto;
     transition: padding-inline-end .3s ease;
 }
 
+@media (max-width: 700px) {
+    .main {
+        max-width: min(var(--max-width), calc(100vw - 20px - var(--safeLeft, 0px) - var(--safeRight, 0px)));
+    }
+}
+
 .main.shifted {
-    padding-inline-end: calc(20px + var(--cart-width));
+    padding-inline-end: var(--cart-width);
 }
 
 @media (max-width: 1023px) {

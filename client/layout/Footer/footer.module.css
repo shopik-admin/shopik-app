@@ -1,5 +1,11 @@
 .footer {
     border-top: 1px solid var(--header-border);
-    padding: 20px;
+    padding: 20px 40px;
     background-color: var(--header-bg);
+}
+
+@media (max-width: 700px) {
+    .footer {
+        padding: 16px;
+    }
 }

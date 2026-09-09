@@ -39,9 +39,9 @@ app.use((req, res, next) => {
     next()
 })
 
-app.use(json())
+app.use(json({ limit: '15mb' }))
 app.use(cookieParser())
-app.use(urlencoded({ extended: true }))
+app.use(urlencoded({ extended: true, limit: '15mb' }))
 
 app.use(compression())
 

@@ -10,7 +10,7 @@ import { setSalesCache } from '#common/functions/salesCache.js'
 
 export const PRODUCT_LIST_LIMIT = 30
 
-export default function ProductList({ data, loading, notFound, title, breadcrumbPath, resetKey, fetchPage, emptyText }) {
+export default function ProductList({ data, loading, notFound, title, breadcrumbPath, resetKey, fetchPage, emptyText, hideBreadcrumbs }) {
     const [extra, setExtra] = useState([])
     const [hasMore, setHasMore] = useState(false)
     const [loadingMore, setLoadingMore] = useState(false)
@@ -22,12 +22,16 @@ export default function ProductList({ data, loading, notFound, title, breadcrumb
     useEffect(() => { if (sales && Object.keys(sales).length) setSalesCache(sales) }, [sales])
     useEffect(() => { if (data?.sales) setSalesCache(data.sales) }, [data?.sales])
 
+    // NOTE: data can arrive AFTER resetKey changes (client-side navigation keeps
+    // the previous page's data while init runs — e.g. Home has no products).
+    // Recomputing when the incoming count changes un-sticks hasMore.
+    const incomingCount = data?.products?.length || 0
     useEffect(() => {
         ++latestRequest.current
         setExtra([])
-        setHasMore((data?.products?.length || 0) === PRODUCT_LIST_LIMIT)
+        setHasMore(incomingCount === PRODUCT_LIST_LIMIT)
         setLoadingMore(false)
-    }, [resetKey])
+    }, [resetKey, incomingCount])
 
     async function loadMore() {
         if (loadingMore || !hasMore) return
@@ -58,7 +62,7 @@ export default function ProductList({ data, loading, notFound, title, breadcrumb
     if (notFound) return <NotFound />
 
     return <Flex col className={styles.products} direction='column' gap={10}>
-        <Breadcrumbs path={breadcrumbPath} hideLast />
+        {!hideBreadcrumbs && <Breadcrumbs path={breadcrumbPath} hideLast />}
         <Text size='h1' bold>{title}</Text>
         <div className={styles.list}>
             {loading ? <Loader />

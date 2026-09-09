@@ -1,0 +1,114 @@
+.page {
+    padding: 16px;
+}
+
+.contextBar {
+    padding: 12px 16px;
+}
+
+.contextRow {
+    align-items: flex-end;
+    flex-wrap: wrap;
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 160px;
+}
+
+.field input,
+.field select,
+.field textarea {
+    padding: 6px 8px;
+    font-size: 14px;
+}
+
+.checkRow {
+    display: flex;
+    align-items: flex-end;
+    padding-bottom: 6px;
+}
+
+.list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    cursor: grab;
+}
+
+.row:active {
+    cursor: grabbing;
+}
+
+.dropTarget {
+    outline: 2px dashed #888;
+    outline-offset: -2px;
+}
+
+.grip {
+    cursor: grab;
+    opacity: 0.5;
+    font-size: 18px;
+}
+
+.thumb {
+    width: 72px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.kindTag {
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.meta {
+    flex: 1;
+    min-width: 0;
+}
+
+.editor {
+    min-width: min(560px, 80vw);
+}
+
+.slide {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 8px;
+}
+
+.slidePreview {
+    width: 96px;
+    height: 64px;
+    flex-shrink: 0;
+}
+
+.slideFields {
+    flex: 1;
+    min-width: 0;
+}
+
+.fileBtn {
+    cursor: pointer;
+    padding: 6px 10px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 13px;
+    white-space: nowrap;
+}

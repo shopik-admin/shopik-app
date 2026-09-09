@@ -5,10 +5,12 @@ import Button from '../Button'
 import Flex from '../Flex'
 import Text from '../Text'
 
-export default function HorizontalScroll({ items = [], children = items, className = '' }) {
+export default function HorizontalScroll({ items = [], children = items, className = '', itemClassName = '', autoplaySec = 0 }) {
     const scrollContainerRef = useRef(null)
     const [showLeftArrow, setShowLeftArrow] = useState(false)
     const [showRightArrow, setShowRightArrow] = useState(false)
+    const pausedRef = useRef(false)
+    const dirRef = useRef(1)
 
     const checkScrollPosition = useCallback(() => {
         const el = scrollContainerRef.current
@@ -168,8 +170,32 @@ export default function HorizontalScroll({ items = [], children = items, classNa
         })
     }
 
+    // Opt-in auto-advance (e.g. product carousels). Ping-pongs at the ends so it
+    // works the same in RTL and LTR. Paused on hover/touch and hidden tabs.
+    useEffect(() => {
+        const sec = Number(autoplaySec)
+        if (!sec || sec <= 0) return
+        const timer = setInterval(() => {
+            if (pausedRef.current || document.hidden) return
+            const el = scrollContainerRef.current
+            if (!el) return
+            const maxScrollable = el.scrollWidth - el.clientWidth
+            if (maxScrollable <= 2) return
+            const absScroll = Math.abs(el.scrollLeft)
+            if (absScroll >= maxScrollable - 2) dirRef.current = -1
+            else if (absScroll <= 2) dirRef.current = 1
+            el.scrollBy({ left: dirRef.current * el.clientWidth * 0.75, behavior: 'smooth' })
+        }, sec * 1000)
+        return () => clearInterval(timer)
+    }, [autoplaySec, contentList])
+
     return (
-        <Flex className={classNames(styles.wrapper, className)} alignItems='center'>
+        <Flex className={classNames(styles.wrapper, className)} alignItems='center'
+            onMouseEnter={() => { pausedRef.current = true }}
+            onMouseLeave={() => { pausedRef.current = false }}
+            onTouchStart={() => { pausedRef.current = true }}
+            onTouchEnd={() => { pausedRef.current = false }}
+        >
             {showLeftArrow && (
                 <Button
                     icon='left'
@@ -189,7 +215,7 @@ export default function HorizontalScroll({ items = [], children = items, classNa
                 gap={10}
             >
                 {contentList.map((item, index) => (
-                    <Flex key={index} className={styles.item} shrink={0}>
+                    <Flex key={index} className={classNames(styles.item, itemClassName)} shrink={0}>
                         {typeof item === 'string' ? <Text>{item}</Text> : item}
                     </Flex>
                 ))}

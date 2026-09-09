@@ -10,8 +10,13 @@ export function usePage(initialData) {
     const page = pages.find(p =>
         matchPath({ path: p.path, end: true }, pathname)
     )
-    const [data, setData] = useState(initialData || appData.initData || {})
-    const [loading, setLoading] = useState(false)
+    // SSR initData belongs to the landing URL only. Reusing it for a different
+    // path (client-side nav mounts a fresh component) flashes the landing
+    // page's content — e.g. home banners on every page.
+    const ssrUrl = (appData.url || '').split('?')[0]
+    const isSsrPath = !!ssrUrl && decodeURIComponent(ssrUrl) === decodeURIComponent(pathname)
+    const [data, setData] = useState(initialData || (isSsrPath ? appData.initData : null) || {})
+    const [loading, setLoading] = useState(!initialData && !isSsrPath)
 
     useEffect(() => {
         if (initialData) {
