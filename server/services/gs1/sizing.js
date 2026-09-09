@@ -26,7 +26,7 @@ export function resolveSizing() {
     if (!process.env.UV_THREADPOOLSIZE)
         process.env.UV_THREADPOOLSIZE = String(4 + cpuConcurrency)
 
-    const sizing = { vCPU, ramMB: Math.round(ramMB), fetchConcurrency, cpuConcurrency, maxPerMinute }
+    const sizing = { vCPU, containerMB, fetchConcurrency, cpuConcurrency, maxPerMinute }
     log.info(`[GS1] Sizing: ${JSON.stringify(sizing)}`)
     return sizing
 }

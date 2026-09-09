@@ -87,7 +87,20 @@ const productSchema = {
         filter: true
     },
     gs1SyncedAt: Date,
-    gs1Raw: {},
+    // Mapped GS1 extras (defined keys, flexible leaves — full payload stays in gs1_products).
+    gs1: {
+        netContent: {},
+        origin: [{}],
+        dimensions: {},
+        shelfLife: {},
+        allergens: {},
+        diet: [{}],
+        serving: {},
+        nutrition: {},
+        marketing: {},
+        eu: {},
+        ids: {}
+    },
     label: {
         type: String,
         trim: true,

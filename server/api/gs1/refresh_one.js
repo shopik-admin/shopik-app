@@ -1,15 +1,18 @@
 import { handleFetchJob } from '#server/workers/gs1FetchWorker.js'
 import { collectProductCodes } from '#server/services/gs1/sync.js'
+import { enrichBatch } from '#server/services/gs1/enrich.js'
+import { flush, initBulkFlusher } from '#server/services/gs1/bulk.js'
 
 // POST /api/gs1/refresh_one {barcode} — inline single-product refresh (no queue).
-// Resolves the GS1 product_code from the stored product, else scans 90d of messages.
+// Dumps raw, enriches texts, flushes. Images arrive via phase 3 (runImages/process queue).
 export default async function gs1RefreshOne(payload, { DL, external }) {
+    initBulkFlusher(DL)
     const barcode = String(payload?.barcode || '').trim()
     if (!barcode) throw { status: 400, message: 'barcode is required' }
 
     const product = await DL.Product.readOne(
         { barcode },
-        { _id: 0, id: 1, barcode: 1, gs1ProductCode: 1, images: 1 }
+        { _id: 0, id: 1, barcode: 1, gs1ProductCode: 1 }
     )
     if (!product) throw { status: 404, message: 'product not found' }
 
@@ -22,31 +25,19 @@ export default async function gs1RefreshOne(payload, { DL, external }) {
         if (!productCode) throw { status: 404, message: `no GS1 product_code for barcode ${barcode} in last 90d` }
     }
 
-    const result = await handleFetchJob(
-        { data: { productCode, runId: null, onlyInStock: false, forceImages: true } },
+    const fetchResult = await handleFetchJob(
+        { data: { productCode, runId: null, force: true } },
         { DL, external }
     )
-
-    // If images were queued, wait for the process worker (up to ~90s) for a complete response.
-    if (result?.images === 'queued') {
-        const before = (product.images?.product || []).length
-        const deadline = Date.now() + 90000
-        while (Date.now() < deadline) {
-            await new Promise(r => setTimeout(r, 3000))
-            const current = await DL.Product.readOne(
-                { barcode },
-                { _id: 0, images: 1, gs1SyncedAt: 1 }
-            ).catch(() => null)
-            if (current && (current.images?.product || []).length !== before) break
-            if (current?.images?.product?.[0]?.sourceUrl?.startsWith('gs1://')) break
-        }
-    }
+    // Enrich at least this barcode's raw (batch may include other fetched raws — fine, it's bulk).
+    const enrichResult = await enrichBatch({ DL, external, runId: null, onlyInStock: false })
+    await flush()
 
     const fresh = await DL.Product.readOne(
         { barcode },
-        { _id: 0, id: 1, barcode: 1, name: 1, producer: 1, images: 1, gs1SyncedAt: 1 }
+        { _id: 0, id: 1, barcode: 1, name: 1, producer: 1, label: 1, gs1: 1, gs1SyncedAt: 1 }
     ).catch(() => null)
-    return { result, product: fresh }
+    return { fetchResult, enrichResult, product: fresh }
 }
 
 gs1RefreshOne.config = {

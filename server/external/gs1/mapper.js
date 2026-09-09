@@ -56,6 +56,88 @@ function parseGs1Date(raw) {
     return Number.isNaN(d.getTime()) ? null : d
 }
 
+const isEmpty = v =>
+    v == null || v === '' || (Array.isArray(v) && !v.length)
+    || (typeof v === 'object' && !Array.isArray(v) && !Object.keys(v).length)
+
+// Defined-key extras subdocument. Only non-empty sections are set.
+function mapGs1Details(item, info, main, general, marketing, additional) {
+    const logisticsAdd = info.Logistics_and_Commercial_Properties_Additional || {}
+    const out = {}
+
+    if (!isEmpty(main.Net_Content)) out.netContent = main.Net_Content
+    if (Array.isArray(main.Country_of_Origin) && main.Country_of_Origin.length)
+        out.origin = main.Country_of_Origin
+    const dimensions = {
+        product: info.Product_Dimensions,
+        tray: info.Tray_Dimensions,
+        kase: info.Case_or_Carton_Dimensions,
+        pallet: info.Pallet_or_Logistic_Unit_Dimensions
+    }
+    Object.keys(dimensions).forEach(k => { if (isEmpty(dimensions[k])) delete dimensions[k] })
+    if (Object.keys(dimensions).length) out.dimensions = dimensions
+    if (!isEmpty(logisticsAdd.Product_Shelf_Life)) out.shelfLife = logisticsAdd.Product_Shelf_Life
+
+    const components = info.Product_Components_and_Instructions_General || {}
+    const allergens = {
+        contains: components.Allergen_Type_Code_and_Containment,
+        mayContain: components.Allergen_Type_Code_and_Containment_May_Contain
+    }
+    if (!isEmpty(allergens.contains) || !isEmpty(allergens.mayContain)) out.allergens = allergens
+    if (Array.isArray(components.Diet_Information) && components.Diet_Information.length)
+        out.diet = components.Diet_Information
+
+    const serving = {
+        suggestion: additional.Serving_Suggestion,
+        storage: additional.Consumer_Storage_Instructions,
+        size: additional.Serving_Size_Description,
+        fatPct: additional.Fat_Percentage_in_Product,
+        creamPct: additional.Cream_Percentage_in_Product,
+        fruitPct: additional.Fruit_Percentage_in_Product,
+        alcoholPct: additional.Alcohol_Percentage_in_Product
+    }
+    Object.keys(serving).forEach(k => { if (isEmpty(serving[k])) delete serving[k] })
+    if (Object.keys(serving).length) out.serving = serving
+
+    const nutrition = {
+        main: info.Nutritional_Values,
+        additional: info.Additional_Nutritional_Values
+    }
+    if (!isEmpty(nutrition.main) || !isEmpty(nutrition.additional)) out.nutrition = nutrition
+
+    const messages = [
+        marketing.Trade_Item_Marketing_Message,
+        marketing.Trade_Item_Marketing_Message_2,
+        marketing.Trade_Item_Marketing_Message_3,
+        marketing.Trade_Item_Marketing_Message_4,
+        marketing.Trade_Item_Marketing_Message_5,
+        marketing.Trade_Item_Marketing_Message_6,
+        marketing.Trade_Item_Marketing_Message_7
+    ].filter(v => v != null && v !== '')
+    if (messages.length) out.marketing = { messages }
+
+    if (!isEmpty(info.European_Mode_Fields)) out.eu = info.European_Mode_Fields
+    if (!isEmpty(info.Product_Management_Mode))
+        out.eu = { ...(out.eu || {}), managementMode: info.Product_Management_Mode }
+
+    const ids = {
+        gln: main.GLN,
+        supplierCatalog: main.Supplier_Catalog_Number,
+        manufacturerCode: general.Manufacturer_Product_Code,
+        gpc: main.GPC_Category_Code,
+        effectiveDate: main.Effective_Date_Time,
+        discontinued: general.Discontinued_Date_Time,
+        productStatus: info.Internal_System_Fields?.Product_Status,
+        targetMarket: general.Target_Market,
+        manufacturer: { name: general.Manufacturer_Name, address: general.Manufacturer_Address },
+        tradeUnit: main.Trade_Item_Unit_Descriptor
+    }
+    Object.keys(ids).forEach(k => { if (isEmpty(ids[k])) delete ids[k] })
+    if (Object.keys(ids).length) out.ids = ids
+
+    return out
+}
+
 export function mapGs1ToProduct(item) {
     const info = item?.product_info || {}
     const main = info.Main_Fields || {}
@@ -92,20 +174,34 @@ export function mapGs1ToProduct(item) {
         regulatoryInfo: components.Ingredient_Sequence_and_Name || '',
         keywords,
         gs1ProductCode: internal.product_code || '',
-        gs1SyncedAt: new Date(),
-        gs1Raw: item
+        gs1SyncedAt: new Date()
     }
     if (description) doc.description = description
     Object.assign(doc, mapKashrut(info.Kashrut))
     const nutrients = mapNutrients(additional)
     if (Object.keys(nutrients).length) doc.nutrients = nutrients
     if (!doc.kashrut) delete doc.kashrut
+    if (main.Supplier_Catalog_Number) doc.externalSerialNumber = main.Supplier_Catalog_Number
+    if (internal.Name) doc.googleCategory = internal.Name
+    const details = mapGs1Details(item, info, main, general, marketing, additional)
+    if (Object.keys(details).length) doc.gs1 = details
+
+    // Heavy supplier payload lives in the gs1_products collection, not on Product.
+    const rawDoc = {
+        barcode: gtin,
+        productCode: internal.product_code || '',
+        modificationTime: parseGs1Date(system.modification_timestamp),
+        assetCount: (item.media_assets || []).length,
+        raw: item,
+        syncedAt: new Date()
+    }
 
     return {
         doc,
+        rawDoc,
         gtin,
         productCode: internal.product_code || '',
-        modificationTime: parseGs1Date(system.modification_timestamp),
+        modificationTime: rawDoc.modificationTime,
         mediaAssets: Array.isArray(item.media_assets) ? item.media_assets : [],
         removal: mediaRemovalFlags(info)
     }
