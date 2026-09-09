@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import Image from '#common/components/Image'
 import Button from '#common/components/Button'
@@ -57,25 +57,61 @@ function Mosaic({ slides }) {
 
 function SlideCarousel({ slides, autoplaySec }) {
     const { TR } = useText()
-    const [index, setIndex] = useState(0)
+    const [pos, setPos] = useState(0)
+    const [anim, setAnim] = useState(true)
     const [paused, setPaused] = useState(false)
     const count = slides.length
+    const posRef = useRef(0)
 
-    useEffect(() => { setIndex(0) }, [count])
+    useEffect(() => {
+        posRef.current = 0
+        setPos(0)
+        setAnim(true)
+    }, [count])
+
+    function goTo(i) {
+        posRef.current = ((i % count) + count) % count
+        setAnim(true)
+        setPos(posRef.current)
+    }
+
+    // Forward is infinite: position `count` shows a clone of slide 0, then
+    // snaps back to 0 with the transition off (see onTransitionEnd).
+    function goNext() {
+        posRef.current = posRef.current >= count ? 1 : posRef.current + 1
+        setAnim(true)
+        setPos(posRef.current)
+    }
+
+    function goPrev() {
+        posRef.current = (posRef.current - 1 + count) % count
+        setAnim(true)
+        setPos(posRef.current)
+    }
+
+    function handleTransitionEnd() {
+        if (posRef.current === count) {
+            posRef.current = 0
+            setAnim(false)
+            setPos(0)
+        }
+    }
 
     useEffect(() => {
         const sec = Number(autoplaySec)
         if (!sec || sec <= 0 || count < 2 || paused) return
         const timer = setInterval(() => {
-            if (!document.hidden) setIndex(i => (i + 1) % count)
+            if (!document.hidden) goNext()
         }, sec * 1000)
         return () => clearInterval(timer)
     }, [autoplaySec, count, paused])
 
     if (count === 1) {
-        return <SlideLink slide={slides[0]} className={styles.heroSlide}>
-            <SlideImage slide={slides[0]} />
-        </SlideLink>
+        return <div className={styles.hero}>
+            <SlideLink slide={slides[0]} className={styles.heroSlide}>
+                <SlideImage slide={slides[0]} />
+            </SlideLink>
+        </div>
     }
 
     return <div
@@ -83,16 +119,28 @@ function SlideCarousel({ slides, autoplaySec }) {
         onMouseEnter={() => setPaused(true)}
         onMouseLeave={() => setPaused(false)}
     >
-        {slides.map((slide, i) => i === index && (
-            <SlideLink key={i} slide={slide} className={`${styles.heroSlide} ${styles.fadeIn}`}>
-                <SlideImage slide={slide} />
+        <div
+            className={styles.heroTrack}
+            style={{
+                transform: `translateX(${(isRtl() ? 1 : -1) * pos * 100}%)`,
+                transition: anim ? undefined : 'none'
+            }}
+            onTransitionEnd={handleTransitionEnd}
+        >
+            {slides.map((slide, i) => (
+                <SlideLink key={i} slide={slide} className={styles.heroSlide}>
+                    <SlideImage slide={slide} />
+                </SlideLink>
+            ))}
+            <SlideLink key="clone" slide={slides[0]} className={styles.heroSlide} aria-hidden="true">
+                <SlideImage slide={slides[0]} />
             </SlideLink>
-        ))}
+        </div>
         <Flex className={styles.heroNav}>
             <Button
                 icon="right"
                 mode="text"
-                onClick={() => setIndex((index - 1 + count) % count)}
+                onClick={goPrev}
                 aria-label={TR('display_prev_slide')}
                 style={arrowBg}
             />
@@ -100,8 +148,8 @@ function SlideCarousel({ slides, autoplaySec }) {
                 {slides.map((_, i) => (
                     <button
                         key={i}
-                        className={`${styles.dot} ${i === index ? styles.dotActive : ''}`}
-                        onClick={() => setIndex(i)}
+                        className={`${styles.dot} ${pos % count === i ? styles.dotActive : ''}`}
+                        onClick={() => goTo(i)}
                         aria-label={`${TR('display_slide')} ${i + 1}`}
                     />
                 ))}
@@ -109,12 +157,20 @@ function SlideCarousel({ slides, autoplaySec }) {
             <Button
                 icon="left"
                 mode="text"
-                onClick={() => setIndex((index + 1) % count)}
+                onClick={goNext}
                 aria-label={TR('display_next_slide')}
                 style={arrowBg}
             />
         </Flex>
     </div>
+}
+
+// In RTL the flex row lays slides right-to-left, so advancing means shifting
+// the track right (positive X); mirrored in LTR. Read live (not hardcoded)
+// so it survives a direction change.
+function isRtl() {
+    if (typeof document === 'undefined') return true
+    return (document.documentElement?.dir || 'rtl') !== 'ltr'
 }
 
 // Translucent backdrop so arrows stay visible over any banner image.
