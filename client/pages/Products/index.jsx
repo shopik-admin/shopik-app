@@ -1,24 +1,21 @@
 import apiReq from '#common/functions/apiReq'
 import { usePage } from 'layout/Page'
 import ProductList, { PRODUCT_LIST_LIMIT } from './ProductList'
-import DisplayBlocks from 'features/Display/DisplayBlocks'
 
 export default function Products() {
     const { loading, pageData, path } = usePage()
     const data = pageData?.data
 
-    return <>
-        <DisplayBlocks blocks={data?.blocks} />
-        <ProductList
-            data={data}
-            loading={loading}
-            notFound={pageData?.notFound}
-            title={data?.categoryName || pageData?.title}
-            breadcrumbPath={path}
-            resetKey={path}
-            fetchPage={({ skip, limit }) => apiReq('product/get', { path, skip, limit })}
-        />
-    </>
+    return <ProductList
+        data={data}
+        loading={loading}
+        notFound={pageData?.notFound}
+        title={data?.categoryName || pageData?.title}
+        breadcrumbPath={path}
+        resetKey={path}
+        blocks={data?.blocks}
+        fetchPage={({ skip, limit }) => apiReq('product/get', { path, skip, limit })}
+    />
 }
 
 

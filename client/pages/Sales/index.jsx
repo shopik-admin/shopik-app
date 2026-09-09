@@ -1,14 +1,12 @@
 import apiReq from '#common/functions/apiReq'
 import { usePage } from 'layout/Page'
 import ProductList, { PRODUCT_LIST_LIMIT } from 'pages/Products/ProductList'
-import DisplayBlocks from 'features/Display/DisplayBlocks'
 
 export default function Sales() {
     const { loading, pageData } = usePage()
     const data = pageData?.data
 
     return <>
-        <DisplayBlocks blocks={data?.blocks} />
         <ProductList
             data={data}
             loading={loading}
@@ -17,6 +15,7 @@ export default function Sales() {
             breadcrumbPath='/sales'
             resetKey='sales'
             emptyText='אין מבצעים כרגע'
+            blocks={data?.blocks}
             fetchPage={({ skip, limit }) => apiReq('product/get', { onSale: true, skip, limit })}
         />
     </>

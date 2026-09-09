@@ -40,7 +40,7 @@ export default function DisplayBlocks() {
     const [dropIndex, setDropIndex] = useState(null)
 
     useEffect(() => {
-        apiReq('display_block/categories').then(setCategories).catch(() => {})
+        apiReq('display_block/categories').then(setCategories).catch(() => { })
     }, [])
 
     useEffect(() => {

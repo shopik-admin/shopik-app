@@ -2,6 +2,39 @@
     container-type: inline-size;
     width: 100%;
 
+    /* Title/breadcrumbs beside the display banner (banner at inline-start).
+       Text stays first in the DOM; order puts the banner at main-start so
+       it renders on the right in RTL. Stacks on mobile with title first. */
+    .header {
+        display: flex;
+        gap: 16px;
+        align-items: flex-start;
+        width: 100%;
+    }
+
+    .headerText {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    .headerBlocks {
+        flex: 0 0 42%;
+        min-width: 0;
+        order: 1;
+    }
+
+    @container (max-width: 700px) {
+        .header {
+            flex-direction: column;
+        }
+
+        .headerBlocks {
+            flex: none;
+            width: 100%;
+            order: 0;
+        }
+    }
+
     .list {
         padding-top: 10px;
         display: grid;

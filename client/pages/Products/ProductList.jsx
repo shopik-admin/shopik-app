@@ -6,11 +6,12 @@ import Flex from '#common/components/Flex'
 import Text from '#common/components/Text'
 import ProductCard from './ProductCard'
 import NotFound from 'pages/NotFound'
+import DisplayBlocks from 'features/Display/DisplayBlocks'
 import { setSalesCache } from '#common/functions/salesCache.js'
 
 export const PRODUCT_LIST_LIMIT = 30
 
-export default function ProductList({ data, loading, notFound, title, breadcrumbPath, resetKey, fetchPage, emptyText, hideBreadcrumbs }) {
+export default function ProductList({ data, loading, notFound, title, breadcrumbPath, resetKey, fetchPage, emptyText, hideBreadcrumbs, blocks }) {
     const [extra, setExtra] = useState([])
     const [hasMore, setHasMore] = useState(false)
     const [loadingMore, setLoadingMore] = useState(false)
@@ -63,8 +64,13 @@ export default function ProductList({ data, loading, notFound, title, breadcrumb
     if (notFound) return <NotFound />
 
     return <Flex col className={styles.products} direction='column' gap={10}>
-        {!hideBreadcrumbs && <Breadcrumbs path={breadcrumbPath} hideLast />}
-        <Text size='h1' bold>{title}</Text>
+        {!!blocks?.length &&
+            <DisplayBlocks blocks={blocks} />
+        }
+        <div className={styles.headerText}>
+            {!hideBreadcrumbs && <Breadcrumbs path={breadcrumbPath} hideLast />}
+            <Text size='h1' bold>{title}</Text>
+        </div>
         <div className={styles.list}>
             {loading ? <Loader />
                 : products.map(p => <ProductCard
