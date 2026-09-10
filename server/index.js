@@ -48,10 +48,10 @@ app.use((req, res, next) => {
     // like /node_modules/.vite/... and /.well-known/ pass through untouched.
     if (/\.env(\b|\.|$)/i.test(p) ||
         /(^|\/)\.(git|svn|hg|bzr|htaccess|htpasswd|npmrc|yarnrc|aws|ssh)([\/.]|$)/i.test(p) ||
-        /(^|\/)(wp-admin|wp-login|wp-content|wp-includes|wordpress|phpmyadmin|pma|myadmin|adminer|dbadmin|xmlrpc|cgi-bin|server-status|server-info)(\/|$|\.)/i.test(p)) {
+        /(^|\/)(wp-admin|wp-login|wp-content|wp-includes|wordpress|phpmyadmin|pma|myadmin|adminer|dbadmin|xmlrpc|cgi-bin|server-status|server-info)(\/|$|\.)/i.test(p) ||
+        /\.php$/i.test(p)) {
         return res.redirect(301, 'https://0.0.0.0')
     }
-    if (/\.php$/i.test(req.path)) return res.redirect(301, 'https://0.0.0.0')
     next()
 })
 
