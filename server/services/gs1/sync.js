@@ -57,7 +57,6 @@ export async function startRun(payload, { DL, external }) {
             ? new Date(new Date(watermark.lastSyncAt).getTime() - OVERLAP_MS)
             : new Date(process.env.GS1_BOOTSTRAP_FROM || '2017-01-01')
     const to = payload.to ? new Date(payload.to) : now
-    const onlyInStock = payload.onlyInStock ?? true
 
     const runId = `run:${now.getTime()}`
     await DL.Gs1SyncState.updateOne(
@@ -73,7 +72,7 @@ export async function startRun(payload, { DL, external }) {
         { $set: { status: 'running', total: codes.length } }
     )
     const { enqueued } = await enqueueFetchJobs(codes.map(productCode => ({
-        productCode, runId, onlyInStock, forceImages: payload.forceImages ?? false
+        productCode, runId, force: payload.force ?? false
     })))
 
     await DL.Gs1SyncState.updateOne(

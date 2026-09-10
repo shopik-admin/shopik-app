@@ -6,8 +6,8 @@ import log from '#server/utils/log.js'
 
 // CPU-bound: unzip + sharp + GCS upload for one product.
 // Writes go through the bulk flusher — no per-job updateOne calls.
-export async function handleProcessJob(job, { DL }) {
-    const { productId, gtin, stagingPath, fingerprint, runId, mediaAssets = [] } = job.data
+async function handleProcessJob(job, { DL }) {
+    const { productId, gtin, stagingPath, fingerprint, runId, mediaAssets = [], reuse = {} } = job.data
     if (!productId || !stagingPath) throw new Error('Missing productId/stagingPath')
 
     try {
@@ -18,7 +18,7 @@ export async function handleProcessJob(job, { DL }) {
         if (!product) return { skipped: 'no-product' }
 
         const { images } = await processStagedZip({
-            productId, gtin, path: stagingPath, mediaAssets, fingerprint
+            productId, gtin, path: stagingPath, mediaAssets, fingerprint, reuse
         })
 
         const update = { 'images.product': images, gs1SyncedAt: new Date() }

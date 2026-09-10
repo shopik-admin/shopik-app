@@ -3,6 +3,8 @@ import { unzipSync } from 'fflate'
 import storage from '#server/external/storage.js'
 import resize from '#server/services/image/resize.js'
 import upload from '#server/services/image/upload.js'
+import { buildObjectPath, buildUrl } from '#server/services/image/paths.js'
+import { IMAGE_SIZES } from '#server/services/image/constants.js'
 import { mem } from './memlog.js'
 import log from '#server/utils/log.js'
 
@@ -40,20 +42,34 @@ export async function deleteStaged(path) {
 const IMAGE_EXT = /\.(jpe?g|png|webp)$/i
 const baseName = p => String(p || '').split('/').pop()
 
+// Ranked S-type stills with their storage keys ('' = main legacy path).
+// Shared by the picker and the bucket-first check so both agree on keys.
+export function rankStills(mediaAssets, maxAlternates = Number(process.env.GS1_MAX_ALTERNATES || 4)) {
+    const stills = (mediaAssets || []).filter(a =>
+        String(a?.image_type || 'S').toUpperCase() === 'S'
+        && IMAGE_EXT.test(a?.filename || ''))
+    const rank = a => String(a.default_image) === '1' ? 0
+        : String(a.publish_file) === '1' ? 1 : 2
+    const ordered = [...stills].sort((a, b) => rank(a) - rank(b))
+    const main = ordered[0] || null
+    const alternates = ordered.slice(1, 1 + Math.max(0, maxAlternates))
+    return {
+        main: main ? { asset: main, key: '' } : null,
+        alternates: alternates.map((asset, i) => ({ asset, key: `alt-${i + 1}` }))
+    }
+}
+
 // S-type stills only (same semantics as pickImageEntries): 360° frames and
 // E containers never qualify, so products with <2 stills gain nothing from reprocessing.
 export function countStills(mediaAssets) {
-    return (mediaAssets || []).filter(a =>
-        String(a?.image_type || 'S').toUpperCase() === 'S'
-        && IMAGE_EXT.test(a?.filename || '')
-    ).length
+    const { main, alternates } = rankStills(mediaAssets, Number.MAX_SAFE_INTEGER)
+    return (main ? 1 : 0) + alternates.length
 }
 
 // Multi-pick: S-type stills only (360° EL spin sets deferred).
 // Main = default_image match; alternates = other S matches, capped.
 // Falls back to the legacy single largest pick when nothing matches.
 export function pickImageEntries(zipBuffer, mediaAssets, maxAlternates) {
-    const cap = maxAlternates ?? Number(process.env.GS1_MAX_ALTERNATES || 4)
     let entries
     try {
         entries = unzipSync(new Uint8Array(zipBuffer))
@@ -67,12 +83,8 @@ export function pickImageEntries(zipBuffer, mediaAssets, maxAlternates) {
 
     // S stills only: image_type 'S' with an image filename. E containers (zips)
     // and 360° frames never match an S filename, so they're excluded by construction.
-    const stills = (mediaAssets || []).filter(a =>
-        String(a?.image_type || 'S').toUpperCase() === 'S'
-        && IMAGE_EXT.test(a?.filename || ''))
-    const rank = a => String(a.default_image) === '1' ? 0
-        : String(a.publish_file) === '1' ? 1 : 2
-    const ordered = [...stills].sort((a, b) => rank(a) - rank(b))
+    const { main: rankedMain, alternates: rankedAlts } = rankStills(mediaAssets, maxAlternates)
+    const ordered = [...(rankedMain ? [rankedMain.asset] : []), ...rankedAlts.map(r => r.asset)]
     const matched = []
     for (const asset of ordered) {
         const hit = images.find(e => baseName(e.name) === baseName(asset.filename))
@@ -81,19 +93,34 @@ export function pickImageEntries(zipBuffer, mediaAssets, maxAlternates) {
     }
     if (!matched.length) {
         images.sort((a, b) => b.data.length - a.data.length)
-        return { main: { ...images[0], asset: stills[0] || null }, alternates: [] }
+        return { main: { ...images[0], asset: ordered[0] || null }, alternates: [] }
     }
     const [main, ...rest] = matched
-    return { main, alternates: rest.slice(0, Math.max(0, cap)) }
+    return { main, alternates: rest }
 }
 
-// Legacy single pick (main only).
-export function pickImageEntry(zipBuffer, mediaAssets) {
-    const { main } = pickImageEntries(zipBuffer, mediaAssets, 0)
-    return main
+// Smallest size as existence proxy: sizes are always written as one batch,
+// so s.webp present ⇒ the key is complete.
+export async function bucketHasImage(productId, key) {
+    try {
+        const [exists] = await storage.getBucket().file(buildObjectPath(productId, 's', key)).exists()
+        return !!exists
+    } catch {
+        return false
+    }
 }
 
-export async function processStagedZip({ productId, gtin, path, mediaAssets, fingerprint }) {
+export function buildImageSizes(productId, key) {
+    return Object.fromEntries(
+        Object.keys(IMAGE_SIZES).map(size => [size, buildUrl(productId, size, key)])
+    )
+}
+
+function altSourceUrl(gtin, entry) {
+    return `gs1://${gtin}/${entry.asset?.id || baseName(entry.name)}`
+}
+
+export async function processStagedZip({ productId, gtin, path, mediaAssets, fingerprint, reuse = {} }) {
     const zipBuffer = await downloadStaged(path)
     mem(`zip-downloaded gtin=${gtin} bytes=${zipBuffer.length}`)
     const { main, alternates } = pickImageEntries(zipBuffer, mediaAssets)
@@ -101,7 +128,15 @@ export async function processStagedZip({ productId, gtin, path, mediaAssets, fin
     log.info(`[GS1] Picked ${main.name} + ${alternates.length} alternates for GTIN ${gtin}`)
     // Sequential per image to bound peak memory (512MB boxes).
     // Sizes within an image are also serial (one-at-a-time end to end).
+    // Keys already in the bucket (verified by the launcher, asset-id matched)
+    // are reused without re-render — no GS1/Sharp/GCS work for them.
     const processOne = async (entry, key, isMain) => {
+        const cached = reuse[key]
+        if (cached && cached.assetId === (entry.asset?.id || null) && cached.sizes) {
+            entry.data = null
+            log.info(`[GS1] Reused bucket image gtin=${gtin} key=${key || 'main'}`)
+            return cached.sizes
+        }
         try {
             const sizes = await resize(entry.data, undefined, { serial: true })
             return await upload({ productId, sizes, key, serial: true })
@@ -123,7 +158,7 @@ export async function processStagedZip({ productId, gtin, path, mediaAssets, fin
         mem(`img-done gtin=${gtin} key=alt-${i + 1}`)
         images.push({
             main: false,
-            sourceUrl: `gs1://${gtin}/${alt.asset?.id || baseName(alt.name)}`,
+            sourceUrl: altSourceUrl(gtin, alt),
             hash: fingerprint,
             sizes: urls
         })
@@ -133,5 +168,7 @@ export async function processStagedZip({ productId, gtin, path, mediaAssets, fin
 
 export default {
     hashFingerprint, buildFingerprint, stagingPath, stageZip,
-    downloadStaged, deleteStaged, pickImageEntry, pickImageEntries, countStills, processStagedZip
+    downloadStaged, deleteStaged, pickImageEntries,
+    rankStills, countStills, bucketHasImage, buildImageSizes,
+    processStagedZip
 }

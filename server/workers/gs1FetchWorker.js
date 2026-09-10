@@ -6,7 +6,7 @@ import log from '#server/utils/log.js'
 
 // Phase 1 (network-only): dump GS1 JSON into gs1_products. No gates, no zips,
 // no product writes — enrich and images run later, purely from the collection.
-export async function handleFetchJob(job, { DL, external }) {
+async function handleFetchJob(job, { DL, external }) {
     const { productCode, runId, force = false } = job.data
     if (!productCode) throw new Error('Missing productCode')
 

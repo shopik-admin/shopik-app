@@ -1,7 +1,7 @@
 import pLimit from 'p-limit'
 import { enqueueProcessJobs } from '#server/queues/gs1Queues.js'
 import { bufferProduct, bufferRaw, bufferProgress, flush } from './bulk.js'
-import { stageZip, buildFingerprint, hashFingerprint, countStills } from './images.js'
+import { stageZip, buildFingerprint, hashFingerprint, countStills, rankStills, bucketHasImage, buildImageSizes } from './images.js'
 import { mem } from './memlog.js'
 import log from '#server/utils/log.js'
 
@@ -12,9 +12,10 @@ const zipConcurrency = () => Number(process.env.GS1_ZIP_CONCURRENCY || 2)
 // Phase 2: enrich products from the local gs1_products collection.
 // Two-pass to bound memory: page barcode-only docs, gate in bulk, then load
 // full raws ONLY for passers. No GS1 calls, no per-doc writes, no images.
-export async function enrichBatch({ DL, external, runId, onlyInStock = true }) {
+export async function enrichBatch({ DL, external, runId, onlyInStock = true, barcode = '' }) {
+    const filter = barcode ? { status: 'fetched', barcode } : { status: 'fetched' }
     const page = await DL.Gs1Product.read(
-        { status: 'fetched' },
+        filter,
         { _id: 0, barcode: 1 },
         { limit: enrichBatchSize() }
     )
@@ -100,6 +101,8 @@ export async function runEnrich(opts) {
         totals.skipped += res.skipped
         totals.batches++
         if (res.done) break
+        // Single-barcode mode: one batch is the whole job.
+        if (opts?.barcode) break
     }
     await flush()
     log.success(`[GS1] Enrich done: ${totals.enriched} enriched, ${totals.skipped} skipped, ${totals.batches} batches`)
@@ -112,17 +115,19 @@ export async function runEnrich(opts) {
 // (needed to backfill alternates onto pre-alternates mains).
 // limit: max raw docs to take this call (0 = all) — keeps single HTTP calls
 // inside Cloud Run request timeouts; repeat until queued=0.
-export async function runImages({ DL, external, runId, force = false, limit = 0 }) {
+export async function runImages({ DL, external, runId, force = false, limit = 0, barcode = '' }) {
     const cap = Number(limit || process.env.GS1_IMAGE_LIMIT || 0)
     const limitZip = pLimit(zipConcurrency())
-    const totals = { queued: 0, noZip: 0, skipped: 0 }
+    const totals = { queued: 0, noZip: 0, skipped: 0, reused: 0 }
     let taken = 0
     for (;;) {
         if (cap && taken >= cap) break;
+        const baseFilter = barcode
+            ? { status: 'enriched', barcode }
+            : { status: 'enriched' }
         const raws = await DL.Gs1Product.read(
-            force
-                ? { status: 'enriched', assetCount: { $gt: 0 } }
-                : { status: 'enriched', assetCount: { $gt: 0 }, imagesDone: { $ne: true } },
+            force ? { ...baseFilter, assetCount: { $gt: 0 } }
+                : { ...baseFilter, assetCount: { $gt: 0 }, imagesDone: { $ne: true } },
             { _id: 0, barcode: 1, raw: 1 },
             { limit: imageBatchSize() }
         )
@@ -167,6 +172,37 @@ export async function runImages({ DL, external, runId, force = false, limit = 0 
                 bufferRaw({ barcode, imagesDone: true })
                 return
             }
+            // Bucket-first: expected keys already in GCS are reused — no GS1
+            // download, no render. Keys/assetIds come from ranked metadata.
+            const { main: rankedMain, alternates: rankedAlts } = rankStills(mapped.mediaAssets)
+            const ranked = [
+                ...(rankedMain ? [{ ...rankedMain, isMain: true }] : []),
+                ...rankedAlts.map(r => ({ ...r, isMain: false }))
+            ]
+            const reuse = {}
+            let allPresent = ranked.length > 0
+            for (const r of ranked) {
+                if (await bucketHasImage(product.id, r.key)) {
+                    reuse[r.key] = { assetId: r.asset?.id || null, sizes: buildImageSizes(product.id, r.key) }
+                } else {
+                    allPresent = false
+                }
+            }
+            if (allPresent) {
+                const images = ranked.map(r => ({
+                    main: r.isMain,
+                    sourceUrl: r.isMain ? `gs1://${barcode}` : `gs1://${barcode}/${r.asset?.id || r.asset?.filename}`,
+                    hash: fingerprint,
+                    sizes: reuse[r.key].sizes
+                }))
+                const update = { 'images.product': images, gs1SyncedAt: new Date() }
+                if ((product.images?.product || []).length === 0 && product.status === 'hidden')
+                    update.status = 'active'
+                bufferProduct(barcode, update)
+                bufferRaw({ barcode, fingerprint, imagesDone: true })
+                totals.reused++
+                return
+            }
             let zip
             try {
                 zip = await external.gs1.getMediaZip(barcode)
@@ -189,7 +225,8 @@ export async function runImages({ DL, external, runId, force = false, limit = 0 
                 fingerprint,
                 productCode: mapped.productCode,
                 runId,
-                mediaAssets: mapped.mediaAssets
+                mediaAssets: mapped.mediaAssets,
+                reuse
             }])
             totals.queued++
         })))
@@ -197,10 +234,10 @@ export async function runImages({ DL, external, runId, force = false, limit = 0 
         bufferProgress(runId, { processed: raws.length })
         await flush()
         taken += raws.length
-        mem(`images-batch taken=${taken} queued=${totals.queued} noZip=${totals.noZip}`)
+        mem(`images-batch taken=${taken} queued=${totals.queued} reused=${totals.reused} noZip=${totals.noZip}`)
     }
     await flush()
-    log.success(`[GS1] Images launch done: ${totals.queued} queued, ${totals.noZip} no-zip, ${totals.skipped} skipped`)
+    log.success(`[GS1] Images launch done: ${totals.queued} queued, ${totals.reused} reused, ${totals.noZip} no-zip, ${totals.skipped} skipped`)
     return totals
 }
 

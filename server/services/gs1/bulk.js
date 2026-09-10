@@ -43,10 +43,6 @@ export function bufferProgress(runId, { processed = 0, failed = 0 } = {}) {
     progressWrites.set(runId, cur)
 }
 
-export function pendingCount() {
-    return productWrites.size + rawWrites.size
-}
-
 export async function flush() {
     if (!DLref || flushing) return
     if (!productWrites.size && !rawWrites.size && !progressWrites.size) return
@@ -88,4 +84,4 @@ export async function flush() {
     }
 }
 
-export default { initBulkFlusher, bufferProduct, bufferRaw, bufferProgress, pendingCount, flush }
+export default { initBulkFlusher, bufferProduct, bufferRaw, bufferProgress, flush }
