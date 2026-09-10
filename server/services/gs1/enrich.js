@@ -12,7 +12,7 @@ const zipConcurrency = () => Number(process.env.GS1_ZIP_CONCURRENCY || 2)
 // PL = planogram, HE = hero, MK = market images. Our ranked S stills live
 // in MK; EL is the multi-MB bloat (nested 40-frame container) we skip.
 const mediaTypes = () => String(process.env.GS1_MEDIA_TYPES || 'MK')
-    .split(',').map(s => s.trim().toLowerCase()).filter(Boolean)
+    .split(',').map(s => s.trim().toUpperCase()).filter(Boolean)
 
 // Fetch the smallest usable source: try each configured type= filter first,
 // stage the first whose zip actually contains our main still, else fall back
