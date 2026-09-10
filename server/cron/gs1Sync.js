@@ -1,10 +1,10 @@
 import cron from 'node-cron'
 import log from '#server/utils/log.js'
 import { acquireLock } from '#server/utils/redisLock.js'
-import { startRun } from '#server/services/gs1/sync.js'
+import { startRun, finalizeRun } from '#server/services/gs1/sync.js'
 import { runEnrich, runImages } from '#server/services/gs1/enrich.js'
 import { getFetchQueue } from '#server/queues/gs1Queues.js'
-import { initBulkFlusher } from '#server/services/gs1/bulk.js'
+import { initBulkFlusher, flush } from '#server/services/gs1/bulk.js'
 
 const LOCK_KEY = 'gs1-sync:lock'
 const LOCK_TTL_SECONDS = 60 * 60 * 6
@@ -49,6 +49,8 @@ export default function startGs1Sync(bootData) {
             const images = await runImages({ DL, external, runId: run.runId })
             log.success(`[Gs1Sync] Done: run=${run.runId} fetched=${run.total} `
                 + `enriched=${texts.enriched} skipped=${texts.skipped} imagesQueued=${images.queued}`)
+            await flush().catch(() => { })
+            await finalizeRun(run.runId, { DL }).catch(() => { })
         } catch (e) {
             log.error('[Gs1Sync] Failed:', e?.message || e)
         } finally {

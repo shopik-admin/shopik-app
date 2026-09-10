@@ -39,6 +39,18 @@ try {
 }
 
 app.use((req, res, next) => {
+    const p = req.path || ''
+    // Secret/scanner probes (e.g. /logs/.env, /mail/.env, /.git/config):
+    // path.extname('.env') === '' so the SSR static-guard misses them and they
+    // fall through to full SSR (DB reads + 30KB HTML). Bounce them back at
+    // themselves with a 301 — before json/compression/static/SSR — to save
+    // CPU + egress. Only sensitive dot-names are matched so tooling paths
+    // like /node_modules/.vite/... and /.well-known/ pass through untouched.
+    if (/\.env(\b|\.|$)/i.test(p) ||
+        /(^|\/)\.(git|svn|hg|bzr|htaccess|htpasswd|npmrc|yarnrc|aws|ssh)([\/.]|$)/i.test(p) ||
+        /(^|\/)(wp-admin|wp-login|wp-content|wp-includes|wordpress|phpmyadmin|pma|myadmin|adminer|dbadmin|xmlrpc|cgi-bin|server-status|server-info)(\/|$|\.)/i.test(p)) {
+        return res.redirect(301, 'https://0.0.0.0')
+    }
     if (/\.php$/i.test(req.path)) return res.redirect(301, 'https://0.0.0.0')
     next()
 })
