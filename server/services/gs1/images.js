@@ -1,5 +1,5 @@
 import { createHash } from 'crypto'
-import { unzipSync } from 'fflate'
+import { unzipSync, zipSync } from 'fflate'
 import storage from '#server/external/storage.js'
 import resize from '#server/services/image/resize.js'
 import upload from '#server/services/image/upload.js'
@@ -58,6 +58,37 @@ export function zipEntryBasenames(buffer) {
         return new Set(entries.map(baseName))
     } catch {
         return null
+    }
+}
+
+// Magic-byte sniff for single-image type= responses: HE returns the raw
+// hero bytes, not a zip (observed: byte-identical PNG still, not archived).
+// Returns the file extension or null.
+export function imageExtFromMagic(buffer) {
+    if (!buffer || buffer.length < 12) return null
+    if (buffer[0] === 0xFF && buffer[1] === 0xD8 && buffer[2] === 0xFF) return 'jpg'
+    if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47) return 'png'
+    if (buffer[0] === 0x52 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x46
+        && buffer[8] === 0x57 && buffer[9] === 0x45 && buffer[10] === 0x42 && buffer[11] === 0x50) return 'webp'
+    return null
+}
+
+// Wrap a single raw image into the one-entry zip the worker pipeline expects
+// (staging, pickImageEntries, resize all speak zip). The entry keeps the
+// ranked main's filename — extension forced to the sniffed type so a
+// mislabeled asset can't break the IMAGE_EXT gate — so basename matching
+// just works; a non-matching hero still wins via the largest-file fallback.
+// Alternates are absent by nature: single-image wins carry the main only.
+export function wrapSingleImage(buffer, wantedMain) {
+    const ext = imageExtFromMagic(buffer)
+    if (!ext || !wantedMain) return null
+    const stem = String(wantedMain).split('/').pop().replace(/\.[a-z0-9]+$/i, '') || 'hero'
+    const name = `${stem}.${ext}`
+    return {
+        buffer: Buffer.from(zipSync({
+            [name]: new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength)
+        })),
+        name
     }
 }
 
@@ -188,7 +219,7 @@ export async function processStagedZip({ productId, gtin, path, mediaAssets, fin
 export default {
     hashFingerprint, buildFingerprint, stagingPath, stageZip,
     downloadStaged, deleteStaged, pickImageEntries, isZipBuffer,
-    zipEntryBasenames, baseName,
+    zipEntryBasenames, baseName, imageExtFromMagic, wrapSingleImage,
     rankStills, countStills, bucketHasImage, buildImageSizes,
     processStagedZip
 }

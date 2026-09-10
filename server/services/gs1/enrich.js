@@ -1,7 +1,7 @@
 import pLimit from 'p-limit'
 import { enqueueProcessJobs } from '#server/queues/gs1Queues.js'
 import { bufferProduct, bufferRaw, bufferProgress, flush } from './bulk.js'
-import { stageZip, buildFingerprint, hashFingerprint, countStills, rankStills, bucketHasImage, buildImageSizes, isZipBuffer, zipEntryBasenames, baseName } from './images.js'
+import { stageZip, buildFingerprint, hashFingerprint, countStills, rankStills, bucketHasImage, buildImageSizes, isZipBuffer, zipEntryBasenames, baseName, imageExtFromMagic, wrapSingleImage } from './images.js'
 import { mem } from './memlog.js'
 import log from '#server/utils/log.js'
 
@@ -9,15 +9,20 @@ const enrichBatchSize = () => Number(process.env.GS1_ENRICH_BATCH || 500)
 const imageBatchSize = () => Number(process.env.GS1_IMAGE_BATCH || 200)
 const zipConcurrency = () => Number(process.env.GS1_ZIP_CONCURRENCY || 2)
 // GS1 files-endpoint image types (per supplier doc): EL = 360° spin set,
-// PL = planogram, HE = hero, MK = market images. Our ranked S stills live
-// in MK; EL is the multi-MB bloat (nested 40-frame container) we skip.
+// PL = planogram, HE = hero, MK = market images. Observed: HE returns the
+// single raw hero bytes (not a zip — wrapped by the fetcher); EL is the
+// multi-MB bloat (nested 40-frame container) we never request. Values are
+// uppercased to the doc's spelling; genuinely unknown values get HTTP 200 +
+// "invalid media type" while known-but-empty ones 404 (both safely skipped).
 const mediaTypes = () => String(process.env.GS1_MEDIA_TYPES || 'MK,HE')
     .split(',').map(s => s.trim().toUpperCase()).filter(Boolean)
 
 // Fetch the smallest usable source: try each configured type= filter first,
-// stage the first whose zip actually contains our main still, else fall back
-// to media=all (today's behavior, caps intact). Per-attempt byte counts are
-// logged — that output is the EL/PL/HE/MK mapping proof per product.
+// stage the first usable response, else fall back to media=all (today's
+// behavior, caps intact). A hit is either a zip containing our main still
+// or a single raw image (HE returns the hero bytes unarchived — wrapped
+// into a one-entry zip, main only). Per-attempt results are logged — that
+// output is the EL/PL/HE/MK mapping proof per product.
 // Returns { buffer, via } or null when nothing usable came back.
 // rateLimited/transient errors throw (caller retries the batch); anything
 // else on a type= attempt just moves to the next candidate.
@@ -33,6 +38,11 @@ async function fetchStagedSource(external, barcode, wantedMain) {
                 continue
             }
             if (!isZipBuffer(buf)) {
+                const wrapped = wrapSingleImage(buf, wantedMain)
+                if (wrapped) {
+                    log.info(`[GS1] type=${t} for ${barcode}: single image (${buf.length} bytes), wrapped as ${wrapped.name}`)
+                    return { buffer: wrapped.buffer, via: `type=${t} (single)` }
+                }
                 log.info(`[GS1] type=${t} for ${barcode}: not a zip (${buf?.length || 0} bytes), skipping`)
                 continue
             }
