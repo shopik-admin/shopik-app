@@ -4,6 +4,7 @@ import { useUser } from 'features/User'
 import Flex from 'common/components/Flex'
 import Text from 'common/components/Text'
 import Button from 'common/components/Button'
+import Loader from 'common/components/Loader'
 import apiReq from 'common/functions/apiReq'
 import styles from './deliverPhoto.module.css'
 import opsStyles from './opsOrder.module.css'
@@ -37,8 +38,10 @@ export default function DeliverPhoto({ order = {}, goPreview }) {
     const videoRef = useRef(null)
     const streamRef = useRef(null)
     const lastPayloadRef = useRef({})
+    const coordsRef = useRef(null)
     const { isSuperAdmin } = useUser() || {}
     const navigate = useNavigate()
+    const [starting, setStarting] = useState(true)
     const [cameraFailed, setCameraFailed] = useState(false)
     const [sending, setSending] = useState(false)
     const [sendError, setSendError] = useState('')
@@ -58,8 +61,9 @@ export default function DeliverPhoto({ order = {}, goPreview }) {
                     videoRef.current.srcObject = stream
                     await videoRef.current.play()
                 }
+                if (!cancelled) setStarting(false)
             } catch {
-                if (!cancelled) setCameraFailed(true)
+                if (!cancelled) { setStarting(false); setCameraFailed(true) }
             }
         }
         start()
@@ -76,14 +80,15 @@ export default function DeliverPhoto({ order = {}, goPreview }) {
         setSendError('')
         setTooFar(false)
         try {
-            const coordinates = await getPosition()
+            const coordinates = coordsRef.current || await getPosition()
+            if (coordinates) coordsRef.current = coordinates
             const payload = { orderId: order.id }
             if (lastPayloadRef.current.imageBase64) payload.imageBase64 = lastPayloadRef.current.imageBase64
             if (coordinates) payload.coordinates = coordinates
             if (force) payload.force = true
             const res = await apiReq('shipment/deliver', payload)
             if (res?.error) throw new Error(res.error)
-            navigate('/ops')
+            navigate('/ops?asShipper=1')
         } catch (e) {
             const msg = e.message || 'shipment/deliver failed'
             setSendError(msg)
@@ -114,12 +119,13 @@ export default function DeliverPhoto({ order = {}, goPreview }) {
                 <span className={styles.corner + ' ' + styles.bl} />
                 <span className={styles.corner + ' ' + styles.br} />
             </div>
+            {starting && !cameraFailed && <Flex center className={styles.startingWrap}><Loader /></Flex>}
             {cameraFailed && <Flex center className={styles.errorOverlay}><Text size='s' mode='error'>ops_camera_error</Text></Flex>}
         </Flex>
         {sendError && <Flex center style={{ padding: '0 16px' }}><Text size='s' mode='error' center>{sendError}</Text></Flex>}
         <Flex center gap={10} col className={opsStyles.footer}>
             {isSuperAdmin && <Flex center gap={16} style={{ marginBottom: 12 }}>
-                <Button mode='text-brand' disabled={sending} onClick={() => sendDelivery({})}>ops_skip_photo</Button>
+                <Button mode='text-brand' disabled={sending} onClick={() => sendDelivery({ imageBase64: null })}>ops_skip_photo</Button>
                 {tooFar && <Button mode='text-brand' disabled={sending} onClick={() => sendDelivery({ force: true })}>ops_deliver_anyway</Button>}
             </Flex>}
             <Button loading={sending} onClick={handleCapture} className={opsStyles.transferBtn}>ops_capture_close</Button>

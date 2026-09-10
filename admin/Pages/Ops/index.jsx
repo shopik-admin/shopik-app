@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import DataManager from 'features/DataManager'
 import DataProvider, { useData } from 'features/DataManager/DataProvider'
 import usePermission from 'common/permissions/usePermision'
@@ -25,11 +25,17 @@ const opsCols = [
     { key: 'window.date', type: 'tr' },
 ]
 
-function clearUrlFilter() {
+function readAsShipper() {
+    if (typeof window === 'undefined') return false
+    return new URLSearchParams(window.location.search).get('asShipper') === '1'
+}
+
+function writeAsShipper(on) {
     if (typeof window === 'undefined') return
     const sp = new URLSearchParams(window.location.search)
-    if (!sp.has('f')) return
     sp.delete('f')
+    if (on) sp.set('asShipper', '1')
+    else sp.delete('asShipper')
     const qs = sp.toString()
     window.history.replaceState(null, '', `${window.location.pathname}${qs ? `?${qs}` : ''}${window.location.hash}`)
 }
@@ -37,9 +43,9 @@ function clearUrlFilter() {
 export default function Ops({ }) {
     const canRead = usePermission('order:read')
     const canShip = usePermission('order:ship')
-    const [asShipper, setAsShipper] = useState(false)
-    function enterShipperView() { clearUrlFilter(); setAsShipper(true) }
-    function exitShipperView() { clearUrlFilter(); setAsShipper(false) }
+    const [asShipper, setAsShipper] = useState(readAsShipper)
+    function enterShipperView() { writeAsShipper(true); setAsShipper(true) }
+    function exitShipperView() { writeAsShipper(false); setAsShipper(false) }
     if (canRead && !asShipper) return <Flex col>
         <Flex className={styles.viewToggleFloat}>
             <Button mode='outline' icon='truck' onClick={enterShipperView}>ops_view_as_shipper</Button>
@@ -53,12 +59,25 @@ export default function Ops({ }) {
             <OpsInner />
         </DataManager>
     </Flex>
+    return <ShipperPickerData canShip={canShip} asShipper={asShipper} onExitShipperView={asShipper ? exitShipperView : null} />
+}
+
+function waitingFilter(canRead) {
+    return canRead ? { status: 'packed' } : { status: 'packed', 'window.date': todayStr() }
+}
+
+function ShipperPickerData({ canShip, asShipper, onExitShipperView }) {
+    const canRead = usePermission('order:read')
+    const initialFilter = (canShip || asShipper)
+        ? waitingFilter(canRead)
+        : { status: { $in: ['paid', 'picking', 'picked'] } }
     return <DataProvider
         apiRoute='order/ops'
         defaultSort={{ 'window.endTimestamp': 1 }}
+        initialFilter={initialFilter}
     >
         {canShip || asShipper
-            ? <ShipperOps onExit={asShipper ? exitShipperView : null} />
+            ? <ShipperOps onExit={onExitShipperView} />
             : <PickerOps />}
     </DataProvider>
 }
@@ -72,15 +91,20 @@ function OpsInner() {
 
 function ShipperOps({ onExit }) {
     const [tab, setTab] = useState(TABS.WAITING)
-    const { data: orders = [], setFilter } = useData()
+    const { data: orders = [], setFilter, setData } = useData()
     const { id } = useUser()
     const canRead = usePermission('order:read')
-    const filters = {
-        [TABS.WAITING]: canRead ? { status: 'packed' } : { status: 'packed', 'window.date': todayStr() },
+    const filters = useMemo(() => ({
+        [TABS.WAITING]: waitingFilter(canRead),
         [TABS.MINE]: { status: 'shipped', 'shipper.adminId': id },
-    }
+    }), [id, canRead])
 
-    useEffect(() => { setFilter(filters[tab]) }, [tab])
+    const firstRun = useRef(true)
+    useEffect(() => {
+        if (firstRun.current) { firstRun.current = false; return }
+        setData(undefined)
+        setFilter(filters[tab])
+    }, [tab, filters, setData, setFilter])
 
     const waitingCount = useApi('order/ops/count', { filter: filters[TABS.WAITING] })
     const mineCount = useApi('order/ops/count', { filter: filters[TABS.MINE] })
@@ -104,11 +128,9 @@ function ShipperOps({ onExit }) {
 }
 
 function PickerOps() {
-    const { data: orders = [], setFilter } = useData()
+    const { data: orders = [] } = useData()
     const pickingFilter = { status: { $in: ['paid', 'picking', 'picked'] } }
     const pickingCount = useApi('order/ops/count', { filter: pickingFilter })
-
-    useEffect(() => { setFilter(pickingFilter) }, [])
 
     return <Flex col gap={10} className={styles.ops}>
         <Tabs

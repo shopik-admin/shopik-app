@@ -1,6 +1,7 @@
 import Flex from "#common/components/Flex/index.jsx"
 import Icon from "#common/components/Icon/index.jsx"
 import Text from "#common/components/Text/index.jsx"
+import TR from 'common/texts/TR.js'
 import { formatHour, formatHourRange } from '../Windows/dates.js'
 import { useState, useEffect } from 'react'
 
@@ -37,12 +38,12 @@ export function formatWindow(w) {
         today.setHours(0, 0, 0, 0); d.setHours(0, 0, 0, 0)
         const diff = Math.round((d - today) / 86400000)
         if (diff === 0 || diff === 1) {
-            const day = diff === 0 ? 'היום' : 'מחר'
+            const day = diff === 0 ? TR('ops_today') : TR('ops_tomorrow')
             dayText = withTime(day)
             textLong = withTime(day)
         } else {
             dayText = withTime(d.toLocaleDateString('he-IL', { weekday: 'short' }))
-            textLong = withTime(d.toLocaleDateString('he-IL', { weekday: 'long' })) // יום חמישי, 10:00–12:00
+            textLong = withTime(d.toLocaleDateString('he-IL', { weekday: 'long' })) // e.g. Thursday, 10:00-12:00 (locale Hebrew)
         }
     } else {
         dayText = range
@@ -62,7 +63,7 @@ export function formatWindow(w) {
     const minutes = totalMinutes % 60
 
     const text = days > 0
-        ? `${days} ימים ${String(hours).padStart(2, '0')} שעות`
+        ? TR('ops_days_hours', { days, hours: String(hours).padStart(2, '0') })
         : `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
 
     return {
