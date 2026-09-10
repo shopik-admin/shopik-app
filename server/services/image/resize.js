@@ -12,7 +12,7 @@ export default async function resize(buffer, sizes = IMAGE_SIZES, { serial = fal
         const data = await basePipeline
             .clone()
             .resize({ width, height: width, fit: 'inside', withoutEnlargement: true })
-            .webp({ quality: 80 })
+            .webp({ quality: 70 })
             .toBuffer()
         return [name, data]
     }
