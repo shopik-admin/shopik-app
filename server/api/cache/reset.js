@@ -49,6 +49,12 @@ export default async function reset(payload, { DL, _admin }) {
     }
 
     try {
+        results.push({ model: 'display', cacheName: 'display:*', deletedKeys: await scanDel(redis, 'display:*') })
+    } catch (e) {
+        results.push({ model: 'display', cacheName: 'display:*', error: e?.message || 'failed' })
+    }
+
+    try {
         results.push({ model: 'menu', cacheName: 'menu', deletedKeys: await redis.del('menu') })
     } catch (e) {
         results.push({ model: 'menu', cacheName: 'menu', error: e?.message || 'failed' })
