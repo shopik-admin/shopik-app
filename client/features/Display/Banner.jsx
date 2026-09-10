@@ -22,23 +22,28 @@ function SlideLink({ slide, children, className }) {
     return <Link to={slide.link} className={className}>{children}</Link>
 }
 
-// <picture> loads exactly one variant (mobile OR desktop) — unlike the
-// previous dual-<img> version, the hidden variant never downloads.
-function SlideImage({ slide }) {
-    const desktop = slide.image ? getDisplayImageUrl(slide.image, 'xl') : ''
-    const mobile = slide.mobileImage ? getDisplayImageUrl(slide.mobileImage, 'm') : ''
-    if (!desktop && !mobile) return null
-    if (!desktop || !mobile) {
-        return <Image
-            src={desktop || mobile}
-            alt={slide.alt || ''}
-            className={styles.slideImg}
-        />
-    }
+// Width-descriptor ladder mirroring BANNER_SIZES (s:800, m:1200, l:1600,
+// xl:1920). The browser picks the smallest file >= viewport x DPR, so large
+// screens get xl/l while phones get s/m — and only one file downloads.
+function srcSetFor(basePath) {
+    return ['s', 'm', 'l', 'xl']
+        .map(size => `${getDisplayImageUrl(basePath, size)} ${size === 's' ? 800 : size === 'm' ? 1200 : size === 'l' ? 1600 : 1920}w`)
+        .join(', ')
+}
+
+// <picture> keeps the art-direction switch (separate mobile composition at
+// <=700px, matching display.module.css), with a full size ladder inside EACH
+// source. Without a mobile upload both ladders use the desktop image.
+function SlideImage({ slide, sizes = '100vw' }) {
+    const desktopBase = slide.image || slide.mobileImage
+    const mobileBase = slide.mobileImage || slide.image
+    if (!desktopBase) return null
     return <picture className={styles.slideImg}>
-        <source media="(max-width: 700px)" srcSet={mobile} />
+        <source media="(max-width: 700px)" srcSet={srcSetFor(mobileBase)} sizes={sizes} />
         <Image
-            src={desktop}
+            src={getDisplayImageUrl(desktopBase, 'xl')}
+            srcSet={srcSetFor(desktopBase)}
+            sizes={sizes}
             alt={slide.alt || ''}
             className={styles.slideImg}
         />
@@ -49,7 +54,7 @@ function Mosaic({ slides }) {
     return <div className={styles.mosaic}>
         {slides.map((slide, i) => (
             <SlideLink key={i} slide={slide} className={styles.mosaicItem}>
-                <SlideImage slide={slide} />
+                <SlideImage slide={slide} sizes="(max-width: 700px) 100vw, 50vw" />
             </SlideLink>
         ))}
     </div>

@@ -1,27 +1,47 @@
 import toSlug from '#common/functions/toSlug.js'
 
 export default async function buildCategories(payload, { DL }) {
-    const comaxProducts = await DL.ComaxProduct.read(
+    // Distinct category tuples via aggregation — never load the full catalog.
+    // A full DL.ComaxProduct.read({ limit: 0 }) here held all 10-50k docs in
+    // memory and OOMed 256MB containers (see comax_product/sync).
+    const tuples = await DL.ComaxProduct.Model.aggregate([
         {
-            superDepartmentCode: { $exists: true, $nin: ['12', null] },
-            departmentCode: { $exists: true },
-            groupCode: { $exists: true }
+            $match: {
+                superDepartmentCode: { $exists: true, $nin: ['12', null] },
+                departmentCode: { $exists: true },
+                groupCode: { $exists: true }
+            }
         },
         {
-            _id: 0,
-            superDepartmentCode: 1,
-            superDepartment: 1,
-            departmentCode: 1,
-            department: 1,
-            groupCode: 1,
-            group: 1,
-            subGroupCode: 1,
-            subGroup: 1
+            $group: {
+                _id: {
+                    superDepartmentCode: '$superDepartmentCode',
+                    superDepartment: '$superDepartment',
+                    departmentCode: '$departmentCode',
+                    department: '$department',
+                    groupCode: '$groupCode',
+                    group: '$group',
+                    subGroupCode: '$subGroupCode',
+                    subGroup: '$subGroup'
+                }
+            }
         },
-        { limit: 0 }
-    )
+        {
+            $project: {
+                _id: 0,
+                superDepartmentCode: '$_id.superDepartmentCode',
+                superDepartment: '$_id.superDepartment',
+                departmentCode: '$_id.departmentCode',
+                department: '$_id.department',
+                groupCode: '$_id.groupCode',
+                group: '$_id.group',
+                subGroupCode: '$_id.subGroupCode',
+                subGroup: '$_id.subGroup'
+            }
+        }
+    ])
 
-    if (comaxProducts.length === 0) {
+    if (tuples.length === 0) {
         return { message: 'No comax products to extract categories from', count: 0 }
     }
 
@@ -30,14 +50,13 @@ export default async function buildCategories(payload, { DL }) {
     const groupMap = new Map()
     const subGroupMap = new Map()
 
-    for (const p of comaxProducts) {
+    for (const p of tuples) {
         const allCodes = [p.superDepartmentCode, p.departmentCode, p.groupCode, p.subGroupCode]
         const allNames = [p.superDepartment, p.department, p.group, p.subGroup]
         const hasAllCodes = allCodes.every(code => code)
         const hasAllNames = allNames.every(name => name)
 
         if (!hasAllCodes || !hasAllNames) {
-            console.log(`[Comax Categories] Skipping product with incomplete category info: ${p.comaxId}`)
             continue
         }
 
