@@ -40,7 +40,26 @@ export async function deleteStaged(path) {
 }
 
 const IMAGE_EXT = /\.(jpe?g|png|webp)$/i
-const baseName = p => String(p || '').split('/').pop()
+export const baseName = p => String(p || '').split('/').pop()
+
+// Invalid type= values return HTTP 200 with a short JSON error body, so a
+// "successful" fetch is not necessarily a zip. Check before staging.
+export function isZipBuffer(buffer) {
+    return !!buffer?.length && buffer[0] === 0x50 && buffer[1] === 0x4b
+}
+
+// Basename set of a zip's entries, or null when unreadable.
+// For validating small type-filtered candidates only — never media=all
+// (inflating a 50MB spin-set zip in the launcher just to list it defeats
+// the purpose of filtering).
+export function zipEntryBasenames(buffer) {
+    try {
+        const entries = Object.keys(unzipSync(new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength)))
+        return new Set(entries.map(baseName))
+    } catch {
+        return null
+    }
+}
 
 // Ranked S-type stills with their storage keys ('' = main legacy path).
 // Shared by the picker and the bucket-first check so both agree on keys.
@@ -168,7 +187,8 @@ export async function processStagedZip({ productId, gtin, path, mediaAssets, fin
 
 export default {
     hashFingerprint, buildFingerprint, stagingPath, stageZip,
-    downloadStaged, deleteStaged, pickImageEntries,
+    downloadStaged, deleteStaged, pickImageEntries, isZipBuffer,
+    zipEntryBasenames, baseName,
     rankStills, countStills, bucketHasImage, buildImageSizes,
     processStagedZip
 }

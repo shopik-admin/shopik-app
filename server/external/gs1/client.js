@@ -29,6 +29,14 @@ async function get(path, { timeoutMs = JSON_TIMEOUT_MS, binary = false, maxBytes
         if (res.status === 429) throw Object.assign(new Error('GS1 429 rate limited'), { rateLimited: true })
         if (res.status >= 500) throw Object.assign(new Error(`GS1 ${res.status} server error`), { transient: true })
         if (!res.ok) throw new Error(`GS1 HTTP ${res.status}: ${res.statusText}`)
+        // Fail fast on declared monsters: a 200MB spin-set zip costs bandwidth
+        // plus ~2x memory (arrayBuffer copy + Buffer) in a small box. The
+        // caller parks over-cap barcodes as skipped instead of retrying.
+        if (binary && maxBytes) {
+            const declared = Number(res.headers.get('content-length') || 0)
+            if (declared > maxBytes)
+                throw new Error(`GS1 response too large: ${declared} bytes (content-length)`)
+        }
         const buffer = Buffer.from(await res.arrayBuffer())
         if (maxBytes && buffer.length > maxBytes)
             throw new Error(`GS1 response too large: ${buffer.length} bytes`)

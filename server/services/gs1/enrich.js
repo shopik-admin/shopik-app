@@ -1,13 +1,53 @@
 import pLimit from 'p-limit'
 import { enqueueProcessJobs } from '#server/queues/gs1Queues.js'
 import { bufferProduct, bufferRaw, bufferProgress, flush } from './bulk.js'
-import { stageZip, buildFingerprint, hashFingerprint, countStills, rankStills, bucketHasImage, buildImageSizes } from './images.js'
+import { stageZip, buildFingerprint, hashFingerprint, countStills, rankStills, bucketHasImage, buildImageSizes, isZipBuffer, zipEntryBasenames, baseName } from './images.js'
 import { mem } from './memlog.js'
 import log from '#server/utils/log.js'
 
 const enrichBatchSize = () => Number(process.env.GS1_ENRICH_BATCH || 500)
 const imageBatchSize = () => Number(process.env.GS1_IMAGE_BATCH || 200)
 const zipConcurrency = () => Number(process.env.GS1_ZIP_CONCURRENCY || 2)
+// GS1 files-endpoint image types (per supplier doc): EL = 360° spin set,
+// PL = planogram, HE = hero, MK = market images. Our ranked S stills live
+// in MK; EL is the multi-MB bloat (nested 40-frame container) we skip.
+const mediaTypes = () => String(process.env.GS1_MEDIA_TYPES || 'mk')
+    .split(',').map(s => s.trim().toLowerCase()).filter(Boolean)
+
+// Fetch the smallest usable source: try each configured type= filter first,
+// stage the first whose zip actually contains our main still, else fall back
+// to media=all (today's behavior, caps intact). Per-attempt byte counts are
+// logged — that output is the EL/PL/HE/MK mapping proof per product.
+// Returns { buffer, via } or null when nothing usable came back.
+// rateLimited/transient errors throw (caller retries the batch); anything
+// else on a type= attempt just moves to the next candidate.
+async function fetchStagedSource(external, barcode, wantedMain) {
+    if (wantedMain) {
+        for (const t of mediaTypes()) {
+            let buf = null
+            try {
+                buf = await external.gs1.getMediaZip(barcode, { type: t })
+            } catch (e) {
+                if (e?.rateLimited || e?.transient) throw e
+                log.warn(`[GS1] type=${t} fetch failed for ${barcode}:`, e?.message || e)
+                continue
+            }
+            if (!isZipBuffer(buf)) {
+                log.info(`[GS1] type=${t} for ${barcode}: not a zip (${buf?.length || 0} bytes), skipping`)
+                continue
+            }
+            const names = zipEntryBasenames(buf)
+            if (names?.has(wantedMain)) {
+                log.info(`[GS1] type=${t} for ${barcode}: ${buf.length} bytes, main present (${names.size} entries)`)
+                return { buffer: buf, via: `type=${t}` }
+            }
+            log.info(`[GS1] type=${t} for ${barcode}: ${buf.length} bytes but main missing, skipping`)
+        }
+    }
+    const buf = await external.gs1.getMediaZip(barcode)
+    if (!buf?.length) return null
+    return { buffer: buf, via: 'media=all' }
+}
 
 // Phase 2: enrich products from the local gs1_products collection.
 // Two-pass to bound memory: page barcode-only docs, gate in bulk, then load
@@ -258,11 +298,24 @@ export async function runImages({ DL, external, runId, force = false, limit = 0,
                 totals.reused++
                 return
             }
-            let zip
+            let zip = null
+            let via = ''
             try {
-                zip = await external.gs1.getMediaZip(barcode)
+                const res = await fetchStagedSource(external, barcode, baseName(ranked[0]?.asset?.filename || ''))
+                zip = res?.buffer || null
+                via = res?.via || ''
             } catch (e) {
                 if (e?.rateLimited || e?.transient) throw e
+                // Over-cap zips would otherwise re-download every run and stay
+                // imageless (no imagesDone, no skip marker). Park them as
+                // skipped — a force run reprocesses if the supplier shrinks it.
+                if (/too large/.test(e?.message || '')) {
+                    const bytes = (/(\d+) bytes/.exec(e.message || '') || [])[1] || '?'
+                    bufferRaw({ barcode, imagesDone: true, skipReason: `zip-too-large:${bytes}` })
+                    log.warn(`[GS1] Zip too large, parked ${barcode} (${bytes} bytes)`)
+                    totals.skipped++
+                    return
+                }
                 log.warn(`[GS1] Zip failed for ${barcode}:`, e?.message || e)
                 totals.noZip++
                 return
@@ -271,6 +324,7 @@ export async function runImages({ DL, external, runId, force = false, limit = 0,
                 totals.noZip++
                 return
             }
+            mem(`zip-downloaded gtin=${barcode} via=${via} bytes=${zip.length}`)
             const stagingPath = await stageZip(barcode, zip)
             bufferRaw({ barcode, fingerprint, stagingPath })
             await enqueueProcessJobs([{
