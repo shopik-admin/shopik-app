@@ -11,7 +11,7 @@ const zipConcurrency = () => Number(process.env.GS1_ZIP_CONCURRENCY || 2)
 // GS1 files-endpoint image types (per supplier doc): EL = 360° spin set,
 // PL = planogram, HE = hero, MK = market images. Our ranked S stills live
 // in MK; EL is the multi-MB bloat (nested 40-frame container) we skip.
-const mediaTypes = () => String(process.env.GS1_MEDIA_TYPES || 'mk')
+const mediaTypes = () => String(process.env.GS1_MEDIA_TYPES || 'MK')
     .split(',').map(s => s.trim().toLowerCase()).filter(Boolean)
 
 // Fetch the smallest usable source: try each configured type= filter first,
@@ -84,7 +84,7 @@ export async function enrichBatch({ DL, external, runId, onlyInStock = true, bar
     for (const barcode of barcodes) {
         const reason = !productSet.has(barcode) ? 'no-product'
             : !comaxSet.has(barcode) ? 'no-comax'
-            : (onlyInStock && !inStockSet.has(barcode)) ? 'out-of-stock' : null
+                : (onlyInStock && !inStockSet.has(barcode)) ? 'out-of-stock' : null
         if (reason) {
             bufferRaw({ barcode, status: 'skipped', skipReason: reason })
             skipped++
@@ -142,7 +142,7 @@ export async function runEnrich(opts) {
     } catch (e) {
         log.warn('[GS1] Rescue pass failed (continuing enrich):', e?.message || e)
     }
-    for (;;) {
+    for (; ;) {
         const res = await enrichBatch(opts)
         totals.enriched += res.enriched
         totals.skipped += res.skipped
@@ -215,8 +215,8 @@ export async function runImages({ DL, external, runId, force = false, limit = 0,
     const limitZip = pLimit(zipConcurrency())
     const totals = { queued: 0, noZip: 0, skipped: 0, reused: 0 }
     let taken = 0
-    for (;;) {
-        if (cap && taken >= cap) break;
+    for (; ;) {
+        if (cap && taken >= cap) break
         const baseFilter = barcode
             ? { status: 'enriched', barcode }
             : { status: 'enriched' }
