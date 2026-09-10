@@ -7,6 +7,7 @@
     overflow: hidden;
     width: 100%;
     border-radius: var(--radius-3xl);
+    min-height: 300px;
 }
 
 .heroTrack {
@@ -22,7 +23,7 @@
     /* Fixed box reserves space before images load and keeps the page from
        jumping when slides have different aspect ratios. Compose uploads to
        ~21:9 desktop / ~16:10 mobile; cover crops the overflow. */
-    /* aspect-ratio: 21 / 9; */
+    aspect-ratio: 21 / 9;
 }
 
 /* .hero .slideImg {
@@ -39,9 +40,9 @@
 .slideImg {
     width: 100%;
     height: 100%;
-    height: 500px;
     display: block;
     object-fit: cover;
+    min-height: 300px;
 }
 
 .desktopOnly {
@@ -95,6 +96,7 @@
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 10px;
     width: 100%;
+    min-height: 300px;
 }
 
 .mosaicItem {
