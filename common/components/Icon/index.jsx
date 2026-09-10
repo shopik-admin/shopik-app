@@ -12,10 +12,11 @@ import {
     LuSun, LuMoon, LuCloudUpload, LuMap, LuClock, LuTruck, LuCreditCard, LuBarcode, LuAlignLeft,
     LuListPlus, LuNotebookPen, LuPanelRightClose, LuPanelRightOpen, LuCalendarPlus, LuSlidersHorizontal,
     LuBoxes, LuLightbulb, LuSnowflake, LuImage, LuBadgePercent, LuGalleryVerticalEnd, LuGalleryHorizontalEnd,    LuHistory, LuPhone, LuMail, LuMessageSquare, LuArrowRightLeft, LuCalculator, LuArchiveRestore,
-    LuUpload
+    LuUpload, LuPhoneOutgoing
 } from 'react-icons/lu'
 import { BsFileEarmarkExcel } from 'react-icons/bs'
 import { TbHeartPlus } from 'react-icons/tb'
+import { SiWaze } from 'react-icons/si'
 
 const iconsList = {
     add: LuPlus,
@@ -109,6 +110,8 @@ const iconsList = {
     box: LuPackage,
     history: LuHistory,
     phone: LuPhone,
+    phoneOutgoing: LuPhoneOutgoing,
+    waze: SiWaze,
     mail: LuMail,
     message: LuMessageSquare,
     statusChange: LuArrowRightLeft,
