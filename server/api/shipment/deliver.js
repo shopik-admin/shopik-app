@@ -14,8 +14,11 @@ function haversine(a, b) {
 
 export default async function deliver(payload, { DL, _admin, external, utils }) {
     const { orderId, imageBase64, coordinates, force } = payload
-    if (!orderId || !imageBase64) throw { status: 400, message: 'orderId and imageBase64 required' }
-    if (Buffer.byteLength(imageBase64, 'utf8') > 8 * 1024 * 1024) throw { status: 400, message: 'image too large' }
+    if (!orderId) throw { status: 400, message: 'orderId required' }
+    // Super admins may skip the photo (DeliverPhoto "skip" button); everyone else must send an image
+    const skipPhoto = !imageBase64 && _admin.isSuperAdmin
+    if (!imageBase64 && !skipPhoto) throw { status: 400, message: 'orderId and imageBase64 required' }
+    if (imageBase64 && Buffer.byteLength(imageBase64, 'utf8') > 8 * 1024 * 1024) throw { status: 400, message: 'image too large' }
 
     const order = await DL.Order.readById(orderId)
     if (!order) throw { status: 404, message: 'order not found' }
@@ -29,16 +32,19 @@ export default async function deliver(payload, { DL, _admin, external, utils }) 
         if (d > OPS_PROXIMITY_RADIUS_M) throw { status: 400, message: `too far: ${Math.round(d)}m > ${OPS_PROXIMITY_RADIUS_M}m (use force if GPS drift)` }
     }
 
-    const buffer = Buffer.from(imageBase64, 'base64')
-    const processed = await sharp(buffer).rotate().resize({ width: 1600, height: 1600, fit: 'inside', withoutEnlargement: true }).webp({ quality: 80 }).toBuffer()
-    const path = `images/shipments/${orderId}.webp`
+    let url = null
+    if (!skipPhoto) {
+        const buffer = Buffer.from(imageBase64, 'base64')
+        const processed = await sharp(buffer).rotate().resize({ width: 1600, height: 1600, fit: 'inside', withoutEnlargement: true }).webp({ quality: 80 }).toBuffer()
+        const path = `images/shipments/${orderId}.webp`
 
-    let url = path
-    try {
-        await external.storage.uploadFile({ path, data: processed, contentType: 'image/webp', cacheControl: 'public, max-age=31536000, immutable' })
         url = path
-    } catch (e) {
-        // if storage not configured, keep local path
+        try {
+            await external.storage.uploadFile({ path, data: processed, contentType: 'image/webp', cacheControl: 'public, max-age=31536000, immutable' })
+            url = path
+        } catch (e) {
+            // if storage not configured, keep local path
+        }
     }
 
     const at = new Date()

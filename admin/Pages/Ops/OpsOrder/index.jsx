@@ -1,4 +1,4 @@
-import { DeliveryMethodTag, formatWindow, RemainingTime } from '../orderUtils'
+import { buildWazeUrl, DeliveryMethodTag, formatDepartureTime, formatWindow, isShippingStatus, RemainingTime } from '../orderUtils'
 import classNames from 'common/functions/classNames'
 import Button from 'common/components/Button'
 import Loader from 'common/components/Loader'
@@ -17,13 +17,17 @@ import ProductInline from 'common/components/ProductInline'
 import Stepper from 'common/components/Stepper'
 import { useModal } from 'common/components/Modal'
 import ProductPickModal from './ProductPickModal'
+import DeliverPhoto from './DeliverPhoto'
 import { formatAmount } from 'common/components/Product'
 
 const STEPS = {
     PREVIEW: 0,
     PICK: 1,
     PACK: 2,
-    SHIP: 3
+    SHIP: 3,
+    VIEW: 4,
+    CONFIRM: 5,
+    DELIVER: 6
 }
 
 const stepRenderer = [
@@ -31,6 +35,9 @@ const stepRenderer = [
     OrderPick,
     OrderPack,
     OrderShip,
+    OrderView,
+    OrderConfirmBags,
+    DeliverPhoto,
 ]
 
 export default function OpsOrder({ }) {
@@ -41,13 +48,14 @@ export default function OpsOrder({ }) {
     const order = data[0] || {}
     const { id } = useUser()
     const isMine = id == order.picker?.adminId,
-        cantPick = !isMine && order.picker?.adminId
+        cantPick = !isMine && order.picker?.adminId,
+        isShipMine = id == order.shipper?.adminId,
+        cantShip = !isShipMine && order.shipper?.adminId
     const navigate = useNavigate()
 
     useEffect(() => {
         if (loading || !order?.status) return
         if (order.status === 'picked' && step === STEPS.PREVIEW) setStep(STEPS.PACK)
-        else if (order.status === 'packed' && step === STEPS.PREVIEW) setStep(STEPS.SHIP)
         else if (order.status === 'picking' && step === STEPS.PREVIEW && isMine) setStep(STEPS.PICK)
     }, [order.status, loading, isMine])
 
@@ -86,14 +94,116 @@ export default function OpsOrder({ }) {
             claimOrder={claimOrder}
             isMine={isMine}
             cantPick={cantPick}
+            isShipMine={isShipMine}
+            cantShip={cantShip}
             setStep={setStep}
+            goPreview={() => setStep(STEPS.PREVIEW)}
             onPicked={handlePicked}
         /> : null}
     </div>
 }
 
-function OrderPreview({ order = {}, claimOrder, isMine, cantPick, setStep }) {
+function OrderPreview({ order = {}, claimOrder, isMine, cantPick, isShipMine, cantShip, setStep }) {
     const windowTime = formatWindow(order.window)
+
+    if (order.status === 'shipped') {
+        const deliveryTime = formatDepartureTime(order.window),
+            isFirstOrder = order.userOrderNumber === 1,
+            isCompletionOrder = !!order.orderRestoredFrom,
+            hasPills = isFirstOrder || isCompletionOrder
+
+        return <Flex col className={styles.orderPreview}>
+            <Flex grow col gap={30}>
+                <Flex alignItems='center' justifyContent='space-between' style={{ padding: 25, paddingBottom: 0, fontSize: 20 }}>
+                    <DeliveryMethodTag deliveryMethod={order.deliveryMethod} />
+                    <Text bold size='l'>{order.number}</Text>
+                </Flex>
+                {hasPills && <Flex gap={10} className={styles.pills}>
+                    {isCompletionOrder && <Flex center className={styles.pill}><Text size='s'>ops_completion_order</Text></Flex>}
+                    {isFirstOrder && <Flex center className={styles.pill}><Text size='s'>ops_first_order</Text></Flex>}
+                </Flex>}
+                <Flex gap={10} className={classNames(styles.intro, styles[windowTime.isLate ? 'danger' : windowTime.isAlmostLate ? 'warning' : 'success'])}>
+                    <Icon name='time' size={24} />
+                    <Flex col gap={10} grow>
+                        <Flex alignItems='center' justifyContent='space-between' grow>
+                            <Text size='h2' bold>ops_delivery_title</Text>
+                            <Text size='h2' bold>{deliveryTime}</Text>
+                        </Flex>
+                        <Flex gap={5}>
+                            <Text size='m' className={styles.subtitle}>ops_departure_remaining</Text>
+                            <RemainingTime size='m' className={styles.subtitle} window={order.window} />
+                        </Flex>
+                    </Flex>
+                </Flex>
+                <Flex col gap={25} className={styles.priviewRows}>
+                    <PriviewRow icon='user' label='customer_name' value={render({ type: 'name', value: order.name })} />
+                    <PriviewRow
+                        icon='location'
+                        label='customer_address'
+                        value={render({ type: 'address', value: order.address })}
+                        actionIcon={(order.address?.location?.coordinates?.length || order.address?.street || order.address?.city) ? 'waze' : null}
+                        onAction={() => window.open(buildWazeUrl(order.address), '_blank', 'noopener')}
+                    />
+                    <PriviewRow icon='time' label='order_window' value={windowTime.textLong} />
+                    {order.shipperComment && <PriviewRow icon='note' label='ops_shipper_notes' value={order.shipperComment} />}
+                    {order.phone && <PriviewRow
+                        icon='phone'
+                        label='ops_customer_phone'
+                        value={order.phone}
+                        actionIcon='phoneOutgoing'
+                        onAction={() => { window.location.href = `tel:${String(order.phone).replace(/[^+\d]/g, '')}` }}
+                    />}
+                </Flex>
+            </Flex>
+            <Flex center gap={20} col className={styles.footer}>
+                <Button className={styles.startPickingBtn} disabled={cantShip} onClick={() => setStep(STEPS.DELIVER)}>ops_order_delivered</Button>
+                <Button mode='text-brand' onClick={() => setStep(STEPS.VIEW)}>ops_view_order_only</Button>
+            </Flex>
+        </Flex>
+    }
+
+    if (isShippingStatus(order.status)) {
+        const departureTime = formatDepartureTime(order.window),
+            isFirstOrder = order.userOrderNumber === 1,
+            isCompletionOrder = !!order.orderRestoredFrom,
+            hasPills = isFirstOrder || isCompletionOrder
+
+        return <Flex col className={styles.orderPreview}>
+            <Flex grow col gap={30}>
+                <Flex alignItems='center' justifyContent='space-between' style={{ padding: 25, paddingBottom: 0, fontSize: 20 }}>
+                    <DeliveryMethodTag deliveryMethod={order.deliveryMethod} />
+                    <Text bold size='l'>{order.number}</Text>
+                </Flex>
+                {hasPills && <Flex gap={10} className={styles.pills}>
+                    {isCompletionOrder && <Flex center className={styles.pill}><Text size='s'>ops_completion_order</Text></Flex>}
+                    {isFirstOrder && <Flex center className={styles.pill}><Text size='s'>ops_first_order</Text></Flex>}
+                </Flex>}
+                <Flex gap={10} className={classNames(styles.intro, styles[windowTime.isLate ? 'danger' : windowTime.isAlmostLate ? 'warning' : 'success'])}>
+                    <Icon name='time' size={24} />
+                    <Flex col gap={10} grow>
+                        <Flex alignItems='center' justifyContent='space-between' grow>
+                            <Text size='h2' bold>ops_departure_title</Text>
+                            <Text size='h2' bold>{departureTime}</Text>
+                        </Flex>
+                        <Flex gap={5}>
+                            <Text size='m' className={styles.subtitle}>ops_departure_remaining</Text>
+                            <RemainingTime size='m' className={styles.subtitle} window={order.window} />
+                        </Flex>
+                    </Flex>
+                </Flex>
+                <Flex col gap={25} className={styles.priviewRows}>
+                    <PriviewRow icon='user' label='customer_name' value={order.phone || '0500000000'} />
+                    <PriviewRow icon='location' label='customer_address' value={render({ type: 'address', value: order.address })} />
+                    <PriviewRow icon='time' label='order_window' value={windowTime.textLong} />
+                    {order.shipperComment && <PriviewRow icon='note' label='ops_shipper_notes' value={order.shipperComment} />}
+                </Flex>
+            </Flex>
+            <Flex center gap={20} col className={styles.footer}>
+                <Button className={styles.startPickingBtn} disabled={cantShip} onClick={isShipMine ? () => setStep(STEPS.VIEW) : () => setStep(STEPS.CONFIRM)}>ops_take_order</Button>
+                <Button mode='text-brand' onClick={() => setStep(STEPS.VIEW)}>ops_view_order_only</Button>
+            </Flex>
+        </Flex>
+    }
 
     return <Flex col className={styles.orderPreview}>
         <Flex grow col gap={30}>
@@ -106,7 +216,7 @@ function OrderPreview({ order = {}, claimOrder, isMine, cantPick, setStep }) {
                 <Flex col gap={10} grow>
                     <Flex alignItems='center' justifyContent='space-between' grow>
                         <Text size='h2' bold>time_to_pick_title</Text>
-                        <Text size='h2' bold>{order.window.end}:00</Text>
+                        <Text size='h2' bold>{order.window?.end}:00</Text>
                     </Flex>
                     <Flex gap={5}>
                         <Text size='m' className={styles.subtitle}>time_to_pick_subtitle</Text>
@@ -124,18 +234,45 @@ function OrderPreview({ order = {}, claimOrder, isMine, cantPick, setStep }) {
         </Flex>
         <Flex center gap={20} col className={styles.footer}>
             <Button className={styles.startPickingBtn} disabled={cantPick} onClick={isMine ? () => setStep(STEPS.PICK) : claimOrder}>{'start picking'}</Button>
-            <Button mode='text-brand' onClick={() => setStep(STEPS.PICK)}>view order</Button>
+            <Button mode='text-brand' onClick={() => setStep(STEPS.VIEW)}>view order</Button>
         </Flex>
     </Flex>
 }
 
-function PriviewRow({ icon, label, value }) {
-    return <Flex gap={10} alignItems={value ? 'start' : 'center'} className={styles.priviewRow}>
-        <Icon name={icon} size={24} />
-        <Flex col gap={5} >
-            <Text size='l' bold>{label}</Text>
-            {value ? <Text >{value}</Text> : null}
+function OrderView({ order = {}, setStep }) {
+    const cart = order.cart || []
+
+    return <Flex grow col className={styles.orderPick}>
+        <Flex alignItems='center' justifyContent='center' style={{ padding: 16 }}>
+            <Text size='l' bold>ops_view_title</Text>
         </Flex>
+        <Flex grow col gap={10} className={styles.cartList}>
+            {cart.map(product => (
+                <ProductInline
+                    key={product.id || product.barcode}
+                    product={product}
+                    remove={false}
+                    note={false}
+                    admin
+                />
+            ))}
+        </Flex>
+        <Flex center gap={20} className={styles.footer}>
+            <Button mode='text-brand' onClick={() => setStep(STEPS.PREVIEW)}>back</Button>
+        </Flex>
+    </Flex>
+}
+
+function PriviewRow({ icon, label, value, actionIcon, onAction }) {
+    return <Flex gap={10} alignItems={value ? 'start' : 'center'} justifyContent='space-between' className={styles.priviewRow}>
+        <Flex gap={10} alignItems={value ? 'start' : 'center'}>
+            <Icon name={icon} size={24} />
+            <Flex col gap={5} >
+                <Text size='l' bold>{label}</Text>
+                {value ? <Text >{value}</Text> : null}
+            </Flex>
+        </Flex>
+        {actionIcon && <Button mode='text' icon={actionIcon} onClick={onAction} className={styles.rowAction} />}
     </Flex>
 }
 
@@ -320,6 +457,80 @@ function OrderPack({ order = {}, setStep, onPicked }) {
 
         <Flex center className={styles.footer}>
             <Button loading={loading} onClick={handleTransfer} className={styles.transferBtn}>העברה למשלוח</Button>
+        </Flex>
+    </Flex>
+}
+
+function OrderConfirmBags({ order = {}, setStep }) {
+    const navigate = useNavigate()
+    const [loading, setLoading] = useState(false)
+    const [touched, setTouched] = useState(false)
+    const [regular, setRegular] = useState(0)
+    const [cold, setCold] = useState(0)
+    const [other, setOther] = useState(0)
+
+    const expected = {
+        regular: order.bags?.regular ?? 0,
+        cold: order.bags?.cold ?? 0,
+        other: order.bags?.freeze ?? order.bags?.extra ?? 0,
+    }
+    const match = regular === expected.regular && cold === expected.cold && other === expected.other
+    const canAssign = touched && match
+
+    function handleChange(setter) {
+        return (v) => { setTouched(true); setter(v) }
+    }
+
+    async function handleAssign() {
+        if (!canAssign || loading) return
+        setLoading(true)
+        try {
+            const res = await apiReq('shipment/start', { orderIds: [order.id] })
+            if (res?.failures?.length && !res?.successIds?.length) {
+                alert(res.failures.join(', ') || 'shipment/start failed')
+                return
+            }
+            navigate('/ops')
+        } catch (e) {
+            alert(e.message || 'shipment/start failed')
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    return <Flex grow col className={styles.orderPack}>
+        <Flex col gap={6} className={styles.packInstruction}>
+            <Text bold size="m">ops_confirm_bags_title</Text>
+        </Flex>
+
+        <Flex col gap={14} className={styles.packList}>
+            <ConfirmRow icon="box" label="ops_bags_regular" value={regular} onChange={handleChange(setRegular)} expected={expected.regular} />
+            <ConfirmRow icon="snow" label="ops_bags_cold" value={cold} onChange={handleChange(setCold)} expected={expected.cold} />
+            <ConfirmRow icon="bag" label="ops_bags_other" value={other} onChange={handleChange(setOther)} expected={expected.other} />
+        </Flex>
+
+        <Flex center gap={20} col className={styles.footer}>
+            <Flex center className={styles.confirmErrorSlot}>
+                {touched && !match && <Text size="s" mode="error" center>ops_bags_mismatch</Text>}
+            </Flex>
+            <Button loading={loading} disabled={!canAssign} onClick={handleAssign} className={styles.transferBtn}>ops_assign_to_me</Button>
+            <Button mode='text-brand' onClick={() => setStep(STEPS.PREVIEW)}>back</Button>
+        </Flex>
+    </Flex>
+}
+
+function ConfirmRow({ icon, label, value, onChange, expected }) {
+    return <Flex justifyContent="space-between" alignItems="center" className={styles.packRow}>
+        <Flex gap={8} alignItems="center">
+            <Icon name={icon} size={20} className={styles.packIcon} />
+            <Text size="s">{label}</Text>
+        </Flex>
+        <Flex gap={10} alignItems="center">
+            <Flex gap={4} alignItems="center" className={styles.expected}>
+                <Text size="s" mode="sub">ops_expected</Text>
+                <Text size="s" bold>{expected}</Text>
+            </Flex>
+            <Stepper value={value} onChange={onChange} />
         </Flex>
     </Flex>
 }

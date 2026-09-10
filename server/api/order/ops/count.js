@@ -9,6 +9,8 @@ export default async function count(payload, { DL, _admin }) {
     const canShip = _admin.hasPermission('order:ship') || isSuper
     if (!canRead && !canPick && !canShip) throw { status: 403, message: 'Forbidden' }
 
+    const { filter: extraFilter = {} } = payload || {}
+
     const filter = { active: true, status: { $ne: 'cart' } }
     if (canRead) {
         if (admin?.currentStoreId) filter.storeId = admin.currentStoreId
@@ -30,7 +32,13 @@ export default async function count(payload, { DL, _admin }) {
         if (canShip) { or.push({ status: 'packed' }); or.push({ 'shipper.adminId': me }) }
         permissionOr = or.length ? { $or: or } : null
     }
-    const final = permissionOr ? (filter.$or ? { $and: [filter, permissionOr] } : { ...filter, ...permissionOr }) : filter
+    // Spread extraFilter (e.g. per-tab filters from the ops tabs), same merge as list.js
+    const finalFilter = { ...filter, ...extraFilter }
+    let final
+    if (permissionOr) {
+        if (finalFilter.$or) final = { $and: [finalFilter, permissionOr] }
+        else final = { ...finalFilter, ...permissionOr }
+    } else final = finalFilter
     return DL.Order.Model.countDocuments(final)
 }
 

@@ -1,8 +1,29 @@
 import Flex from "#common/components/Flex/index.jsx"
 import Icon from "#common/components/Icon/index.jsx"
 import Text from "#common/components/Text/index.jsx"
-import { formatHourRange } from '../Windows/dates.js'
+import { formatHour, formatHourRange } from '../Windows/dates.js'
 import { useState, useEffect } from 'react'
+
+export const SHIPPING_STATUSES = ['packed', 'shipped']
+
+export function isShippingStatus(status) {
+    return SHIPPING_STATUSES.includes(status)
+}
+
+// Departure time for the shipping layout (ops_departure_time key).
+// Prefers window.startTimestamp (only source with minute precision, e.g. 09:25),
+// falls back to the whole-hour window.start (e.g. 09:00).
+export function formatDepartureTime(w) {
+    if (!w) return '--:--'
+    if (w.startTimestamp) {
+        const d = new Date(w.startTimestamp)
+        if (!isNaN(d.getTime())) {
+            return d.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Jerusalem' })
+        }
+    }
+    if (w.start != null) return formatHour(w.start)
+    return '--:--'
+}
 
 export function formatWindow(w) {
     if (!w) return { text: '', dayText: '', textLong: '', minutes: 0 }
@@ -67,6 +88,15 @@ export function RemainingTime({ window: w, ...textProps }) {
     return <Text {...textProps}>{formatWindow(w).text}</Text>
 }
 
+
+// Waze navigation URL for a delivery address.
+// Prefers exact coordinates ([lng, lat] GeoJSON), falls back to a text query.
+export function buildWazeUrl(address) {
+    const coords = address?.location?.coordinates
+    if (coords?.length >= 2) return `https://waze.com/ul?ll=${coords[1]},${coords[0]}&navigate=yes`
+    const q = [address?.street, address?.building, address?.city].filter(v => v != null && v !== '').join(' ')
+    return `https://waze.com/ul?q=${encodeURIComponent(q)}&navigate=yes`
+}
 
 export function DeliveryMethodTag({ deliveryMethod }) {
     return <Flex gap={5} alignItems='center' >

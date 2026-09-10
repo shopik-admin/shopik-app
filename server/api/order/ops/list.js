@@ -118,6 +118,10 @@ export default async function list(payload, { DL, _admin }) {
         comment: 1,
         leaveOrderAtDoor: 1,
         shipmentId: 1,
+        labels: 1,
+        userOrderNumber: 1,
+        shipperComment: 1,
+        orderRestoredFrom: 1,
     }
 
     // search via DL layer if provided

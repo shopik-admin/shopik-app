@@ -1,8 +1,29 @@
 .ops {
     padding-top: 16px;
+    padding-bottom: 80px;
     flex: 1;
     min-height: 0;
     overflow: auto;
+}
+
+.shipTabs {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--bg-primary);
+    flex-shrink: 0;
+}
+
+.viewToggleFloat {
+    position: fixed;
+    bottom: calc(20px + var(--safeBottom, 0px));
+    inset-inline-end: calc(16px + var(--safeRight, 0px));
+    z-index: 100;
+
+    button {
+        border-radius: 999px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    }
 }
 
 .orderCard {
