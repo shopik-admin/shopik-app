@@ -23,11 +23,18 @@ export default async function enqueueChangedImages(DL) {
     const productByBarcode = new Map(products.map(p => [p.barcode, p]))
 
     const jobs = []
+    let skippedGs1 = 0
     for (const comax of comaxProducts) {
         const product = productByBarcode.get(comax.barcode)
         if (!product || !comax.picUrl) continue
 
         const mainImage = (product.images?.product || []).find(img => img?.main)
+        // GS1-sourced images are never touched — neither filled nor refreshed.
+        if (mainImage?.sourceUrl?.startsWith('gs1://')) {
+            skippedGs1++
+            continue
+        }
+        // Own (Comax/manual) main unchanged → skip; missing or different → (re)fill.
         if (mainImage?.sourceUrl === comax.picUrl && mainImage?.hash) continue
 
         jobs.push({ productId: product.id, sourceUrl: comax.picUrl })
@@ -35,7 +42,7 @@ export default async function enqueueChangedImages(DL) {
 
     await enqueueImageJobs(jobs)
 
-    log.info(`[ImageQueue] Enqueued ${jobs.length}/${comaxProducts.length} products with images`)
+    log.info(`[ImageQueue] Enqueued ${jobs.length}/${comaxProducts.length} products with images (skipped ${skippedGs1} GS1-imaged)`)
 
     return { scanned: comaxProducts.length, enqueued: jobs.length }
 }

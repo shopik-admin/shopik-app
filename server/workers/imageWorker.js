@@ -27,6 +27,19 @@ export default async function startImageWorker({ DL }) {
             if (!productId || !sourceUrl)
                 throw new Error(`Invalid job data: ${JSON.stringify(job.data)}`)
 
+            // Race guard: a GS1 image may have landed between enqueue and
+            // processing — never overwrite it (enqueue gate already filters,
+            // this covers the window).
+            const current = await DL.Product.readOne(
+                { id: productId },
+                { _id: 0, images: 1 }
+            ).catch(() => null)
+            const currentMain = (current?.images?.product || []).find(img => img?.main)
+            if (currentMain?.sourceUrl?.startsWith('gs1://')) {
+                log.warn(`[ImageWorker] Skipped ${productId} — GS1 image present`)
+                return { skipped: 'gs1-present' }
+            }
+
             const start = performance.now()
             const sizes = await processImage({ productId, sourceUrl })
             console.log(`Resize took ${performance.now() - start}ms`)
