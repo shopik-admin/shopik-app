@@ -215,6 +215,12 @@ export async function runImages({ DL, external, runId, force = false, limit = 0,
     const limitZip = pLimit(zipConcurrency())
     const totals = { queued: 0, noZip: 0, skipped: 0, reused: 0 }
     let taken = 0
+    // Barcodes already handled this call. The loop pages the collection, but
+    // a still-eligible doc (force runs ignore imagesDone; a queued doc's
+    // worker hasn't marked it yet) would otherwise be staged + re-queued on
+    // EVERY batch — the taken=1..N infinite loop. Each barcode is handled
+    // once per call; cross-call repeats still work via imageLimit batching.
+    const seen = new Set()
     for (; ;) {
         if (cap && taken >= cap) break
         const baseFilter = barcode
@@ -227,8 +233,12 @@ export async function runImages({ DL, external, runId, force = false, limit = 0,
             { limit: imageBatchSize() }
         )
         if (!raws?.length) break
+        const fresh = raws.filter(r => r?.barcode && !seen.has(r.barcode))
+        // Whole batch already handled → no forward progress possible.
+        if (!fresh.length) break
+        for (const r of fresh) seen.add(r.barcode)
 
-        const barcodes = raws.map(r => r.barcode)
+        const barcodes = fresh.map(r => r.barcode)
         const products = await DL.Product.read(
             { barcode: { $in: barcodes } },
             { _id: 0, id: 1, barcode: 1, images: 1 },
