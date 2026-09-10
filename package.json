@@ -9,6 +9,7 @@
     "build:client": "vite build --config client/vite.config.js",
     "build:admin": "vite build --config admin/vite.config.js",
     "build:server": "vite build --ssr entry-server.jsx --outDir ../build/server --config client/vite.config.js",
+    "texts": "node scripts/client-texts.mjs",
     "build": "npm run build:client && npm run build:admin && npm run build:server"
   },
   "dependencies": {

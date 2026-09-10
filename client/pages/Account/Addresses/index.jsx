@@ -123,7 +123,7 @@ export default function Addresses({ action, hideHeader }) {
                 </Flex>
             )}
 
-            <Button onClick={handleAdd} >add address</Button>
+            <Button onClick={handleAdd} >add-address</Button>
         </Flex>
     )
 }

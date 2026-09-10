@@ -5,7 +5,7 @@ import styles from './input.module.css'
 import Checkbox from '../Checkbox'
 import { useState, useRef, useImperativeHandle } from 'react'
 import Text from '../Text'
-import Icon from '../Icon'
+import Icon from 'common/components/Icon'
 import Select from '../Select'
 
 /**

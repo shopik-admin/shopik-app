@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react'
-import hebrewTexts from './hebrew.json'
+import hebrewTexts from 'common/texts/hebrew.json'
 import TR from './TR.js'
 
 const TextContext = createContext()

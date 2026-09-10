@@ -1,4 +1,4 @@
-import { IoChevronDown } from 'react-icons/io5'
+import Icon from 'common/components/Icon'
 import classNames from 'common/functions/classNames'
 import styles from './collapse.module.css'
 import { useState } from 'react'
@@ -33,7 +33,7 @@ export default function Collapse({
             <div className={classNames(styles.top, headerClassName)} onClick={handleToggle}>
                 <Flex alignItems='center' justifyContent='space-between' width='100%'>
                     <div className={styles.titleContainer}>{title}</div>
-                    {showChevron && <IoChevronDown className={styles.icon} />}
+                    {showChevron && <Icon name='down' className={styles.icon} />}
                 </Flex>
             </div>
             <div className={styles.contentWrapper}>

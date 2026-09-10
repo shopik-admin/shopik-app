@@ -8,13 +8,25 @@ const currentDir = import.meta.dirname
 const pkgPath = path.resolve(currentDir, '../package.json')
 const { version } = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'))
 
-const alias = {
-  ...fs.readdirSync(currentDir, { withFileTypes: true })
-    .filter(d => d.isDirectory())
-    .reduce((a, { name }) => ({ ...a, [name]: path.resolve(currentDir, name) }), {}),
-  'App': path.resolve(currentDir, 'App'),
-  common: path.resolve(currentDir, '..', 'common'),
-}
+const clientIcon = path.resolve(currentDir, '..', 'common/components/Icon/ClientIcon.jsx')
+
+const alias = [
+  // Storefront-only icon set (25 icons) instead of the full admin set (~80).
+  // Must precede the generic `common` alias so it wins on prefix match.
+  { find: 'common/components/Icon/index.jsx', replacement: clientIcon },
+  { find: '#common/components/Icon/index.jsx', replacement: clientIcon },
+  { find: 'common/components/Icon', replacement: clientIcon },
+  { find: '#common/components/Icon', replacement: clientIcon },
+  // Storefront-only texts subset (see scripts/client-texts.mjs).
+  { find: 'common/texts/hebrew.json', replacement: path.resolve(currentDir, '..', 'common/texts/hebrew.client.json') },
+  ...Object.entries({
+    ...fs.readdirSync(currentDir, { withFileTypes: true })
+      .filter(d => d.isDirectory())
+      .reduce((a, { name }) => ({ ...a, [name]: path.resolve(currentDir, name) }), {}),
+    'App': path.resolve(currentDir, 'App'),
+    common: path.resolve(currentDir, '..', 'common'),
+  }).map(([find, replacement]) => ({ find, replacement })),
+]
 
 export default defineConfig(({ mode }) => {
   const fileEnv = loadEnv(mode, path.resolve(currentDir, '..'), '')

@@ -1,4 +1,4 @@
-import hebrewTexts from './hebrew.json'
+import hebrewTexts from 'common/texts/hebrew.json'
 
 const texts = hebrewTexts.texts || {}
 
@@ -13,6 +13,7 @@ const texts = hebrewTexts.texts || {}
  */
 export default function TR(key, params) {
     const str = texts[key] || texts[key?.toLowerCase?.()] || key
+    if (str === key && import.meta.env?.DEV) console.warn(`[texts] missing key: ${key}`)
     if (!params || typeof str !== 'string') return str
     return str.replace(/\[(\w+)\]/g, (_, name) =>
         params[name] !== undefined && params[name] !== null

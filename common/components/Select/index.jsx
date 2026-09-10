@@ -1,7 +1,7 @@
 import { useLists } from 'common/features/Lists'
 import Text from 'common/components/Text'
 import styles from './select.module.css'
-import Icon from '../Icon'
+import Icon from 'common/components/Icon'
 
 export default function Select({ options = [], multi, chips, className, style, ...props }) {
     const lists = useLists()

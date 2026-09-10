@@ -1,6 +1,6 @@
 import render from 'common/functions/render'
 import styles from './table.module.css'
-import Icon from '../Icon'
+import Icon from 'common/components/Icon'
 import Text from '../Text'
 
 export default function Table({ cols = [], rows = [], sort = {}, setSort, onRowClick }) {

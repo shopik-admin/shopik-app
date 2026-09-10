@@ -5,7 +5,7 @@ import Loader from 'common/components/Loader'
 import apiReq from 'common/functions/apiReq'
 import { useOrder } from 'features/Order/OrderProvider'
 import Collapse from 'common/components/Collapse'
-import { IoCheckmarkCircleOutline } from 'react-icons/io5'
+import Icon from 'common/components/Icon'
 import { LuTicketPercent, LuTag, LuTags } from 'react-icons/lu'
 import styles from './couponSection.module.css'
 import summaryStyles from '../orderSummary.module.css'
@@ -71,7 +71,7 @@ function RegularCouponCard({ coupon, isApplied, isActive = true, remainingToActi
                 disabled={isLoading}
             >
                 {isLoading ? <Loader size={14} /> : isApplied ? (
-                    isActive ? <><IoCheckmarkCircleOutline /> <Text size='m' bold>{TR?.('coupon_active') || ''}</Text></> : <Text size='m' bold>{TR?.('coupon_inactive') || ''}</Text>
+                    isActive ? <><Icon name='check' /> <Text size='m' bold>{TR?.('coupon_active') || ''}</Text></> : <Text size='m' bold>{TR?.('coupon_inactive') || ''}</Text>
                 ) : (
                     <><LuTicketPercent /> <Text size='m' bold>{TR?.('coupon_apply') || ''}</Text></>
                 )}
