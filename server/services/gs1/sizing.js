@@ -68,7 +68,7 @@ export function resolveSizing() {
 
     const sizing = {
         vCPU, containerMB, fetchConcurrency, cpuConcurrency, maxPerMinute,
-        zipMaxMB: Math.round(Number(process.env.GS1_ZIP_MAX_BYTES || 20 * 1024 * 1024) / 1024 / 1024)
+        zipMaxMB: Math.round(Number(process.env.GS1_ZIP_MAX_BYTES || 50 * 1024 * 1024) / 1024 / 1024)
     }
     log.info(`[GS1] Sizing: ${JSON.stringify(sizing)}`)
     return sizing
