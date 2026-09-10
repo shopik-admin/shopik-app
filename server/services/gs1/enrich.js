@@ -94,7 +94,14 @@ export async function enrichBatch({ DL, external, runId, onlyInStock = true, bar
 }
 
 export async function runEnrich(opts) {
-    const totals = { enriched: 0, skipped: 0, batches: 0 }
+    const totals = { enriched: 0, skipped: 0, batches: 0, rescued: 0 }
+    // Rescue pass first: products created (or restocked) after a skip stay
+    // 'skipped' forever because enrich only pages status:'fetched'.
+    try {
+        totals.rescued = await requeueRescued(opts)
+    } catch (e) {
+        log.warn('[GS1] Rescue pass failed (continuing enrich):', e?.message || e)
+    }
     for (;;) {
         const res = await enrichBatch(opts)
         totals.enriched += res.enriched
@@ -105,8 +112,56 @@ export async function runEnrich(opts) {
         if (opts?.barcode) break
     }
     await flush()
-    log.success(`[GS1] Enrich done: ${totals.enriched} enriched, ${totals.skipped} skipped, ${totals.batches} batches`)
+    log.success(`[GS1] Enrich done: ${totals.enriched} enriched, ${totals.skipped} skipped, ${totals.batches} batches, ${totals.rescued} rescued`)
     return totals
+}
+
+// Pre-pass for runEnrich: flip previously-skipped docs whose gate now passes
+// back to 'fetched' (skipReason is cleared by the bulk flusher) so the normal
+// flow picks them up. Covers catalog churn (product created after the skip)
+// and restocks (out-of-stock skip, now in stock — or a false-run following a
+// true-run). map-error/empty-raw are NOT rescuable by enrich alone.
+const RESCUABLE_REASONS = ['no-product', 'no-comax', 'out-of-stock']
+export async function requeueRescued({ DL, onlyInStock = true, barcode = '' }) {
+    const match = barcode
+        ? { status: 'skipped', skipReason: { $in: RESCUABLE_REASONS }, barcode }
+        : { status: 'skipped', skipReason: { $in: RESCUABLE_REASONS } }
+    const candidates = await DL.Gs1Product.read(
+        match,
+        { _id: 0, barcode: 1 },
+        { limit: 0 }
+    )
+    const barcodes = [...new Set((candidates || []).map(r => r?.barcode).filter(Boolean))]
+    if (!barcodes.length) return 0
+
+    const [products, comax] = await Promise.all([
+        DL.Product.read(
+            { barcode: { $in: barcodes } },
+            { _id: 0, barcode: 1, storeIds: 1 },
+            { limit: 0 }
+        ),
+        DL.ComaxProduct.read(
+            { barcode: { $in: barcodes } },
+            { _id: 0, barcode: 1 },
+            { limit: 0 }
+        )
+    ])
+    const productSet = new Set((products || []).map(p => p.barcode))
+    const comaxSet = new Set((comax || []).map(c => c.barcode))
+    const inStockSet = new Set((products || []).filter(p => (p.storeIds || []).length).map(p => p.barcode))
+
+    let rescued = 0
+    for (const b of barcodes) {
+        if (!productSet.has(b) || !comaxSet.has(b)) continue
+        if (onlyInStock && !inStockSet.has(b)) continue
+        bufferRaw({ barcode: b, status: 'fetched' })
+        rescued++
+    }
+    if (rescued) {
+        await flush()
+        log.info(`[GS1] Rescued ${rescued} previously-skipped docs back to fetched`)
+    }
+    return rescued
 }
 
 // Phase 3 launcher: download zips (bounded concurrency), stage to GCS,
@@ -241,4 +296,4 @@ export async function runImages({ DL, external, runId, force = false, limit = 0,
     return totals
 }
 
-export default { enrichBatch, runEnrich, runImages }
+export default { enrichBatch, runEnrich, runImages, requeueRescued }

@@ -47,15 +47,30 @@ export async function flush() {
     if (!DLref || flushing) return
     if (!productWrites.size && !rawWrites.size && !progressWrites.size) return
     flushing = true
-    try {
-        // Copy-and-clear synchronously so concurrent jobs keep buffering safely.
-        const products = [...productWrites.entries()].map(([barcode, fields]) => ({ barcode, ...fields }))
-        const raws = [...rawWrites.values()]
-        const progress = [...progressWrites.entries()].map(([key, counts]) => ({ key, ...counts }))
-        productWrites.clear()
-        rawWrites.clear()
-        progressWrites.clear()
+    // Snapshot-and-clear so concurrent jobs keep buffering safely. On failure
+    // the snapshot is restored (newer entries win) and the error rethrown —
+    // dropping cleared-but-unwritten docs here would leave them `fetched` and
+    // recount them next batch, silently inflating enrich totals.
+    const products = [...productWrites.entries()].map(([barcode, fields]) => ({ barcode, ...fields }))
+    const raws = [...rawWrites.values()]
+    const progress = [...progressWrites.entries()].map(([key, counts]) => ({ key, ...counts }))
+    productWrites.clear()
+    rawWrites.clear()
+    progressWrites.clear()
+    const restore = () => {
+        for (const [barcode, fields] of products)
+            productWrites.set(barcode, { ...fields, ...(productWrites.get(barcode) || {}) })
+        for (const doc of raws)
+            if (!rawWrites.has(doc.barcode)) rawWrites.set(doc.barcode, doc)
+        for (const { key, ...counts } of progress) {
+            const cur = progressWrites.get(key) || { processed: 0, failed: 0 }
+            cur.processed += counts.processed || 0
+            cur.failed += counts.failed || 0
+            progressWrites.set(key, cur)
+        }
+    }
 
+    try {
         if (products.length) {
             await DLref.Product.bulkWrite({
                 docs: products,
@@ -66,7 +81,14 @@ export async function flush() {
             await DLref.Gs1Product.bulkWrite({
                 docs: raws,
                 getFilter: d => ({ barcode: d.barcode }),
-                getUpsert: () => true
+                getUpsert: () => true,
+                // $set-only updates leave a stale skipReason behind (e.g. an
+                // 'out-of-stock' doc later enriched by an onlyInStock:false run
+                // keeps showing the old reason). Clear it on transitions that
+                // don't set a fresh one.
+                getUpdate: d => (d.status === 'enriched' || d.status === 'fetched') && !('skipReason' in d)
+                    ? { $set: d, $unset: { skipReason: '' } }
+                    : { $set: d }
             })
         }
         if (progress.length) {
@@ -79,6 +101,9 @@ export async function flush() {
         }
         if (products.length || raws.length)
             log.info(`[GS1] Flushed bulk: ${products.length} products, ${raws.length} raws`)
+    } catch (e) {
+        restore()
+        throw e
     } finally {
         flushing = false
     }
