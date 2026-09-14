@@ -4,6 +4,48 @@ import { round2 } from '#common/functions/calcOrder/utils.js'
 // All helpers are best-effort: stats must never block payment flows,
 // so callers don't need their own try/catch.
 
+// Orders in these statuses count toward user stats (everything past cart).
+export const COUNTED_STATUSES = ['paid', 'picking', 'picked', 'packed', 'shipped', 'done', 'canceled']
+
+// Single-pass aggregation over orders: one pipeline, no per-user queries.
+// $sort ascending + $last yields the latest order's id/number for free.
+export function userStatsAggregation() {
+    return [
+        { $match: { userId: { $exists: true, $ne: null }, status: { $in: COUNTED_STATUSES } } },
+        { $sort: { time: 1 } },
+        {
+            $group: {
+                _id: '$userId',
+                domainId: { $last: '$domainId' },
+                ordersCount: { $sum: 1 },
+                totalPaid: { $sum: { $ifNull: ['$finalSumWithShipping', { $ifNull: ['$finalSum', 0] }] } },
+                refundedTotal: { $sum: { $ifNull: ['$refundedTotal', 0] } },
+                canceledCount: { $sum: { $cond: [{ $eq: ['$status', 'canceled'] }, 1, 0] } },
+                firstOrderAt: { $min: '$time' },
+                lastOrderAt: { $max: '$time' },
+                lastOrderId: { $last: '$id' },
+                lastOrderNumber: { $last: '$number' }
+            }
+        }
+    ]
+}
+
+// Map one aggregation row to a user_stats doc (shared by sync route + CLI).
+export function statsDocFromRow(row) {
+    return {
+        userId: String(row._id),
+        domainId: row.domainId,
+        ordersCount: row.ordersCount,
+        totalPaid: round2(Number(row.totalPaid) || 0),
+        refundedTotal: round2(Number(row.refundedTotal) || 0),
+        canceledCount: row.canceledCount || 0,
+        firstOrderAt: row.firstOrderAt,
+        lastOrderAt: row.lastOrderAt,
+        lastOrderId: row.lastOrderId,
+        lastOrderNumber: row.lastOrderNumber
+    }
+}
+
 export async function recordPaidOrder(DL, order, amount) {
     try {
         const userId = order?.userId

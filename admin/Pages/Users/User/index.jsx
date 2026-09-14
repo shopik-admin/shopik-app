@@ -43,7 +43,14 @@ export default function User() {
     if (firstAt && Date.now() - new Date(firstAt).getTime() < 30 * 86400000)
         labels.push({ label: TR('new_customer'), style: { backgroundColor: 'var(--bg-brand-secondary)', color: 'var(--fg-brand-secondary)' } })
     if (ordersCount >= 3)
-        labels.push({ label: TR('multi_orders'), style: { backgroundColor: 'var(--bg-warning-secondary)', color: 'var(--fg-warning-primary)' } })
+        labels.push({
+            label: TR('multi_orders'),
+            style: {
+                backgroundColor: 'var(--bg-success-secondary)',
+                color: 'var(--fg-success-primary)',
+                borderColor: 'var(--bg-success-primary)'
+            }
+        })
 
     return <DetailPage
         backFallback='/users'
