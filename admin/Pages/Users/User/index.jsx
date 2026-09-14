@@ -4,10 +4,8 @@ import { useText } from 'common/texts/TextProvider'
 import render from 'common/functions/render'
 import Loader from 'common/components/Loader'
 import Text from 'common/components/Text'
-import Button from 'common/components/Button'
-import Flex from 'common/components/Flex'
 import DetailPage, { StatsStrip } from 'components/Detail'
-import detailStyles from 'components/Detail/detail.module.css'
+import UserActions from './UserActions'
 import UserInfoCard from './UserInfoCard'
 import UserAddressesCard from './UserAddressesCard'
 import UserOrdersList from './UserOrdersList'
@@ -30,6 +28,8 @@ export default function User() {
     if (error) return <Text center mode='error'>{error.message}</Text>
     if (!data?.user) return <Text center mode='error'>{'user_not_found'}</Text>
 
+    const refresh = async () => { await detailsApi.callReq() }
+
     const { user, stats = {}, orders = [] } = data
     const fullName = `${user.name?.first || ''} ${user.name?.last || ''}`.trim() || user.phone || ''
     const ordersCount = Number(stats.ordersCount || 0)
@@ -37,6 +37,8 @@ export default function User() {
     const coin = value => render({ type: 'coin', value })
 
     const labels = []
+    if (user.blocked)
+        labels.push({ label: TR('user_blocked'), style: { backgroundColor: 'var(--danger-bg)', color: 'var(--danger-color)', iconName: 'x' } })
     const firstAt = stats.firstOrderAt || user.createdAt
     if (firstAt && Date.now() - new Date(firstAt).getTime() < 30 * 86400000)
         labels.push({ label: TR('new_customer') })
@@ -47,13 +49,10 @@ export default function User() {
         backFallback='/users'
         title={<Text size='h2' bold>{fullName}</Text>}
         labels={labels}
-        actions={<Flex gap={8} wrap className={detailStyles.actionsBar}>
-            <Button mode='outline' className={detailStyles.actionBtn} disabled title='phase_2'>{'action_edit'}</Button>
-            <Button mode='outline' className={detailStyles.actionBtn} disabled title='phase_2'>{'user_update_status'}</Button>
-        </Flex>}
+        actions={<UserActions user={user} onChanged={refresh} />}
         sidebar={<>
             <UserInfoCard user={user} />
-            <UserAddressesCard user={user} />
+            <UserAddressesCard user={user} onChanged={refresh} />
         </>}
     >
         <StatsStrip stats={[

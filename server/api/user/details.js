@@ -31,30 +31,58 @@ const EMPTY_STATS = {
 
 export default async function details({ id }, { DL }) {
     const user = await DL.User.readById(id)
+
     if (!user) throw { status: 404, message: 'user not found' }
 
     const userId = String(user.id || id)
-    let stats = null
-    try {
-        stats = await DL.UserStat.readOne({ userId })
-    } catch { }
+
+    const [statsResult, ordersResult] = await Promise.allSettled([
+        DL.UserStat.readOne({ userId }),
+
+        DL.Order.read(
+            { userId },
+            ORDERS_SELECT,
+            { sort: { time: -1 }, limit: 50 }
+        )
+    ])
+
+    const stats =
+        statsResult.status === 'fulfilled'
+            ? statsResult.value
+            : null
 
     let orders = []
-    try {
-        const rows = await DL.Order.read({ userId }, ORDERS_SELECT, { sort: { time: -1 }, limit: 50 })
-        // Same handled/total inputs the Ops card uses for its progress gauge,
-        // computed server-side so the full cart isn't sent to the client.
-        orders = (rows || []).map(order => {
+
+    if (ordersResult.status === 'fulfilled') {
+        orders = (ordersResult.value || []).map(order => {
             const cart = Array.isArray(order.cart) ? order.cart : []
-            const handled = cart.filter(p => p.finalAmount != null || !!p.missing).length
+
+            let handled = 0
+
+            for (const p of cart) {
+                if (p.finalAmount != null || p.missing) {
+                    handled++
+                }
+            }
+
             const { cart: _dropped, ...rest } = order
-            return { ...rest, pickProgress: { handled, total: cart.length } }
+
+            return {
+                ...rest,
+                pickProgress: {
+                    handled,
+                    total: cart.length
+                }
+            }
         })
-    } catch { }
+    }
 
-    return { user, stats: stats || { ...EMPTY_STATS, userId }, orders }
+    return {
+        user,
+        stats: stats || { ...EMPTY_STATS, userId },
+        orders
+    }
 }
-
 details.config = {
     required: ['id'],
     permissions: ['user:read']

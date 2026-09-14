@@ -66,3 +66,30 @@
         }
     }
 }
+
+/* ===== address rows: hover actions ===== */
+
+.addressRow {
+    position: relative;
+}
+
+.addressActions {
+    position: absolute;
+    top: 0;
+    inset-inline-end: 0;
+    opacity: 0;
+    transition: opacity .15s;
+    background: var(--bg-primary);
+}
+
+.addressRow:hover .addressActions,
+.addressActions:focus-within {
+    opacity: 1;
+}
+
+/* touch devices have no hover — keep actions visible */
+@media (hover: none) {
+    .addressActions {
+        opacity: 1;
+    }
+}
