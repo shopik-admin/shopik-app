@@ -49,6 +49,8 @@ function AddressRow({ userId, address, index, onChanged }) {
                 mode='text'
                 permission='user:update'
                 title={TR('setActive')}
+                tooltip={address.hasService === false ? TR('address_no_service') : undefined}
+                disabled={address.hasService === false}
                 onClick={setPrimary}
             />}
             <Button

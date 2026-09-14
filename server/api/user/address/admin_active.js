@@ -2,8 +2,9 @@ export default async function admin_active(payload, { DL }) {
     const { userId, addressId } = payload
     const user = await DL.User.readById(userId)
     if (!user) throw { status: 404, message: 'user not found' }
-    if (!(user.addresses || []).some(a => a.addressId === addressId))
-        throw { status: 404, message: 'address not found' }
+    const targetAddr = (user.addresses || []).find(a => a.addressId === addressId)
+    if (!targetAddr) throw { status: 404, message: 'address not found' }
+    if (targetAddr.hasService === false) throw { status: 400, message: 'address has no service' }
 
     const updatedUser = await DL.User.Model.findOneAndUpdate(
         { id: user.id, 'addresses.addressId': addressId },

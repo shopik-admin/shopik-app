@@ -5,6 +5,7 @@ export default async function active(payload, { DL, _user, utils }) {
 
     const existingAddr = _user.addresses.find(a => a.addressId === addressId)
     if (!existingAddr) throw { status: 404, message: 'address not found' }
+    if (existingAddr.hasService === false) throw { status: 400, message: 'address has no service' }
 
     const user = await DL.User.Model.findOneAndUpdate(
         { id: _user.id, 'addresses.addressId': addressId },
