@@ -12,7 +12,7 @@ import styles from './user.module.css'
 
 function AddressRow({ userId, address, index, onChanged }) {
     const { TR } = useText()
-    const { openModal, closeModal } = useModal()
+    const { openModal } = useModal()
 
     function openEdit() {
         openModal(
@@ -63,6 +63,7 @@ function AddressRow({ userId, address, index, onChanged }) {
                 mode='text'
                 permission='user:update'
                 title={TR('action_remove')}
+                className={styles.removeBtn}
                 q={TR('address_remove_confirm')}
                 onOk={remove}
             />

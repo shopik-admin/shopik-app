@@ -83,7 +83,10 @@
 }
 
 .addressRow:hover .addressActions,
-.addressActions:focus-within {
+.addressActions:focus-within,
+/* the confirm popover is a <dialog> inside the row in the DOM —
+   keep actions visible while it is open (same as Tree pattern) */
+.addressRow:has(dialog[open]) .addressActions {
     opacity: 1;
 }
 
@@ -92,4 +95,10 @@
     .addressActions {
         opacity: 1;
     }
+}
+
+/* trash fills danger on hover (same as Tree deleteBtn) */
+.addressRow .removeBtn:enabled:hover {
+    background-color: var(--bg-error-primary);
+    color: var(--fg-white);
 }

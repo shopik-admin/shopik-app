@@ -34,6 +34,12 @@ export default async function admin_active(payload, { DL }) {
         }
     ).lean()
     await DL.redis?.del(`user_auth:${user.id}`)
+    // Direct Model write bypasses DL.updateOne, so invalidate the
+    // User version-cache explicitly — otherwise user/details keeps
+    // serving the pre-update doc from cache.
+    try {
+        await DL.User.Model.cache?.del(user.id)
+    } catch { }
     return { user: updatedUser }
 }
 
