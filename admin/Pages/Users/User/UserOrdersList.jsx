@@ -1,6 +1,7 @@
 import classNames from 'common/functions/classNames'
 import { useLists } from 'common/features/Lists'
 import { useNavigate } from 'react-router'
+import Card from 'common/components/Card'
 import Flex from 'common/components/Flex'
 import Icon from 'common/components/Icon'
 import Text from 'common/components/Text'
@@ -76,8 +77,13 @@ function OrderCard({ order = {} }) {
 }
 
 export default function UserOrdersList({ orders = [] }) {
-    return <Flex col gap={12}>
-        <Text size='h3' bold>{'user_orders_title'}</Text>
-        {orders.map(order => <OrderCard key={order.id || order.number} order={order} />)}
-    </Flex>
+    return <Card className={styles.ordersCard}>
+        <Flex gap={8} alignItems='center' className={styles.ordersCardHeader}>
+            <Text size='h3' bold className={styles.ordersCardTitle}>{'user_orders_title'}</Text>
+            <Text size='s' bold className={styles.countPill}>{orders.length}</Text>
+        </Flex>
+        <Flex col gap={12}>
+            {orders.map(order => <OrderCard key={order.id || order.number} order={order} />)}
+        </Flex>
+    </Card>
 }

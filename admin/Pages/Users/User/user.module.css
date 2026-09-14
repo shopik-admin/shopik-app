@@ -1,3 +1,33 @@
+/* ===== orders container (same as products card in Order page) ===== */
+
+.ordersCard {
+    background: var(--bg-primary);
+    flex: 1;
+    min-width: 0;
+    width: 100%;
+}
+
+.ordersCardHeader {
+    padding: 10px;
+}
+
+.ordersCardTitle {
+    padding: 10px;
+    font-weight: 700 !important;
+}
+
+.countPill {
+    margin-top: 4px;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-brand-secondary);
+    color: var(--fg-brand-secondary);
+    border-radius: var(--radius-full);
+}
+
 .orderCard {
     background-color: var(--bg-primary);
     border: 1px solid var(--border-secondary);
