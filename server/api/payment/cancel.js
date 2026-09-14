@@ -1,6 +1,7 @@
 import { round2 } from '#common/functions/calcOrder/utils.js'
 import { remainderRefundItems } from '#common/functions/refundCalc.js'
 import { planRefundLegs, executeRefundPlan } from '#server/utils/data/refundCaptures.js'
+import { recordCancel, recordRefund } from '#server/utils/data/userStats.js'
 
 export default async function cancel(payload, info) {
     const { DL, external, utils, _admin } = info
@@ -68,7 +69,6 @@ export default async function cancel(payload, info) {
         }).catch(() => { })
         await DL.Order.updateOne({ id: order.id }, { status: DL.Order.constants.ORDER_STATUS.CANCELED, cancelDate: new Date(), paymentError: null, ...(reason ? { cancelReason: String(reason) } : {}) })
         try {
-            const { recordCancel } = await import('#server/utils/data/userStats.js')
             await recordCancel(DL, order, order.payment?.authorizedAmount)
         } catch { }
         await record({
@@ -105,7 +105,6 @@ export default async function cancel(payload, info) {
         }).catch(() => { })
         await DL.Order.updateOne({ id: order.id }, { status: DL.Order.constants.ORDER_STATUS.CANCELED, cancelDate: new Date(), paymentError: null, ...(reason ? { cancelReason: String(reason) } : {}) })
         try {
-            const { recordCancel } = await import('#server/utils/data/userStats.js')
             await recordCancel(DL, order, order.finalSumWithShipping ?? order.finalSum)
         } catch { }
         await record({
@@ -135,7 +134,6 @@ export default async function cancel(payload, info) {
         if (remaining <= 0.001) {
             await DL.Order.updateOne({ id: order.id }, { status: DL.Order.constants.ORDER_STATUS.CANCELED, cancelDate: new Date(), ...(reason ? { cancelReason: String(reason) } : {}) })
             try {
-                const { recordCancel } = await import('#server/utils/data/userStats.js')
                 await recordCancel(DL, order, 0)
             } catch { }
             await recordStatusCanceled()
@@ -166,7 +164,6 @@ export default async function cancel(payload, info) {
                 await DL.Order.Model.updateOne({ id: order.id }, { $inc: { refundedTotal: coveredTotal } }).catch(() => { })
                 await DL.Order.Model.updateOne({ id: order.id }, { finalSumAfterRefunds: round2(Number(order.finalSumWithShipping ?? 0) - (prevRefunded + coveredTotal)) }).catch(() => { })
                 try {
-                    const { recordRefund, recordCancel } = await import('#server/utils/data/userStats.js')
                     await recordRefund(DL, order, coveredTotal)
                     await recordCancel(DL, order, 0)
                 } catch { }
@@ -206,7 +203,6 @@ export default async function cancel(payload, info) {
         await DL.Order.Model.updateOne({ id: order.id }, { $inc: { refundedTotal: remaining } }).catch(() => { })
         await DL.Order.Model.updateOne({ id: order.id }, { finalSumAfterRefunds: round2(Number(order.finalSumWithShipping ?? 0) - (prevRefunded + remaining)) }).catch(() => { })
         try {
-            const { recordRefund, recordCancel } = await import('#server/utils/data/userStats.js')
             await recordRefund(DL, order, remaining)
             await recordCancel(DL, order, 0)
         } catch { }

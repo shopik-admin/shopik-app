@@ -1,3 +1,5 @@
+import { enrichOrders } from '#server/utils/data/enrichCart.js'
+
 export default async function list(payload, { DL, _admin }) {
     const admin = await DL.Admin.readById(_admin.id)
     const me = _admin.id
@@ -138,7 +140,6 @@ export default async function list(payload, { DL, _admin }) {
 
     // enrich cart items with product snapshot for old orders
     try {
-        const { enrichOrders } = await import('#server/utils/data/enrichCart.js')
         await enrichOrders(docs, DL)
     } catch { }
 

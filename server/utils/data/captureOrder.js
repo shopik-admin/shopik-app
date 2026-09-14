@@ -1,5 +1,6 @@
 import getShippingConfig from './getShippingConfig.js'
 import { attachInvoiceUrl } from './orderInvoice.js'
+import { adjustPaidTotal } from './userStats.js'
 import { calcShipping } from '#common/functions/shipping.js'
 import { round2 } from '#common/functions/calcOrder/utils.js'
 
@@ -270,7 +271,6 @@ export default async function captureOrder({ DL, _admin, _user, utils, external,
 
     if (statsDelta) {
         try {
-            const { adjustPaidTotal } = await import('./userStats.js')
             await adjustPaidTotal(DL, order, statsDelta)
         } catch { }
     }
