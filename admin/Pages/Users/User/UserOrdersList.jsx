@@ -4,25 +4,25 @@ import { useNavigate } from 'react-router'
 import Flex from 'common/components/Flex'
 import Icon from 'common/components/Icon'
 import Text from 'common/components/Text'
-import styles from './ops.module.css'
-import { DeliveryMethodTag, formatWindow, orderCardTone, RemainingTime } from './orderUtils'
-import render from '#common/functions/render.js'
-import ProgressGauge from '#common/components/ProgressGauge/index.jsx'
+import { useText } from 'common/texts/TextProvider'
+import ProgressGauge from 'common/components/ProgressGauge'
+import { DeliveryMethodTag, formatWindow, orderCardTone, RemainingTime } from 'Pages/Ops/orderUtils'
+import styles from './user.module.css'
 
-export default function OrderCard({ order = {} }) {
+function OrderCard({ order = {} }) {
     const
-        { deliveryMethod, status, storeId, cart = [] } = order,
+        { deliveryMethod, status, storeId } = order,
+        { handled = 0, total = 0 } = order.pickProgress || {},
         windowTime = formatWindow(order.window),
         tone = orderCardTone(order),
         { stores } = useLists(),
+        { TR } = useText(),
         store = stores.find(s => s.value == storeId),
         address = deliveryMethod == 'pickup' ? store?.address : order.address,
-        navigate = useNavigate(),
-        total = cart.length,
-        handled = cart.filter(p => p.finalAmount != null || !!p.missing).length
+        navigate = useNavigate()
 
     function onOrderCardClick() {
-        navigate(`/ops-order/${order.id}`)
+        navigate(`/orders/${order.id}`)
     }
 
     return <Flex col onClick={onOrderCardClick} className={classNames(
@@ -37,7 +37,7 @@ export default function OrderCard({ order = {} }) {
                 <Text bold>|</Text>
                 <Text bold>{order.number}</Text>
             </Flex>
-            <Text size='s'>{render({ type: 'name', value: order.name })}</Text>
+            <Text size='s'>{store?.text}</Text>
         </Flex>
         <Flex className={styles.row} alignItems='center' justifyContent='space-between' >
             <Flex gap={5} alignItems='center' >
@@ -55,23 +55,29 @@ export default function OrderCard({ order = {} }) {
         </Flex>
         <Flex className={styles.row} justifyContent='space-between'>
             <Flex gap={20} center>
-                <ProgressGauge value={(handled / total) * 100} />
+                <ProgressGauge value={total ? (handled / total) * 100 : 0} />
                 <Flex col gap={5}>
                     <Text bold size='xl'>{handled}/{total}</Text>
                     <Text size='s' mode='sub'>מוצרים שטופלו</Text>
                 </Flex>
             </Flex>
-            <Flex col gap={5} center>
+            {status != 'done' && <Flex col gap={5} center>
                 <RemainingTime bold size='xl' window={order.window} />
                 <Text size='s' mode='sub'>לסיום ליקוט</Text>
-            </Flex>
+            </Flex>}
         </Flex>
         <Flex className={styles.row} alignItems='center' justifyContent='space-between'>
             <Flex gap={5} alignItems='center' >
                 <Icon name='checkEmpty' />
-                <Text bold>{status}</Text>
+                <Text bold>{TR(status)}</Text>
             </Flex>
-            {order.picker?.name && <Text size='s'>{order.picker.name}</Text>}
         </Flex>
+    </Flex>
+}
+
+export default function UserOrdersList({ orders = [] }) {
+    return <Flex col gap={12}>
+        <Text size='h3' bold>{'user_orders_title'}</Text>
+        {orders.map(order => <OrderCard key={order.id || order.number} order={order} />)}
     </Flex>
 }

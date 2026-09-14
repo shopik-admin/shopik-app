@@ -67,6 +67,10 @@ export default async function cancel(payload, info) {
             amount: order.payment.authorizedAmount, providerTxnId: targetId, providerCode: 0, providerData: res
         }).catch(() => { })
         await DL.Order.updateOne({ id: order.id }, { status: DL.Order.constants.ORDER_STATUS.CANCELED, cancelDate: new Date(), paymentError: null, ...(reason ? { cancelReason: String(reason) } : {}) })
+        try {
+            const { recordCancel } = await import('#server/utils/data/userStats.js')
+            await recordCancel(DL, order, order.payment?.authorizedAmount)
+        } catch { }
         await record({
             DL, order,
             eventType: DL.Timeline.constants.EVENT_TYPES.PAYMENT,
@@ -100,6 +104,10 @@ export default async function cancel(payload, info) {
             providerTxnId: captureId, providerCode: 0, providerData: cancelRes
         }).catch(() => { })
         await DL.Order.updateOne({ id: order.id }, { status: DL.Order.constants.ORDER_STATUS.CANCELED, cancelDate: new Date(), paymentError: null, ...(reason ? { cancelReason: String(reason) } : {}) })
+        try {
+            const { recordCancel } = await import('#server/utils/data/userStats.js')
+            await recordCancel(DL, order, order.finalSumWithShipping ?? order.finalSum)
+        } catch { }
         await record({
             DL, order,
             eventType: DL.Timeline.constants.EVENT_TYPES.PAYMENT,
@@ -126,6 +134,10 @@ export default async function cancel(payload, info) {
         const remaining = Number((order.finalSumWithShipping ?? order.finalSum ?? 0) - (order.refundedTotal || 0))
         if (remaining <= 0.001) {
             await DL.Order.updateOne({ id: order.id }, { status: DL.Order.constants.ORDER_STATUS.CANCELED, cancelDate: new Date(), ...(reason ? { cancelReason: String(reason) } : {}) })
+            try {
+                const { recordCancel } = await import('#server/utils/data/userStats.js')
+                await recordCancel(DL, order, 0)
+            } catch { }
             await recordStatusCanceled()
             return { canceled: true, mode: 'already_refunded' }
         }
@@ -153,6 +165,11 @@ export default async function cancel(payload, info) {
             if (coveredTotal > 0) {
                 await DL.Order.Model.updateOne({ id: order.id }, { $inc: { refundedTotal: coveredTotal } }).catch(() => { })
                 await DL.Order.Model.updateOne({ id: order.id }, { finalSumAfterRefunds: round2(Number(order.finalSumWithShipping ?? 0) - (prevRefunded + coveredTotal)) }).catch(() => { })
+                try {
+                    const { recordRefund, recordCancel } = await import('#server/utils/data/userStats.js')
+                    await recordRefund(DL, order, coveredTotal)
+                    await recordCancel(DL, order, 0)
+                } catch { }
             }
             await DL.Order.updateOne({ id: order.id }, {
                 status: DL.Order.constants.ORDER_STATUS.CANCELED, cancelDate: new Date(),
@@ -188,6 +205,11 @@ export default async function cancel(payload, info) {
         const prevRefunded = Number(order.refundedTotal || 0)
         await DL.Order.Model.updateOne({ id: order.id }, { $inc: { refundedTotal: remaining } }).catch(() => { })
         await DL.Order.Model.updateOne({ id: order.id }, { finalSumAfterRefunds: round2(Number(order.finalSumWithShipping ?? 0) - (prevRefunded + remaining)) }).catch(() => { })
+        try {
+            const { recordRefund, recordCancel } = await import('#server/utils/data/userStats.js')
+            await recordRefund(DL, order, remaining)
+            await recordCancel(DL, order, 0)
+        } catch { }
         await DL.Order.updateOne({ id: order.id }, { status: DL.Order.constants.ORDER_STATUS.CANCELED, cancelDate: new Date(), ...(reason ? { cancelReason: String(reason) } : {}) })
         await record({
             DL, order, eventType: DL.Timeline.constants.EVENT_TYPES.REFUND,

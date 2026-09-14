@@ -138,6 +138,7 @@ export default async function captureOrder({ DL, _admin, _user, utils, external,
     const capturedAt = new Date()
     const ctx = { DL, utils, actor, external, order, totals, authorizedAmount, source }
 
+    let statsDelta = 0
     if (!alreadyPaid) {
         // ---- Full J4 path: require J5 hold ----
         const p = order.payment || {}
@@ -217,6 +218,8 @@ export default async function captureOrder({ DL, _admin, _user, utils, external,
                 step: 'payment_captured'
             })
         }
+        // Stats counted authorizedAmount at checkout — adjust to captured total.
+        statsDelta = round2(captureAmount - authorizedAmount)
     } else {
         // ---- Delta path: already captured, charge only the remainder ----
         let capturedTotal = 0
@@ -260,7 +263,16 @@ export default async function captureOrder({ DL, _admin, _user, utils, external,
                 step: 'payment_captured_delta', capturedTotal
             })
             captureProviderTxnId = deltaId || captureProviderTxnId
+            // Stats already reflect capturedTotal — add only the new delta.
+            statsDelta = delta
         }
+    }
+
+    if (statsDelta) {
+        try {
+            const { adjustPaidTotal } = await import('./userStats.js')
+            await adjustPaidTotal(DL, order, statsDelta)
+        } catch { }
     }
 
     return { captureAmount, totals, captureProviderTxnId, capturedAt }

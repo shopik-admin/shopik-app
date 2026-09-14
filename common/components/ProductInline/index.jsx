@@ -65,7 +65,7 @@ export default function ProductInline({
                     <Icon name="barcode" size={12} />
                     <Text size="xs" mode="sub">{barcode}</Text>
                 </Flex>}
-                <Flex gap={50} wrap alignItems="center" justifyContent="space-between" className={classNames(styles.pill, pillStatus)}>
+                <Flex wrap alignItems="center" justifyContent="space-between" className={classNames(styles.pill, pillStatus)}>
                     <Text size="s" bold className={styles.pillText}>הוזמן: {orderedLabel}</Text>
                     {missing ? <Text size="s" className={styles.missingText} bold>חסר במלאי</Text>
                         : supplied != null ? <Text size="s" className={classNames(pillStatus, styles.pillText)} bold>סופק: {suppliedLabel}</Text> : null}

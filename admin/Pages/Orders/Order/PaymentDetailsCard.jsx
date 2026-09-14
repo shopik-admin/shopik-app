@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import Card from 'common/components/Card'
 import Flex from 'common/components/Flex'
 import Text from 'common/components/Text'
 import Button from 'common/components/Button'
@@ -7,6 +6,7 @@ import Popover from 'common/components/Popover'
 import apiReq from 'common/functions/apiReq'
 import render from 'common/functions/render'
 import { useText } from 'common/texts/TextProvider'
+import InfoCard from 'components/Detail/InfoCard'
 import styles from './order.module.css'
 
 function SumRow({ label, value, bold, className }) {
@@ -29,17 +29,15 @@ export default function PaymentDetailsCard({ order, onChanged }) {
         ? `${payment.cardExpiry.slice(2)}/${payment.cardExpiry.slice(0, 2)}`
         : payment.cardExpiry
 
-    return <Card className={styles.detailsCard}>
-        <Text size='h3' bold className={styles.cardTitle}>{'payment_details'}</Text>
-        <Flex col gap={22}>
-            <Flex col gap={16}>
-                {payment.provider && <SumRow label={'payment_provider'} value={payment.provider} />}
-                {payment.cardCompany && <SumRow label={'card_company'} value={payment.cardCompany} />}
-                {payment.last4digits && <SumRow label={'card'} value={<bdi>****{payment.last4digits}</bdi>} />}
-                {expiry && <SumRow label={'card_expiry'} value={expiry} />}
-                {payment.captureProviderTxnId && <SumRow label={'transaction_id'} value={payment.captureProviderTxnId} />}
-                {payment.capturedAt && <SumRow label={'captured_at'} value={render({ type: 'datetime', value: payment.capturedAt })} />}
-            </Flex>
+    return <InfoCard title={'payment_details'}>
+        <Flex col gap={16}>
+            {payment.provider && <SumRow label={'payment_provider'} value={payment.provider} />}
+            {payment.cardCompany && <SumRow label={'card_company'} value={payment.cardCompany} />}
+            {payment.last4digits && <SumRow label={'card'} value={<bdi>****{payment.last4digits}</bdi>} />}
+            {expiry && <SumRow label={'card_expiry'} value={expiry} />}
+            {payment.captureProviderTxnId && <SumRow label={'transaction_id'} value={payment.captureProviderTxnId} />}
+            {payment.capturedAt && <SumRow label={'captured_at'} value={render({ type: 'datetime', value: payment.capturedAt })} />}
+        </Flex>
             <Flex col gap={16} className={styles.sumsSection}>
                 <SumRow label={'items_count'} value={String((order.cart || []).length)} />
                 {(order.coupons || []).length > 0 && (order.sumNoCoupon ?? order.sum) != null && <SumRow label={'sum_before_coupon'} value={coin(order.sumNoCoupon ?? order.sum)} />}
@@ -92,6 +90,5 @@ export default function PaymentDetailsCard({ order, onChanged }) {
                 </Popover>}
                 <SumRow label={'total_to_pay'} value={coin(order.finalSumWithShipping ?? order.finalSum ?? order.sum)} bold className={styles.totalRow} />
             </Flex>
-        </Flex>
-    </Card>
+    </InfoCard>
 }

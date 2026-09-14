@@ -5,6 +5,7 @@ const DETAILS_SELECT = {
     id: 1,
     number: 1,
     status: 1,
+    userId: 1,
     paid: 1,
     paidAt: 1,
     time: 1,

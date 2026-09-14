@@ -201,6 +201,16 @@ export default async function callback(payload, info) {
         })
     } catch { }
 
+    // Maintain user_stats on first successful checkout (cart -> paid).
+    // Idempotent: duplicate callbacks return early at the providerTxnId
+    // check above, and re-auths on an already-paid order don't re-count.
+    if (order.status === DL.Order.constants.ORDER_STATUS.CART) {
+        try {
+            const { recordPaidOrder } = await import('#server/utils/data/userStats.js')
+            await recordPaidOrder(DL, order, Number(authorizedAmount))
+        } catch { }
+    }
+
     try {
         const { record } = utils.data.timeline
         await record({
