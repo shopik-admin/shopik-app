@@ -30,8 +30,8 @@ export default function Order() {
     const detailsApi = useApi('order/details', { id: orderId })
     const { data: order, loading, error } = detailsApi
 
-    if (loading) return <Loader />
-    if (error) return <Text center mode='error'>{error.message}</Text>
+    if (loading && !order) return <Loader />
+    if (error && !order) return <Text center mode='error'>{error.message}</Text>
     if (!order) return <Text center mode='error'>{'order_not_found'}</Text>
 
     const refresh = async () => { await detailsApi.callReq() }

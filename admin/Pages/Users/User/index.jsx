@@ -24,8 +24,8 @@ export default function User() {
     const detailsApi = useApi('user/details', { id: userId })
     const { data, loading, error } = detailsApi
 
-    if (loading) return <Loader />
-    if (error) return <Text center mode='error'>{error.message}</Text>
+    if (loading && !data) return <Loader />
+    if (error && !data) return <Text center mode='error'>{error.message}</Text>
     if (!data?.user) return <Text center mode='error'>{'user_not_found'}</Text>
 
     const refresh = async () => { await detailsApi.callReq() }
