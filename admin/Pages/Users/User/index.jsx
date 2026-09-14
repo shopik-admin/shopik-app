@@ -41,9 +41,9 @@ export default function User() {
         labels.push({ label: TR('user_blocked'), style: { backgroundColor: 'var(--danger-bg)', color: 'var(--danger-color)', iconName: 'x' } })
     const firstAt = stats.firstOrderAt || user.createdAt
     if (firstAt && Date.now() - new Date(firstAt).getTime() < 30 * 86400000)
-        labels.push({ label: TR('new_customer') })
+        labels.push({ label: TR('new_customer'), style: { backgroundColor: 'var(--bg-brand-secondary)', color: 'var(--fg-brand-secondary)' } })
     if (ordersCount >= 3)
-        labels.push({ label: TR('multi_orders') })
+        labels.push({ label: TR('multi_orders'), style: { backgroundColor: 'var(--bg-warning-secondary)', color: 'var(--fg-warning-primary)' } })
 
     return <DetailPage
         backFallback='/users'
