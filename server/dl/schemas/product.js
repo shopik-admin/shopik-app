@@ -158,7 +158,7 @@ const productSchema = {
         filter: true
     },
     googleCategory: String,
-    storeIds: [String],
+    storeIds: { type: [String], filter: true },
     kashrut: { trim: true, type: String },
     passoverKashrut: {
         type: String,
