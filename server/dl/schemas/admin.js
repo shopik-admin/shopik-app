@@ -29,7 +29,8 @@ const adminSchema = {
     },
     roleId: {
         type: String,
-        required: true
+        required: true,
+        filter: true
     },
     email: {
         type: String,
@@ -66,9 +67,9 @@ const adminSchema = {
     },
     avatar: String,
     socketId: String,
-    domainIds: [String],
+    domainIds: { type: [String], filter: true },
     currentDomainIds: [String],
-    storeIds: [String],
+    storeIds: { type: [String], filter: true },
     currentStoreId: String,
     notificationSettings: {
         blockedTemplates: [String]

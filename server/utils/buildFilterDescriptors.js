@@ -41,11 +41,22 @@ export default function buildFilterDescriptors(ModelOrDL, mainFields = []) {
         }
 
         // overrides per domain knowledge
+        // list-backed reference fields — options come from getLists (roles/domains/stores),
+        // rendered client-side from the Lists context (no extra fetch)
+        const LIST_FIELDS = {
+            storeId: 'stores',
+            storeIds: 'stores',
+            domainId: 'domains',
+            domainIds: 'domains',
+            roleId: 'roles'
+        }
+        let list
         if (key === 'window.date') {
             type = 'date'
             options = undefined
-        } else if (key === 'storeId') {
-            type = 'store'
+        } else if (LIST_FIELDS[key] || LIST_FIELDS[key.split('.').pop()]) {
+            type = 'list'
+            list = LIST_FIELDS[key] || LIST_FIELDS[key.split('.').pop()]
             options = undefined
         }
 
@@ -54,6 +65,7 @@ export default function buildFilterDescriptors(ModelOrDL, mainFields = []) {
             labelKey: key,
             type,
             options,
+            list,
             main: mainFields.includes(key),
             order: mainFields.indexOf(key)
         })
