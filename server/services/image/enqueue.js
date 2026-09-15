@@ -1,5 +1,6 @@
 import log from '#server/utils/log.js'
 import { enqueueImageJobs } from '#server/queues/imageQueue.js'
+import { isMainImageComplete } from './constants.js'
 
 export default async function enqueueChangedImages(DL) {
     // Paged: the picUrl scan + $in:[all barcodes] product read held two full
@@ -42,8 +43,9 @@ export default async function enqueueChangedImages(DL) {
                 skippedGs1++
                 continue
             }
-            // Own (Comax/manual) main unchanged → skip; missing or different → (re)fill.
-            if (mainImage?.sourceUrl === comax.picUrl && mainImage?.hash) continue
+            // Own (Comax/manual) main unchanged and complete → skip;
+            // missing, different, or partial (no hash/sizes) → (re)fill.
+            if (isMainImageComplete(mainImage, comax.picUrl)) continue
 
             jobs.push({ productId: product.id, sourceUrl: comax.picUrl })
         }

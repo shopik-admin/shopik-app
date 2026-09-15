@@ -1,6 +1,7 @@
 import { Worker } from 'bullmq'
 import { createHash } from 'crypto'
 import processImage from '#server/services/image/process.js'
+import { isMainImageComplete } from '#server/services/image/constants.js'
 import { getConnection, getQueue } from '#server/queues/imageQueue.js'
 import log from '#server/utils/log.js'
 
@@ -38,6 +39,14 @@ export default async function startImageWorker({ DL }) {
             if (currentMain?.sourceUrl?.startsWith('gs1://')) {
                 log.warn(`[ImageWorker] Skipped ${productId} — GS1 image present`)
                 return { skipped: 'gs1-present' }
+            }
+
+            // Unchanged source with a complete previous write → skip the
+            // expensive download/resize/upload (covers duplicate enqueues,
+            // retries, and enqueue→process races).
+            if (isMainImageComplete(currentMain, sourceUrl)) {
+                log.info(`[ImageWorker] Skipped ${productId} — source unchanged`)
+                return { skipped: 'unchanged' }
             }
 
             const start = performance.now()
