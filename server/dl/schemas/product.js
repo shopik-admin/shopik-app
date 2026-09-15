@@ -80,6 +80,27 @@ const productSchema = {
         type: String,
         trim: true
     },
+    gs1ProductCode: {
+        type: String,
+        trim: true,
+        index: true,
+        filter: true
+    },
+    gs1SyncedAt: Date,
+    // Mapped GS1 extras (defined keys, flexible leaves — full payload stays in gs1_products).
+    gs1: {
+        netContent: {},
+        origin: [{}],
+        dimensions: {},
+        shelfLife: {},
+        allergens: {},
+        diet: [{}],
+        serving: {},
+        nutrition: {},
+        marketing: {},
+        eu: {},
+        ids: {}
+    },
     label: {
         type: String,
         trim: true,
@@ -137,7 +158,7 @@ const productSchema = {
         filter: true
     },
     googleCategory: String,
-    storeIds: [String],
+    storeIds: { type: [String], filter: true },
     kashrut: { trim: true, type: String },
     passoverKashrut: {
         type: String,
@@ -217,6 +238,7 @@ const {
 const defaultSelectOne = {
     ...defaultSelectBase,
     images: 1,
+    gs1: 1,
     storageType: 1,
     shelflife: 1,
     category: 1,

@@ -27,7 +27,8 @@ export default function startNightlySync(bootData) {
 
             log.warn('[NightlySync] Started')
             const importResult = await importComaxProducts({}, { DL, external })
-            const syncResult = await syncComax({}, { DL })
+            // sync skips its internal image enqueue — nightly runs it once below.
+            const syncResult = await syncComax({ skipImageEnqueue: true }, { DL })
             const enqueueResult = await enqueueChangedImages(DL)
             let stockResult = { syncedStores: 0 }
             try {

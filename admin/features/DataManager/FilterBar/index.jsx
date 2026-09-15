@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo, useRef } from 'react'
 import { useText } from 'common/texts/TextProvider'
+import { useLists } from 'common/features/Lists'
 import { useData } from '../DataProvider'
 import apiReq from 'common/functions/apiReq'
 import Popover from 'common/components/Popover'
@@ -20,6 +21,22 @@ function getLabel(TR, key) {
     const override = LABEL_OVERRIDES[key]
     if (override) return TR(override)
     return TR(key) || key
+}
+
+// list-backed reference filters — options come from getLists via Lists context (roles/domains/stores)
+function listNameForKey(key) {
+    const base = key.split('.').pop()
+    if (base === 'storeId' || base === 'storeIds') return 'stores'
+    if (base === 'domainId' || base === 'domainIds') return 'domains'
+    if (base === 'roleId') return 'roles'
+    return undefined
+}
+
+function toListOptions(list) {
+    if (!Array.isArray(list)) return []
+    return list.map(opt => typeof opt === 'object'
+        ? { value: opt.value ?? opt.id, text: opt.text ?? opt.name ?? opt.value ?? opt.id }
+        : { value: opt, text: opt })
 }
 
 function useDynamicVisibleCount(barRef, mainCount, otherCount) {
@@ -66,20 +83,23 @@ export default function FilterBar({ actions, cols }) {
     const { apiRoute, filter, setFilter } = useData()
     const { TR } = useText()
     const [descriptors, setDescriptors] = useState([])
-    const [stores, setStores] = useState([]) // for storeId
+    const { stores = [], domains = [], roles = [] } = useLists() || {}
 
     useEffect(() => {
         if (!apiRoute) return
         apiReq(`${apiRoute}/filters`, {}).then(setDescriptors).catch(() => { })
     }, [apiRoute])
 
-    // fetch stores for storeId dropdown labels
-    useEffect(() => {
-        if (!descriptors.some(d => d.type === 'store')) return
-        apiReq('store/read', { limit: 100 }).then(setStores).catch(() => { })
-    }, [descriptors])
+    // list-backed reference options (domainId/storeId/storeIds/roleId) from getLists — no extra fetch
+    const lists = useMemo(() => ({
+        stores: toListOptions(stores),
+        domains: toListOptions(domains),
+        roles: toListOptions(roles)
+    }), [stores, domains, roles])
 
-    const storeMap = useMemo(() => Object.fromEntries(stores.map(s => [s.id, s.name || s.id])), [stores])
+    const labelMaps = useMemo(() => Object.fromEntries(
+        Object.entries(lists).map(([name, opts]) => [name, Object.fromEntries(opts.map(o => [o.value, o.text]))])
+    ), [lists])
 
     const mainDescriptors = descriptors.filter(d => d.main)
     const otherDescriptors = descriptors.filter(d => !d.main)
@@ -109,19 +129,19 @@ export default function FilterBar({ actions, cols }) {
             </Flex>
             <div ref={barRef} className={styles.bar}>
                 <Flex gap={8} alignItems='center' wrap={false} style={{ flexWrap: 'nowrap' }}>
-                    {overflow.length > 0 && <OverflowDropdown descriptors={overflow} filter={filter} setFilter={setFilter} TR={TR} storeMap={storeMap} />}
+                    {overflow.length > 0 && <OverflowDropdown descriptors={overflow} filter={filter} setFilter={setFilter} TR={TR} lists={lists} />}
                     {visible.map(d => (
-                        <FilterPill key={d.key} descriptor={d} filter={filter} setFilter={setFilter} TR={TR} storeMap={storeMap} />
+                        <FilterPill key={d.key} descriptor={d} filter={filter} setFilter={setFilter} TR={TR} lists={lists} />
                     ))}
                 </Flex>
             </div>
         </div>
         {isFiltered && <div className={styles.separator} />}
-        <FilterChips filter={filter} setFilter={setFilter} TR={TR} storeMap={storeMap} />
+        <FilterChips filter={filter} setFilter={setFilter} TR={TR} labelMaps={labelMaps} />
     </div>
 }
 
-function FilterPill({ descriptor, filter, setFilter, TR, storeMap }) {
+function FilterPill({ descriptor, filter, setFilter, TR, lists }) {
     const label = getLabel(TR, descriptor.key)
     const active = isActive(filter, descriptor.key)
     const count = filter[descriptor.key]?.$in?.length || (active ? 1 : 0)
@@ -145,15 +165,15 @@ function FilterPill({ descriptor, filter, setFilter, TR, storeMap }) {
         </button>}
     >
         {({ close }) => <div className={styles.popoverContent}>
-            <FilterControl descriptor={descriptor} filter={filter} setFilter={setFilter} TR={TR} storeMap={storeMap} close={close} />
+            <FilterControl descriptor={descriptor} filter={filter} setFilter={setFilter} TR={TR} lists={lists} close={close} />
         </div>}
     </Popover>
 }
 
-function OverflowDropdown({ descriptors, filter, setFilter, TR, storeMap }) {
+function OverflowDropdown({ descriptors, filter, setFilter, TR, lists }) {
     const activeCount = descriptors.filter(d => isActive(filter, d.key)).length
     const sorted = useMemo(() => {
-        const order = { enum: 0, store: 0, boolean: 1, string: 2, date: 3, number: 4 }
+        const order = { enum: 0, list: 0, store: 0, boolean: 1, string: 2, date: 3, number: 4 }
         return [...descriptors].sort((a, b) => {
             const oa = order[a.type] ?? 99
             const ob = order[b.type] ?? 99
@@ -188,7 +208,7 @@ function OverflowDropdown({ descriptors, filter, setFilter, TR, storeMap }) {
                 return (
                     <div key={d.key} className={styles.overflowItem}>
                         <div className={styles.overflowLabel}>{getLabel(TR, d.key)}</div>
-                        <FilterControl descriptor={d} filter={filter} setFilter={setFilter} TR={TR} storeMap={storeMap} close={close} />
+                        <FilterControl descriptor={d} filter={filter} setFilter={setFilter} TR={TR} lists={lists} close={close} />
                     </div>
                 )
             })}
@@ -226,7 +246,7 @@ function CollapsibleDateFilter({ descriptor, filter, setFilter, TR }) {
     )
 }
 
-function FilterControl({ descriptor, filter, setFilter, TR, storeMap, close }) {
+function FilterControl({ descriptor, filter, setFilter, TR, lists, close }) {
     const { key, type, options } = descriptor
     const value = filter[key]
 
@@ -281,9 +301,11 @@ function FilterControl({ descriptor, filter, setFilter, TR, storeMap, close }) {
         </div>
     }
 
-    if (type === 'store') {
-        // stores fetched separately
-        const entries = Object.entries(storeMap)
+    if (type === 'list' || type === 'store') {
+        // list-backed reference filter (domainId/storeId/storeIds/roleId) — options from getLists.
+        // 'store' is a legacy alias for descriptors predating type 'list'.
+        const listName = descriptor.list || listNameForKey(key) || 'stores'
+        const entries = (lists?.[listName] || []).map(o => [o.value, o.text])
         if (!entries.length) return <div>{TR('loading') || '...'}</div>
         return <div className={styles.enumList}>
             {entries.map(([id, name]) => {
@@ -334,7 +356,7 @@ function FilterControl({ descriptor, filter, setFilter, TR, storeMap, close }) {
     return <div style={{ fontSize: 13, opacity: .6 }}>{TR('search')} — {key}</div>
 }
 
-function FilterChips({ filter, setFilter, TR, storeMap }) {
+function FilterChips({ filter, setFilter, TR, labelMaps }) {
     const chips = []
     for (const [key, val] of Object.entries(filter)) {
         if (val == null) continue
@@ -346,9 +368,10 @@ function FilterChips({ filter, setFilter, TR, storeMap }) {
             chips.push({ key, label: `${getLabel(TR, key)}`, onRemove: () => { const n = { ...filter }; delete n[key]; setFilter(n) } })
         } else if (typeof val === 'object' && Array.isArray(val.$in)) {
             for (const v of val.$in) {
-                let label = v
-                if (key === 'storeId') label = storeMap[v] || v
-                else label = TR(v) !== v ? TR(v) : v
+                // list-backed reference values resolve to names; enums fall back to TR
+                const listName = listNameForKey(key)
+                let label = (listName && labelMaps?.[listName]?.[v]) || v
+                if (label === v) label = TR(v) !== v ? TR(v) : v
                 chips.push({
                     key: `${key}:${v}`, label,
                     onRemove: () => setFilter(prev => {

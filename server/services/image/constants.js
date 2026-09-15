@@ -1,8 +1,8 @@
 export const IMAGE_SIZES = {
     xl: 1000,
-    l: 800,
-    m: 500,
-    s: 300
+    l: 600,
+    m: 300,
+    s: 120
 }
 
 // Banners are full-bleed hero images — much larger than product thumbnails.

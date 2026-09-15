@@ -1,6 +1,12 @@
-export default async function getLists({ DL }) {
+export default async function getLists({ DL }, user) {
+    const { roleId } = user
     const [roles, domains, stores] = await Promise.all([
-        DL.Role.read({}, { id: 1, name: 1 }, { limit: 0 }),
+        DL.Role.read({
+            $or: [
+                { parentIds: roleId },
+                { id: roleId }
+            ]
+        }, { id: 1, name: 1 }, { limit: 0 }),
         DL.Domain.read({}, { id: 1, name: 1, isDefault: 1 }, { limit: 0 }),
         DL.Store.read({}, { id: 1, name: 1, address: 1 }, { limit: 0 })
     ])

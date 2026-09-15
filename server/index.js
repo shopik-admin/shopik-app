@@ -5,8 +5,12 @@ import router from './router.js'
 import boot from './boot.js'
 import ssr from './ssr.js'
 import startImageWorker from '#server/workers/imageWorker.js'
+import startGs1FetchWorker from '#server/workers/gs1FetchWorker.js'
+import startGs1ProcessWorker from '#server/workers/gs1ProcessWorker.js'
+import { resolveSizing } from '#server/services/gs1/sizing.js'
 import startRefundRetry from '#server/cron/refundRetry.js'
 import startNightlySync from '#server/cron/nightlySync.js'
+import startGs1Sync from '#server/cron/gs1Sync.js'
 import startHolidaySeed from '#server/cron/holidaySeed.js'
 import log from '#server/utils/log.js'
 import compression from 'compression'
@@ -35,7 +39,19 @@ try {
 }
 
 app.use((req, res, next) => {
-    if (/\.php$/i.test(req.path)) return res.redirect(301, 'https://0.0.0.0')
+    const p = req.path || ''
+    // Secret/scanner probes (e.g. /logs/.env, /mail/.env, /.git/config):
+    // path.extname('.env') === '' so the SSR static-guard misses them and they
+    // fall through to full SSR (DB reads + 30KB HTML). Bounce them back at
+    // themselves with a 301 — before json/compression/static/SSR — to save
+    // CPU + egress. Only sensitive dot-names are matched so tooling paths
+    // like /node_modules/.vite/... and /.well-known/ pass through untouched.
+    if (/\.env(\b|\.|$)/i.test(p) ||
+        /(^|\/)\.(git|svn|hg|bzr|htaccess|htpasswd|npmrc|yarnrc|aws|ssh)([\/.]|$)/i.test(p) ||
+        /(^|\/)(wp-admin|wp-login|wp-content|wp-includes|wordpress|phpmyadmin|pma|myadmin|adminer|dbadmin|xmlrpc|cgi-bin|server-status|server-info)(\/|$|\.)/i.test(p) ||
+        /\.php$/i.test(p)) {
+        return res.redirect(301, 'https://0.0.0.0')
+    }
     next()
 })
 
@@ -49,9 +65,13 @@ router(app, bootData)
 
 try {
     await startImageWorker({ DL: bootData.DL })
+    const sizing = resolveSizing()
+    await startGs1FetchWorker({ DL: bootData.DL, external: bootData.external, sizing })
+    await startGs1ProcessWorker({ DL: bootData.DL, sizing })
     startRefundRetry(bootData)
     if (!NO_NIGHT_SYNC || PRODUCTION) {
         startNightlySync(bootData)
+        startGs1Sync(bootData)
         startHolidaySeed(bootData)
     }
 } catch (e) {

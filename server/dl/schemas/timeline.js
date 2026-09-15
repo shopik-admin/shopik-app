@@ -28,7 +28,7 @@ const timelineSchema = {
     actor: {
         role: {
             type: String,
-            enum: ['admin', 'user']
+            enum: ['admin', 'user', 'system']
         },
         name: String,
         id: String

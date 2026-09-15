@@ -1,4 +1,4 @@
-export default async function roleValidator(roleId, { DL, _admin }) {
+export default async function roleValidator(roleId, { DL, _admin }, includeSelf = false) {
     if (!roleId)
         throw { status: 400, message: 'role id is required' }
 
@@ -11,6 +11,7 @@ export default async function roleValidator(roleId, { DL, _admin }) {
         throw { status: 400, message: 'invalid role id' }
 
     const adminCanViewRole =
+        includeSelf && roleId === _admin.roleId ||
         role.parentIds.includes(_admin.roleId) ||
         _admin.isSuperAdmin
     if (!adminCanViewRole)

@@ -7,7 +7,7 @@ export default async function update(payload, { DL, validators, utils }) {
     if (!admin)
         throw { status: 400, message: 'admin does not exist' }
 
-    await validators.roleId(admin.roleId, arguments[1])
+    await validators.roleId(admin.roleId, arguments[1], true)
 
     const name = utils.extractFields.getName(payload)
     if (name) payload.name = name
@@ -19,7 +19,7 @@ export default async function update(payload, { DL, validators, utils }) {
         return admin
 
     if (update.roleId) {
-        await validators.roleId(update.roleId, arguments[1])
+        await validators.roleId(update.roleId, arguments[1], true)
         await DL.redis?.del(`admin_auth:${id}`)
     }
 
