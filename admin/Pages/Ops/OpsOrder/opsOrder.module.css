@@ -81,6 +81,29 @@
     .priviewRow {
         padding: 0 32px;
     }
+
+    .pills {
+        padding: 0 25px;
+    }
+
+    .rowAction {
+        padding: 8px;
+        min-width: 40px;
+        min-height: 40px;
+        flex-shrink: 0;
+
+        svg {
+            width: 24px;
+            height: 24px;
+        }
+    }
+
+    .pill {
+        border: 1px solid var(--border-tertiary);
+        border-radius: 999px;
+        padding: 6px 14px;
+        background-color: var(--bg-primary);
+    }
 }
 
 .footer {
@@ -152,6 +175,15 @@
 
     .packIcon {
         color: #0a4742;
+    }
+
+    .expected {
+        color: var(--text-secondary);
+        white-space: nowrap;
+    }
+
+    .confirmErrorSlot {
+        min-height: 20px;
     }
 
     .packError {

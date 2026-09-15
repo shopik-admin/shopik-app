@@ -25,15 +25,15 @@ function parseInitialSearch() {
     } catch { return '' }
 }
 
-export default function DataProvider({ children, apiRoute = '', form, limit = 30, defaultSort }) {
+export default function DataProvider({ children, apiRoute = '', form, limit = 30, defaultSort, initialFilter }) {
     const
         [count, setCount] = useState(),
         countReqId = useRef(0),
         moreReqId = useRef(0),
         [sort, setSort] = useState(defaultSort),
         [search, setSearch] = useState(parseInitialSearch),
-        [filter, setFilter] = useState(parseInitialFilter),
-        { data: page, loading, error, callReq } = useApi(`${apiRoute}/read`, { limit, search, sort, filter }, { hold: true }),
+        [filter, setFilter] = useState(() => initialFilter ?? parseInitialFilter()),
+        { data: page, loading, error, callReq, setData: setPage } = useApi(`${apiRoute}/read`, { limit, search, sort, filter }, { hold: true }),
         [extraRows, setExtraRows] = useState([]),
         [loadingMore, setLoadingMore] = useState(false),
         { openModal, closeModal } = useModal()
@@ -115,7 +115,7 @@ export default function DataProvider({ children, apiRoute = '', form, limit = 30
     return <DataContext value={{
         apiRoute,
         data, loading, error,
-        count, callReq,
+        count, callReq, setData: setPage,
         sort, setSort,
         search, setSearch,
         filter, setFilter,

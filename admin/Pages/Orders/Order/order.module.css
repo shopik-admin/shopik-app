@@ -1,31 +1,6 @@
-.page {
-    gap: 15px;
-    height: 100%;
-    overflow: auto;
-}
-
-.backButton {
-    padding: 0 !important;
-
-    svg {
-        height: 24px;
-        width: 24px;
-    }
-}
-
-.orderHeader {
-    padding: 0 5px 10px 5px;
-}
-
 .payDate {
     padding: 0px 5px;
     padding-bottom: 15px;
-}
-
-.labelChip {
-    border-radius: var(--radius-full);
-    padding: 4px 10px;
-    white-space: nowrap;
 }
 
 /* ===== status section ===== */
@@ -194,19 +169,6 @@
 
 /* ===== content columns ===== */
 
-.content {
-    align-items: flex-start;
-}
-
-.mainColumn {
-    min-width: 0;
-}
-
-.sidebar {
-    width: 360px;
-    flex-shrink: 0;
-}
-
 .productsCard {
     background: var(--bg-primary);
     flex: 1;
@@ -221,15 +183,6 @@
 .productsCardTitle {
     padding: 10px;
     font-weight: 700 !important;
-}
-
-.cardTitle {
-    margin-bottom: 24px;
-    font-weight: 700 !important;
-}
-
-.detailsCard {
-    padding: 20px;
 }
 
 .countPill {
@@ -256,12 +209,6 @@
     white-space: nowrap;
 }
 
-.infoIcon {
-    color: var(--fg-brand-secondary);
-    margin-top: 3px;
-    flex-shrink: 0;
-}
-
 .sumsSection {
     border-top: 1px solid var(--border-secondary);
     padding-top: 16px;
@@ -275,25 +222,7 @@
     margin-top: 8px;
 }
 
-@media (max-width: 900px) {
-    .content {
-        flex-direction: column-reverse;
-    }
-
-    .sidebar {
-        width: 100%;
-    }
-}
-
 /* ===== order actions (cancel / refund) ===== */
-
-.actionsBar {
-    padding: 0 5px;
-}
-
-.actionBtn {
-    width: 120px !important;
-}
 
 /* compact outline pill: same look as the order invoice button, small size */
 .invoiceBtn {

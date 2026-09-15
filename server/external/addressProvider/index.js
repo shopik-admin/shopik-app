@@ -1,6 +1,6 @@
 import { ADDRESS_PROVIDERS, ADDRESS_PROVIDER_CHAIN } from '#common/constants.js'
 import { searchGovmap } from './govmap.js'
-import { searchGoogle } from './google.js'
+import { searchGoogle, geocodeGoogle } from './google.js'
 import { searchOsm } from './osm.js'
 
 const providers = {
@@ -36,6 +36,5 @@ export async function validateAddress({ DL, city, street, building }) {
         if (found?.location) return { ...found, source: 'govmap', city, street, building }
     }
     // Fallback to Google geocode (read-through geocode cache) for coordinates/hasService
-    const { geocodeGoogle } = await import('./google.js')
     return geocodeGoogle({ DL, city, street, building })
 }

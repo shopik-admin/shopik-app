@@ -161,6 +161,11 @@ body .Input_ textarea {
     direction: rtl;
 }
 
+/* multi-line boxes can't use the pill radius — same family, fixed token */
+body .Input_ textarea {
+    border-radius: var(--radius-3xl);
+}
+
 body .Input_ input:hover,
 body .Input_ textarea:hover {
     border-color: var(--border-primary);

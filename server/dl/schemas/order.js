@@ -213,7 +213,7 @@ const orderSchema = {
     domainId: String,
     storeId: { type: String, filter: true },
     storeName: String,
-    userId: String,
+    userId: { type: String, filter: true },
     cart: cartSchema,
     sales: Object,
     time: {

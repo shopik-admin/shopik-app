@@ -1,18 +1,8 @@
-import uid from '#common/functions/uid.js'
+import { addAddress } from '#server/utils/data/userAddress.js'
 import { updateOrderAddress } from '#server/api/order/address/update.js'
-import { findByLocation } from '#server/external/supplyArea.js'
 
 export default async function add(payload, { DL, _user, external, utils }) {
-    payload.addressId = uid()
-    const geocoded = await external.geocode.address(payload)
-
-    const area = await findByLocation(DL, geocoded.location)
-    geocoded.areaId = area?.id ?? null
-    geocoded.hasService = !!area
-
-    const hasActiveAddress = _user.addresses && _user.addresses.some(a => a.active)
-
-    geocoded.active = !hasActiveAddress
+    const geocoded = await addAddress({ DL, external, user: _user, address: payload })
 
     const updatedUser = await DL.User.updateOne(
         { id: _user.id },

@@ -1,13 +1,4 @@
-function haversine(a, b) {
-    const toRad = d => d * Math.PI / 180
-    const [lng1, lat1] = a
-    const [lng2, lat2] = b
-    const R = 6371000
-    const dLat = toRad(lat2 - lat1)
-    const dLng = toRad(lng2 - lng1)
-    const s = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2
-    return 2 * R * Math.asin(Math.sqrt(s))
-}
+import distanceMeters from '#common/functions/distance.js'
 
 export default async function route(payload, { DL, _admin, external }) {
     const { shipmentId, origin } = payload
@@ -48,7 +39,7 @@ export default async function route(payload, { DL, _admin, external }) {
             let best = null, bestDist = Infinity, bestIdx = -1
             pool.forEach((p, idx) => {
                 if (used.has(idx)) return
-                const d = haversine(cur, p.coords)
+                const d = distanceMeters(cur, p.coords)
                 if (d < bestDist) { bestDist = d; best = p; bestIdx = idx }
             })
             if (best == null) break
