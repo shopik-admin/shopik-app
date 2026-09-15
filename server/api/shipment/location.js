@@ -1,15 +1,5 @@
 import { OPS_PROXIMITY_RADIUS_M } from '#common/constants.js'
-
-function haversine(a, b) {
-    const toRad = d => d * Math.PI / 180
-    const [lng1, lat1] = a
-    const [lng2, lat2] = b
-    const R = 6371000
-    const dLat = toRad(lat2 - lat1)
-    const dLng = toRad(lng2 - lng1)
-    const s = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2
-    return 2 * R * Math.asin(Math.sqrt(s))
-}
+import distanceMeters from '#common/functions/distance.js'
 
 export default async function location(payload, { DL, _admin }) {
     const { shipmentId, coordinates, at } = payload
@@ -55,7 +45,7 @@ export default async function location(payload, { DL, _admin }) {
         if (o.status !== 'shipped') continue
         const c = o.address?.location?.coordinates
         if (!c) continue
-        const d = haversine(coordinates, c)
+        const d = distanceMeters(coordinates, c)
         if (d <= OPS_PROXIMITY_RADIUS_M) within.push({ orderId: o.id, distanceM: Math.round(d) })
     }
 

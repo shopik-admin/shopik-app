@@ -1,8 +1,30 @@
 import Flex from "#common/components/Flex/index.jsx"
 import Icon from "#common/components/Icon/index.jsx"
 import Text from "#common/components/Text/index.jsx"
-import { formatHourRange } from '../Windows/dates.js'
+import TR from 'common/texts/TR.js'
+import { formatHour, formatHourRange } from '../Windows/dates.js'
 import { useState, useEffect } from 'react'
+
+export const SHIPPING_STATUSES = ['packed', 'shipped']
+
+export function isShippingStatus(status) {
+    return SHIPPING_STATUSES.includes(status)
+}
+
+// Departure time for the shipping layout (ops_departure_time key).
+// Prefers window.startTimestamp (only source with minute precision, e.g. 09:25),
+// falls back to the whole-hour window.start (e.g. 09:00).
+export function formatDepartureTime(w) {
+    if (!w) return '--:--'
+    if (w.startTimestamp) {
+        const d = new Date(w.startTimestamp)
+        if (!isNaN(d.getTime())) {
+            return d.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Jerusalem' })
+        }
+    }
+    if (w.start != null) return formatHour(w.start)
+    return '--:--'
+}
 
 export function formatWindow(w) {
     if (!w) return { text: '', dayText: '', textLong: '', minutes: 0 }
@@ -16,12 +38,12 @@ export function formatWindow(w) {
         today.setHours(0, 0, 0, 0); d.setHours(0, 0, 0, 0)
         const diff = Math.round((d - today) / 86400000)
         if (diff === 0 || diff === 1) {
-            const day = diff === 0 ? 'היום' : 'מחר'
+            const day = diff === 0 ? TR('ops_today') : TR('ops_tomorrow')
             dayText = withTime(day)
             textLong = withTime(day)
         } else {
             dayText = withTime(d.toLocaleDateString('he-IL', { weekday: 'short' }))
-            textLong = withTime(d.toLocaleDateString('he-IL', { weekday: 'long' })) // יום חמישי, 10:00–12:00
+            textLong = withTime(d.toLocaleDateString('he-IL', { weekday: 'long' })) // e.g. Thursday, 10:00-12:00 (locale Hebrew)
         }
     } else {
         dayText = range
@@ -41,7 +63,7 @@ export function formatWindow(w) {
     const minutes = totalMinutes % 60
 
     const text = days > 0
-        ? `${days} ימים ${String(hours).padStart(2, '0')} שעות`
+        ? TR('ops_days_hours', { days, hours: String(hours).padStart(2, '0') })
         : `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
 
     return {
@@ -67,6 +89,15 @@ export function RemainingTime({ window: w, ...textProps }) {
     return <Text {...textProps}>{formatWindow(w).text}</Text>
 }
 
+
+// Waze navigation URL for a delivery address.
+// Prefers exact coordinates ([lng, lat] GeoJSON), falls back to a text query.
+export function buildWazeUrl(address) {
+    const coords = address?.location?.coordinates
+    if (coords?.length >= 2) return `https://waze.com/ul?ll=${coords[1]},${coords[0]}&navigate=yes`
+    const q = [address?.street, address?.building, address?.city].filter(v => v != null && v !== '').join(' ')
+    return `https://waze.com/ul?q=${encodeURIComponent(q)}&navigate=yes`
+}
 
 export function DeliveryMethodTag({ deliveryMethod }) {
     return <Flex gap={5} alignItems='center' >
