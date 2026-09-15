@@ -84,7 +84,7 @@ export default function OpsOrder({ }) {
     }
 
     return <div className={styles.opsOrder}>
-        <Flex gap={15} alignItem='center' className={styles.orderTitle}>
+        <Flex gap={15} alignItems='center' className={styles.orderTitle}>
             <Button icon='back' mode='text' onClick={() => navigate('/ops')} />
             <Text size='h3' bold >{TR('ops_order_with_number', { number: order.number })}</Text>
         </Flex>
@@ -119,9 +119,9 @@ function OrderPreview({ order = {}, claimOrder, isMine, cantPick, isShipMine, ca
                     icon='location'
                     label='customer_address'
                     value={render({ type: 'address', value: order.address })}
-                        actionIcon={(order.address?.location?.coordinates?.length || order.address?.street || order.address?.city) ? 'waze' : null}
-                        actionTooltip='ops_navigate'
-                        onAction={() => window.open(buildWazeUrl(order.address), '_blank', 'noopener')}
+                    actionIcon={(order.address?.location?.coordinates?.length || order.address?.street || order.address?.city) ? 'waze' : null}
+                    actionTooltip='ops_navigate'
+                    onAction={() => window.open(buildWazeUrl(order.address), '_blank', 'noopener')}
                 />
                 <PriviewRow icon='time' label='order_window' value={windowTime.textLong} />
                 {order.shipperComment && <PriviewRow icon='note' label='ops_shipper_notes' value={order.shipperComment} />}
@@ -129,9 +129,9 @@ function OrderPreview({ order = {}, claimOrder, isMine, cantPick, isShipMine, ca
                     icon='phone'
                     label='ops_customer_phone'
                     value={order.phone}
-                        actionIcon='phoneOutgoing'
-                        actionTooltip='ops_call'
-                        onAction={() => { window.location.href = `tel:${String(order.phone).replace(/[^+\d]/g, '')}` }}
+                    actionIcon='phoneOutgoing'
+                    actionTooltip='ops_call'
+                    onAction={() => { window.location.href = `tel:${String(order.phone).replace(/[^+\d]/g, '')}` }}
                 />}
             </>}
             footer={<PreviewFooter
