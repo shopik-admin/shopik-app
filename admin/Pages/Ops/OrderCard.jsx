@@ -5,7 +5,7 @@ import Flex from 'common/components/Flex'
 import Icon from 'common/components/Icon'
 import Text from 'common/components/Text'
 import styles from './ops.module.css'
-import { DeliveryMethodTag, formatDepartureTime, formatWindow, isShippingStatus, RemainingTime } from './orderUtils'
+import { DeliveryMethodTag, formatDepartureTime, formatWindow, isShippingStatus, RemainingTime, orderCardTone } from './orderUtils'
 import render from '#common/functions/render.js'
 import ProgressGauge from '#common/components/ProgressGauge/index.jsx'
 
@@ -13,7 +13,7 @@ export default function OrderCard({ order = {} }) {
     const
         { deliveryMethod, status, storeId, cart = [], bags = {} } = order,
         windowTime = formatWindow(order.window),
-        done = status == 'done',
+        tone = orderCardTone(order),
         isShipping = isShippingStatus(status),
         { stores } = useLists(),
         store = stores.find(s => s.value == storeId),
@@ -34,9 +34,9 @@ export default function OrderCard({ order = {} }) {
 
     return <Flex col onClick={onOrderCardClick} className={classNames(
         styles.orderCard,
-        [styles.danger, windowTime.minutes <= 10],
-        [styles.warning, windowTime.minutes > 10 && windowTime.minutes < 60],
-        [styles.success, done]
+        [styles.danger, tone == 'danger'],
+        [styles.warning, tone == 'warning'],
+        [styles.success, tone == 'success']
     )}>
         <Flex className={styles.row} alignItems='center' justifyContent='space-between'>
             <Flex gap={5} alignItems='center' >

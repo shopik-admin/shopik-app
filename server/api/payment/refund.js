@@ -1,5 +1,6 @@
 import { validateRefundRequest, round2, getChargedSum } from '#common/functions/refundCalc.js'
 import { planRefundLegs, executeRefundPlan, distributeCoveredAmount } from '#server/utils/data/refundCaptures.js'
+import { recordRefund } from '#server/utils/data/userStats.js'
 
 // Persist covered money onto the order: per-line refundedAmount (+shipping),
 // refundedTotal and finalSumAfterRefunds. coveredItems must sum to coveredTotal.
@@ -56,6 +57,9 @@ async function manualRefund({ DL, utils, _admin, order, amount, reason }) {
     const prevRefunded = Number(order.refundedTotal || 0)
     const newRefunded = round2(prevRefunded + manualAmount)
     await Model.updateOne({ id: order.id }, { finalSumAfterRefunds: round2(getChargedSum(order) - newRefunded) }).catch(() => { })
+    try {
+        await recordRefund(DL, order, manualAmount)
+    } catch { }
     await record({
         DL, order, eventType: DL.Timeline.constants.EVENT_TYPES.REFUND,
         actor: adminActor(_admin),
@@ -135,6 +139,9 @@ export default async function refund(payload, info) {
         if (coveredTotal > 0) {
             const coveredItems = distributeCoveredAmount(refundItems, coveredTotal)
             ;({ newRefunded } = await applyRefundAccounting({ DL, order, coveredItems, coveredTotal }))
+            try {
+                await recordRefund(DL, order, coveredTotal)
+            } catch { }
         }
         await record({
             DL, order,
@@ -151,6 +158,9 @@ export default async function refund(payload, info) {
     }
 
     const { prevRefunded, newRefunded } = await applyRefundAccounting({ DL, order, coveredItems: refundItems, coveredTotal: totalRefund })
+    try {
+        await recordRefund(DL, order, totalRefund)
+    } catch { }
 
     await record({
         DL, order,

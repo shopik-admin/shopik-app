@@ -1,4 +1,6 @@
 import { constants as productConstants } from '#server/dl/schemas/product.js'
+import { buildCartProduct, CART_PRODUCT_STATUS } from '#common/functions/calcOrder/cart.js'
+import enrichCart from '#server/utils/data/enrichCart.js'
 
 export default async function pick_item(payload, { DL, _admin, utils }) {
     const { id, barcode, scannedBarcode, action, finalAmount, missingReason, replacement } = payload
@@ -119,7 +121,6 @@ export default async function pick_item(payload, { DL, _admin, utils }) {
             )
         } else {
             // create replacer line from product snapshot
-            const { buildCartProduct, CART_PRODUCT_STATUS } = await import('#common/functions/calcOrder/cart.js')
             const cartProduct = buildCartProduct({
                 product: repProduct,
                 amount: repAmount,
@@ -160,7 +161,6 @@ export default async function pick_item(payload, { DL, _admin, utils }) {
         { returnDocument: 'after', arrayFilters }
     ).lean()
     try {
-        const { default: enrichCart } = await import('#server/utils/data/enrichCart.js')
         await enrichCart(updated, DL)
     } catch { }
 

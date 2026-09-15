@@ -1,3 +1,5 @@
+import { recordPaidOrder } from '#server/utils/data/userStats.js'
+
 function buildLoaderHtml({ ok, orderNumber, errorMessage }) {
     const safeNum = String(orderNumber || '').replace(/</g, '&lt;')
     const safeErr = String(errorMessage || '').replace(/</g, '&lt;').replace(/'/g, '&#39;')
@@ -200,6 +202,15 @@ export default async function callback(payload, info) {
             paymentError: null
         })
     } catch { }
+
+    // Maintain user_stats on first successful checkout (cart -> paid).
+    // Idempotent: duplicate callbacks return early at the providerTxnId
+    // check above, and re-auths on an already-paid order don't re-count.
+    if (order.status === DL.Order.constants.ORDER_STATUS.CART) {
+        try {
+            await recordPaidOrder(DL, order, Number(authorizedAmount))
+        } catch { }
+    }
 
     try {
         const { record } = utils.data.timeline

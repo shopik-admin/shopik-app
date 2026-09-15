@@ -5,6 +5,7 @@ export default async function active(payload, { DL, _user, utils }) {
 
     const existingAddr = _user.addresses.find(a => a.addressId === addressId)
     if (!existingAddr) throw { status: 404, message: 'address not found' }
+    if (existingAddr.hasService === false) throw { status: 400, message: 'address has no service' }
 
     const user = await DL.User.Model.findOneAndUpdate(
         { id: _user.id, 'addresses.addressId': addressId },
@@ -35,6 +36,12 @@ export default async function active(payload, { DL, _user, utils }) {
         }
     ).lean()
     await DL.redis?.del(`user_auth:${_user.id}`)
+    // Direct Model write bypasses DL.updateOne, so invalidate the
+    // User version-cache explicitly — otherwise subsequent reads keep
+    // serving the pre-update doc from cache.
+    try {
+        await DL.User.Model.cache?.del(_user.id)
+    } catch { }
 
     const activeAddress = user.addresses.find(a => a.active === true)
     const { DELIVERY_METHOD } = DL.Order.constants

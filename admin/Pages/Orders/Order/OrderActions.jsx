@@ -10,6 +10,7 @@ import Popover from 'common/components/Popover'
 import Flex from 'common/components/Flex'
 import Text from 'common/components/Text'
 import styles from './order.module.css'
+import detailStyles from 'components/Detail/detail.module.css'
 import classNames from '#common/functions/classNames.js'
 
 export default function OrderActions({ order, refundMode, onToggleRefund, onChanged }) {
@@ -63,9 +64,9 @@ export default function OrderActions({ order, refundMode, onToggleRefund, onChan
     }
 
     return <Flex col gap={10}>
-        <Flex gap={8} wrap className={styles.actionsBar}>
+        <Flex gap={8} wrap className={detailStyles.actionsBar}>
             {canCancel && canPay && <Popover
-                button={<Button mode='outline' className={styles.actionBtn}>cancel_order</Button>}
+                button={<Button mode='outline' className={detailStyles.actionBtn}>cancel_order</Button>}
             >
                 {({ close }) => <Flex col gap={10} className={styles.cancelPopover}>
                     <Text size='h3' bold>{'cancel_order_confirm_title'}</Text>
@@ -88,7 +89,7 @@ export default function OrderActions({ order, refundMode, onToggleRefund, onChan
                 mode='outline'
                 permission='order:payment'
                 onClick={onToggleRefund}
-                className={classNames(styles.actionBtn, refundMode && styles.refundActive)}
+                className={classNames(detailStyles.actionBtn, refundMode && styles.refundActive)}
             >
                 {'refund'}
             </Button>}
@@ -98,7 +99,7 @@ export default function OrderActions({ order, refundMode, onToggleRefund, onChan
                 permission='order:payment'
                 onClick={openInvoice}
                 loading={invoiceBusy}
-                className={styles.actionBtn}
+                className={detailStyles.actionBtn}
             >
                 invoice_link
             </Button>}

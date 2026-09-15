@@ -1,3 +1,4 @@
+import { enrichOrders } from '#server/utils/data/enrichCart.js'
 import buildOpsFilter from '#server/utils/data/opsFilter.js'
 
 export default async function list(payload, { DL, _admin }) {
@@ -50,7 +51,6 @@ export default async function list(payload, { DL, _admin }) {
     }
 
     // search via DL layer if provided
-    const readPayload = { ...finalFilter }
     const options = { sort: finalSort, skip, limit }
     if (search) options.search = search
 
@@ -67,7 +67,6 @@ export default async function list(payload, { DL, _admin }) {
 
     // enrich cart items with product snapshot for old orders
     try {
-        const { enrichOrders } = await import('#server/utils/data/enrichCart.js')
         await enrichOrders(docs, DL)
     } catch { }
 

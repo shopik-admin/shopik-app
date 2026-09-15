@@ -1,5 +1,5 @@
+import { editAddress } from '#server/utils/data/userAddress.js'
 import { updateOrderAddress } from '#server/api/order/address/update.js'
-import { findByLocation } from '#server/external/supplyArea.js'
 
 const sameLocationFields = [
     'city',
@@ -17,21 +17,13 @@ const isSameLocation = (address1, address2) => {
 }
 
 export default async function edit(payload, { DL, _user, external, utils }) {
-    const existingAddr = _user.addresses.find(a => a.addressId === payload.addressId)
-    if (!existingAddr) throw { status: 404, message: 'address not found' }
-
-    const geocoded = await external.geocode.address(payload)
-    geocoded.active = existingAddr.active
-    if (!geocoded.location) geocoded.location = existingAddr.location
-
-    const area = await findByLocation(DL, geocoded.location)
-    geocoded.areaId = area?.id ?? null
-    geocoded.hasService = !!area
+    const { addressId, ...address } = payload
+    const { geocoded, existingAddr } = await editAddress({ DL, external, user: _user, addressId, address })
 
     const sameLocation = isSameLocation(geocoded, existingAddr)
 
     const user = await DL.User.updateOne(
-        { id: _user.id, 'addresses.addressId': payload.addressId },
+        { id: _user.id, 'addresses.addressId': addressId },
         { $set: { 'addresses.$': geocoded } },
         { select: DL.User.defaultSelect }
     )

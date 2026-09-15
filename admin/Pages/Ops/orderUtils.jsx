@@ -76,6 +76,17 @@ export function formatWindow(w) {
     }
 }
 
+// Card tone shared by the Ops list and the User order history.
+// A finished order is always green; otherwise the tone follows
+// window urgency (danger ≤10 min left, warning <60 min).
+export function orderCardTone(order) {
+    if (order?.status == 'done') return 'success'
+    const { minutes } = formatWindow(order?.window)
+    if (minutes <= 10) return 'danger'
+    if (minutes < 60) return 'warning'
+    return null
+}
+
 // Live countdown of the time remaining in the window.
 // Re-renders every minute so `formatWindow(...).text` never goes stale.
 export function RemainingTime({ window: w, ...textProps }) {
