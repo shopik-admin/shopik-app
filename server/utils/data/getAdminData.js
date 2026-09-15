@@ -4,7 +4,7 @@ export default async function getAdminData(req, bootData) {
     try { user = await utils.auth.getAdmin(req, bootData) }
     catch (e) { console.log('no admin user', e) }
     if (user?.id) {
-        try { lists = await utils.data.getLists(bootData) }
+        try { lists = await utils.data.getLists(bootData, user) }
         catch (e) { console.log('lists error', e) }
     }
 
