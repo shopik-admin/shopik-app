@@ -100,7 +100,7 @@ export default function Search({ }) {
                 icon='filter'
                 className={styles.filterBtn}
                 aria-label='סינון'
-                tooltip='סינון'
+            //tooltip='סינון'
             />
         </div>
         {showResults && <div className={styles.results}>

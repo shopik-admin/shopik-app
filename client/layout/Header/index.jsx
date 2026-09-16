@@ -11,11 +11,12 @@ import ContextMenu from 'common/components/ContextMenu'
 import classNames from 'common/functions/classNames'
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router'
+import { useAppData } from 'App'
 
 export default function Header() {
     const [drawerOpen, setDrawerOpen] = useState(false)
     const navigate = useNavigate()
-
+    const { settings } = useAppData()
     useEffect(() => {
         if (!drawerOpen) return
         const onKey = (e) => { if (e.key === 'Escape') setDrawerOpen(false) }
@@ -24,7 +25,9 @@ export default function Header() {
     }, [drawerOpen])
 
     const handleWhatsAppClick = () => {
-        window.open('https://wa.me/972500000000', '_blank', 'noopener,noreferrer')
+        let wNumber = settings?.customerservice?.whatsappNumber
+        wNumber = wNumber?.replace(/[^0-9]/g, '').replace(/^05/, '9725')
+        window.open(`https://wa.me/${wNumber}`, '_blank', 'noopener,noreferrer')
     }
 
     const infoMenuOptions = [
@@ -67,7 +70,7 @@ export default function Header() {
                     className={styles.actionBtn}
                     onClick={handleWhatsAppClick}
                     aria-label="whatsapp"
-                    tooltip="WhatsApp"
+                    //tooltip="WhatsApp"
                     mode='text'
                 />
 
@@ -79,7 +82,7 @@ export default function Header() {
                             icon="info"
                             className={styles.actionBtn}
                             aria-label="מידע"
-                            tooltip="מידע ותנאים"
+                        //tooltip="מידע ותנאים"
                         />
                     }
                     options={infoMenuOptions}
