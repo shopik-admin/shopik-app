@@ -6,11 +6,15 @@ import styles from './header.module.css'
 import MainMenu from 'layout/MainMenu'
 import Search from 'layout/Search'
 import Icon from 'common/components/Icon'
+import Button from 'common/components/Button'
+import ContextMenu from 'common/components/ContextMenu'
 import classNames from 'common/functions/classNames'
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router'
 
 export default function Header() {
     const [drawerOpen, setDrawerOpen] = useState(false)
+    const navigate = useNavigate()
 
     useEffect(() => {
         if (!drawerOpen) return
@@ -19,39 +23,85 @@ export default function Header() {
         return () => document.removeEventListener('keydown', onKey)
     }, [drawerOpen])
 
-    return <header className={styles.header}>
-        <button
-            type="button"
-            aria-label="menu"
-            aria-expanded={drawerOpen}
-            className={styles.menuBtn}
-            onClick={() => setDrawerOpen(v => !v)}
-        >
-            <Icon name="menu" />
-        </button>
-        <div className={styles.logoWrap}>
-            <Logo />
-        </div>
-        <div className={styles.searchWrap}>
-            <Search />
-        </div>
-        <div className={styles.userDelivery}>
-            <UserView />
-            <DeliveryView />
-        </div>
-        <div className={styles.cartWrap}>
-            <MiniCart />
-        </div>
-        <div className={classNames(styles.menuWrap, [styles.menuWrapOpen, drawerOpen])}>
-            <MainMenu />
-        </div>
-        {drawerOpen && (
-            <button
-                type="button"
-                aria-label="close menu"
-                className={styles.backdrop}
-                onClick={() => setDrawerOpen(false)}
+    const handleWhatsAppClick = () => {
+        window.open('https://wa.me/972500000000', '_blank', 'noopener,noreferrer')
+    }
+
+    const infoMenuOptions = [
+        {
+            text: 'תקנון אתר',
+            onClick: () => navigate('/terms')
+        },
+        {
+            text: 'מדיניות פרטיות',
+            onClick: () => navigate('/privacy')
+        }
+    ]
+
+    return (
+        <header className={styles.header}>
+            <Button
+                icon="menu"
+                aria-label="menu"
+                aria-expanded={drawerOpen}
+                className={styles.menuBtn}
+                onClick={() => setDrawerOpen(v => !v)}
             />
-        )}
-    </header>
+
+            <div className={styles.logoWrap}>
+                <Logo />
+            </div>
+
+            <div className={styles.userDelivery}>
+                <UserView />
+                <DeliveryView />
+            </div>
+
+            <div className={styles.searchWrap}>
+                <Search />
+            </div>
+
+            <div className={styles.headerActions}>
+                <Button
+                    icon="whatsapp"
+                    className={styles.actionBtn}
+                    onClick={handleWhatsAppClick}
+                    aria-label="whatsapp"
+                    tooltip="WhatsApp"
+                    mode='text'
+                />
+
+                <ContextMenu
+                    btnClassName={styles.contextMenuPopoverBtn}
+                    button={
+                        <Button
+                            mode='text'
+                            icon="info"
+                            className={styles.actionBtn}
+                            aria-label="מידע"
+                            tooltip="מידע ותנאים"
+                        />
+                    }
+                    options={infoMenuOptions}
+                />
+            </div>
+
+            <div className={styles.cartWrap}>
+                <MiniCart />
+            </div>
+
+            <div className={classNames(styles.menuWrap, [styles.menuWrapOpen, drawerOpen])}>
+                <MainMenu />
+            </div>
+
+            {drawerOpen && (
+                <button
+                    type="button"
+                    aria-label="close menu"
+                    className={styles.backdrop}
+                    onClick={() => setDrawerOpen(false)}
+                />
+            )}
+        </header>
+    )
 }

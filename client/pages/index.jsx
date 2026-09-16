@@ -6,6 +6,8 @@ import Product from './Product'
 import Carousel from './Carousel'
 import Checkout from './Checkout'
 import Search from './Search'
+import Terms from './Terms'
+import Privacy from './Privacy'
 import NotFound from './NotFound'
 
 export default [
@@ -56,6 +58,18 @@ export default [
         element: Checkout,
         title: 'קופה',
         description: 'מעבר לתשלום'
+    },
+    {
+        path: 'terms',
+        element: Terms,
+        title: 'תקנון אתר',
+        description: 'תקנון ותנאי שימוש באתר'
+    },
+    {
+        path: 'privacy',
+        element: Privacy,
+        title: 'מדיניות פרטיות',
+        description: 'מדיניות פרטיות ואבטחת מידע'
     },
     {
         path: '*',

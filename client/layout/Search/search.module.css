@@ -1,13 +1,76 @@
 .search {
     flex-grow: 1;
     position: relative;
+    max-width: 520px;
+    width: 100%;
+}
 
-    input {
-        border-radius: 100px;
-        height: 56px;
-        max-width: 500px;
-        margin: auto;
+.inputWrapper {
+    display: flex;
+    align-items: center;
+    background-color: var(--bg-primary, #ffffff);
+    border-radius: var(--radius-full, 9999px);
+    height: 46px;
+    padding: 0 16px;
+    gap: 10px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    transition: box-shadow 0.2s ease;
+
+    &:focus-within {
+        box-shadow: 0 3px 12px rgba(0, 0, 0, 0.14);
     }
+}
+
+.searchIcon {
+    font-size: 20px;
+    color: var(--text-quaternary, #8a9693);
+    flex-shrink: 0;
+}
+
+.searchInput {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: 15px;
+    color: var(--text-primary, #242a28);
+    text-align: right;
+    height: 100%;
+
+    &::placeholder {
+        color: var(--text-placeholder, #8a9693);
+        opacity: 0.9;
+    }
+
+    &::-webkit-search-cancel-button,
+    &::-webkit-search-decoration {
+        -webkit-appearance: none;
+        appearance: none;
+    }
+}
+
+.filterBtn {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    padding: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-quaternary, #8a9693);
+    border-radius: 50%;
+    transition: color 0.2s ease, background-color 0.2s ease;
+    flex-shrink: 0;
+
+    &:hover {
+        color: var(--text-primary, #242a28);
+        background-color: var(--bg-secondary, #f7f9f8);
+    }
+}
+
+.filterIcon {
+    font-size: 18px;
 }
 
 .results {
@@ -26,8 +89,6 @@
     border-radius: 16px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
 
-    /* mobile: the input shares the header row with menu/logo/cart —
-       break the dropdown out to almost full viewport width */
     @media screen and (max-width: 768px) {
         inset-inline: auto;
         left: 50%;
