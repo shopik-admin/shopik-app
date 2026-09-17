@@ -39,6 +39,14 @@
     margin-bottom: 8px;
 }
 
+.subSectionTitle {
+    color: var(--text-brand-secondary, #12423f);
+    font-size: 16px;
+    font-weight: 600;
+    margin-top: 14px;
+    margin-bottom: 4px;
+}
+
 .paragraph {
     color: var(--text-primary, #242a28);
     font-size: 15px;
