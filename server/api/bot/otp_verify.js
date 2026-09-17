@@ -14,8 +14,17 @@ export default async function otp_verify(payload, { DL, utils }) {
     if (!phone || !otpToken || !otp) throw { status: 400, message: 'phone, otpToken and otp required' }
 
     const storedOtp = await DL.Otp.readOne({ token: otpToken })
-    if (!storedOtp || storedOtp.otp !== otp || String(storedOtp.phone) !== String(phone))
+    if (!storedOtp || storedOtp.otp !== otp || String(storedOtp.phone) !== String(phone)) {
+        if (storedOtp?._id) {
+            const attempts = (storedOtp.attempts || 0) + 1
+            if (attempts >= 5) {
+                try { await DL.Otp.deleteOne({ _id: storedOtp._id }) } catch { }
+                throw { message: 'Too many failed attempts. Code expired.', status: 403 }
+            }
+            try { await DL.Otp.updateOne({ _id: storedOtp._id }, { attempts }) } catch { }
+        }
         throw { message: 'invalid OTP', status: 403 }
+    }
 
     const userFilter = domainId ? { domainId, phone } : { phone }
     const user = await DL.User.readOne(userFilter)

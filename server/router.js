@@ -59,11 +59,18 @@ export default function router(app, bootData) {
             requestLogPromise,
             info
         try {
-            // Domain middleware - storefront traffic without an explicit domainId resolves
-            // from Origin/Referer, falling back to the single isDefault domain.
-            // Admin traffic is left untouched; API-key actor domain still wins below.
-            if (body && typeof body === 'object' && !Array.isArray(body) && body.domainId == null) {
-                body.domainId = await resolveDomainId(req, DL)
+            // Domain middleware - storefront traffic always uses the server-resolved
+            // domain (Origin/Referer → Domain, else default). Client-supplied domainId
+            // is ignored for non-admin traffic to prevent cross-tenant access.
+            // Admin traffic keeps explicit domainId (multi-store management);
+            // API-key actor domain still wins below.
+            if (body && typeof body === 'object' && !Array.isArray(body)) {
+                const isAdminPlatform = platform.includes('admin')
+                if (isAdminPlatform) {
+                    if (body.domainId == null) body.domainId = await resolveDomainId(req, DL)
+                } else {
+                    body.domainId = await resolveDomainId(req, DL)
+                }
             }
             if (apiFunction?.config?.log !== false) {
                 const logData = {
@@ -102,7 +109,8 @@ export default function router(app, bootData) {
             const { permissions = [], auth } = apiFunction.config || {}
 
             if (apiKeyActor) {
-                if (route.startsWith('api_key/')) {
+                // NOTE: route carries a leading slash (e.g. '/api_key/create').
+                if (route.startsWith('api_key/') || route.startsWith('/api_key/')) {
                     throw { status: 403, message: 'API keys cannot manage API keys' }
                 }
                 if (body && typeof body === 'object' && !Array.isArray(body)) {
@@ -162,6 +170,20 @@ export default function router(app, bootData) {
                     }
                 }
             }
+            // Hard guarantee: any route declaring permissions requires an
+            // authenticated actor (API key or admin session), even when
+            // auth === 'none' (e.g. bot/* endpoints are API-key only).
+            if (permissions.length) {
+                const actor = apiKeyActor || _admin
+                if (!actor) throw { status: 401, message: 'Authentication required' }
+                let hasPermission
+                if (typeof permissions === 'string') {
+                    hasPermission = actor.hasPermission(permissions)
+                } else if (Array.isArray(permissions)) {
+                    hasPermission = permissions.some(p => actor.hasPermission(p))
+                }
+                if (!hasPermission) throw { status: 403, message: 'Forbidden' }
+            }
 
             const setCookie = (name, value, exp) => {
                 res.cookie(
@@ -202,6 +224,31 @@ export default function router(app, bootData) {
                 const lockAcquired = await DL.redis?.set(lockKey, requestId, 'NX', 'EX', 30)
                 if (!lockAcquired) {
                     throw { status: 429, message: 'Too Many Requests' }
+                }
+            }
+
+            // Loose per-IP cap on OTP *issuance* routes only (SMS-cost backstop).
+            // Sized for ~30 workers behind one store IP (login + resends ≈ 90
+            // per 15 min worst case → 200 gives 2x headroom incl. kiosks).
+            // Verify routes rely on the per-token attempts counter instead;
+            // bot/* is exempt (single server IP by design, API-key gated).
+            // Fail-open when redis is unavailable.
+            // NOTE: route carries a leading slash (e.g. '/user/login_otp').
+            const AUTH_ROUTE_LIMITS = {
+                '/user/login_otp': { max: 200, windowSec: 900 },
+                '/user/register': { max: 200, windowSec: 900 },
+                '/admin/login_otp': { max: 200, windowSec: 900 }
+            }
+            const authLimit = AUTH_ROUTE_LIMITS[route]
+            if (authLimit && DL.redis) {
+                try {
+                    const rlKey = `rl:${route}:${ip}`
+                    const count = await DL.redis.incr(rlKey)
+                    if (count === 1) await DL.redis.expire(rlKey, authLimit.windowSec)
+                    if (count > authLimit.max) throw { status: 429, message: 'Too Many Requests' }
+                } catch (e) {
+                    if (e?.status === 429) throw e
+                    // fail-open: ignore redis errors
                 }
             }
 

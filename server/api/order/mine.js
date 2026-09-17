@@ -21,7 +21,10 @@ export default async function mine(payload, { DL, _user }) {
         finalSumWithShipping: 1,
         shipping: 1,
         finalShipping: 1,
-        payment: 1,
+        'payment.last4digits': 1,
+        'payment.cardCompany': 1,
+        'payment.authorizedAmount': 1,
+        'payment.capturedAt': 1,
     }
     const Model = DL.Order.Model
     const docs = await Model.find(filter, select)

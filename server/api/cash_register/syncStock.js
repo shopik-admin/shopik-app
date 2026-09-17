@@ -72,3 +72,7 @@ export default async function syncStockForStores({ storeId: onlyStoreId } = {}, 
     const updated = details.reduce((sum, d) => sum + (d.updated || 0), 0)
     return { syncedStores: details.length, updated, details }
 }
+
+syncStockForStores.config = {
+    permissions: ['cash_register:sync']
+}

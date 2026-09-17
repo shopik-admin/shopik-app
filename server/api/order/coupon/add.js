@@ -41,9 +41,6 @@ export default async function add(payload, { DL, _user, utils }) {
         originalDiscount: coupon.discount,
         minSum: coupon.minSum,
         maxSum: coupon.maxSum,
-        whitelist: coupon.whitelist,
-        blacklist: coupon.blacklist,
-        condition: coupon.condition,
         isActive,
         couponMessages: {
             sectionMessage: { text: coupon.description || coupon.name },

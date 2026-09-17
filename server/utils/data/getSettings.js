@@ -1,6 +1,12 @@
-export default async function getSettings({ DL }) {
+export default async function getSettings({ DL, domainId }) {
+    // Multi-tenant scoping: when the request domain is known, only return
+    // that domain's settings so Store B config never leaks to Store A.
+    // Falls back to unfiltered (legacy single-tenant) when unknown.
+    const filter = domainId
+        ? { active: true, public: true, domainId }
+        : { active: true, public: true }
     const settings = await DL.Setting.read(
-        { active: true, public: true },
+        filter,
         { _id: 0 },
         { limit: 0 }
     )

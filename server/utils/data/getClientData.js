@@ -1,3 +1,5 @@
+import resolveDomainId from '#server/utils/resolveDomainId.js'
+
 export default async function getClientData(req, bootData) {
     const { utils } = bootData
     let user
@@ -5,8 +7,15 @@ export default async function getClientData(req, bootData) {
         user = await utils.auth.getUser(req, bootData)
     } catch { }
 
+    // Resolve the request domain for tenant-scoped settings (fail-open to
+    // legacy unfiltered when unresolvable, e.g. no default domain yet).
+    let domainId
+    try {
+        domainId = await resolveDomainId(req, bootData.DL)
+    } catch { }
+
     const promises = [
-        utils.data.getSettings(bootData),
+        utils.data.getSettings({ ...bootData, domainId }),
         utils.data.getMenu(bootData),
         utils.data.getPickupStores(bootData),
     ]

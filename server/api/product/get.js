@@ -44,7 +44,9 @@ export default async function get(payload, { DL, _user, req, utils }) {
             }
         }
         const effectiveFilter = wantFilter ? utils.data.withStock.applyStockFilter(filter, storeId, mode) : filter
-        const selectForStock = wantAnnotate ? { ...(select || DL.Product.defaultSelect), storeIds: 1 } : (select || DL.Product.defaultSelect)
+        // Public endpoint: ignore client-supplied `select` (arbitrary field
+        // projection could expose picking/storeIds/sales internals).
+        const selectForStock = wantAnnotate ? { ...DL.Product.defaultSelect, storeIds: 1 } : DL.Product.defaultSelect
         effectiveFilter.status = DL.Product.constants.STATUS.ACTIVE
         Object.assign(effectiveFilter, domainPriceFilter)
         if (onSale) {
@@ -56,6 +58,7 @@ export default async function get(payload, { DL, _user, req, utils }) {
         }
         // Pass effectiveFilter and selectForStock via payload while preserving pagination options
         const readPayload = { ...payload, filter: effectiveFilter, select: selectForStock }
+        if (readPayload.limit != null) readPayload.limit = Math.min(Math.max(1, Number(readPayload.limit) || 30), 100)
         if (readPayload.sort == null) readPayload.sort = DL.Product.Model.defaultSort
         products = await DL.Product.read(effectiveFilter, selectForStock, readPayload)
         if (wantAnnotate) products = utils.data.withStock.annotateInStock(products, storeId, mode)

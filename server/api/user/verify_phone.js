@@ -5,8 +5,17 @@ export default async function verify_phone({ otpToken, otp }, { DL, utils, platf
         token: otpToken,
         userId: _user.id
     })
-    if (!storedOtp || storedOtp.otp !== otp)
+    if (!storedOtp || storedOtp.otp !== otp) {
+        if (storedOtp?._id) {
+            const attempts = (storedOtp.attempts || 0) + 1
+            if (attempts >= 5) {
+                await DL.Otp.deleteOne({ _id: storedOtp._id })
+                throw { message: 'Too many failed attempts. Code expired.', status: 403 }
+            }
+            await DL.Otp.updateOne({ _id: storedOtp._id }, { attempts })
+        }
         throw { message: 'invalid OTP', status: 403 }
+    }
 
     const user = await DL.User.readById(storedOtp.userId)
     if (!user) throw { message: 'user not found', status: 404 }

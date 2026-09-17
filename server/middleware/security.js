@@ -16,10 +16,17 @@ async function loadAllowedOrigins(DL, warn) {
     try {
         const domains = await DL.Domain.read({ active: true }, { url: 1 }, { limit: 0 })
         const allowed = new Set()
+        const prodOnly = isProdEnv()
         for (const d of domains || []) {
             if (!d?.url) continue
             try {
-                for (const origin of expandOrigins(normalizeHostname(d.url))) allowed.add(origin)
+                for (const origin of expandOrigins(normalizeHostname(d.url))) {
+                    // Prod serves HTTPS only: never allow credentialed http://
+                    // origins in production (downgrade/MITM). Local dev keeps
+                    // http:// (this loader only runs in prod anyway).
+                    if (prodOnly && origin.startsWith('http://')) continue
+                    allowed.add(origin)
+                }
             } catch {
                 // skip invalid stored urls (admin can fix via Domains page)
             }
@@ -41,7 +48,7 @@ export default async function setupSecurity(app, bootData) {
     // DISABLE_FRAMEGUARD=true lifts X-Frame-Options / frame-ancestors (e.g. so the
     // Hyp payment iframe can frame the callback cross-origin in test envs).
     // NEVER honored in prod — fail-safe default is helmet ON everywhere.
-    const disableFrameguard = process.env.DISABLE_FRAMEGUARD === 'true'
+    const disableFrameguard = process.env.DISABLE_FRAMEGUARD === 'true' && !isProdEnv()
     app.use(helmet({
         contentSecurityPolicy: false,
         crossOriginEmbedderPolicy: false,
