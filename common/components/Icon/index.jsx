@@ -11,12 +11,13 @@ import {
     LuShoppingBag, LuArrowUpDown, LuCode, LuPackage, LuStore, LuGlobe, LuPercent, LuTicket,
     LuSun, LuMoon, LuCloudUpload, LuMap, LuClock, LuTruck, LuCreditCard, LuBarcode, LuAlignLeft,
     LuListPlus, LuNotebookPen, LuPanelRightClose, LuPanelRightOpen, LuCalendarPlus, LuSlidersHorizontal,
-    LuBoxes, LuLightbulb, LuSnowflake, LuImage, LuBadgePercent, LuGalleryVerticalEnd, LuGalleryHorizontalEnd,    LuHistory, LuPhone, LuMail, LuMessageSquare, LuArrowRightLeft, LuCalculator, LuArchiveRestore,
-    LuUpload, LuPhoneOutgoing
+    LuBoxes, LuLightbulb, LuSnowflake, LuImage, LuBadgePercent, LuGalleryVerticalEnd, LuGalleryHorizontalEnd, LuHistory, LuPhone, LuMail, LuMessageSquare, LuArrowRightLeft, LuCalculator, LuArchiveRestore,
+    LuUpload, LuPhoneOutgoing, LuInfo, LuHeart
 } from 'react-icons/lu'
 import { BsFileEarmarkExcel } from 'react-icons/bs'
 import { TbHeartPlus } from 'react-icons/tb'
 import { SiWaze } from 'react-icons/si'
+import { FaWhatsapp } from 'react-icons/fa6'
 
 const iconsList = {
     add: LuPlus,
@@ -119,7 +120,11 @@ const iconsList = {
     restore: LuArchiveRestore,
     upload: LuUpload,
     blocks: LuGalleryVerticalEnd,
-    carousel: LuGalleryHorizontalEnd
+    carousel: LuGalleryHorizontalEnd,
+    whatsapp: FaWhatsapp,
+    info: LuInfo,
+    heart: LuHeart,
+    grid: LuLayoutGrid
 }
 
 /**

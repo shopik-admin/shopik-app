@@ -4,7 +4,7 @@
     top: 0;
     z-index: 999;
     width: 100%;
-    background-color: var(--bg-brand-primary);
+    background-color: var(--bg-brand-primary, #0B3B2B);
     transition: background-color .3s ease, padding .3s ease;
 
     /* Safe Area Insets (iOS Notch, Dynamic Island, Status Bar, Landscape mode) */
@@ -12,12 +12,12 @@
     padding-inline-start: env(safe-area-inset-left, 0px);
     padding-inline-end: env(safe-area-inset-right, 0px);
 
-    /* DRY: single grid source for both desktop/mobile - no duplicated row wrappers */
+    /* Grid layout with actions placed between search and cart */
     display: grid;
-    grid-template-columns: auto 1fr auto auto;
+    grid-template-columns: auto auto 1fr auto auto;
     grid-template-areas:
-        "logo search userDelivery cart"
-        "menuWrap menuWrap menuWrap menuWrap";
+        "logo userDelivery search actions cart"
+        "menuWrap menuWrap menuWrap menuWrap menuWrap";
     align-items: center;
     column-gap: 12px;
     row-gap: 8px;
@@ -30,24 +30,34 @@
         justify-content: center;
         width: 40px;
         height: 40px;
-        border: 0;
-        background: transparent;
-        color: var(--text-primary-on-brand, #fff);
+        min-width: 40px;
+        padding: 0 !important;
+        border: 0 !important;
+        background: transparent !important;
+        color: var(--text-primary-on-brand, #fff) !important;
         font-size: 26px;
         cursor: pointer;
         border-radius: 8px;
+
+        svg {
+            font-size: 26px !important;
+            width: 26px !important;
+            height: 26px !important;
+        }
     }
 
     .logoWrap {
         grid-area: logo;
         display: flex;
         align-items: center;
+        flex-shrink: 0;
     }
 
     .searchWrap {
         grid-area: search;
         min-width: 0;
-        /* Search flex-grow retained */
+        display: flex;
+        justify-content: center;
     }
 
     .userDelivery {
@@ -55,21 +65,68 @@
         display: flex;
         align-items: center;
         gap: 10px;
-        /* desktop: sits in row1, mobile: moves to row2 via grid redefinition */
+        flex-shrink: 0;
+    }
+
+    .headerActions {
+        grid-area: actions;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-shrink: 0;
+    }
+
+    .actionBtn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        min-width: 40px;
+        padding: 0 !important;
+        border-radius: 50% !important;
+        background-color: transparent !important;
+        color: var(--text-white, #ffffff) !important;
+        cursor: pointer;
+        transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+        box-sizing: border-box;
+
+        svg {
+            font-size: 20px !important;
+            width: 20px !important;
+            height: 20px !important;
+            color: #ffffff !important;
+        }
+
+        &:hover {
+            background-color: rgba(255, 255, 255, 0.18) !important;
+            border-color: #ffffff !important;
+            transform: scale(1.05);
+        }
+
+        &:active {
+            transform: scale(0.95);
+        }
+    }
+
+    .contextMenuPopoverBtn {
+        display: flex;
+        align-items: center;
     }
 
     .cartWrap {
         grid-area: cart;
         display: flex;
         align-items: center;
+        flex-shrink: 0;
     }
 
     .menuWrap {
         grid-area: menuWrap;
-        background-color: var(--bg-brand-secondary-hover);
+        background-color: #FAF7F2;
+        border-bottom: 1px solid #ECE7DE;
         margin: 0 -16px;
         padding: 0 16px;
-        /* inner MainMenu already has max-width + padding */
     }
 
     .backdrop {
@@ -83,13 +140,12 @@
         display: none;
     }
 
-    /* Desktop grid: userDelivery in first row, menuBtn hidden */
+    /* Desktop grid */
     @media screen and (min-width: 769px) {
-        grid-template-columns: auto 1fr auto auto;
+        grid-template-columns: auto auto 1fr auto auto;
         grid-template-areas:
-            "logo search userDelivery cart"
-            "menuWrap menuWrap menuWrap menuWrap";
-        /* center first row like original headerContent max-width */
+            "logo userDelivery search actions cart"
+            "menuWrap menuWrap menuWrap menuWrap menuWrap";
         padding-left: max(16px, calc((100% - var(--max-width)) / 2 + 16px));
         padding-right: max(16px, calc((100% - var(--max-width)) / 2 + 16px));
 
@@ -98,7 +154,8 @@
         }
 
         .menuWrap {
-            /* full-bleed background despite centered header padding */
+            background-color: #FAF7F2;
+            border-bottom: 1px solid #ECE7DE;
             margin-left: calc(50% - 50vw);
             margin-right: calc(50% - 50vw);
             width: 100vw;
@@ -112,13 +169,13 @@
         }
     }
 
-    /* Mobile: row1 = menuBtn miniLogo search cart, row2 = UserView|DeliveryView, menu = drawer */
+    /* Mobile: row1 = menuBtn logo search actions cart, row2 = UserView|DeliveryView, menu = drawer */
     @media screen and (max-width: 768px) {
-        grid-template-columns: auto auto 1fr auto;
+        grid-template-columns: auto auto 1fr auto auto;
         grid-template-areas:
-            "menuBtn logo search cart"
-            "userDelivery userDelivery userDelivery userDelivery"
-            "menuWrap menuWrap menuWrap menuWrap";
+            "menuBtn logo search actions cart"
+            "userDelivery userDelivery userDelivery userDelivery userDelivery"
+            "menuWrap menuWrap menuWrap menuWrap menuWrap";
         padding: calc(8px + env(safe-area-inset-top, 0px)) 12px 0 12px;
         column-gap: 8px;
         row-gap: 0;
@@ -128,18 +185,15 @@
         }
 
         .userDelivery {
-            /* row2 - var(--bg-brand-secondary-hover) as requested - full-bleed to header edges */
-            background-color: var(--bg-brand-secondary-hover);
+            background-color: var(--bg-brand-secondary-hover, #DCEBEA);
             margin-left: calc(50% - 50vw);
             margin-right: calc(50% - 50vw);
             width: 100vw;
             padding: 8px max(12px, calc((100vw - var(--max-width)) / 2 + 12px));
             box-sizing: border-box;
             gap: 8px;
-            /* ensure row2 touches header edges, not ending early */
             margin-top: 8px;
 
-            /* Make both popover buttons share row equally - single source override */
             &>* {
                 flex: 1 1 50%;
                 min-width: 0;
@@ -157,7 +211,6 @@
                 display: flex;
             }
 
-            /* DRY: override for readability on light secondary-hover bg (white on #DCEBEA is unreadable) */
             :global([class*="button"]) {
                 min-width: 0 !important;
                 flex: 1;
@@ -165,7 +218,6 @@
                 gap: 6px !important;
                 border-radius: 12px !important;
                 color: var(--text-primary) !important;
-                /* was --text-primary-on-brand (white) for primary bg - now dark for secondary-hover */
             }
 
             :global([class*="button"]:hover) {
@@ -183,7 +235,6 @@
             }
         }
 
-        /* menuWrap becomes drawer overlay - hidden by default, shown when .menuWrapOpen */
         .menuWrap {
             display: none;
             position: absolute;
@@ -203,7 +254,6 @@
         .menuWrapOpen {
             display: block;
 
-            /* DRY: MainMenu inside drawer stacks vertically instead of horizontal scroll */
             :global([class*="content"]) {
                 flex-direction: column !important;
                 align-items: stretch !important;
@@ -225,13 +275,28 @@
             display: block;
             position: fixed;
             inset: 0;
-            /* header stays above backdrop due to z-index:999 */
         }
     }
 
     @media screen and (max-width: 480px) {
         padding: calc(6px + env(safe-area-inset-top, 0px)) 8px 0 8px;
         column-gap: 6px;
+
+        .actionBtn {
+            width: 34px;
+            height: 34px;
+            min-width: 34px;
+
+            svg {
+                font-size: 17px !important;
+                width: 17px !important;
+                height: 17px !important;
+            }
+        }
+
+        .headerActions {
+            gap: 6px;
+        }
 
         .menuWrap {
             margin: 0 -8px;

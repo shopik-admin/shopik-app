@@ -118,6 +118,8 @@ export default function DigitsInput({
                     onDragOver={onDragOver}
                     onKeyDown={e => onKeyDown(e, i)}
                     onChange={e => onChange(e.target.value, i)}
+                    required
+                    hideErrorMessage
                 />
             ))}
             <input type='hidden' name={name} value={value.join('')} />

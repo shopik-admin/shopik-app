@@ -1,4 +1,6 @@
 import Input from '#common/components/Input/index.jsx'
+import Icon from '#common/components/Icon/index.jsx'
+import Button from '#common/components/Button'
 import Loader from '#common/components/Loader'
 import Flex from '#common/components/Flex'
 import Text from '#common/components/Text'
@@ -82,13 +84,25 @@ export default function Search({ }) {
     }
 
     return <div className={styles.search} ref={rootRef}>
-        <Input
-            placeholder='main_search_placeholder'
-            type='search'
-            onChange={onInput}
-            onKeyDown={onKeyDown}
-            onFocus={() => setOpen(true)}
-        />
+        <div className={styles.inputWrapper}>
+            <Icon name='search' className={styles.searchIcon} />
+            <input
+                className={styles.searchInput}
+                placeholder={TR?.('main_search_placeholder') || 'חפש מוצרים'}
+                type='search'
+                value={value}
+                onChange={onInput}
+                onKeyDown={onKeyDown}
+                onFocus={() => setOpen(true)}
+            />
+            <Button
+                mode='text'
+                icon='filter'
+                className={styles.filterBtn}
+                aria-label='סינון'
+            //tooltip='סינון'
+            />
+        </div>
         {showResults && <div className={styles.results}>
             {loading ? <Flex center className={styles.state}><Loader /></Flex> : (
                 results?.length ? results.map(product => (

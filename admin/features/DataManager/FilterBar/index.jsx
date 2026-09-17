@@ -10,6 +10,7 @@ import DataSearch from '../DataSearch'
 import DataActions from '../DataActions'
 import DateRangeCalendar, { formatDateRange } from 'common/components/DateRangeCalendar'
 import styles from './filterBar.module.css'
+import DataLoader from '../DataLoader'
 
 // ponytail: single component handles descriptors + store lookup + chips; reuse Popover/Button
 
@@ -117,6 +118,7 @@ export default function FilterBar({ actions, cols }) {
                 <Flex gap={10} alignItems='center' className={styles.leftGroup}>
                     {actions?.length ? <DataActions actions={actions} cols={cols} /> : null}
                     <div className={styles.searchWrap}><DataSearch /></div>
+                    <DataLoader />
                 </Flex>
             </div>
         </div>
@@ -126,6 +128,7 @@ export default function FilterBar({ actions, cols }) {
             <Flex gap={10} alignItems='center' className={styles.leftGroup}>
                 {actions?.length ? <DataActions actions={actions} cols={cols} /> : null}
                 <div className={styles.searchWrap}><DataSearch /></div>
+                <DataLoader />
             </Flex>
             <div ref={barRef} className={styles.bar}>
                 <Flex gap={8} alignItems='center' wrap={false} style={{ flexWrap: 'nowrap' }}>

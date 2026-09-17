@@ -11,7 +11,6 @@ export default function DataManager({ children, actions, rowActions, cols = [], 
         <div className={styles.dataManager}>
             <FilterBar actions={actions} cols={cols} />
             {children || <>
-                <DataLoader />
                 <DataTable cols={cols} rowActions={rowActions} onRowClick={onRowClick} />
                 <DataCount />
             </>}

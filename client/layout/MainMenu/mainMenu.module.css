@@ -29,28 +29,23 @@
 
     .mainItem {
         cursor: pointer;
-        border: 0;
+        border: 1.5px solid var(--border-secondary, #dde4e2);
         border-radius: 100px;
-
-        transition:
-            background-color .2s ease-in-out;
-
-        background-color: var(--bg-primary);
+        transition: background-color .2s ease-in-out, border-color .2s ease-in-out, box-shadow .2s ease-in-out;
+        background-color: var(--bg-primary, #ffffff);
         text-decoration: none;
-        color: var(--text-primary);
-
-        padding: 5px 20px;
-
+        color: var(--text-primary, #242a28);
+        padding: 6px 16px;
         white-space: nowrap;
+        font-size: 14px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+        box-sizing: border-box;
+
+        &:hover {
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+        }
     }
 
-    .mainItem:hover {
-        background-color: var(--bg-brand-secondary);
-    }
-
-    .mainItem:active {
-        background-color: var(--bg-brand-primary-hover);
-    }
 
 
     /* =================================

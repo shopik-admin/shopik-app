@@ -38,7 +38,7 @@ function Input(props) {
     const
         { ref, name = '', label = name, title = label, placeholder = title,
             className, type = '', info = '', icon = '',
-            required = false, defaultValue, defaults, onChange, onBlur: externalOnBlur, autoFocus, ...ps
+            required = false, defaultValue, defaults, onChange, onBlur: externalOnBlur, autoFocus, hideErrorMessage, ...ps
         } = props,
         functionType = typeof type == 'function',
         [visited, setVisited] = useState(),
@@ -46,7 +46,7 @@ function Input(props) {
         { TR } = useText(),
         InputTag = getInputTag(props),
         invalidError = functionType ? '' : getInputInvalidError(value, props),
-        requiredSign = required ? ' *' : '',
+        requiredSign = required && !hideErrorMessage ? ' *' : '',
         innerRef = useRef(null)
 
     useImperativeHandle(ref, () => innerRef.current)
@@ -71,7 +71,7 @@ function Input(props) {
                     placeholder={(TR(placeholder) || placeholder) + requiredSign}
                 />
                 {info && !(invalidError && visited) && <Text size='s' mode='sub' className={styles.info}>{info}</Text>}
-                {invalidError && <Text size='s' mode='error' className={styles.error}>{invalidError}</Text>}
+                {invalidError && !hideErrorMessage && <Text size='s' mode='error' className={styles.error}>{invalidError}</Text>}
             </>}
     </label>
 }
