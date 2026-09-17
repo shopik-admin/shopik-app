@@ -36,39 +36,13 @@ export default function MainMenu({ }) {
 
     const close = () => setOpenMenu(null)
 
-    const productsItem = menu?.find(m => m.path === '/products' || m.children?.length)
-    const otherItems = menu?.filter(m => m.path !== '/' && m.path !== '/products' && m.path !== '/sales' && !m.children?.length) || []
-
-    const itemsToRender = [
-        {
-            name: 'מחלקות',
-            path: '/products',
-            icon: 'grid',
-            children: productsItem?.children || [],
-            type: 'departments'
-        },
-        {
-            name: 'מבצעים',
-            path: '/sales',
-            icon: 'salePercent',
-            type: 'sales'
-        },
-        {
-            name: 'המועדפים שלי',
-            path: '/account',
-            icon: 'heart',
-            type: 'favorites'
-        },
-        ...otherItems
-    ]
-
     return <nav className={classNames(styles.mainMenu, [styles.shifted, cartOpen])}>
         <Flex ref={menuRef}
             tag='ul'
             alignItems='center'
-            gap={12}
+            gap={15}
             className={styles.content}>
-            {itemsToRender.map((item, i) => {
+            {menu?.map((item, i) => {
                 const itemKey = item.path || toSlug(item.name) || `main-item-${i}`
                 return (
                     <MenuItem
@@ -96,32 +70,26 @@ function MenuItem({
     open,
     onOpen,
     onClose,
-    type
 }) {
     const hasChildren = Boolean(children && children.length > 0)
     const to = path
-
-    const itemTypeClass =
-        type === 'sales' ? styles.mainItemSales :
-            type === 'favorites' ? styles.mainItemFavorites :
-                styles.mainItemDepartments
 
     if (main) {
         return (
             <li className={styles.mainListItem}>
                 <Flex
-                    className={classNames(styles.mainItem, itemTypeClass)}
+                    className={styles.mainItem}
                     tag={hasChildren ? 'button' : NavLink}
                     to={hasChildren ? undefined : to}
                     type={hasChildren ? 'button' : undefined}
                     onClick={hasChildren ? onOpen : onClose}
                     end={hasChildren ? undefined : true}
                     alignItems='center'
-                    gap={8}
+                    gap={15}
                 >
-                    <Icon name={icon} className={styles.itemIcon} fallback />
-                    <Text bold size='m'>{name}</Text>
-                    {hasChildren && <Icon name='down' className={styles.chevronIcon} />}
+                    <Icon name={icon} fallback />
+                    <Text bold size='l'>{name}</Text>
+                    {hasChildren && <Icon name='down' />}
                 </Flex>
 
                 {hasChildren && (

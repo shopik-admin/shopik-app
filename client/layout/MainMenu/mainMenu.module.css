@@ -46,54 +46,6 @@
         }
     }
 
-    .mainItemDepartments {
-        border-color: #3b534b;
-        color: var(--text-primary, #242a28);
-
-        &:hover {
-            background-color: #f7faf9;
-        }
-    }
-
-    .mainItemSales {
-        border-color: #f97316;
-        color: var(--text-primary, #242a28);
-
-        .itemIcon {
-            color: #f97316;
-            font-size: 18px;
-        }
-
-        &:hover {
-            background-color: #fff7ed;
-        }
-    }
-
-    .mainItemFavorites {
-        border-color: #fbcfe8;
-        color: var(--text-primary, #242a28);
-
-        .itemIcon {
-            color: #f472b6;
-            font-size: 18px;
-        }
-
-        &:hover {
-            background-color: #fdf2f8;
-        }
-    }
-
-    .itemIcon {
-        font-size: 18px;
-        color: var(--text-primary, #242a28);
-        flex-shrink: 0;
-    }
-
-    .chevronIcon {
-        font-size: 14px;
-        color: var(--text-secondary, #505b58);
-        flex-shrink: 0;
-    }
 
 
     /* =================================
