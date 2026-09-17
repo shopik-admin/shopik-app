@@ -79,10 +79,12 @@
             min-height: 30px;
         }
 
-        input {
+        input,
+        [role='combobox'] {
             border-color: var(--border-error);
 
-            &:focus {
+            &:focus,
+            &:focus-visible {
                 box-shadow: 0 0 0 1px var(--border-error) !important;
             }
         }

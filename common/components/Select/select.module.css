@@ -1,57 +1,206 @@
 .select {
     position: relative;
     width: 100%;
+}
+
+/* Popover trigger wrapper should stretch like ygl .box */
+.select .btnFull {
+    width: 100%;
+}
+
+.tabs {
+    width: 100%;
+}
+
+/* matches shopik Input field */
+.box {
+    width: 100%;
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-3xl);
+    box-shadow: 0 1px 2px 0 var(--Colors-Effects-Shadows-shadow-xs, rgba(0, 0, 0, 0.05));
+    color: var(--text-primary);
+    font-size: 14px;
+    padding: 5px;
+    padding-inline-end: 14px;
+    user-select: none;
+    min-height: 42px;
+    transition: border-color .2s ease, box-shadow .2s ease;
+    cursor: pointer;
+    outline: none;
+
+    &:focus-visible {
+        border-color: var(--border-brand);
+        box-shadow: 0 0 0 1px var(--border-brand);
+    }
+}
+
+/* open state mirrors Input focus */
+.select:has(dialog[open]) .box {
+    border-color: var(--border-brand);
+    box-shadow: 0 0 0 1px var(--border-brand);
+}
+
+/* same color treatment as input::placeholder */
+.placeholder {
+    color: var(--text-placeholder);
+    opacity: .8;
+    text-transform: capitalize;
+    padding-inline-start: 12px;
+}
+
+.disabledBox {
+    opacity: .7;
+    cursor: default;
+}
+
+.tags {
+    min-width: 0;
+    flex: 1;
+}
+
+/* pill echoing the select's own roundness; 30px tall to fill the 42px box */
+.tag {
     display: inline-flex;
     align-items: center;
+    gap: 5px;
+    background-color: var(--bg-secondary);
+    border-radius: var(--radius-full);
+    color: var(--text-primary);
+    width: fit-content;
+    max-width: 100%;
+    padding: 5px 12px;
+    font-size: 14px;
+    line-height: 20px;
+    white-space: nowrap;
+    overflow: hidden;
+}
 
-    select {
-        width: 100%;
-        display: block;
-        font-size: 14px;
-        font-weight: 400;
-        padding: 10px 12px;
-        padding-inline-end: 32px;
+.tagX {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-tertiary);
+    opacity: .4;
+    transition: opacity .2s ease;
+    cursor: pointer;
+    flex-shrink: 0;
 
-        background-color: var(--bg-surface);
-        color: var(--txtColor);
-        border: 1.5px solid var(--border-default);
-        border-radius: var(--radiusM);
-        direction: inherit;
-        transition: border-color 0.2s ease;
-        outline: none;
+    &:hover {
+        opacity: 1;
+    }
+}
 
-        appearance: none;
-        -webkit-appearance: none;
-        -moz-appearance: none;
-        cursor: pointer;
+.chevron {
+    color: var(--text-tertiary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform .3s ease;
+    flex-shrink: 0;
+}
 
-        &:focus {
-            border-color: var(--border-focus);
-        }
+/* Popover dialog gets [open] while shown — rotate chevron like ygl */
+.select:has(dialog[open]) .chevron {
+    transform: rotate(180deg);
+}
 
-        &:disabled {
-            cursor: default;
-        }
+/* dropdown dialog */
+.dropdown {
+    padding: 5px;
+    min-width: 200px;
+    max-width: calc(100vw - 40px);
+}
 
-        option {
-            background-color: var(--bg-surface);
-            color: var(--txtColor);
-        }
+.options {
+    width: 100%;
+}
+
+.searchWrap {
+    position: relative;
+}
+
+.searchIcon {
+    inset-inline-start: 22px;
+    color: var(--text-brand);
+    position: absolute;
+    top: 12px;
+    pointer-events: none;
+}
+
+.searchWrap input {
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-secondary);
+    color: var(--text-primary);
+    padding-inline: 10px;
+    padding-inline-start: 35px;
+    width: calc(100% - 20px);
+    border-radius: var(--radius-lg);
+    margin: 5px auto;
+    display: block;
+    height: 40px;
+    outline: none;
+}
+
+.scroll {
+    max-height: 170px;
+    overflow: auto;
+    padding: 10px;
+}
+
+.option {
+    border-radius: var(--radius-lg);
+    margin-bottom: 2px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 10px;
+    color: var(--text-primary);
+    transition: background-color .15s ease;
+    font-size: 14px;
+
+    &:hover,
+    &.active {
+        background-color: var(--bg-secondary);
     }
 
-    .chevron {
-        position: absolute;
-        inset-inline-end: 10px;
-        pointer-events: none;
-        color: var(--text-tertiary);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: .2s;
+    &.selected {
+        background-color: var(--bg-brand-secondary);
+        color: var(--text-brand-primary);
     }
+}
 
-    &:has(select:open) .chevron {
-        transform: rotate(180deg);
+.optDisabled {
+    opacity: .5;
+    cursor: default;
+
+    &:hover {
+        background-color: transparent;
     }
+}
 
+.check {
+    flex-shrink: 0;
+    color: var(--text-brand);
+}
+
+.empty {
+    padding: 10px 14px;
+    color: var(--text-tertiary);
+    font-size: 13px;
+}
+
+/* offscreen-but-validating proxy for native `required` */
+.requiredProxy {
+    position: absolute;
+    inset-inline-start: 0;
+    bottom: 0;
+    width: 100%;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+    border: none;
+    padding: 0;
 }
