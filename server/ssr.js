@@ -8,11 +8,19 @@ const paths = {
 }
 
 function injectTemplate(template, { head = '', html = '', data = {} }) {
-    const safeJson = JSON.stringify(data).replace(/</g, '\\u003c')
+    // Escape <, >, & and U+2028/2029 so user content (names, product text,
+    // "$"-patterns) can't break out of the JSON script tag. Replacement
+    // uses a callback so $ sequences in data aren't interpreted.
+    const safeJson = JSON.stringify(data)
+        .replace(/</g, '\\u003c')
+        .replace(/>/g, '\\u003e')
+        .replace(/&/g, '\\u0026')
+        .replace(/\u2028/g, '\\u2028')
+        .replace(/\u2029/g, '\\u2029')
     return template
-        .replace('<!--app-head-->', head)
-        .replace('<!--app-html-->', html)
-        .replace('<!--server-data-->', `<script>window.__SD__=${safeJson}</script>`)
+        .replace('<!--app-head-->', () => head)
+        .replace('<!--app-html-->', () => html)
+        .replace('<!--server-data-->', () => `<script>window.__SD__=${safeJson}</script>`)
 }
 
 function inlineCss(html, buildDir) {
@@ -113,7 +121,12 @@ export default async function (app, bootData) {
             const { template, renderFn } = await getClientContext(req)
             const { html = '', head = '', status = 200 } = await renderFn({ url: req.originalUrl, data })
 
-            return res.status(status).set('Cache-Control', 'no-cache').type('html').end(injectTemplate(template, { head, html, data }))
+            // Personalized HTML (user/order embedded in window.__SD__) must
+            // never sit in shared caches: no-cache alone still allows storage.
+            const cacheControl = data?.user?.id
+                ? 'private, no-store, no-cache, must-revalidate'
+                : 'no-cache'
+            return res.status(status).set('Cache-Control', cacheControl).type('html').end(injectTemplate(template, { head, html, data }))
         } catch (error) {
             console.error('Client SSR Error:', error)
             return res.status(500).send('Internal Server Error')
