@@ -1,5 +1,7 @@
 export default async function search(payload, { DL, req, _user, utils }) {
-    const { value = '', filter = {}, skip = 0, limit = 50, select, domainId } = payload
+    const { value = '', filter = {}, skip = 0, limit = 20, domainId } = payload
+    const safeSkip = Math.max(0, Number(skip) || 0)
+    const safeLimit = Math.min(Math.max(1, Number(limit) || 20), 100)
     const { mode, storeId } = await utils.data.withStock.resolveStockContext(req, { DL, utils }, _user)
     const wantFilter = mode === 'filter' && !!storeId
     const wantAnnotate = mode === 'annotate' && !!storeId
@@ -9,19 +11,20 @@ export default async function search(payload, { DL, req, _user, utils }) {
     if (domainId)
         effectiveFilter['prices.domainId'] = domainId
 
-    const selectForStock = wantAnnotate ? { ...(select || DL.Product.defaultSelect), storeIds: 1 } : select
+    // Public endpoint: ignore client-supplied `select` (see get.js).
+    const selectForStock = wantAnnotate ? { ...DL.Product.defaultSelect, storeIds: 1 } : DL.Product.defaultSelect
 
     // Barcode exact fast-path: numeric-only search bypasses Atlas entirely (barcode is no longer indexed)
     const trimmed = (value || '').trim()
     if (/^\d+$/.test(trimmed)) {
         const exactFilter = { ...effectiveFilter, barcode: trimmed }
-        let products = await DL.Product.read(exactFilter, selectForStock, { limit, skip })
+        let products = await DL.Product.read(exactFilter, selectForStock, { limit: safeLimit, skip: safeSkip })
         if (wantAnnotate) products = utils.data.withStock.annotateInStock(products, storeId, mode)
         const sales = await collectSales(products)
         return { products, sales }
     }
 
-    let products = await DL.Product.search(value, effectiveFilter, { skip, limit, select: selectForStock })
+    let products = await DL.Product.search(value, effectiveFilter, { skip: safeSkip, limit: safeLimit, select: selectForStock })
 
     if (wantAnnotate) products = utils.data.withStock.annotateInStock(products, storeId, mode)
 

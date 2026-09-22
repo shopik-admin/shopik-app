@@ -12,8 +12,25 @@ export default async function register(payload, { DL, utils, external }) {
     }
 
     const existingPhone = await DL.User.count({ phone: filtered.phone })
+    // Generic message: do not reveal whether the number is registered.
     if (existingPhone)
-        throw { status: 409, message: 'phone already registered' }
+        throw { status: 409, message: 'Could not start registration for this number' }
+
+    const currentOtps = await DL.Otp.count({ phone: filtered.phone })
+    if (currentOtps >= 5) throw { status: 400, message: 'too many otps' }
+
+    // Per-phone hourly cap (SMS-flood protection, IP-independent).
+    // Fail-open when redis is unavailable.
+    if (DL.redis) {
+        try {
+            const sendKey = `otp_send:${filtered.phone}`
+            const sent = await DL.redis.incr(sendKey)
+            if (sent === 1) await DL.redis.expire(sendKey, 3600)
+            if (sent > 10) throw { status: 400, message: 'too many otps' }
+        } catch (e) {
+            if (e?.status === 400) throw e
+        }
+    }
 
     const token = uid()
     const otp = uid(6, true)

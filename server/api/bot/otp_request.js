@@ -20,15 +20,16 @@ export default async function otp_request(payload, { DL, external }) {
             { number: orderNumber },
             { _id: 0, id: 1, phone: 1, userId: 1 }
         )
-        if (!order) throw { status: 404, message: 'Order not found' }
+        // Generic message: do not reveal whether the order exists.
+        if (!order) throw { status: 404, message: 'Order not found or unavailable' }
         if (order.phone) {
             targetPhone = String(order.phone).trim()
         } else if (order.userId) {
             const owner = await DL.User.readById(order.userId, { _id: 0, phone: 1 })
-            if (!owner?.phone) throw { status: 404, message: 'No phone on file for this order' }
+            if (!owner?.phone) throw { status: 404, message: 'Order not found or unavailable' }
             targetPhone = String(owner.phone).trim()
         } else {
-            throw { status: 404, message: 'No phone on file for this order' }
+            throw { status: 404, message: 'Order not found or unavailable' }
         }
     }
 
@@ -37,10 +38,24 @@ export default async function otp_request(payload, { DL, external }) {
 
     const userFilter = domainId ? { domainId, phone: targetPhone } : { phone: targetPhone }
     const user = await DL.User.readOne(userFilter, { phone: 1 })
-    if (!user) throw { status: 400, message: 'user not found' }
+    // Generic message: do not reveal whether the user is registered.
+    if (!user) throw { status: 400, message: 'Could not send a verification code' }
 
     const currentOtps = await DL.Otp.count({ phone: targetPhone })
     if (currentOtps >= 5) throw { status: 400, message: 'too many otps' }
+
+    // Per-phone hourly cap (SMS-flood protection, IP-independent).
+    // Fail-open when redis is unavailable.
+    if (DL.redis) {
+        try {
+            const sendKey = `otp_send:${targetPhone}`
+            const sent = await DL.redis.incr(sendKey)
+            if (sent === 1) await DL.redis.expire(sendKey, 3600)
+            if (sent > 10) throw { status: 400, message: 'too many otps' }
+        } catch (e) {
+            if (e?.status === 400) throw e
+        }
+    }
 
     const token = uid()
     const otp = uid(6, true)

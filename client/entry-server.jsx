@@ -27,13 +27,22 @@ export async function render({ url, data }) {
   const themeEntries = Object.entries(data?.settings?.Theme || {})
   const lightVars = []
   const darkVars = []
+  // Sanitize theme keys/values: keys must be valid CSS custom-property
+  // names, values must not break out of <style> (admin-controlled settings
+  // are rendered unescaped into the SSR head).
+  const safeKey = (k) => /^[a-zA-Z0-9-]+$/.test(k) ? k : null
+  const safeVal = (v) => typeof v === 'string' && !/[<>"';{}]/.test(v) ? v : null
   for (const [key, value] of themeEntries) {
+    if (!safeKey(key)) continue
     if (value && typeof value === 'object' && !Array.isArray(value) && ('light' in value || 'dark' in value)) {
-      if (value.light) lightVars.push(`--${key}:${value.light};`)
-      if (value.dark) darkVars.push(`--${key}:${value.dark};`)
-      else if (value.light) darkVars.push(`--${key}:${value.light};`)
+      const light = safeVal(value.light)
+      const dark = value.dark !== undefined ? safeVal(value.dark) : light
+      if (light) lightVars.push(`--${key}:${light};`)
+      if (dark) darkVars.push(`--${key}:${dark};`)
+      else if (light) darkVars.push(`--${key}:${light};`)
     } else {
-      lightVars.push(`--${key}:${value};`)
+      const v = safeVal(value)
+      if (v) lightVars.push(`--${key}:${v};`)
     }
   }
   const lightCss = lightVars.join('')

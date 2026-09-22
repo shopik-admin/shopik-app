@@ -5,7 +5,16 @@ export default async function edit(payload, { DL, _user, external, utils }) {
     const name = utils.extractFields.getName(payload)
     if (name) payload.name = name
 
-    const update = diff(_user, payload)
+    // Allowlist: ignore any client-supplied internal fields (blocked,
+    // noMinOrderSum, domainId, isTestUser, comments, ...). Phone flows
+    // through OTP verification below (never written directly).
+    const ALLOWED_USER_FIELDS = ['name', 'email', 'phone', 'secondPhone', 'getOffers', 'replaceProducts', 'notAtHome']
+    const sanitizedPayload = {}
+    for (const key of ALLOWED_USER_FIELDS) {
+        if (payload[key] !== undefined) sanitizedPayload[key] = payload[key]
+    }
+
+    const update = diff(_user, sanitizedPayload)
 
     const nothingToUpdate = Object.keys(update).length === 0
     if (nothingToUpdate) return { user: _user }
@@ -15,6 +24,18 @@ export default async function edit(payload, { DL, _user, external, utils }) {
     if (update.phone) {
         const currentOtps = await DL.Otp.count({ phone: update.phone })
         if (currentOtps >= 5) throw { status: 400, message: 'too many otps' }
+        // Per-phone hourly cap (SMS-flood protection, IP-independent).
+        // Fail-open when redis is unavailable.
+        if (DL.redis) {
+            try {
+                const sendKey = `otp_send:${update.phone}`
+                const sent = await DL.redis.incr(sendKey)
+                if (sent === 1) await DL.redis.expire(sendKey, 3600)
+                if (sent > 10) throw { status: 400, message: 'too many otps' }
+            } catch (e) {
+                if (e?.status === 400) throw e
+            }
+        }
         phoneChanged = true
         token = uid()
         const otp = uid(6, true)
