@@ -1,5 +1,11 @@
-export default async function search(payload, { DL, req, _user, utils }) {
+import { withDomainPrice } from '#server/utils/data/withDomainPrice.js'
+
+export default async function search(payload, { DL, req, _user, utils, platform }) {
     const { value = '', filter = {}, skip = 0, limit = 20, domainId } = payload
+    // Admin traffic keeps the full multi-domain `prices` array; the
+    // storefront gets a resolved flat `price` only (see withDomainPrice).
+    const isStorefront = !String(platform || '').includes('admin')
+    const priceFor = (products) => (isStorefront && domainId ? withDomainPrice(products, domainId) : products)
     const safeSkip = Math.max(0, Number(skip) || 0)
     const safeLimit = Math.min(Math.max(1, Number(limit) || 20), 100)
     const { mode, storeId } = await utils.data.withStock.resolveStockContext(req, { DL, utils }, _user)
@@ -21,7 +27,7 @@ export default async function search(payload, { DL, req, _user, utils }) {
         let products = await DL.Product.read(exactFilter, selectForStock, { limit: safeLimit, skip: safeSkip })
         if (wantAnnotate) products = utils.data.withStock.annotateInStock(products, storeId, mode)
         const sales = await collectSales(products)
-        return { products, sales }
+        return { products: priceFor(products), sales }
     }
 
     let products = await DL.Product.search(value, effectiveFilter, { skip: safeSkip, limit: safeLimit, select: selectForStock })
@@ -29,7 +35,7 @@ export default async function search(payload, { DL, req, _user, utils }) {
     if (wantAnnotate) products = utils.data.withStock.annotateInStock(products, storeId, mode)
 
     const sales = await collectSales(products)
-    return { products, sales }
+    return { products: priceFor(products), sales }
 
     async function collectSales(prods) {
         const saleIdSet = new Set()

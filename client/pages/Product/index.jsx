@@ -31,7 +31,7 @@ export default function Product() {
         : ['', '', '', '', '', '']
     const mainImage = productImages.find(img => img?.main)?.sizes?.xl || images[0]
 
-    const price = product?.prices?.[0]?.price
+    const price = product?.price
 
     if (loading) {
         return <Flex className={styles.container}><Loader /></Flex>
