@@ -11,9 +11,13 @@ export function buildCartProduct({ product, amount, unitKey, domainId, existingS
     // Strict per-domain pricing: no price entry for the domain means the product
     // is not sold in that domain at all — never fall back to another domain's price.
     const domainPrice = domainId ? product.prices?.find(p => p.domainId === domainId)?.price : undefined
-    if (domainPrice == null)
+    // Cart-item shape (client optimistic updates from the cart): no `prices`
+    // array, only the server-resolved flat `price` for the order's domain.
+    // Reuse it — the server already scoped it; do NOT fall back across domains
+    // when a `prices` array is present but has no entry for this domain.
+    const price = domainPrice ?? (product.prices == null ? product.price : undefined)
+    if (price == null)
         throw { status: 400, message: 'product not available in this domain' }
-    const price = domainPrice
 
     let option, units
     const unit = product?.unit

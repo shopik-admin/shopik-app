@@ -26,7 +26,11 @@ export default function filterClientOrder(order) {
         'finalSumWithShipping', 'finalShipping', 'coupons', 'cart',
         'customerUpdatedAt', 'comment', 'replaceProducts',
         'replaceProductsNoCall', 'leaveOrderAtDoor', 'name', 'phone',
-        'secondPhone', 'email', 'paid', 'paidAt'
+        'secondPhone', 'email', 'paid', 'paidAt',
+        // Tenant-routing id required by the storefront for optimistic cart
+        // pricing (buildCartProduct) and cart sync payloads — not a secret
+        // (already sent by the client and present in product prices).
+        'domainId'
     ]
     const filtered = {}
     for (const key of ORDER_CLIENT_FIELDS) {

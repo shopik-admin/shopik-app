@@ -25,12 +25,30 @@ export default function OrderProvider({ children }) {
     const hasServerOrder = !!serverOrder
     const [order, setOrder] = useState(hasServerOrder ? serverOrder : {})
     const orderRef = useRef(order)
-    useEffect(() => { orderRef.current = order }, [order])
+    // Tenant-routing id needed for optimistic pricing (buildCartProduct) and
+    // cart sync payloads. Latched from the first order that carries it and
+    // re-injected when a server response arrives without it (e.g. filtered
+    // payloads), so optimistic updates keep working across syncs.
+    const domainIdRef = useRef(serverOrder?.domainId)
+    useEffect(() => {
+        orderRef.current = order
+        if (order?.domainId) domainIdRef.current = order.domainId
+    }, [order])
     const seqRef = useRef(0)
     const timersRef = useRef(new Map())
     const pendingRef = useRef(new Map())
     const queueRef = useRef(Promise.resolve())
     const unconfirmedRef = useRef(new Map())
+    // Preserve domainId across all state updates (supports both value and
+    // functional forms), so filtered server payloads can never drop it.
+    const setOrderWithDomain = (updater) => setOrder((prev) => {
+        const next = typeof updater === 'function' ? updater(prev) : updater
+        if (next && typeof next === 'object' && !next.domainId) {
+            const fallback = prev?.domainId ?? domainIdRef.current
+            if (fallback) return { ...next, domainId: fallback }
+        }
+        return next
+    })
 
     const queueCartSync = (product, amount) => {
         const id = product?.id
@@ -44,7 +62,7 @@ export default function OrderProvider({ children }) {
             pendingRef.current.delete(id)
             timersRef.current.delete(id)
             const seq = ++seqRef.current
-            const domainId = orderRef.current?.domainId
+            const domainId = orderRef.current?.domainId ?? domainIdRef.current
             const task = () => apiReq('order/cart/product', { id: pending.product.id, amount: pending.amount, domainId })
                 .then(({ order: serverOrder, sales }) => {
                     if (sales) setSalesCache(sales)
@@ -52,7 +70,7 @@ export default function OrderProvider({ children }) {
                     if (cur === pending.amount) unconfirmedRef.current.delete(pending.product.id)
                     const hasPending = unconfirmedRef.current.size > 0 || timersRef.current.size > 0
                     if (hasPending) return
-                    if (seq === seqRef.current && serverOrder) setOrder(serverOrder)
+                    if (seq === seqRef.current && serverOrder) setOrderWithDomain(serverOrder)
                 }).catch(() => {
                     const cur = unconfirmedRef.current.get(pending.product.id)
                     if (cur === pending.amount) unconfirmedRef.current.delete(pending.product.id)
@@ -93,7 +111,7 @@ export default function OrderProvider({ children }) {
         }).catch(() => { })
     }, [order?.cart])
 
-    return <OrderContext value={{ order, setOrder, queueCartSync }}>
+    return <OrderContext value={{ order, setOrder: setOrderWithDomain, queueCartSync }}>
         {children}
     </OrderContext>
 }   
