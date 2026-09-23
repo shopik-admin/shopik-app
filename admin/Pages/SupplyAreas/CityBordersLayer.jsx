@@ -103,12 +103,12 @@ function countVertices(geometry) {
     return polys.reduce((n, poly) => n + (poly[0]?.length ? poly[0].length - 1 : 0), 0)
 }
 
-export default function CityBordersLayer({ visible, drawing, toggleMode, geometryEditingId, onCreateArea }) {
+export default function CityBordersLayer({ visible, drawing, toggleMode, geometryEditingId, cuttingId, onCreateArea }) {
     const map = useMap()
     const { TR } = useText()
     const dataRef = useRef(null)
-    const stRef = useRef({ visible, drawing, toggleMode, geometryEditingId, onCreateArea, TR })
-    stRef.current = { visible, drawing, toggleMode, geometryEditingId, onCreateArea, TR }
+    const stRef = useRef({ visible, drawing, toggleMode, geometryEditingId, cuttingId, onCreateArea, TR })
+    stRef.current = { visible, drawing, toggleMode, geometryEditingId, cuttingId, onCreateArea, TR }
 
     useEffect(() => {
         const openCityPopup = (latlng, name, geometry) => {
@@ -150,7 +150,7 @@ export default function CityBordersLayer({ visible, drawing, toggleMode, geometr
             onEachFeature: (f, l) => {
                 l.on('click', (e) => {
                     const st = stRef.current
-                    if (!st.visible || st.drawing || st.toggleMode || st.geometryEditingId) return
+                    if (!st.visible || st.drawing || st.toggleMode || st.geometryEditingId || st.cuttingId) return
                     // Canvas-rendered paths aren't DOM targets, so the map bg-click
                     // guard can't filter them — stop the event here instead.
                     if (e.originalEvent) L.DomEvent.stop(e.originalEvent)

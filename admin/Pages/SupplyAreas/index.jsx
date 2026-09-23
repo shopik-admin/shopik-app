@@ -154,6 +154,8 @@ export default function SupplyAreas() {
     const [selectedId, setSelectedId] = useState(null)
     const [areaDraft, setAreaDraft] = useState(null) // { id, name, storeIds }
     const [geometryEditingId, setGeometryEditingId] = useState(null)
+    const [cuttingId, setCuttingId] = useState(null)
+    const [cuttingSaving, setCuttingSaving] = useState(false)
     const [savingArea, setSavingArea] = useState(false)
     const [focusStoreId, setFocusStoreId] = useState(null)
     const [creating, setCreating] = useState(false)
@@ -229,7 +231,7 @@ export default function SupplyAreas() {
     }, [groupDraft?.id, groups, areas, stores])
 
     function handleNewArea() {
-        if (groupDraft || geometryEditingId) return
+        if (groupDraft || geometryEditingId || cuttingId) return
         setError(null)
         setCreating(true)
         setSelectedId(null)
@@ -257,7 +259,7 @@ export default function SupplyAreas() {
         return null
     }
     function handleCityCreateArea(cityName, geometry) {
-        if (groupDraft || geometryEditingId || creating) return
+        if (groupDraft || geometryEditingId || creating || cuttingId) return
         const location = largestPolygonPart(geometry)
         if (!location) return
         setError(null)
@@ -275,6 +277,7 @@ export default function SupplyAreas() {
     function handleSelectArea(id) {
         if (groupDraft) return
         if (geometryEditingId) return
+        if (cuttingId) return
         setError(null)
         setSelectedId(id)
         setAreaDraft(null)
@@ -303,10 +306,40 @@ export default function SupplyAreas() {
             .finally(() => setSavingArea(false))
     }
     function handleStartGeometryEdit() {
-        if (!selectedArea) return
+        if (!selectedArea || cuttingId) return
         setError(null)
         setAreaDraft(null)
         setGeometryEditingId(selectedArea.id)
+    }
+    // ——— Cut (split area by user-drawn line) ———
+    function handleStartCut(id) {
+        if (!id || groupDraft || creating || geometryEditingId) return
+        setError(null)
+        setAreaDraft(null)
+        setCuttingId(id)
+    }
+    function handleCutCancel() {
+        if (cuttingSaving) return
+        setCuttingId(null)
+    }
+    function handleCutCommit(id, line) {
+        setCuttingSaving(true)
+        setError(null)
+        apiReq('supply_area/split', { id, line })
+            .then(({ original, created }) => {
+                if (original?.id) patchArea(original)
+                if (created?.id) {
+                    setAreas(prev => [...prev, created])
+                    setSelectedId(created.id)
+                }
+                setAreaDraft(null)
+                setCuttingId(null)
+            })
+            .catch(err => {
+                setError(toMessage(err))
+                setCuttingId(null)
+            })
+            .finally(() => setCuttingSaving(false))
     }
     function handleGeometryCommit(id, geometry) {
         setGeometryEditingId(null)
@@ -328,7 +361,7 @@ export default function SupplyAreas() {
     // Clicking a saved group expands it inline into edit mode with its areas highlighted
     function startGroupEdit(group) {
         if (groupDraft?.id === group.id) return
-        if (geometryEditingId) return
+        if (geometryEditingId || cuttingId) return
         setError(null)
         setCreating(false)
         setSelectedId(null)
@@ -415,7 +448,7 @@ export default function SupplyAreas() {
     }
 
     function handleNewGroupInline(storeId) {
-        if (creating || geometryEditingId) return
+        if (creating || geometryEditingId || cuttingId) return
         if (groupDraft && !groupDraft.id && groupDraft.storeId === storeId) return
         setError(null)
         setCreating(false)
@@ -447,7 +480,7 @@ export default function SupplyAreas() {
     }
 
     function handleMapBackgroundClick() {
-        if (groupDraft || creating || geometryEditingId) return
+        if (groupDraft || creating || geometryEditingId || cuttingId) return
         setSelectedId(null)
         setAreaDraft(null)
     }
@@ -550,13 +583,19 @@ export default function SupplyAreas() {
                     {creating && (
                         <div className={styles.hint}><Text size="none">supply_draw_hint</Text></div>
                     )}
+                    {cuttingId && (
+                        <div className={styles.hint}><Text size="none">supply_cut_hint</Text></div>
+                    )}
                     {error && <div className={styles.errorBanner}><Text size="none">{error}</Text></div>}
                 </Flex>
                 <Flex gap={8} alignItems="end" justifyContent="flex-end" className={styles.headerActions}>
                     {creating && (
                         <Button className={styles.headerBtn} size="s" mode="outline" onClick={handleCancelCreate}>supply_cancel_draw</Button>
                     )}
-                    <Button className={styles.headerBtn} size="s" icon="add" onClick={handleNewArea} disabled={!!groupDraft || !!geometryEditingId}>new area</Button>
+                    {cuttingId && (
+                        <Button className={styles.headerBtn} size="s" mode="outline" onClick={handleCutCancel} loading={cuttingSaving}>supply_cancel_cut</Button>
+                    )}
+                    <Button className={styles.headerBtn} size="s" icon="add" onClick={handleNewArea} disabled={!!groupDraft || !!geometryEditingId || !!cuttingId}>new area</Button>
                 </Flex>
             </div>
 
@@ -762,6 +801,7 @@ export default function SupplyAreas() {
                         areaDraft={areaDraft}
                         setAreaDraft={setAreaDraft}
                         geometryEditingId={geometryEditingId}
+                        cuttingId={cuttingId}
                         drawing={creating}
                         testPoint={testPoint}
                         testLabel={testLabel}
@@ -776,6 +816,8 @@ export default function SupplyAreas() {
                         onCancelAreaPropsEdit={handleCancelAreaPropsEdit}
                         onDeleteArea={handleDeleteAreaPopup}
                         onStartGeometryEdit={handleStartGeometryEdit}
+                        onStartCut={handleStartCut}
+                        onCutCommit={handleCutCommit}
                         onViewportChange={handleViewportChange}
                         onCreateArea={handleCityCreateArea}
                         cityBorders={showCityBorders}

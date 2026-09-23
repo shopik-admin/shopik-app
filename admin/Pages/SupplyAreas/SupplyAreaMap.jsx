@@ -175,6 +175,7 @@ function MapController({
     areas,
     selectedId,
     geometryEditingId,
+    cuttingId,
     servedAreaIds,
     groupAreaIds,
     draftAreaIds,
@@ -183,6 +184,7 @@ function MapController({
     onSelect,
     onToggleArea,
     onCreated,
+    onCutCommit,
     onEdited,
     onGeometryCancel,
     onBackgroundClick,
@@ -199,8 +201,8 @@ function MapController({
     const editLayerRef = useRef(null)
     const editOriginalRef = useRef(null)
     const editControlRef = useRef(null)
-    const cbRef = useRef({ onSelect, onToggleArea, onCreated, onEdited, onGeometryCancel, onBackgroundClick, onViewportChange, selectedId, geometryEditingId, drawing, toggleMode })
-    cbRef.current = { onSelect, onToggleArea, onCreated, onEdited, onGeometryCancel, onBackgroundClick, onViewportChange, selectedId, geometryEditingId, drawing, toggleMode }
+    const cbRef = useRef({ onSelect, onToggleArea, onCreated, onCutCommit, onEdited, onGeometryCancel, onBackgroundClick, onViewportChange, selectedId, geometryEditingId, cuttingId, drawing, toggleMode })
+    cbRef.current = { onSelect, onToggleArea, onCreated, onCutCommit, onEdited, onGeometryCancel, onBackgroundClick, onViewportChange, selectedId, geometryEditingId, cuttingId, drawing, toggleMode }
 
     const removeEditControl = useCallback(() => {
         if (editControlRef.current) {
@@ -273,7 +275,7 @@ function MapController({
     // Guard against polygon clicks bubbling to map (they fire layer 'click' then map 'click')
     useEffect(() => {
         function onBgClick(e) {
-            if (cbRef.current.drawing || cbRef.current.toggleMode || cbRef.current.geometryEditingId) return
+            if (cbRef.current.drawing || cbRef.current.toggleMode || cbRef.current.geometryEditingId || cbRef.current.cuttingId) return
             // Ignore clicks that originated on a polygon/path - handled by layer handler
             const target = e.originalEvent?.target
             if (target?.closest?.('.leaflet-interactive')) return
@@ -308,6 +310,7 @@ function MapController({
                 }
                 if (cbRef.current.drawing) return
                 if (cbRef.current.geometryEditingId) return
+                if (cbRef.current.cuttingId) return
                 const isSelected = cbRef.current.selectedId === area.id
                 cbRef.current.onSelect?.(isSelected ? null : area.id)
             })
@@ -560,6 +563,45 @@ function MapController({
         }
     }, [map, drawReady, drawing, stopEdit, findSnapLatLng])
 
+    // "Cut area" mode: polyline draw session for the area being split.
+    // Double-click / Enter finishes and commits the cut line to the parent.
+    useEffect(() => {
+        if (!drawReady) return
+        if (!cuttingId) return
+
+        const handler = new L.Draw.Polyline(map, {
+            shapeOptions: { color: '#dc2626', weight: 3 }
+        })
+        handler.enable()
+        stopEdit()
+
+        function onCutCreated(e) {
+            const layer = e.layer
+            // L.Polygon extends L.Polyline — only accept a true open polyline
+            if (!(layer instanceof L.Polyline) || layer instanceof L.Polygon) return
+            if (drawHandlerRef.current) {
+                drawHandlerRef.current.disable()
+                drawHandlerRef.current = null
+            }
+            const id = cbRef.current.cuttingId
+            map.removeLayer(layer)
+            if (id) cbRef.current.onCutCommit?.(id, layer.toGeoJSON().geometry)
+        }
+        function onCutStop() {
+            drawHandlerRef.current = null
+        }
+        drawHandlerRef.current = handler
+        map.on(L.Draw.Event.CREATED, onCutCreated)
+        map.on(L.Draw.Event.DRAWSTOP, onCutStop)
+
+        return () => {
+            map.off(L.Draw.Event.CREATED, onCutCreated)
+            map.off(L.Draw.Event.DRAWSTOP, onCutStop)
+            handler.disable()
+            if (drawHandlerRef.current === handler) drawHandlerRef.current = null
+        }
+    }, [map, drawReady, cuttingId, stopEdit])
+
     return null
 }
 
@@ -605,16 +647,16 @@ function AreaEditForm({ areaDraft, setAreaDraft, stores, savingArea, onCancel, o
 export default function SupplyAreaMap({
     areas = [], stores = [], activeStoreIds = [], servedAreaIds = [], groupAreaIds = [], draftAreaIds = [],
     focusPoint, focusGroupPoint, testPoint, testLabel,
-    selectedId, geometryEditingId, areaDraft, setAreaDraft, savingArea,
-    onSelect, onStartAreaPropsEdit, onSaveAreaProps, onCancelAreaPropsEdit, onDeleteArea, onStartGeometryEdit,
+    selectedId, geometryEditingId, cuttingId, areaDraft, setAreaDraft, savingArea,
+    onSelect, onStartAreaPropsEdit, onSaveAreaProps, onCancelAreaPropsEdit, onDeleteArea, onStartGeometryEdit, onStartCut,
     onViewportChange, onCreateArea, cityBorders, onToggleCityBorders,
-    toggleMode, drawing, onToggleArea, onCreated, onEdited, onGeometryCancel, onBackgroundClick,
+    toggleMode, drawing, onToggleArea, onCreated, onCutCommit, onEdited, onGeometryCancel, onBackgroundClick,
 }) {
     const { TR } = useText()
 
     const selectedArea = useMemo(() => areas.find(a => a.id === selectedId) || null, [areas, selectedId])
     const popupPosition = useMemo(() => {
-        if (!selectedArea?.location?.coordinates?.length || geometryEditingId) return null
+        if (!selectedArea?.location?.coordinates?.length || geometryEditingId || cuttingId) return null
         let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity, count = 0
         selectedArea.location.coordinates.forEach(ring => ring.forEach(([lng, lat]) => {
             if (lat < minLat) minLat = lat
@@ -625,7 +667,7 @@ export default function SupplyAreaMap({
         }))
         if (!count) return null
         return [(minLat + maxLat) / 2, (minLng + maxLng) / 2]
-    }, [selectedArea, geometryEditingId])
+    }, [selectedArea, geometryEditingId, cuttingId])
     const isAreaEditing = !!areaDraft && areaDraft.id === selectedId
     // Tileset: explicit user pick persists; otherwise follows the admin dark/light theme
     const [tilesetId, setTilesetId] = useState(() => {
@@ -708,6 +750,7 @@ export default function SupplyAreaMap({
                     drawing={drawing}
                     toggleMode={toggleMode}
                     geometryEditingId={geometryEditingId}
+                    cuttingId={cuttingId}
                     onCreateArea={onCreateArea}
                 />
                 <MapController
@@ -717,11 +760,13 @@ export default function SupplyAreaMap({
                     draftAreaIds={draftAreaIds}
                     selectedId={selectedId}
                     geometryEditingId={geometryEditingId}
+                    cuttingId={cuttingId}
                     toggleMode={toggleMode}
                     drawing={drawing}
                     onSelect={onSelect}
                     onToggleArea={onToggleArea}
                     onCreated={onCreated}
+                    onCutCommit={onCutCommit}
                     onEdited={onEdited}
                     onGeometryCancel={onGeometryCancel}
                     onBackgroundClick={onBackgroundClick}
@@ -766,6 +811,7 @@ export default function SupplyAreaMap({
                                     </div>
                                     <Flex gap={8} justifyContent="end" style={{ marginTop: 8 }}>
                                         <Button size="s" mode="outline" onClick={() => onSelect?.(null)}>cancel</Button>
+                                        <Button size="s" icon="cut" onClick={() => onStartCut?.(selectedArea.id)}>supply_cut_area</Button>
                                         <Button size="s" icon="edit" onClick={onStartGeometryEdit}>supply_edit_shape</Button>
                                     </Flex>
                                 </>
