@@ -696,6 +696,9 @@ export default function SupplyAreaMap({
     const tilesets = useMemo(getTilesets, [])
     const tileset = tilesets[tilesetId] || tilesets.light
     const isVector = !!(tileset.style && getCartoKey())
+    // City-border labels follow the basemap, not the admin UI theme —
+    // otherwise light-theme text + white halo glows on a dark basemap.
+    const isDarkBasemap = tilesetId === 'dark' || tilesetId === 'satellite'
     // Vector label size multiplier (1–1.6) — raster PNGs bake labels in, so
     // the slider only shows for vector basemaps. Persists across sessions.
     const [labelScale, setLabelScale] = useState(() => clampLabelScale(localStorage.getItem(LABEL_SCALE_STORAGE_KEY)))
@@ -752,6 +755,7 @@ export default function SupplyAreaMap({
                     toggleMode={toggleMode}
                     geometryEditingId={geometryEditingId}
                     cuttingId={cuttingId}
+                    darkBasemap={isDarkBasemap}
                     onCreateArea={onCreateArea}
                 />
                 <MapController

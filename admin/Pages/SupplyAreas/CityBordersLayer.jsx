@@ -101,12 +101,12 @@ function countVertices(geometry) {
     return polys.reduce((n, poly) => n + (poly[0]?.length ? poly[0].length - 1 : 0), 0)
 }
 
-export default function CityBordersLayer({ visible, drawing, toggleMode, geometryEditingId, cuttingId, onCreateArea }) {
+export default function CityBordersLayer({ visible, drawing, toggleMode, geometryEditingId, cuttingId, darkBasemap, onCreateArea }) {
     const map = useMap()
     const { TR } = useText()
     const dataRef = useRef(null)
-    const stRef = useRef({ visible, drawing, toggleMode, geometryEditingId, cuttingId, onCreateArea, TR })
-    stRef.current = { visible, drawing, toggleMode, geometryEditingId, cuttingId, onCreateArea, TR }
+    const stRef = useRef({ visible, drawing, toggleMode, geometryEditingId, cuttingId, darkBasemap, onCreateArea, TR })
+    stRef.current = { visible, drawing, toggleMode, geometryEditingId, cuttingId, darkBasemap, onCreateArea, TR }
 
     useEffect(() => {
         const openCityPopup = (latlng, name, geometry) => {
@@ -172,7 +172,9 @@ export default function CityBordersLayer({ visible, drawing, toggleMode, geometr
                     l.bindTooltip(name, {
                         permanent: true,
                         direction: 'center',
-                        className: styles.cityLabel,
+                        className: stRef.current.darkBasemap
+                            ? `${styles.cityLabel} ${styles.cityLabelDark}`
+                            : styles.cityLabel,
                     })
                 } else {
                     l.unbindTooltip()
@@ -192,7 +194,7 @@ export default function CityBordersLayer({ visible, drawing, toggleMode, geometr
             map.off('moveend zoomend', refresh)
             map.removeLayer(layer)
         }
-    }, [map, visible])
+    }, [map, visible, darkBasemap])
 
     return null
 }

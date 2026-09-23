@@ -519,13 +519,24 @@
     border: none;
     box-shadow: none;
     padding: 0;
-    font-size: .7rem;
+    font-size: .85rem;
     font-weight: var(--font-weight-medium);
     color: var(--text-secondary);
     text-shadow:
         0 0 3px var(--bg-primary),
         0 0 3px var(--bg-primary),
         0 0 6px var(--bg-primary);
+}
+
+/* Dark basemap (dark tiles / satellite): light text + dark halo.
+   The base rule follows the admin UI theme, which mismatches when the
+   basemap is dark while the UI is light — hence the white "glow". */
+:global(.leaflet-tooltip).cityLabelDark {
+    color: #f1f5f9;
+    text-shadow:
+        0 0 3px rgba(0, 0, 0, .9),
+        0 0 3px rgba(0, 0, 0, .9),
+        0 0 6px rgba(0, 0, 0, .9);
 }
 
 :global(.leaflet-tooltip).cityLabel::before {
