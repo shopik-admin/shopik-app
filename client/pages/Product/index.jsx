@@ -330,9 +330,9 @@ export default function Product() {
                 </div>
 
                 <div className={styles.specs}>
-                    {sections.length > 0 && (
-                        <>
-                            <Card className={styles.specCard}>
+                    <Card className={styles.specCard}>
+                        {sections.length > 0 && (
+                            <>
                                 <div className={styles.specLayout}>
                                     <Flex col gap={2} className={styles.specNav}>
                                         {sections.map(s => (
@@ -346,7 +346,7 @@ export default function Product() {
                                                 )}
                                                 onClick={() => setActiveSpecKey(s.key)}
                                             >
-                                                <Text size="s" bold>{s.title}</Text>
+                                                <Text size="s" bold={activeSection?.key === s.key}>{s.title}</Text>
                                             </Button>
                                         ))}
                                     </Flex>
@@ -354,28 +354,28 @@ export default function Product() {
                                         {activeSection && <SectionBody section={activeSection} />}
                                     </div>
                                 </div>
-                            </Card>
-                            <Flex col gap={8} className={styles.collapses}>
-                                {sections.map((s, i) => (
-                                    <Collapse
-                                        key={s.key}
-                                        defaultOpen={i === 0}
-                                        title={
-                                            <Flex gap={8} alignItems="center">
-                                                <Icon name={s.icon} size={16} />
-                                                <Text size="s" bold>{s.title}</Text>
-                                            </Flex>
-                                        }
-                                    >
-                                        <SectionBody section={s} />
-                                    </Collapse>
-                                ))}
-                            </Flex>
-                        </>
-                    )}
-                    <Text size="xs" mode="sub" className={styles.disclaimer}>
-                        התמונות להמחשה בלבד. המידע על המוצר, הרכיבים והערכים התזונתיים עשוי להשתנות — יש לעיין באריזה.
-                    </Text>
+                                <Flex col gap={8} className={styles.collapses}>
+                                    {sections.map((s, i) => (
+                                        <Collapse
+                                            key={s.key}
+                                            defaultOpen={i === 0}
+                                            title={
+                                                <Flex gap={8} alignItems="center">
+                                                    <Icon name={s.icon} size={16} />
+                                                    <Text size="s" bold>{s.title}</Text>
+                                                </Flex>
+                                            }
+                                        >
+                                            <SectionBody section={s} />
+                                        </Collapse>
+                                    ))}
+                                </Flex>
+                            </>
+                        )}
+                        <Text size="xs" mode="sub" className={styles.disclaimer}>
+                            התמונות להמחשה בלבד. המידע על המוצר, הרכיבים והערכים התזונתיים עשוי להשתנות — יש לעיין באריזה.
+                        </Text>
+                    </Card>
                 </div>
             </div>
 

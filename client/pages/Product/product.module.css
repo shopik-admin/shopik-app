@@ -183,11 +183,15 @@
     opacity: 1;
 }
 
-/* ---------- specs: clickable side tabs ---------- */
+/* ---------- specs: one delicate frame around tabs + content + notes ---------- */
 .specCard {
     margin-top: 14px;
     padding: 0;
     overflow: hidden;
+    background: #fff;
+    border: 1px solid var(--border-secondary);
+    border-radius: var(--radius-2xl);
+    box-shadow: none;
 }
 
 .specLayout {
@@ -197,28 +201,36 @@
 }
 
 .specLayout .specNav {
-    background: #f4f8f7;
+    background: #fff;
     border-inline-end: 1px solid var(--border-primary);
-    padding: 8px;
     align-items: stretch;
 }
 
 .specLayout .specNav .specTab {
     width: 100%;
     justify-content: flex-start;
-    border-radius: 10px;
+    border-radius: 0;
     padding: 10px 12px;
     color: var(--text-primary);
 }
 
+.specLayout .specNav .specTab:hover {
+    background: #DCEBEA;
+}
+
 .specLayout .specNav .specTabActive {
-    background: #d9e8e6;
+    background: #F1F7F6;
+    border-radius: 0;
+}
+
+.specLayout .specNav .specTabActive:hover {
+    background: #F1F7F6;
 }
 
 .specContent {
     padding: 6px 0;
     min-width: 0;
-    background: #fff;
+    background: #F1F7F6;
 }
 
 /* label/value rows like Figma: bold label at inline-start, value, dividers */
@@ -286,7 +298,9 @@
 .disclaimer {
     font-size: 11px;
     line-height: 1.6;
-    margin-top: 6px;
+    padding: 12px 16px;
+    border-top: 1px solid var(--border-tertiary);
+    color: var(--text-secondary);
 }
 
 /* ---------- related: isolated so main-product styles never leak in ---------- */
@@ -423,13 +437,13 @@
         gap: 6px;
     }
 
-    .specCard {
+    .specLayout {
         display: none;
     }
 
     .collapses {
         display: flex;
-        margin-top: 8px;
+        padding: 8px;
     }
 
     .related {
