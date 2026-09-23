@@ -1,5 +1,10 @@
-export default async function get(payload, { DL, _user, req, utils }) {
+import { withDomainPrice } from '#server/utils/data/withDomainPrice.js'
+
+export default async function get(payload, { DL, _user, req, utils, platform }) {
     const { filter = {}, path, id, barcode, select, onSale, domainId } = payload
+    // Admin traffic keeps the full multi-domain `prices` array; the
+    // storefront gets a resolved flat `price` only (see withDomainPrice).
+    const isStorefront = !String(platform || '').includes('admin')
     const { mode, storeId } = await utils.data.withStock.resolveStockContext(req, { DL, utils }, _user)
     const wantFilter = mode === 'filter' && !!storeId
     const wantAnnotate = mode === 'annotate' && !!storeId
@@ -86,6 +91,10 @@ export default async function get(payload, { DL, _user, req, utils }) {
         for (const sale of activeSales) {
             sales[sale.id] = sale
         }
+    }
+
+    if (isStorefront && domainId) {
+        products = withDomainPrice(products, domainId)
     }
 
     return { products, sales, categoryName, categoryPath }

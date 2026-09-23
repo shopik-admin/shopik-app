@@ -42,7 +42,7 @@ export function formatPrice(price) {
 
 export function getSalePriceInfo(product, sale) {
     if (!sale || !product) return null
-    const regular = Number(product.price ?? product.prices?.[0]?.price)
+    const regular = Number(product.price)
     if (isNaN(regular)) return null
     const amount = Number(sale.amount) || 1
     const kind = sale.kind
@@ -246,7 +246,7 @@ export function ProductBadges({ product, size = 'm' }) {
 
 export function ProductPrice({ product, size = 'm', sales }) {
     try {
-        const price = product.price ?? product.prices?.[0]?.price
+        const price = product.price
         if (price == null) return null
         const unitPriceText = getUnitPriceText(product)
         const sale = getFirstSale(product, sales)

@@ -79,7 +79,7 @@ export default function Cart({ }) {
             finalShipping: 0,
             finalSumWithShipping: 0
         })
-        apiReq('order/cart/clear', { domainId: order?.domainId })
+        apiReq('order/cart/clear', {})
             .then(({ order: serverOrder }) => {
                 if (serverOrder) setOrder(serverOrder)
             })
