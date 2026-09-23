@@ -502,6 +502,8 @@
         "supply_map_dark": "כהה",
         "supply_map_standard": "רגילה",
         "supply_map_satellite": "לוויין",
+        "supply_city_borders": "גבולות ערים",
+        "supply_create_polygon": "יצירת פוליגון",
         "windows_tab_daily": "חלונות יומיים",
         "windows_tab_weekly": "עריכת תוכנית שבועית",
         "windows_tab_month": "לוח חודשי",

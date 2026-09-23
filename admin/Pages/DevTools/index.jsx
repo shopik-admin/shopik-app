@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import Card from 'common/components/Card'
 import Flex from 'common/components/Flex'
 import Text from 'common/components/Text'
@@ -33,6 +33,12 @@ export default function DevTools() {
     const [gs1StatusResult, setGs1StatusResult] = useState(null)
     const [gs1StatusError, setGs1StatusError] = useState(null)
     const [gs1StatusLoading, setGs1StatusLoading] = useState(false)
+    const bordersFileRef = useRef(null)
+    const [bordersFile, setBordersFile] = useState(null)
+    const [bordersVersion, setBordersVersion] = useState('')
+    const [bordersResult, setBordersResult] = useState(null)
+    const [bordersError, setBordersError] = useState(null)
+    const [bordersPublishing, setBordersPublishing] = useState(false)
 
     async function handleRefresh() {
         setError(null)
@@ -112,6 +118,38 @@ export default function DevTools() {
             setGs1StatusError(e?.message || 'GS1 status failed')
         } finally {
             setGs1StatusLoading(false)
+        }
+    }
+
+    async function handleBordersFile(e) {
+        const file = e.target.files?.[0]
+        e.target.value = ''
+        if (!file) return
+        try {
+            const text = await file.text()
+            const fc = JSON.parse(text)
+            if (fc?.type !== 'FeatureCollection' || !Array.isArray(fc.features)) throw new Error('not a FeatureCollection')
+            setBordersFile({ name: file.name, size: file.size, features: fc.features.length, text })
+            setBordersError(null)
+        } catch {
+            setBordersFile(null)
+            setBordersError('Invalid GeoJSON file — expected a FeatureCollection (.geojson).')
+        }
+    }
+
+    async function handleBordersPublish() {
+        if (!bordersFile) return
+        setBordersError(null)
+        setBordersResult(null)
+        setBordersPublishing(true)
+        try {
+            const payload = { geojson: bordersFile.text }
+            if (bordersVersion.trim()) payload.version = bordersVersion.trim()
+            setBordersResult(await apiReq('supply_area/upload_city_borders', payload))
+        } catch (e) {
+            setBordersError(e?.message || 'Publish failed')
+        } finally {
+            setBordersPublishing(false)
         }
     }
 
@@ -247,6 +285,38 @@ export default function DevTools() {
                         : <Text>No run state (queues only).</Text>}
                     <Text>fetch: {JSON.stringify(gs1StatusResult.queues?.fetch ?? {})}</Text>
                     <Text>process: {JSON.stringify(gs1StatusResult.queues?.process ?? {})}</Text>
+                </Flex>}
+            </Flex>
+        </Card>
+        <Card title="City borders" style={{ padding: 24 }}>
+            <Flex col gap={16} style={{ padding: 8 }}>
+                <Text>Publish a new city-borders GeoJSON (WGS84, dissolved by municipality). Validated, uploaded to the files CDN under a versioned path, and saved to the cityBordersUrl setting — the Supply Areas map picks it up on next load with no redeploy.</Text>
+                <Flex gap={12}>
+                    <Button icon="upload" onClick={() => bordersFileRef.current?.click()}>
+                        Choose .geojson
+                    </Button>
+                    <Input label="Version (empty = today)" value={bordersVersion} onChange={e => setBordersVersion(e.target.value)} placeholder="v2026-09-23" />
+                </Flex>
+                <input ref={bordersFileRef} type="file" accept=".geojson,application/json" onChange={handleBordersFile} style={{ display: 'none' }} />
+                {bordersFile && <Text>
+                    {bordersFile.name} — {bordersFile.features} features, {(bordersFile.size / 1024 / 1024).toFixed(2)}MB
+                </Text>}
+                <Flex>
+                    <ConfirmButton
+                        q="Publish city borders? The map will load the new file on next page load."
+                        okText="Publish"
+                        onOk={handleBordersPublish}
+                        icon="upload"
+                        loading={bordersPublishing}
+                        disabled={bordersPublishing || !bordersFile}
+                    >
+                        Publish city borders
+                    </ConfirmButton>
+                </Flex>
+                {bordersError && <Text style={{ color: 'var(--text-error-primary)' }}>{bordersError}</Text>}
+                {bordersResult && <Flex col gap={4}>
+                    <Text>published: {bordersResult.features} features, {(bordersResult.bytes / 1024 / 1024).toFixed(2)}MB</Text>
+                    <Text>{bordersResult.url}</Text>
                 </Flex>}
             </Flex>
         </Card>

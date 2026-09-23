@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect, useRef, useCallback } from 'react'
 import useApi from 'common/functions/useApi'
 import apiReq from 'common/functions/apiReq'
 import Button from 'common/components/Button'
+import Checkbox from 'common/components/Checkbox'
 import ConfirmButton from 'common/components/ConfirmButton'
 import Input from 'common/components/Input'
 import Flex from 'common/components/Flex'
@@ -15,6 +16,7 @@ import styles from './supplyAreas.module.css'
 const toMessage = (err) => (typeof err === 'string' ? err : err?.message || 'something went wrong')
 
 const ISRAEL_BOUNDS = { west: 34.2, south: 29.5, east: 35.9, north: 33.4 }
+const CITY_BORDERS_KEY = 'supplyMapCityBorders'
 const MAX_RINGS = 10
 function padBounds(bounds, ratio = 0.5) {
     const latSpan = bounds.north - bounds.south
@@ -155,6 +157,13 @@ export default function SupplyAreas() {
     const [savingArea, setSavingArea] = useState(false)
     const [focusStoreId, setFocusStoreId] = useState(null)
     const [creating, setCreating] = useState(false)
+    // City borders overlay visibility — shared by the header switch and the map basemap picker
+    const [showCityBorders, setShowCityBorders] = useState(() => localStorage.getItem(CITY_BORDERS_KEY) !== '0')
+    function toggleCityBorders(next) {
+        const v = typeof next === 'boolean' ? next : !showCityBorders
+        localStorage.setItem(CITY_BORDERS_KEY, v ? '1' : '0')
+        setShowCityBorders(v)
+    }
     const [expandedStores, setExpandedStores] = useState([])
     const [groupDraft, setGroupDraft] = useState(null) // { id?, name, storeId, areaIds }
     const [editingGroupName, setEditingGroupName] = useState(false)
@@ -226,6 +235,40 @@ export default function SupplyAreas() {
         setSelectedId(null)
         setAreaDraft(null)
         setGeometryEditingId(null)
+    }
+
+    // From a city-border popup: duplicate the city's border as a new supply area immediately.
+    // Server stores Polygon only — a MultiPolygon city (detached exclaves) keeps its largest part.
+    function largestPolygonPart(geometry) {
+        if (geometry?.type === 'Polygon' && geometry.coordinates?.length) return geometry
+        if (geometry?.type === 'MultiPolygon' && geometry.coordinates?.length) {
+            let best = null
+            let bestArea = 0
+            for (const poly of geometry.coordinates) {
+                const ring = poly?.[0]
+                if (!ring?.length) continue
+                let a = 0
+                for (let i = 0; i < ring.length - 1; i++) a += ring[i][0] * ring[i + 1][1] - ring[i + 1][0] * ring[i][1]
+                a = Math.abs(a)
+                if (a > bestArea) { bestArea = a; best = poly }
+            }
+            if (best) return { type: 'Polygon', coordinates: best }
+        }
+        return null
+    }
+    function handleCityCreateArea(cityName, geometry) {
+        if (groupDraft || geometryEditingId || creating) return
+        const location = largestPolygonPart(geometry)
+        if (!location) return
+        setError(null)
+        setSelectedId(null)
+        setAreaDraft(null)
+        apiReq('supply_area/create', { location, ...(cityName ? { name: cityName } : {}) })
+            .then(created => {
+                if (created?.id) patchArea(created)
+                if (created?.id) setSelectedId(created.id)
+            })
+            .catch(err => setError(toMessage(err)))
     }
 
     // ——— Area popup (Option H: view → edit via bubble, geometry via footer) ———
@@ -734,6 +777,9 @@ export default function SupplyAreas() {
                         onDeleteArea={handleDeleteAreaPopup}
                         onStartGeometryEdit={handleStartGeometryEdit}
                         onViewportChange={handleViewportChange}
+                        onCreateArea={handleCityCreateArea}
+                        cityBorders={showCityBorders}
+                        onToggleCityBorders={toggleCityBorders}
                     />
                     {bgLoading && areas.length > 0 ? (
                         <div style={{ position: 'absolute', bottom: 8, right: 60, background: 'rgba(255,255,255,0.9)', padding: '4px 8px', borderRadius: 6, fontSize: 11, color: '#64748b' }}>Loading all areas… {areas.length}</div>

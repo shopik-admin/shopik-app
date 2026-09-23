@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { TbTextSize } from 'react-icons/tb'
+import { TbTextSize, TbEye, TbEyeOff } from 'react-icons/tb'
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -11,11 +11,13 @@ import ConfirmButton from 'common/components/ConfirmButton'
 import Flex from 'common/components/Flex'
 import StoreListEditor from './StoreListEditor'
 import VectorBasemap from './VectorBasemap'
+import CityBordersLayer from './CityBordersLayer'
 import styles from './supplyAreas.module.css'
 
 const SNAP_THRESHOLD_PX = 20
 const TILESET_STORAGE_KEY = 'supplyMapTileset'
 const LABEL_SCALE_STORAGE_KEY = 'supplyMapLabelScale'
+const LABELS_VISIBLE_STORAGE_KEY = 'supplyMapLabelsVisible'
 const LABEL_SCALE_MIN = 1
 const LABEL_SCALE_MAX = 1.6
 const clampLabelScale = (v) => {
@@ -605,7 +607,7 @@ export default function SupplyAreaMap({
     focusPoint, focusGroupPoint, testPoint, testLabel,
     selectedId, geometryEditingId, areaDraft, setAreaDraft, savingArea,
     onSelect, onStartAreaPropsEdit, onSaveAreaProps, onCancelAreaPropsEdit, onDeleteArea, onStartGeometryEdit,
-    onViewportChange,
+    onViewportChange, onCreateArea, cityBorders, onToggleCityBorders,
     toggleMode, drawing, onToggleArea, onCreated, onEdited, onGeometryCancel, onBackgroundClick,
 }) {
     const { TR } = useText()
@@ -659,6 +661,13 @@ export default function SupplyAreaMap({
         localStorage.setItem(LABEL_SCALE_STORAGE_KEY, String(next))
         setLabelScale(next)
     }
+    // Basemap (vector) label visibility — same persistence pattern as label scale
+    const [labelsVisible, setLabelsVisible] = useState(() => localStorage.getItem(LABELS_VISIBLE_STORAGE_KEY) !== '0')
+    const toggleLabelsVisible = () => {
+        const next = !labelsVisible
+        localStorage.setItem(LABELS_VISIBLE_STORAGE_KEY, next ? '1' : '0')
+        setLabelsVisible(next)
+    }
 
     const storePins = useMemo(() => stores.filter(s => {
         const c = s.address?.location?.coordinates
@@ -685,6 +694,7 @@ export default function SupplyAreaMap({
                         key={tilesetId}
                         styleUrl={tileset.style}
                         labelScale={labelScale}
+                        labelsVisible={labelsVisible}
                     />
                 ) : (
                     <TileLayer
@@ -693,6 +703,13 @@ export default function SupplyAreaMap({
                         attribution={tileset.attribution}
                     />
                 )}
+                <CityBordersLayer
+                    visible={cityBorders}
+                    drawing={drawing}
+                    toggleMode={toggleMode}
+                    geometryEditingId={geometryEditingId}
+                    onCreateArea={onCreateArea}
+                />
                 <MapController
                     areas={areas}
                     servedAreaIds={servedAreaIds}
@@ -809,9 +826,24 @@ export default function SupplyAreaMap({
                             <Text size="none">{ts.label}</Text>
                         </button>
                     ))}
+                    <button
+                        type="button"
+                        title={TR('supply_city_borders')}
+                        className={cityBorders ? `${styles.tileBtn} ${styles.tileBtnActive}` : styles.tileBtn}
+                        onClick={() => onToggleCityBorders()}
+                    >
+                        <Text size="none">supply_city_borders</Text>
+                    </button>
                 </div>
                 {isVector && (
                     <div className={styles.labelScaleRow}>
+                        <button
+                            type="button"
+                            onClick={toggleLabelsVisible}
+                            className={labelsVisible ? styles.labelScaleToggle : `${styles.labelScaleToggle} ${styles.labelScaleToggleOff}`}
+                        >
+                            {labelsVisible ? <TbEye /> : <TbEyeOff />}
+                        </button>
                         <TbTextSize className={styles.labelScaleIcon} />
                         <input
                             type="range"
@@ -821,6 +853,7 @@ export default function SupplyAreaMap({
                             value={labelScale}
                             title={labelScale.toFixed(2)}
                             onChange={e => changeLabelScale(e.target.value)}
+                            disabled={!labelsVisible}
                             className={styles.labelScaleSlider}
                         />
                     </div>
