@@ -29,8 +29,8 @@ const snapKeyFor = (lat, lng) => `${Math.floor(lat * 100)}_${Math.floor(lng * 10
 
 import { runtimeEnv } from 'common/functions/runtimeEnv.js'
 
-// CARTO light/dark render as vector (MapLibre GL style) with raster PNG fallback
-// when no API key is configured. OSM + satellite stay raster-only.
+// CARTO light/dark/standard render as vector (MapLibre GL style) with raster PNG fallback
+// when no API key is configured. Satellite stays raster-only.
 // Key resolves lazily (SSR window.__ENV__ first, baked build-time fallback)
 // so it works regardless of module-eval order vs index.jsx.
 const getCartoKey = () => runtimeEnv('CARTO_KEY', typeof CARTO_KEY !== 'undefined' ? CARTO_KEY : '')
@@ -51,10 +51,11 @@ const getTilesets = () => {
             url: `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png?lang=he&key=${key}`,
             attribution: ATTR_CARTO,
         },
-        osm: {
+        standard: {
             label: 'supply_map_standard',
-            url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            style: `https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json?key=${key}`,
+            url: `https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?lang=he&key=${key}`,
+            attribution: ATTR_CARTO,
         },
         satellite: {
             label: 'supply_map_satellite',
@@ -693,7 +694,7 @@ export default function SupplyAreaMap({
     }
 
     const tilesets = useMemo(getTilesets, [])
-    const tileset = tilesets[tilesetId] || tilesets.osm
+    const tileset = tilesets[tilesetId] || tilesets.light
     const isVector = !!(tileset.style && getCartoKey())
     // Vector label size multiplier (1–1.6) — raster PNGs bake labels in, so
     // the slider only shows for vector basemaps. Persists across sessions.
