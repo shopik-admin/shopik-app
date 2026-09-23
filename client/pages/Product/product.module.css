@@ -97,6 +97,8 @@
     margin: 2px 0;
     line-height: 1.35;
     font-size: clamp(19px, 2.4vw, 26px);
+    text-wrap: balance;
+    overflow-wrap: break-word;
 }
 
 .barcodeRow {
@@ -315,7 +317,7 @@
     width: 100%;
 }
 
-/* ---------- tablet (601–1024px) ---------- */
+/* ---------- tablet (601–1024px): keep 2 columns, use full width ---------- */
 @media (max-width: 1024px) {
     .crumbs {
         display: none;
@@ -326,39 +328,29 @@
     }
 
     .body {
-        grid-template-columns: minmax(0, 1fr);
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
         grid-template-areas:
-            "info"
-            "gallery"
-            "purchase"
-            "specs";
-        gap: 12px;
+            "gallery info"
+            "gallery purchase"
+            "specs specs";
+        gap: 16px 20px;
+    }
+
+    .gallery,
+    .infoMain,
+    .purchase,
+    .specs {
+        width: 100%;
+        max-width: none;
+        margin: 0;
     }
 
     .gallery {
-        width: min(100%, 26rem);
-        margin: 0 auto;
-        align-items: center;
-    }
-
-    .infoMain {
-        width: min(100%, 40rem);
-        margin: 0 auto;
-        text-align: start;
-    }
-
-    .purchase {
-        width: min(100%, 40rem);
-        margin: 0 auto;
+        align-items: stretch;
     }
 
     .purchase>div {
         width: 100%;
-    }
-
-    .specs {
-        width: min(100%, 40rem);
-        margin: 0 auto;
     }
 
     .thumbnails {
@@ -392,27 +384,32 @@
     }
 }
 
-/* ---------- mobile (<=600px) ---------- */
+/* ---------- mobile (<=600px): gallery first, no full-bleed ---------- */
 @media (max-width: 600px) {
     .container {
-        padding: 0 12px 28px;
+        padding: 12px 12px 28px;
         gap: 12px;
     }
 
     .body {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-areas:
+            "gallery"
+            "info"
+            "purchase"
+            "specs";
         gap: 10px;
     }
 
     .gallery {
-        width: calc(100% + 24px);
+        width: 100%;
         max-width: none;
-        margin: 0 -12px;
+        margin: 0;
     }
 
     .mainImageWrapper {
-        border-radius: 0;
-        border-left: none;
-        border-right: none;
+        border-radius: 18px;
+        border: 1px solid var(--border-primary);
     }
 
     .spin360 {
@@ -443,7 +440,7 @@
     }
 
     .relatedCard {
-        flex-basis: 10rem;
+        flex: 0 0 clamp(10.5rem, 44vw, 12rem);
     }
 
     .nutGrid {
