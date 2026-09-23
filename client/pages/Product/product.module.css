@@ -2,11 +2,15 @@
     display: flex;
     flex-direction: column;
     gap: 20px;
-    max-width: var(--max-width);
+    max-width: 1400px;
+    /* var(--max-width); */
     margin: 0 auto;
     width: 100%;
     box-sizing: border-box;
-    padding: 16px 20px 40px;
+
+    :global(.Product_saleBadge) {
+        inset-inline-start: 0 !important;
+    }
 }
 
 .crumbs {
@@ -116,7 +120,7 @@
 }
 
 /* stepper: small pill on desktop like design */
-.purchase > div {
+.purchase>div {
     width: 10rem;
     max-width: 100%;
 }
@@ -249,7 +253,7 @@
     border-inline-end: 1px solid var(--border-primary);
 }
 
-.nutGrid > .nutCell:nth-last-child(-n+2) {
+.nutGrid>.nutCell:nth-last-child(-n+2) {
     border-bottom: none;
 }
 
@@ -307,7 +311,7 @@
     display: flex;
 }
 
-.relatedCard > div {
+.relatedCard>div {
     width: 100%;
 }
 
@@ -348,7 +352,7 @@
         margin: 0 auto;
     }
 
-    .purchase > div {
+    .purchase>div {
         width: 100%;
     }
 
@@ -450,7 +454,7 @@
         border-inline-end: none;
     }
 
-    .nutGrid > .nutCell:last-child {
+    .nutGrid>.nutCell:last-child {
         border-bottom: none;
     }
 }

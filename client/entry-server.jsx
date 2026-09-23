@@ -24,7 +24,7 @@ export async function render({ url, data }) {
     noindex={notFound}
   />)
 
-  const themeEntries = Object.entries(data?.settings?.Theme || {})
+  const themeEntries = Object.entries(data?.settings?.theme || {})
   const lightVars = []
   const darkVars = []
   // Sanitize theme keys/values: keys must be valid CSS custom-property
@@ -45,6 +45,7 @@ export async function render({ url, data }) {
       if (v) lightVars.push(`--${key}:${v};`)
     }
   }
+
   const lightCss = lightVars.join('')
   const darkCss = darkVars.join('')
   head += `<style>:root{${lightCss}}${darkCss ? `:root[data-theme=dark]{${darkCss}}` : ''}</style>`
