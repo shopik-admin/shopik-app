@@ -391,7 +391,7 @@ export default function Product() {
                             }, {})
                             return (
                                 <div key={p.id} className={styles.relatedCard}>
-                                    <ProductCard product={p} sales={psales} />
+                                    <ProductCard product={p} sales={psales} size="m" />
                                 </div>
                             )
                         })}

@@ -7,10 +7,6 @@
     margin: 0 auto;
     width: 100%;
     box-sizing: border-box;
-
-    :global(.Product_saleBadge) {
-        inset-inline-start: 0 !important;
-    }
 }
 
 .crumbs {
@@ -136,6 +132,10 @@
     border: 1px solid var(--border-primary);
     position: relative;
     background: #fff;
+
+    :global(.Product_saleBadge) {
+        inset-inline-start: 0 !important;
+    }
 }
 
 .mainImage {
@@ -289,13 +289,14 @@
     margin-top: 6px;
 }
 
-/* ---------- related ---------- */
+/* ---------- related: isolated so main-product styles never leak in ---------- */
 .related {
     display: flex;
     flex-direction: column;
     gap: 12px;
     margin-top: 24px;
     min-width: 0;
+    isolation: isolate;
 }
 
 .relatedTitle {
