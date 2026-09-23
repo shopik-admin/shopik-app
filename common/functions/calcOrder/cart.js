@@ -8,12 +8,19 @@ export const CART_PRODUCT_STATUS = {
 }
 
 export function buildCartProduct({ product, amount, unitKey, domainId, existingStatus }) {
-    // Strict per-domain pricing: no price entry for the domain means the product
-    // is not sold in that domain at all — never fall back to another domain's price.
+    // Single price source: the server resolves the domain price into a flat
+    // `price` before the product reaches this code (public endpoints via
+    // withDomainPrice, cart items at order build time). The `prices` array
+    // never leaves the server for storefront traffic.
+    // The `domainId` lookup below is a server-side fallback for DB products
+    // that still carry the full array; it is never fed by client input
+    // (the router overwrites client-supplied domainId). No entry for the
+    // domain means the product is not sold there at all — never fall back
+    // to another domain's price.
     const domainPrice = domainId ? product.prices?.find(p => p.domainId === domainId)?.price : undefined
-    if (domainPrice == null)
+    const price = product.price ?? domainPrice
+    if (price == null)
         throw { status: 400, message: 'product not available in this domain' }
-    const price = domainPrice
 
     let option, units
     const unit = product?.unit

@@ -24,8 +24,9 @@ export default function OrderProvider({ children }) {
     const { order: serverOrder } = useAppData()
     const hasServerOrder = !!serverOrder
     const [order, setOrder] = useState(hasServerOrder ? serverOrder : {})
-    const orderRef = useRef(order)
-    useEffect(() => { orderRef.current = order }, [order])
+    // Domain pricing is resolved server-side into a flat `price` — the client
+    // carries no domain logic. The server re-resolves the domain per request
+    // (router middleware), so sync payloads need no domainId either.
     const seqRef = useRef(0)
     const timersRef = useRef(new Map())
     const pendingRef = useRef(new Map())
@@ -44,8 +45,7 @@ export default function OrderProvider({ children }) {
             pendingRef.current.delete(id)
             timersRef.current.delete(id)
             const seq = ++seqRef.current
-            const domainId = orderRef.current?.domainId
-            const task = () => apiReq('order/cart/product', { id: pending.product.id, amount: pending.amount, domainId })
+            const task = () => apiReq('order/cart/product', { id: pending.product.id, amount: pending.amount })
                 .then(({ order: serverOrder, sales }) => {
                     if (sales) setSalesCache(sales)
                     const cur = unconfirmedRef.current.get(pending.product.id)

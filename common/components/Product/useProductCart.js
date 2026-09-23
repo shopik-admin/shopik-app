@@ -36,9 +36,10 @@ export function useProductCart(product, sales = {}) {
                     user
                 })
                 setOrder(optimisticOrder)
-            } catch {
+            } catch (err) {
                 // product not priced in this domain (or other calc error) —
                 // skip optimistic update; the server sync below returns the error
+                console.warn('skip optimistic updateAmount - calc failed', product?.id, err?.message || err)
             }
         } else {
             console.log('skip optimistic - missing sales', missing)
@@ -52,15 +53,19 @@ export function useProductCart(product, sales = {}) {
         const neededIds = [...new Set(remainingCart.flatMap(i => i.saleIds || []))]
         const missing = neededIds.filter(id => !effectiveSales[id])
         if (!missing.length) {
-            const updatedOrder = calcOrder({
-                order,
-                product,
-                amount: 0,
-                sales: effectiveSales,
-                shippingConfig,
-                user
-            })
-            setOrder(updatedOrder)
+            try {
+                const updatedOrder = calcOrder({
+                    order,
+                    product,
+                    amount: 0,
+                    sales: effectiveSales,
+                    shippingConfig,
+                    user
+                })
+                setOrder(updatedOrder)
+            } catch (err) {
+                console.warn('skip optimistic remove - calc failed', product?.id, err?.message || err)
+            }
         } else {
             console.log('skip optimistic remove - missing sales', missing)
         }

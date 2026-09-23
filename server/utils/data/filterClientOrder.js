@@ -27,6 +27,8 @@ export default function filterClientOrder(order) {
         'customerUpdatedAt', 'comment', 'replaceProducts',
         'replaceProductsNoCall', 'leaveOrderAtDoor', 'name', 'phone',
         'secondPhone', 'email', 'paid', 'paidAt'
+        // NOTE: no `domainId` — domain pricing is resolved server-side into a
+        // flat `price`; the storefront carries no domain logic.
     ]
     const filtered = {}
     for (const key of ORDER_CLIENT_FIELDS) {

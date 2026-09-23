@@ -218,6 +218,8 @@ export default function Product() {
     const sections = useMemo(() => buildSections(product || {}), [product])
     const activeSection = sections.find(s => s.key === activeSpecKey) || sections[0]
     const relatedList = (related || []).filter(p => p?.id !== product?.id)
+        ? productImages.map(img => img.sizes.l || img.sizes.xl)
+        : ['', '', '', '', '', '']
 
     if (loading) {
         return <Flex className={styles.container}><Loader /></Flex>
