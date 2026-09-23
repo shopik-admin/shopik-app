@@ -15,8 +15,10 @@ import startHolidaySeed from '#server/cron/holidaySeed.js'
 import log from '#server/utils/log.js'
 import compression from 'compression'
 import setupSecurity from './middleware/security.js'
+import { getHeapStatistics } from 'node:v8'
 
 console.log(`\n⚡ Starting server...\n`)
+console.log(`[Heap] limit ${Math.round(getHeapStatistics().heap_size_limit / 1048576)}MB (raise via NODE_OPTIONS=--max-old-space-size=<MB> in the deploy environment)\n`)
 
 const
     bootData = await boot(),
