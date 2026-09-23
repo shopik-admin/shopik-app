@@ -36,6 +36,9 @@ export default function DevTools() {
     const [windowSyncResult, setWindowSyncResult] = useState(null)
     const [windowSyncError, setWindowSyncError] = useState(null)
     const [windowSyncing, setWindowSyncing] = useState(false)
+    const [holidaySyncResult, setHolidaySyncResult] = useState(null)
+    const [holidaySyncError, setHolidaySyncError] = useState(null)
+    const [holidaySyncing, setHolidaySyncing] = useState(false)
 
     async function handleRefresh() {
         setError(null)
@@ -113,6 +116,19 @@ export default function DevTools() {
             setWindowSyncError(e?.message || 'Window sync failed')
         } finally {
             setWindowSyncing(false)
+        }
+    }
+
+    async function handleHolidaySync() {
+        setHolidaySyncError(null)
+        setHolidaySyncResult(null)
+        setHolidaySyncing(true)
+        try {
+            setHolidaySyncResult(await apiReq('special_day/seed', {}))
+        } catch (e) {
+            setHolidaySyncError(e?.message || 'Holiday sync failed')
+        } finally {
+            setHolidaySyncing(false)
         }
     }
 
@@ -202,6 +218,23 @@ export default function DevTools() {
                     {' — created: '}{windowSyncResult.reduce((a, s) => a + (+s.synced?.created || 0), 0)}
                     {' · updated: '}{windowSyncResult.reduce((a, s) => a + (+s.synced?.updated || 0), 0)}
                     {' · disabled: '}{windowSyncResult.reduce((a, s) => a + (+s.synced?.deleted || 0), 0)}
+                </Text>}
+                <Text>Seed upcoming Jewish holidays (Hebcal) as special-day closures. Same run as the Monday 03:00 cron.</Text>
+                <Flex>
+                    <ConfirmButton
+                        q="Seed holidays? Upcoming chagim / erevs will be added as special-day closures."
+                        okText="Sync"
+                        onOk={handleHolidaySync}
+                        icon="refresh"
+                        loading={holidaySyncing}
+                        disabled={holidaySyncing}
+                    >
+                        Sync holidays
+                    </ConfirmButton>
+                </Flex>
+                {holidaySyncError && <Text style={{ color: 'var(--text-error-primary)' }}>{holidaySyncError}</Text>}
+                {holidaySyncResult && <Text>
+                    seeded: {holidaySyncResult.seeded} of {holidaySyncResult.total} candidates
                 </Text>}
             </Flex>
         </Card>
