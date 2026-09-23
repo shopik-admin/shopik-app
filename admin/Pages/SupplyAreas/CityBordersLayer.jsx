@@ -20,9 +20,7 @@ import styles from './supplyAreas.module.css'
 // no redeploy — the map reads the URL from the cityBordersUrl setting).
 // City-borders GeoJSON lives on the files CDN; only its path is stored, in the
 // `cityBordersUrl` setting (published from DevTools, no redeploy). Resolved
-// once per session. Falls back to the bundled legacy file so the map keeps
-// working until the first publish — that file is NOT part of the repo.
-const BUNDLED_URL = '/city-borders.v2.geojson'
+// once per session.
 // Permanent name labels only when zoomed in enough to stay readable.
 const LABEL_MIN_ZOOM = 11
 // Manual nudge (meters, [east, north]) applied to the whole layer at load.
@@ -58,7 +56,7 @@ let bordersPromise = null
 function loadBorders() {
     if (!bordersPromise) {
         bordersPromise = loadBordersUrl()
-            .then(url => fetch(url || BUNDLED_URL))
+            .then(url => fetch(url))
             .then(r => {
                 if (!r.ok) throw new Error(`city borders HTTP ${r.status}`)
                 return r.json()
