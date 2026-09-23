@@ -36,12 +36,21 @@ function getBucket() {
 
 const storage = {
     getBucket,
-    async uploadFile({ path, data, contentType, cacheControl }) {
+    async uploadFile({ path, data, contentType, cacheControl, public: makePublic = false }) {
         const file = getBucket().file(path)
         await file.save(data, {
             contentType,
             metadata: cacheControl ? { cacheControl } : undefined
         })
+        // Buckets don't grant public read by default — files meant to be
+        // served (images, geojson) must opt in explicitly per object.
+        if (makePublic) {
+            try {
+                await file.makePublic()
+            } catch (e) {
+                throw Object.assign(new Error('MAKE_PUBLIC_FAILED'), { cause: e })
+            }
+        }
         return path
     }
 }

@@ -67,6 +67,24 @@
     line-height: 1 !important;
 }
 
+/* Header switch next to the New Area button. The shared Checkbox positions
+   its knob absolutely over the label box, so the text carries its own
+   clearance via margin (padding on the label can't win against the shared
+   `padding: 0 !important`). Centered against the 36px header buttons. */
+.headerSwitch {
+    align-self: center !important;
+    flex-shrink: 0;
+    height: auto !important;
+    min-height: 30px;
+    font-size: .875rem !important;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.headerSwitchLabel {
+    margin-inline-end: 58px;
+}
+
 .title {
     margin: 0;
     color: var(--text-primary);
@@ -443,11 +461,34 @@
     color: var(--bg-brand-primary);
 }
 
+/* Eye toggle inside the label-size row — same visual language as the size icon */
+.labelScaleToggle {
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: .15rem;
+    border: none;
+    background: transparent;
+    color: var(--bg-brand-primary);
+    font-size: 1.5rem;
+    cursor: pointer;
+}
+
+.labelScaleToggleOff {
+    color: var(--text-secondary);
+}
+
 .labelScaleSlider {
     flex: 1;
     min-width: 0;
     accent-color: var(--bg-brand-primary);
     cursor: pointer;
+}
+
+.labelScaleSlider:disabled {
+    opacity: .35;
+    cursor: default;
 }
 
 .tileBtn {
@@ -469,6 +510,101 @@
 .tileBtnActive:hover {
     background: var(--bg-brand-primary);
     color: var(--text-primary-on-brand);
+}
+
+/* City-borders name labels: beat Leaflet's .leaflet-tooltip (0,1,0) with (0,2,0).
+   Non-interactive (tooltip pane ignores pointer events) — visual reference only. */
+:global(.leaflet-tooltip).cityLabel {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+    font-size: .85rem;
+    font-weight: var(--font-weight-medium);
+    color: var(--text-secondary);
+    text-shadow:
+        0 0 3px var(--bg-primary),
+        0 0 3px var(--bg-primary),
+        0 0 6px var(--bg-primary);
+}
+
+/* Dark basemap (dark tiles / satellite): light text + dark halo.
+   The base rule follows the admin UI theme, which mismatches when the
+   basemap is dark while the UI is light — hence the white "glow". */
+:global(.leaflet-tooltip).cityLabelDark {
+    color: #f1f5f9;
+    text-shadow:
+        0 0 3px rgba(0, 0, 0, .9),
+        0 0 3px rgba(0, 0, 0, .9),
+        0 0 6px rgba(0, 0, 0, .9);
+}
+
+:global(.leaflet-tooltip).cityLabel::before {
+    display: none;
+}
+
+/* City-border click popup: name + "create polygon" button (built imperatively).
+   Button mirrors the shared Button component (pill, brand bg, 16px icon). */
+.cityPopup {
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+    min-width: 180px;
+    direction: rtl;
+}
+
+.cityPopupTitle {
+    font-size: .85rem;
+    font-weight: var(--font-weight-bold);
+    color: var(--text-primary);
+    text-align: right;
+}
+
+.cityPopupHead {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: .5rem;
+}
+
+.cityPopupVerts {
+    font-size: .75rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+/* Tighter popup: less side padding so the button stretches closer to the edges */
+.cityPopupWrap :global(.leaflet-popup-content) {
+    margin: 24px 12px 12px 12px;
+}
+
+.cityPopupBtn {
+    border: none;
+    cursor: pointer;
+    font-size: var(--text-sm);
+    font-weight: 600;
+    padding: 10px 14px;
+    border-radius: var(--radius-3xl);
+    background-color: var(--bg-brand-primary);
+    border: 2px solid var(--Gradient-skeuemorphic-gradient-border, #ffffff1f);
+    user-select: none;
+    color: var(--text-white);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+}
+
+.cityPopupBtn svg {
+    width: 16px;
+    height: 16px;
+    flex: none;
+}
+
+.cityPopupBtn:disabled {
+    opacity: .45;
+    cursor: default;
 }
 
 .groupCard {

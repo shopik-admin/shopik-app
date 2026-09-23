@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { TbTextSize } from 'react-icons/tb'
+import { TbTextSize, TbEye, TbEyeOff } from 'react-icons/tb'
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -11,11 +11,13 @@ import ConfirmButton from 'common/components/ConfirmButton'
 import Flex from 'common/components/Flex'
 import StoreListEditor from './StoreListEditor'
 import VectorBasemap from './VectorBasemap'
+import CityBordersLayer from './CityBordersLayer'
 import styles from './supplyAreas.module.css'
 
 const SNAP_THRESHOLD_PX = 20
 const TILESET_STORAGE_KEY = 'supplyMapTileset'
 const LABEL_SCALE_STORAGE_KEY = 'supplyMapLabelScale'
+const LABELS_VISIBLE_STORAGE_KEY = 'supplyMapLabelsVisible'
 const LABEL_SCALE_MIN = 1
 const LABEL_SCALE_MAX = 1.6
 const clampLabelScale = (v) => {
@@ -27,8 +29,8 @@ const snapKeyFor = (lat, lng) => `${Math.floor(lat * 100)}_${Math.floor(lng * 10
 
 import { runtimeEnv } from 'common/functions/runtimeEnv.js'
 
-// CARTO light/dark render as vector (MapLibre GL style) with raster PNG fallback
-// when no API key is configured. OSM + satellite stay raster-only.
+// CARTO light/dark/standard render as vector (MapLibre GL style) with raster PNG fallback
+// when no API key is configured. Satellite stays raster-only.
 // Key resolves lazily (SSR window.__ENV__ first, baked build-time fallback)
 // so it works regardless of module-eval order vs index.jsx.
 const getCartoKey = () => runtimeEnv('CARTO_KEY', typeof CARTO_KEY !== 'undefined' ? CARTO_KEY : '')
@@ -49,10 +51,11 @@ const getTilesets = () => {
             url: `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png?lang=he&key=${key}`,
             attribution: ATTR_CARTO,
         },
-        osm: {
+        standard: {
             label: 'supply_map_standard',
-            url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            style: `https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json?key=${key}`,
+            url: `https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?lang=he&key=${key}`,
+            attribution: ATTR_CARTO,
         },
         satellite: {
             label: 'supply_map_satellite',
@@ -173,6 +176,7 @@ function MapController({
     areas,
     selectedId,
     geometryEditingId,
+    cuttingId,
     servedAreaIds,
     groupAreaIds,
     draftAreaIds,
@@ -181,6 +185,7 @@ function MapController({
     onSelect,
     onToggleArea,
     onCreated,
+    onCutCommit,
     onEdited,
     onGeometryCancel,
     onBackgroundClick,
@@ -197,8 +202,8 @@ function MapController({
     const editLayerRef = useRef(null)
     const editOriginalRef = useRef(null)
     const editControlRef = useRef(null)
-    const cbRef = useRef({ onSelect, onToggleArea, onCreated, onEdited, onGeometryCancel, onBackgroundClick, onViewportChange, selectedId, geometryEditingId, drawing, toggleMode })
-    cbRef.current = { onSelect, onToggleArea, onCreated, onEdited, onGeometryCancel, onBackgroundClick, onViewportChange, selectedId, geometryEditingId, drawing, toggleMode }
+    const cbRef = useRef({ onSelect, onToggleArea, onCreated, onCutCommit, onEdited, onGeometryCancel, onBackgroundClick, onViewportChange, selectedId, geometryEditingId, cuttingId, drawing, toggleMode })
+    cbRef.current = { onSelect, onToggleArea, onCreated, onCutCommit, onEdited, onGeometryCancel, onBackgroundClick, onViewportChange, selectedId, geometryEditingId, cuttingId, drawing, toggleMode }
 
     const removeEditControl = useCallback(() => {
         if (editControlRef.current) {
@@ -271,7 +276,7 @@ function MapController({
     // Guard against polygon clicks bubbling to map (they fire layer 'click' then map 'click')
     useEffect(() => {
         function onBgClick(e) {
-            if (cbRef.current.drawing || cbRef.current.toggleMode || cbRef.current.geometryEditingId) return
+            if (cbRef.current.drawing || cbRef.current.toggleMode || cbRef.current.geometryEditingId || cbRef.current.cuttingId) return
             // Ignore clicks that originated on a polygon/path - handled by layer handler
             const target = e.originalEvent?.target
             if (target?.closest?.('.leaflet-interactive')) return
@@ -306,6 +311,7 @@ function MapController({
                 }
                 if (cbRef.current.drawing) return
                 if (cbRef.current.geometryEditingId) return
+                if (cbRef.current.cuttingId) return
                 const isSelected = cbRef.current.selectedId === area.id
                 cbRef.current.onSelect?.(isSelected ? null : area.id)
             })
@@ -558,6 +564,45 @@ function MapController({
         }
     }, [map, drawReady, drawing, stopEdit, findSnapLatLng])
 
+    // "Cut area" mode: polyline draw session for the area being split.
+    // Double-click / Enter finishes and commits the cut line to the parent.
+    useEffect(() => {
+        if (!drawReady) return
+        if (!cuttingId) return
+
+        const handler = new L.Draw.Polyline(map, {
+            shapeOptions: { color: '#dc2626', weight: 3 }
+        })
+        handler.enable()
+        stopEdit()
+
+        function onCutCreated(e) {
+            const layer = e.layer
+            // L.Polygon extends L.Polyline — only accept a true open polyline
+            if (!(layer instanceof L.Polyline) || layer instanceof L.Polygon) return
+            if (drawHandlerRef.current) {
+                drawHandlerRef.current.disable()
+                drawHandlerRef.current = null
+            }
+            const id = cbRef.current.cuttingId
+            map.removeLayer(layer)
+            if (id) cbRef.current.onCutCommit?.(id, layer.toGeoJSON().geometry)
+        }
+        function onCutStop() {
+            drawHandlerRef.current = null
+        }
+        drawHandlerRef.current = handler
+        map.on(L.Draw.Event.CREATED, onCutCreated)
+        map.on(L.Draw.Event.DRAWSTOP, onCutStop)
+
+        return () => {
+            map.off(L.Draw.Event.CREATED, onCutCreated)
+            map.off(L.Draw.Event.DRAWSTOP, onCutStop)
+            handler.disable()
+            if (drawHandlerRef.current === handler) drawHandlerRef.current = null
+        }
+    }, [map, drawReady, cuttingId, stopEdit])
+
     return null
 }
 
@@ -603,16 +648,16 @@ function AreaEditForm({ areaDraft, setAreaDraft, stores, savingArea, onCancel, o
 export default function SupplyAreaMap({
     areas = [], stores = [], activeStoreIds = [], servedAreaIds = [], groupAreaIds = [], draftAreaIds = [],
     focusPoint, focusGroupPoint, testPoint, testLabel,
-    selectedId, geometryEditingId, areaDraft, setAreaDraft, savingArea,
-    onSelect, onStartAreaPropsEdit, onSaveAreaProps, onCancelAreaPropsEdit, onDeleteArea, onStartGeometryEdit,
-    onViewportChange,
-    toggleMode, drawing, onToggleArea, onCreated, onEdited, onGeometryCancel, onBackgroundClick,
+    selectedId, geometryEditingId, cuttingId, areaDraft, setAreaDraft, savingArea,
+    onSelect, onStartAreaPropsEdit, onSaveAreaProps, onCancelAreaPropsEdit, onDeleteArea, onStartGeometryEdit, onStartCut,
+    onViewportChange, onCreateArea, cityBorders, onToggleCityBorders,
+    toggleMode, drawing, onToggleArea, onCreated, onCutCommit, onEdited, onGeometryCancel, onBackgroundClick,
 }) {
     const { TR } = useText()
 
     const selectedArea = useMemo(() => areas.find(a => a.id === selectedId) || null, [areas, selectedId])
     const popupPosition = useMemo(() => {
-        if (!selectedArea?.location?.coordinates?.length || geometryEditingId) return null
+        if (!selectedArea?.location?.coordinates?.length || geometryEditingId || cuttingId) return null
         let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity, count = 0
         selectedArea.location.coordinates.forEach(ring => ring.forEach(([lng, lat]) => {
             if (lat < minLat) minLat = lat
@@ -623,7 +668,7 @@ export default function SupplyAreaMap({
         }))
         if (!count) return null
         return [(minLat + maxLat) / 2, (minLng + maxLng) / 2]
-    }, [selectedArea, geometryEditingId])
+    }, [selectedArea, geometryEditingId, cuttingId])
     const isAreaEditing = !!areaDraft && areaDraft.id === selectedId
     // Tileset: explicit user pick persists; otherwise follows the admin dark/light theme
     const [tilesetId, setTilesetId] = useState(() => {
@@ -649,8 +694,11 @@ export default function SupplyAreaMap({
     }
 
     const tilesets = useMemo(getTilesets, [])
-    const tileset = tilesets[tilesetId] || tilesets.osm
+    const tileset = tilesets[tilesetId] || tilesets.light
     const isVector = !!(tileset.style && getCartoKey())
+    // City-border labels follow the basemap, not the admin UI theme —
+    // otherwise light-theme text + white halo glows on a dark basemap.
+    const isDarkBasemap = tilesetId === 'dark' || tilesetId === 'satellite'
     // Vector label size multiplier (1–1.6) — raster PNGs bake labels in, so
     // the slider only shows for vector basemaps. Persists across sessions.
     const [labelScale, setLabelScale] = useState(() => clampLabelScale(localStorage.getItem(LABEL_SCALE_STORAGE_KEY)))
@@ -658,6 +706,13 @@ export default function SupplyAreaMap({
         const next = clampLabelScale(v)
         localStorage.setItem(LABEL_SCALE_STORAGE_KEY, String(next))
         setLabelScale(next)
+    }
+    // Basemap (vector) label visibility — same persistence pattern as label scale
+    const [labelsVisible, setLabelsVisible] = useState(() => localStorage.getItem(LABELS_VISIBLE_STORAGE_KEY) !== '0')
+    const toggleLabelsVisible = () => {
+        const next = !labelsVisible
+        localStorage.setItem(LABELS_VISIBLE_STORAGE_KEY, next ? '1' : '0')
+        setLabelsVisible(next)
     }
 
     const storePins = useMemo(() => stores.filter(s => {
@@ -685,6 +740,7 @@ export default function SupplyAreaMap({
                         key={tilesetId}
                         styleUrl={tileset.style}
                         labelScale={labelScale}
+                        labelsVisible={labelsVisible}
                     />
                 ) : (
                     <TileLayer
@@ -693,6 +749,15 @@ export default function SupplyAreaMap({
                         attribution={tileset.attribution}
                     />
                 )}
+                <CityBordersLayer
+                    visible={cityBorders}
+                    drawing={drawing}
+                    toggleMode={toggleMode}
+                    geometryEditingId={geometryEditingId}
+                    cuttingId={cuttingId}
+                    darkBasemap={isDarkBasemap}
+                    onCreateArea={onCreateArea}
+                />
                 <MapController
                     areas={areas}
                     servedAreaIds={servedAreaIds}
@@ -700,11 +765,13 @@ export default function SupplyAreaMap({
                     draftAreaIds={draftAreaIds}
                     selectedId={selectedId}
                     geometryEditingId={geometryEditingId}
+                    cuttingId={cuttingId}
                     toggleMode={toggleMode}
                     drawing={drawing}
                     onSelect={onSelect}
                     onToggleArea={onToggleArea}
                     onCreated={onCreated}
+                    onCutCommit={onCutCommit}
                     onEdited={onEdited}
                     onGeometryCancel={onGeometryCancel}
                     onBackgroundClick={onBackgroundClick}
@@ -749,6 +816,7 @@ export default function SupplyAreaMap({
                                     </div>
                                     <Flex gap={8} justifyContent="end" style={{ marginTop: 8 }}>
                                         <Button size="s" mode="outline" onClick={() => onSelect?.(null)}>cancel</Button>
+                                        <Button size="s" icon="cut" onClick={() => onStartCut?.(selectedArea.id)}>supply_cut_area</Button>
                                         <Button size="s" icon="edit" onClick={onStartGeometryEdit}>supply_edit_shape</Button>
                                     </Flex>
                                 </>
@@ -809,9 +877,24 @@ export default function SupplyAreaMap({
                             <Text size="none">{ts.label}</Text>
                         </button>
                     ))}
+                    <button
+                        type="button"
+                        title={TR('supply_city_borders')}
+                        className={cityBorders ? `${styles.tileBtn} ${styles.tileBtnActive}` : styles.tileBtn}
+                        onClick={() => onToggleCityBorders()}
+                    >
+                        <Text size="none">supply_city_borders</Text>
+                    </button>
                 </div>
                 {isVector && (
                     <div className={styles.labelScaleRow}>
+                        <button
+                            type="button"
+                            onClick={toggleLabelsVisible}
+                            className={labelsVisible ? styles.labelScaleToggle : `${styles.labelScaleToggle} ${styles.labelScaleToggleOff}`}
+                        >
+                            {labelsVisible ? <TbEye /> : <TbEyeOff />}
+                        </button>
                         <TbTextSize className={styles.labelScaleIcon} />
                         <input
                             type="range"
@@ -821,6 +904,7 @@ export default function SupplyAreaMap({
                             value={labelScale}
                             title={labelScale.toFixed(2)}
                             onChange={e => changeLabelScale(e.target.value)}
+                            disabled={!labelsVisible}
                             className={styles.labelScaleSlider}
                         />
                     </div>
