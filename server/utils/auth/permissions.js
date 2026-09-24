@@ -28,6 +28,7 @@ export default [
     'store:update',
     'store:read',
     'store:id',
+    'store:all',
     'order:create',
     'order:update',
     'order:read',

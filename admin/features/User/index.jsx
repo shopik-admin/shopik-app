@@ -12,8 +12,15 @@ export default function User({ children, sdUser }) {
         location.reload()
     }
 
+    async function setCurrentStore(storeId) {
+        const res = await apiReq('admin/current_store', { storeId })
+        const currentStoreId = res?.currentStoreId || storeId
+        setUser(prev => ({ ...prev, currentStoreId }))
+        return currentStoreId
+    }
+
     return user.id ?
-        <UserContext.Provider value={{ ...user, logout }} >
+        <UserContext.Provider value={{ ...user, logout, setCurrentStore }} >
             {children}
         </UserContext.Provider> : null
 

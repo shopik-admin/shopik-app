@@ -23,6 +23,7 @@ export default function DataForm({ apiRoute, form = [], defaults, onDone }) {
         {form.map(item => <Input
             key={item.name}
             {...item}
+            defaults={defaults}
             defaultValue={getDefaultValue(item.name, defaults)}
         />)}
     </Form>

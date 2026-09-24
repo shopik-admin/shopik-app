@@ -13,6 +13,10 @@ export default async function getAdminData(req, bootData) {
         env: {
             CARTO_KEY: process.env.CARTO_KEY || '',
             FILES_BASE_URL: process.env.FILES_BASE_URL || 'https://files.shopik.co.il',
+            OPS_PROXIMITY_RADIUS_M: process.env.OPS_PROXIMITY_RADIUS_M || '',
+            OPS_STORE_AUTO_SELECT_M: process.env.OPS_STORE_AUTO_SELECT_M || '',
+            OPS_LOCATION_THROTTLE_MS: process.env.OPS_LOCATION_THROTTLE_MS || '',
+            OPS_LOCATION_MIN_MOVE_M: process.env.OPS_LOCATION_MIN_MOVE_M || '',
         },
     }
 }

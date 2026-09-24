@@ -15,17 +15,16 @@ export default async function buildOpsFilter({ DL, _admin, extraFilter = {}, sta
 
     const filter = { active: true, status: statusFilter }
 
-    if (canRead) {
-        if (admin?.currentStoreId) {
-            filter.storeId = admin.currentStoreId
-        } else if (!isSuper && admin?.storeIds?.length) {
-            filter.storeId = { $in: admin.storeIds }
-        }
+    // Ops shows the current store only — never a client-picked one, never a
+    // multi-store fallback. No current store → empty queue (StoreGate forces
+    // selection before any orders load). Applies to every role, super included.
+    if (admin?.currentStoreId) {
+        filter.storeId = admin.currentStoreId
     } else {
-        // picker/shipper only — must have a currentStoreId to scope
-        if (admin?.currentStoreId) filter.storeId = admin.currentStoreId
-        else if (!isSuper && admin?.storeIds?.length === 1) filter.storeId = admin.storeIds[0]
-        else if (!isSuper && admin?.storeIds?.length) filter.storeId = { $in: admin.storeIds }
+        filter.storeId = { $in: [] }
+    }
+
+    if (!canRead) {
         // Non-read roles are limited to today + tomorrow windows
         const start = new Date()
         start.setHours(0, 0, 0, 0)
@@ -53,8 +52,10 @@ export default async function buildOpsFilter({ DL, _admin, extraFilter = {}, sta
         permissionOr = or.length ? { $or: or } : null
     }
 
-    // Spread extraFilter (e.g. per-tab filters), keep $or injection safe via $and
-    const finalFilter = { ...filter, ...extraFilter }
+    // Spread extraFilter (e.g. per-tab filters), keep $or injection safe via $and.
+    // A client-passed storeId is dropped — the current store above always wins.
+    const { storeId: _clientStoreId, ...safeExtra } = extraFilter
+    const finalFilter = { ...filter, ...safeExtra }
     let final
     if (permissionOr) {
         if (finalFilter.$or) final = { $and: [finalFilter, permissionOr] }
