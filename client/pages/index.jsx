@@ -9,67 +9,68 @@ import Search from './Search'
 import Terms from './Terms'
 import Privacy from './Privacy'
 import NotFound from './NotFound'
+import TR from '#common/texts/TR.js'
 
 export default [
     {
         path: '/',
         element: Home,
-        title: 'דף הבית',
-        description: 'ברוכים הבאים'
+        title: TR('page_home_title'),
+        description: TR('page_home_desc')
     },
     {
         path: '/products/*',
         element: Products,
-        title: 'מוצרים',
-        description: 'קטלוג מוצרים'
+        title: TR('products'),
+        description: TR('page_products_desc')
     },
     {
         path: '/sales',
         element: Sales,
-        title: 'מבצעים',
-        description: 'מוצרים במבצע'
+        title: TR('sales'),
+        description: TR('page_sales_desc')
     },
     {
         path: '/search',
         element: Search,
-        title: 'חיפוש',
-        description: 'חיפוש מוצרים'
+        title: TR('search'),
+        description: TR('page_search_desc')
     },
     {
         path: '/account/*',
         element: Account,
-        title: 'אזור אישי',
-        description: 'ניהול החשבון שלי'
+        title: TR('page_account_title'),
+        description: TR('page_account_desc')
     },
     {
         path: 'product/:productId',
         element: Product,
-        title: 'מוצר',
-        description: 'דף מוצר'
+        title: TR('product'),
+        description: TR('page_product_desc')
     },
     {
         path: 'carousel/:carouselId',
         element: Carousel,
-        title: 'קטלוג',
-        description: 'מוצרים'
+        title: TR('page_catalog_title'),
+        description: TR('products')
     },
     {
         path: 'checkout',
         element: Checkout,
-        title: 'קופה',
-        description: 'מעבר לתשלום'
+        title: TR('page_checkout_title'),
+        description: TR('page_checkout_desc')
     },
     {
         path: 'terms',
         element: Terms,
-        title: 'תקנון אתר',
-        description: 'תקנון ותנאי שימוש באתר'
+        title: TR('info_terms'),
+        description: TR('page_terms_desc')
     },
     {
         path: 'privacy',
         element: Privacy,
-        title: 'מדיניות פרטיות',
-        description: 'מדיניות פרטיות ואבטחת מידע'
+        title: TR('info_privacy'),
+        description: TR('page_privacy_desc')
     },
     {
         path: '*',

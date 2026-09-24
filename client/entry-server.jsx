@@ -1,6 +1,7 @@
 import { StaticRouter, matchPath } from 'react-router'
 import { renderToString } from 'react-dom/server'
 import Head from 'layout/Head'
+import TR from '#common/texts/TR.js'
 import pages from './pages'
 import App from './App'
 
@@ -19,7 +20,7 @@ export async function render({ url, data }) {
   )
 
   let head = renderToString(<Head
-    title={`Shopik | ${notFound ? 'עמוד לא נמצא' : data.initData?.title || page?.title || ''}`}
+    title={`Shopik | ${notFound ? TR('page_not_found') : data.initData?.title || page?.title || ''}`}
     description={notFound ? '' : data.initData?.description || page?.description || ''}
     noindex={notFound}
   />)

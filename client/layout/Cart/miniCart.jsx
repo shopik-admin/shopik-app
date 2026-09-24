@@ -66,7 +66,7 @@ export default function MiniCart({
     const subtext = isCartEmpty
         ? (TR?.('cart_empty_subtext')) :
         remaining ?
-            (TR?.('free_shipping_subtext')).replace('{remaining}', remaining) : TR?.('free_shipping') || 'free_shipping'
+            (TR?.('free_shipping_subtext')).replace('{remaining}', remaining) : TR?.('free_shipping')
 
     // Shared Cart Icon with Badge element
     const cartIconElement = (
@@ -83,7 +83,7 @@ export default function MiniCart({
         <Button
             className={classNames(styles.miniCartButton, className)}
             onClick={handleToggle}
-            aria-label="mini cart"
+            aria-label={TR?.('aria_mini_cart')}
         >
             {/* Cart Icon + Badge */}
             <div className={styles.cartIconSlot}>

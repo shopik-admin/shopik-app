@@ -12,11 +12,13 @@ import classNames from 'common/functions/classNames'
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router'
 import { useAppData } from 'App'
+import { useText } from 'common/texts/TextProvider'
 
 export default function Header() {
     const [drawerOpen, setDrawerOpen] = useState(false)
     const navigate = useNavigate()
     const { settings } = useAppData()
+    const { TR } = useText?.() || {}
     useEffect(() => {
         if (!drawerOpen) return
         const onKey = (e) => { if (e.key === 'Escape') setDrawerOpen(false) }
@@ -32,11 +34,11 @@ export default function Header() {
 
     const infoMenuOptions = [
         {
-            text: 'תקנון אתר',
+            text: 'info_terms',
             onClick: () => navigate('/terms')
         },
         {
-            text: 'מדיניות פרטיות',
+            text: 'info_privacy',
             onClick: () => navigate('/privacy')
         }
     ]
@@ -45,7 +47,7 @@ export default function Header() {
         <header className={styles.header}>
             <Button
                 icon="menu"
-                aria-label="menu"
+                aria-label={TR?.('aria_menu')}
                 aria-expanded={drawerOpen}
                 className={styles.menuBtn}
                 onClick={() => setDrawerOpen(v => !v)}
@@ -69,7 +71,7 @@ export default function Header() {
                     icon="whatsapp"
                     className={styles.actionBtn}
                     onClick={handleWhatsAppClick}
-                    aria-label="whatsapp"
+                    aria-label={TR?.('aria_whatsapp')}
                     //tooltip="WhatsApp"
                     mode='text'
                 />
@@ -81,7 +83,7 @@ export default function Header() {
                             mode='text'
                             icon="info"
                             className={styles.actionBtn}
-                            aria-label="מידע"
+                            aria-label={TR?.('aria_info')}
                         //tooltip="מידע ותנאים"
                         />
                     }
@@ -100,7 +102,7 @@ export default function Header() {
             {drawerOpen && (
                 <button
                     type="button"
-                    aria-label="close menu"
+                    aria-label={TR?.('aria_close_menu')}
                     className={styles.backdrop}
                     onClick={() => setDrawerOpen(false)}
                 />

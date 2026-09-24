@@ -134,7 +134,7 @@ export default function Checkout() {
     async function handlePayment() {
         if (paying) return
         if (isBelowMinSum) {
-            const label = TR?.('minimum_order_sum') || 'minimum order sum:'
+            const label = TR?.('minimum_order_sum')
             setPayError({ message: `${label} ${minSumThreshold}` })
             return
         }
@@ -195,7 +195,7 @@ export default function Checkout() {
                             <iframe
                                 ref={iframeRef}
                                 src={paymentUrl}
-                                title='payment'
+                                title={TR?.('aria_payment')}
                                 className={styles.paymentFrame}
                                 allow='payment'
                                 onLoad={handleIframeLoad}

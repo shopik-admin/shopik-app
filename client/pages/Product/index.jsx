@@ -17,6 +17,7 @@ import styles from './product.module.css'
 import Breadcrumbs from 'components/Breadcrumbs'
 import NotFound from 'pages/NotFound'
 import { usePage } from 'layout/Page'
+import TR from '#common/texts/TR.js'
 import { ProductButton } from 'pages/Products/ProductCard'
 import ProductCard from 'pages/Products/ProductCard'
 import {
@@ -27,17 +28,17 @@ import {
 } from 'common/components/Product'
 
 const PASSOVER_TEXT = {
-    kosher: 'כשר לפסח',
-    'not-kosher': 'לא כשר לפסח',
-    special: 'כשר לפסח מהדרין',
+    kosher: 'passover_kosher',
+    'not-kosher': 'passover_not_kosher',
+    special: 'passover_mehadrin',
     'not-relevant': ''
 }
 
 const STORAGE_TEXT = {
-    regular: 'אחסון רגיל',
-    cold: 'לקירור',
-    freeze: 'להקפאה',
-    extra: 'אחסון מיוחד'
+    regular: 'storage_regular',
+    cold: 'storage_cold',
+    freeze: 'storage_freeze',
+    extra: 'storage_extra'
 }
 
 function gs1Text(value) {
@@ -103,46 +104,46 @@ function buildSections(product) {
     const sections = []
 
     const kashrutLines = []
-    if (product?.kashrut) kashrutLines.push({ label: 'כשרות', value: product.kashrut })
+    if (product?.kashrut) kashrutLines.push({ label: 'product_kashrut', value: product.kashrut })
     const pass = PASSOVER_TEXT[product?.passoverKashrut]
-    if (pass) kashrutLines.push({ label: 'כשרות פסח', value: pass })
+    if (pass) kashrutLines.push({ label: 'product_passover_kashrut', value: pass })
     if (kashrutLines.length) {
-        sections.push({ key: 'kashrut', title: 'כשרות', icon: 'check', lines: kashrutLines })
+        sections.push({ key: 'kashrut', title: 'product_kashrut', icon: 'check', lines: kashrutLines })
     }
 
     const productLines = []
     const origin = gs1Text(gs1.origin)
-    if (origin) productLines.push({ label: 'ארץ ייצור', value: origin })
-    if (product?.producer) productLines.push({ label: 'יצרן', value: product.producer })
+    if (origin) productLines.push({ label: 'product_origin', value: origin })
+    if (product?.producer) productLines.push({ label: 'producer', value: product.producer })
     const importer = gs1Text(gs1?.ids?.manufacturer?.name)
-    if (importer && importer !== product?.producer) productLines.push({ label: 'יבואן', value: importer })
-    if (product?.label) productLines.push({ label: 'מותג', value: product.label })
+    if (importer && importer !== product?.producer) productLines.push({ label: 'product_importer', value: importer })
+    if (product?.label) productLines.push({ label: 'label', value: product.label })
     const net = gs1Text(gs1.netContent?.text || gs1.netContent)
-    if (net) productLines.push({ label: 'תכולה', value: net })
+    if (net) productLines.push({ label: 'product_content', value: net })
     const storageInstr = gs1Text(gs1?.serving?.storage)
-    if (storageInstr) productLines.push({ label: 'הוראות אחסון', value: storageInstr })
-    else if (product?.storageType) productLines.push({ label: 'אחסון', value: STORAGE_TEXT[product.storageType] || product.storageType })
-    if (product?.shelflife) productLines.push({ label: 'חיי מדף', value: `${product.shelflife} ימים` })
-    else if (gs1Text(gs1.shelfLife)) productLines.push({ label: 'חיי מדף', value: gs1Text(gs1.shelfLife) })
+    if (storageInstr) productLines.push({ label: 'product_storage_instr', value: storageInstr })
+    else if (product?.storageType) productLines.push({ label: 'product_storage', value: STORAGE_TEXT[product.storageType] || product.storageType })
+    if (product?.shelflife) productLines.push({ label: 'product_shelf_life', value: `${product.shelflife} ${TR('days_suffix')}` })
+    else if (gs1Text(gs1.shelfLife)) productLines.push({ label: 'product_shelf_life', value: gs1Text(gs1.shelfLife) })
     if (productLines.length) {
-        sections.push({ key: 'details', title: 'נתוני מוצר', icon: 'info', lines: productLines })
+        sections.push({ key: 'details', title: 'product_details', icon: 'info', lines: productLines })
     }
 
     if (product?.regulatoryInfo) {
-        sections.push({ key: 'ingredients', title: 'רכיבים', icon: 'clipboardList', body: product.regulatoryInfo })
+        sections.push({ key: 'ingredients', title: 'product_ingredients', icon: 'clipboardList', body: product.regulatoryInfo })
     }
 
     const nutrientFlags = []
-    if (product?.nutrients?.sugar) nutrientFlags.push('סוכר בכמות גבוהה')
-    if (product?.nutrients?.sodium) nutrientFlags.push('נתרן בכמות גבוהה')
-    if (product?.nutrients?.fat) nutrientFlags.push('שומן רווי בכמות גבוהה')
-    if (product?.nutrients?.alcohol) nutrientFlags.push('מכיל אלכוהול')
+    if (product?.nutrients?.sugar) nutrientFlags.push('nutrient_high_sugar')
+    if (product?.nutrients?.sodium) nutrientFlags.push('nutrient_high_sodium')
+    if (product?.nutrients?.fat) nutrientFlags.push('nutrient_high_fat')
+    if (product?.nutrients?.alcohol) nutrientFlags.push('nutrient_alcohol')
     const pairs = nutritionPairs(gs1?.nutrition)
     const servingText = gs1Text(gs1?.serving?.suggestion || gs1?.serving?.size)
     if (nutrientFlags.length || pairs.length || servingText) {
         sections.push({
             key: 'nutrition',
-            title: 'ערכים תזונתיים',
+            title: 'nutrition_values',
             icon: 'calculator',
             flags: nutrientFlags,
             pairs,
@@ -153,7 +154,7 @@ function buildSections(product) {
     const marketing = gs1Text(gs1?.marketing?.messages)
     const desc = [product?.description, marketing].filter(Boolean).join('\n\n')
     if (desc) {
-        sections.push({ key: 'desc', title: 'תיאור המוצר', icon: 'note', body: desc })
+        sections.push({ key: 'desc', title: 'product_description', icon: 'note', body: desc })
     }
 
     return sections
@@ -172,7 +173,7 @@ function SectionBody({ section }) {
             {section.flags?.length > 0 && (
                 <Flex gap={6} wrap className={styles.flagWrap}>
                     {section.flags.map(f => (
-                        <Badge key={f} className={styles.flag}>{f}</Badge>
+                        <Badge key={f} className={styles.flag}><Text size="s">{f}</Text></Badge>
                     ))}
                 </Flex>
             )}
@@ -225,7 +226,7 @@ export default function Product() {
 
     if (!product) {
         if (pageData?.notFound) return <NotFound />
-        return <Flex className={styles.container}><Text>מוצר לא נמצא</Text></Flex>
+        return <Flex className={styles.container}><Text>product_not_found</Text></Flex>
     }
 
     return (
@@ -241,7 +242,7 @@ export default function Product() {
                         <Button
                             mode="text"
                             icon="heart"
-                            aria-label="wishlist"
+                            aria-label={TR('aria_wishlist')}
                             className={classNames(styles.wish, wishlisted && styles.wishActive)}
                             onClick={() => setWishlisted(w => !w)}
                         />
@@ -267,9 +268,9 @@ export default function Product() {
                     <ProductBadges product={product} sales={sales} />
                     {(product.kashrut || product.passoverKashrut) && (
                         <Flex className={styles.badgeRow} gap={6} wrap>
-                            {product.kashrut && <Badge>{product.kashrut}</Badge>}
+                            {product.kashrut && <Badge><Text size="s">{product.kashrut}</Text></Badge>}
                             {PASSOVER_TEXT[product.passoverKashrut] && (
-                                <Badge>{PASSOVER_TEXT[product.passoverKashrut]}</Badge>
+                                <Badge><Text size="s">{PASSOVER_TEXT[product.passoverKashrut]}</Text></Badge>
                             )}
                         </Flex>
                     )}
@@ -297,12 +298,12 @@ export default function Product() {
 
                     {images.length > 1 && (
                         <>
-                            <Flex className={styles.dots} gap={6} justifyContent="center" role="tablist" aria-label="product images">
+                            <Flex className={styles.dots} gap={6} justifyContent="center" role="tablist" aria-label={TR('aria_product_images')}>
                                 {images.map((_, idx) => (
                                     <Button
                                         key={idx}
                                         mode="text"
-                                        aria-label={`image ${idx + 1}`}
+                                        aria-label={`${TR('aria_product_image')} ${idx + 1}`}
                                         className={classNames(styles.dot, idx === selectedImageIndex && styles.dotActive)}
                                         onClick={() => setSelectedImageIndex(idx)}
                                     />
@@ -373,7 +374,7 @@ export default function Product() {
                             </>
                         )}
                         <Text size="xs" mode="sub" className={styles.disclaimer}>
-                            התמונות להמחשה בלבד. המידע על המוצר, הרכיבים והערכים התזונתיים עשוי להשתנות — יש לעיין באריזה.
+                            product_disclaimer
                         </Text>
                     </Card>
                 </div>
@@ -381,7 +382,7 @@ export default function Product() {
 
             {relatedList.length > 0 && (
                 <div className={styles.related}>
-                    <Text size="h2" bold className={styles.relatedTitle}>מוצרים שעשויים לעניין אותך</Text>
+                    <Text size="h2" bold className={styles.relatedTitle}>related_products</Text>
                     <HorizontalScroll
                         className={styles.relatedScroll}
                         items={relatedList.map(p => {

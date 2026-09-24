@@ -18,11 +18,11 @@ export default function Account({ onClose }) {
     const navigate = useNavigate()
     const user = useUser()
     const navItems = [
-        { path: '/account', title: 'סקירה כללית', icon: 'user', exact: true },
-        { path: '/account/orders', title: 'הזמנות', icon: 'orders' },
-        { path: '/account/addresses', title: 'כתובות', icon: 'map' },
-        { path: '/account/payment-methods', title: 'אמצעי תשלום', icon: 'card' },
-        { path: '/account/details', title: 'פרטים אישיים', icon: 'person' },
+        { path: '/account', title: 'account_overview', icon: 'user', exact: true },
+        { path: '/account/orders', title: 'orders', icon: 'orders' },
+        { path: '/account/addresses', title: 'addresses', icon: 'map' },
+        { path: '/account/payment-methods', title: 'payment_methods_title', icon: 'card' },
+        { path: '/account/details', title: 'personal_details', icon: 'person' },
     ]
 
     useEffect(() => {
@@ -33,7 +33,7 @@ export default function Account({ onClose }) {
     return (
         <div className={classNames(styles.container, onClose ? styles.inPopover : '')}>
             {!onClose && (
-                <Text tag="h1" size="h2" bold style={{ marginBottom: 24 }}>אזור אישי</Text>
+                <Text tag="h1" size="h2" bold style={{ marginBottom: 24 }}>page_account_title</Text>
             )}
 
             <Flex gap={30} className={styles.layout} alignItems="start" justifyContent='center'>
@@ -50,7 +50,7 @@ export default function Account({ onClose }) {
                                 onClick={onClose}
                             >
                                 <Icon name={item.icon} className={styles.navIcon} />
-                                <span>{item.title}</span>
+                                <Text>{item.title}</Text>
                             </NavLink>
                         ))}
                     </div>
@@ -65,7 +65,7 @@ export default function Account({ onClose }) {
                                 onClose?.()
                             }}
                         >
-                            התנתק
+                            logout
                         </Button>
                     </div>
                 </nav>
