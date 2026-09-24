@@ -13,7 +13,7 @@ export default async function getAdmin(req, { DL, utils }) {
     if (cached)
         admin = safeJsonParse(cached)
     else {
-        admin = await DL.Admin.Model.findOne({ id }, { _id: 0, id: 1, roleId: 1, tokens: 1, name: 1 }).lean()
+        admin = await DL.Admin.Model.findOne({ id }, { _id: 0, id: 1, roleId: 1, tokens: 1, name: 1, storeIds: 1, currentStoreId: 1 }).lean()
         await DL.redis?.set(`admin_auth:${id}`, JSON.stringify(admin), 'EX', 60 * 60 * 24)
     }
     if (!admin)

@@ -20,36 +20,36 @@ export default defineConfig(({ mode }) => {
   const fileEnv = loadEnv(mode, path.resolve(currentDir, '..'), '')
   const FILES_BASE_URL_VAL = process.env.FILES_BASE_URL || fileEnv.FILES_BASE_URL || 'https://files.shopik.co.il'
   return {
-  root: currentDir,
-  cacheDir: '../node_modules/.vite-client',
+    root: currentDir,
+    cacheDir: '../node_modules/.vite-client',
 
-  resolve: { alias },
-  plugins: [react()],
-  define: {
-    APP_VERSION: JSON.stringify(version),
-    VITE_FILES_BASE_URL: JSON.stringify(FILES_BASE_URL_VAL)
-  },
-
-  build: {
-    outDir: '../build/client',
-    emptyOutDir: true
-  },
-  ssr: { noExternal: ['common'] },
-  server: {
-    allowedHosts: [
-      'neat-lines-enjoy.loca.lt',
-    ]
-  },
-  css: {
-    modules: {
-      generateScopedName: (name, fileName) => {
-        const pathParts = fileName.split('/')
-        const fn = pathParts.at(-2) || 'style'
-        if (!fn || fn.length === 0) return name
-        const lowerCaseFN = `${fn[0].toLowerCase()}${fn.substring(1)}`
-        return `${fn}_${lowerCaseFN == name ? '' : name}`
-      }
+    resolve: { alias },
+    plugins: [react()],
+    define: {
+      APP_VERSION: JSON.stringify(version),
+      VITE_FILES_BASE_URL: JSON.stringify(FILES_BASE_URL_VAL)
     },
-  }
+
+    build: {
+      outDir: '../build/client',
+      emptyOutDir: true
+    },
+    ssr: { noExternal: ['common'] },
+    server: {
+      allowedHosts: [
+        'neat-lines-enjoy.loca.lt',
+      ]
+    },
+    css: {
+      modules: {
+        generateScopedName: (name, fileName) => {
+          const pathParts = fileName.split('/')
+          const fn = pathParts.at(-2) || 'style'
+          if (!fn || fn.length === 0) return name
+          const lowerCaseFN = `${fn[0].toLowerCase()}${fn.substring(1)}`
+          return `${fn}_${lowerCaseFN == name ? '' : name}`
+        }
+      },
+    }
   }
 })
