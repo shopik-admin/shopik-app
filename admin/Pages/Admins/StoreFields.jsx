@@ -36,6 +36,7 @@ export default function StoreFields({ defaults }) {
                 value={storeIds}
                 onChange={onStoresChange}
                 options={stores}
+                placeholder={TR?.('select_stores') ?? 'select stores'}
             />
         </Flex>
         <Flex col gap={4}>
