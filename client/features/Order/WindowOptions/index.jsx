@@ -61,7 +61,7 @@ export default function WindowOptions({ onChangeStore, onChangeAddress, hideAddr
                 active={false}
                 action={onChangeAddress ? { text: 'change', onClick: onChangeAddress } : undefined}
             />)}
-        <Text bold>Choose day</Text>
+        <Text bold>choose day</Text>
 
         <HorizontalScroll items={data?.map(day => (
             <Flex
@@ -79,7 +79,7 @@ export default function WindowOptions({ onChangeStore, onChangeAddress, hideAddr
             </Flex>
         ))} />
 
-        <Text bold>Choose window</Text>
+        <Text bold>choose window</Text>
         <Flex col gap={10}>
             {activeDay?.windows?.map(window => {
                 const isSelected = window.id === activeWindow?.id
@@ -92,7 +92,7 @@ export default function WindowOptions({ onChangeStore, onChangeAddress, hideAddr
                     >
                         <Text bold>{window.end}:00 - {window.start}:00</Text>
                         {windowLoading === window.id ? <Loader size={14} /> : (
-                            <Text mode="sub">{isSelected ? 'Chosen window' : window.note || 'Available'}</Text>
+                            <Text mode="sub">{isSelected ? 'chosen window' : window.note || 'available'}</Text>
                         )}
                     </Flex>
                 )

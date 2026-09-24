@@ -2,52 +2,99 @@
     display: flex;
     flex-direction: column;
     gap: 20px;
-    max-width: var(--max-width);
+    max-width: 1400px;
+    /* var(--max-width); */
     margin: 0 auto;
     width: 100%;
     box-sizing: border-box;
 }
 
+.crumbs {
+    display: block;
+}
+
+/* ---------- body grid: proportional columns, no fixed px ---------- */
 .body {
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 8fr);
+    grid-template-areas:
+        "gallery info"
+        "gallery purchase"
+        "gallery specs";
+    gap: 10px clamp(20px, 4vw, 48px);
+    align-items: start;
+    width: 100%;
+}
+
+.infoMain {
+    grid-area: info;
     display: flex;
-    flex-direction: row-reverse;
-    gap: 40px;
-    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
 }
 
 .gallery {
-    flex: 0 0 560px;
+    grid-area: gallery;
     display: flex;
     flex-direction: column;
-    align-items: flex-end;
-    gap: 16px;
+    gap: 12px;
+    min-width: 0;
+    width: 100%;
+}
+
+.purchase {
+    grid-area: purchase;
     min-width: 0;
 }
 
-.info {
-    flex: 1 1 0;
-    min-width: 0;
+.specs {
+    grid-area: specs;
     display: flex;
     flex-direction: column;
     gap: 8px;
-    text-align: start;
+    min-width: 0;
 }
 
+/* ---------- info ---------- */
 .priceRow {
     display: flex;
-    align-items: flex-end;
-    gap: 8px;
-    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.container .priceRow .wish {
+    flex-shrink: 0;
+    min-width: 0;
+    padding: 6px;
+    color: #e0a5b5;
+    border-radius: 50%;
+}
+
+.container .priceRow .wish:hover {
+    background: #fdf0f3;
+}
+
+.container .priceRow .wishActive {
+    color: #e0447c;
+}
+
+.container .priceRow .wishActive svg {
+    fill: currentColor;
 }
 
 .labelLine {
     color: var(--text-secondary);
-    font-size: 14px;
+    font-size: 13px;
 }
 
 .productName {
-    margin: 4px 0;
-    line-height: 1.3;
+    margin: 2px 0;
+    line-height: 1.35;
+    font-size: clamp(19px, 2.4vw, 26px);
+    text-wrap: balance;
+    overflow-wrap: break-word;
 }
 
 .barcodeRow {
@@ -62,49 +109,69 @@
     color: var(--text-secondary);
 }
 
-.actions {
+.badgeRow {
     display: flex;
-    gap: 12px;
-    margin-top: 16px;
-    max-width: 300px;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 10px;
 }
 
-.addToCart {
-    flex: 1;
+/* stepper: small pill on desktop like design */
+.purchase>div {
+    width: 10rem;
+    max-width: 100%;
 }
 
+/* ---------- gallery: fluid, proportional ---------- */
 .mainImageWrapper {
     width: 100%;
-    aspect-ratio: 1;
-    border-radius: var(--radius-3xl);
+    aspect-ratio: 1 / 1;
+    border-radius: 18px;
     overflow: hidden;
     border: 1px solid var(--border-primary);
     position: relative;
+    background: #fff;
+
+    :global(.Product_saleBadge) {
+        inset-inline-start: 0 !important;
+    }
 }
 
 .mainImage {
     width: 100%;
     height: 100%;
     object-fit: contain;
-    border-radius: var(--radius-3xl);
+    display: block;
+}
+
+.spin360 {
+    position: absolute;
+    bottom: 4%;
+    left: 4%;
+}
+
+.dots {
+    display: none;
 }
 
 .thumbnails {
     width: 100%;
-    display: flex;
-    justify-content: flex-end;
 }
 
 .thumbnail {
-    width: 120px !important;
-    background: #f5f5f5;
-    height: 120px !important;
-    object-fit: cover;
-    border-radius: 8px;
+    width: clamp(3rem, 6vw, 4.5rem);
+    aspect-ratio: 1 / 1;
+    height: auto;
+    object-fit: contain;
+    border-radius: 10px;
     cursor: pointer;
     border: 2px solid transparent;
+    background: #fff;
     transition: border-color 0.2s, opacity 0.2s;
-    opacity: 0.7;
+    opacity: 0.75;
+    box-sizing: border-box;
+    flex-shrink: 0;
 }
 
 .thumbnail:hover {
@@ -112,90 +179,294 @@
 }
 
 .thumbnail.active {
-    border-color: var(--text-accent);
+    border-color: var(--bg-brand-primary, #0f766e);
     opacity: 1;
 }
 
-@media (max-width: 900px) {
+/* ---------- specs: one delicate frame around tabs + content + notes ---------- */
+.specCard {
+    margin-top: 14px;
+    padding: 0;
+    overflow: hidden;
+    background: #fff;
+    border: 1px solid var(--border-secondary);
+    border-radius: var(--radius-2xl);
+    box-shadow: none;
+}
+
+.specLayout {
+    display: grid;
+    grid-template-columns: minmax(8rem, 12rem) minmax(0, 1fr);
+    min-height: 12rem;
+}
+
+.specLayout .specNav {
+    background: #fff;
+    border-inline-end: 1px solid var(--border-primary);
+    align-items: stretch;
+}
+
+.specLayout .specNav .specTab {
+    width: 100%;
+    justify-content: flex-start;
+    border-radius: 0;
+    padding: 10px 12px;
+    color: var(--text-primary);
+}
+
+.specLayout .specNav .specTab:hover {
+    background: #DCEBEA;
+}
+
+.specLayout .specNav .specTabActive {
+    background: #F1F7F6;
+    border-radius: 0;
+}
+
+.specLayout .specNav .specTabActive:hover {
+    background: #F1F7F6;
+}
+
+.specContent {
+    padding: 6px 0;
+    min-width: 0;
+    background: #F1F7F6;
+}
+
+/* label/value rows like Figma: bold label at inline-start, value, dividers */
+.kvRow {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-primary);
+}
+
+.kvRow:last-child {
+    border-bottom: none;
+}
+
+.kvLabel {
+    flex-shrink: 0;
+}
+
+.kvValue {
+    text-align: end;
+    min-width: 0;
+}
+
+/* nutrition pairs grid like Figma: 2 cells per row, name bold + value */
+.nutGrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.nutCell {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-primary);
+}
+
+.nutCell:nth-child(odd) {
+    border-inline-end: 1px solid var(--border-primary);
+}
+
+.nutGrid>.nutCell:nth-last-child(-n+2) {
+    border-bottom: none;
+}
+
+.flagWrap {
+    padding: 12px 16px;
+}
+
+.specExtra {
+    padding: 4px 16px 12px;
+}
+
+.flag {
+    border-color: #b91c1c;
+    color: #b91c1c;
+    background: #fff;
+}
+
+.specBody {
+    white-space: pre-wrap;
+    line-height: 1.7;
+    padding: 12px 16px;
+}
+
+.collapses {
+    display: none;
+}
+
+.disclaimer {
+    font-size: 11px;
+    line-height: 1.6;
+    padding: 12px 16px;
+    border-top: 1px solid var(--border-tertiary);
+    color: var(--text-secondary);
+}
+
+/* ---------- related: isolated so main-product styles never leak in ---------- */
+.related {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 24px;
+    min-width: 0;
+    isolation: isolate;
+}
+
+.relatedTitle {
+    font-size: 20px;
+    text-align: start;
+}
+
+.relatedScroll {
+    width: 100%;
+}
+
+.relatedCard {
+    flex: 0 0 13rem;
+    min-width: 0;
+    display: flex;
+}
+
+.relatedCard>div {
+    width: 100%;
+}
+
+/* ---------- tablet (601–1024px): keep 2 columns, use full width ---------- */
+@media (max-width: 1024px) {
+    .crumbs {
+        display: none;
+    }
+
     .container {
-        align-items: center;
-        padding: 16px;
-        gap: 24px;
+        padding: 12px 16px 32px;
     }
 
     .body {
-        flex-direction: column;
-        align-items: center;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        grid-template-areas:
+            "gallery info"
+            "gallery purchase"
+            "specs specs";
+        gap: 16px 20px;
+    }
+
+    .gallery,
+    .infoMain,
+    .purchase,
+    .specs {
+        width: 100%;
+        max-width: none;
+        margin: 0;
     }
 
     .gallery {
-        flex: none;
+        align-items: stretch;
+    }
+
+    .purchase>div {
         width: 100%;
-        max-width: 560px;
-        order: -1;
-        align-items: center;
-    }
-
-    .info {
-        flex: none;
-        width: 100%;
-        max-width: 560px;
-        text-align: center;
-    }
-
-    .priceRow {
-        justify-content: center;
-    }
-
-    .barcodeRow {
-        justify-content: center;
-    }
-
-    .actions {
-        justify-content: center;
     }
 
     .thumbnails {
+        display: none;
+    }
+
+    .dots {
+        display: flex;
+        align-items: center;
         justify-content: center;
+    }
+
+    .dots .dot {
+        width: 0.5rem;
+        height: 0.5rem;
+        min-width: 0;
+        min-height: 0;
+        padding: 0;
+        border-radius: 50%;
+        background: #cfd8d8;
+    }
+
+    .dots .dotActive {
+        background: #0f766e;
+        width: 0.625rem;
+        height: 0.625rem;
+    }
+
+    .relatedCard {
+        flex-basis: 12rem;
     }
 }
 
+/* ---------- mobile (<=600px): gallery first, no full-bleed ---------- */
 @media (max-width: 600px) {
     .container {
-        padding: 12px;
-        gap: 16px;
+        padding: 12px 12px 28px;
+        gap: 12px;
     }
 
-    .info {
-        gap: 6px;
+    .body {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-areas:
+            "gallery"
+            "info"
+            "purchase"
+            "specs";
+        gap: 10px;
     }
 
-    .priceRow {
-        gap: 6px;
-    }
-
-    .priceRow .text.h1 {
-        font-size: 36px !important;
-    }
-
-    .priceRow .text.sub {
-        font-size: 16px !important;
-    }
-
-    .productName {
-        font-size: 24px !important;
-    }
-
-    .barcodeRow .text.s {
-        font-size: 16px !important;
+    .gallery {
+        width: 100%;
+        max-width: none;
+        margin: 0;
     }
 
     .mainImageWrapper {
-        border-radius: 0;
+        border-radius: 18px;
+        border: 1px solid var(--border-primary);
     }
 
-    .thumbnail {
-        width: 100px !important;
-        height: 100px !important;
+    .spin360 {
+        top: 10px;
+        bottom: auto;
+        left: 10px;
+    }
+
+    .infoMain {
+        gap: 6px;
+    }
+
+    .specLayout {
+        display: none;
+    }
+
+    .collapses {
+        display: flex;
+        padding: 8px;
+    }
+
+    .related {
+        margin-top: 16px;
+    }
+
+    .relatedTitle {
+        font-size: 17px;
+    }
+
+    .relatedCard {
+        flex: 0 0 clamp(10.5rem, 44vw, 12rem);
+    }
+
+    .nutGrid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .nutCell:nth-child(odd) {
+        border-inline-end: none;
+    }
+
+    .nutGrid>.nutCell:last-child {
+        border-bottom: none;
     }
 }

@@ -423,7 +423,7 @@ export function CouponCollapse({ defaultOpen = true }) {
                         <div className={summaryStyles.iconCircle}>
                             <LuTicketPercent className={summaryStyles.rowIcon} />
                         </div>
-                        <Text bold size='m' className={summaryStyles.rowText}>{TR?.('coupons_especially_for_you') || 'coupons_especially_for_you'}</Text>
+                        <Text bold size='m' className={summaryStyles.rowText}>{TR?.('coupons_especially_for_you')}</Text>
                     </Flex>
                 }
             >
@@ -444,7 +444,7 @@ export function CouponCollapse({ defaultOpen = true }) {
                     <div className={summaryStyles.iconCircle}>
                         <LuTags className={summaryStyles.rowIcon} />
                     </div>
-                    <Text bold size='m' className={summaryStyles.rowText}>{TR?.('coupons_especially_for_you') || 'coupons_especially_for_you'}</Text>
+                    <Text bold size='m' className={summaryStyles.rowText}>{TR?.('coupons_especially_for_you')}</Text>
                 </Flex>
             }
         >

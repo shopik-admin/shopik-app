@@ -1,6 +1,7 @@
 import { StaticRouter, matchPath } from 'react-router'
 import { renderToString } from 'react-dom/server'
 import Head from 'layout/Head'
+import TR from '#common/texts/TR.js'
 import pages from './pages'
 import App from './App'
 
@@ -19,12 +20,12 @@ export async function render({ url, data }) {
   )
 
   let head = renderToString(<Head
-    title={`Shopik | ${notFound ? 'עמוד לא נמצא' : data.initData?.title || page?.title || ''}`}
+    title={`Shopik | ${notFound ? TR('page_not_found') : data.initData?.title || page?.title || ''}`}
     description={notFound ? '' : data.initData?.description || page?.description || ''}
     noindex={notFound}
   />)
 
-  const themeEntries = Object.entries(data?.settings?.Theme || {})
+  const themeEntries = Object.entries(data?.settings?.theme || {})
   const lightVars = []
   const darkVars = []
   // Sanitize theme keys/values: keys must be valid CSS custom-property
@@ -45,6 +46,7 @@ export async function render({ url, data }) {
       if (v) lightVars.push(`--${key}:${v};`)
     }
   }
+
   const lightCss = lightVars.join('')
   const darkCss = darkVars.join('')
   head += `<style>:root{${lightCss}}${darkCss ? `:root[data-theme=dark]{${darkCss}}` : ''}</style>`
