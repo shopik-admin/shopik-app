@@ -3,15 +3,16 @@ import { useUser } from 'features/User'
 import { useLists } from 'common/features/Lists'
 import { useText } from 'common/texts/TextProvider'
 import apiReq from 'common/functions/apiReq'
+import { opsStoreAutoSelectM } from 'common/functions/opsConfig'
 import Flex from 'common/components/Flex'
 import Text from 'common/components/Text'
 import Button from 'common/components/Button'
 import Select from 'common/components/Select'
 import Loader from 'common/components/Loader'
 
-// Max distance (m) from a store for auto-selecting it as the admin's current store.
+// Max distance (m) from a store for auto-selecting it as the admin's current store
+// → opsStoreAutoSelectM() (env OPS_STORE_AUTO_SELECT_M, default 100).
 // Beyond this the existing currentStoreId is kept (or manual pick if none set).
-const AUTO_SET_RADIUS_M = 200
 
 function getPosition(timeoutMs = 8000) {
     return new Promise(resolve => {
@@ -63,7 +64,7 @@ export default function StoreGate({ children }) {
                 const coords = await getPosition()
                 if (coords) {
                     const nearby = await apiReq('store/nearby', { coordinates: coords })
-                    if (nearby?.[0]?.id && nearby[0].distanceM <= AUTO_SET_RADIUS_M) {
+                    if (nearby?.[0]?.id && nearby[0].distanceM <= opsStoreAutoSelectM()) {
                         if (nearby[0].id !== existing) await setCurrentStore(nearby[0].id)
                         setPhase('ready')
                         return
