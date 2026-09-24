@@ -6,6 +6,7 @@ import Button from 'common/components/Button'
 import Checkbox from 'common/components/Checkbox'
 import ConfirmButton from 'common/components/ConfirmButton'
 import Input from 'common/components/Input'
+import Select from 'common/components/Select'
 import apiReq from 'common/functions/apiReq'
 
 export default function DevTools() {
@@ -33,6 +34,10 @@ export default function DevTools() {
     const [gs1StatusResult, setGs1StatusResult] = useState(null)
     const [gs1StatusError, setGs1StatusError] = useState(null)
     const [gs1StatusLoading, setGs1StatusLoading] = useState(false)
+    const [gs1RetentionYear, setGs1RetentionYear] = useState('2016')
+    const [gs1RetentionResult, setGs1RetentionResult] = useState(null)
+    const [gs1RetentionError, setGs1RetentionError] = useState(null)
+    const [gs1RetentionLoading, setGs1RetentionLoading] = useState(false)
     const [windowSyncResult, setWindowSyncResult] = useState(null)
     const [windowSyncError, setWindowSyncError] = useState(null)
     const [windowSyncing, setWindowSyncing] = useState(false)
@@ -146,6 +151,23 @@ export default function DevTools() {
             setGs1StatusLoading(false)
         }
     }
+
+    async function handleGs1Retention() {
+        setGs1RetentionError(null)
+        setGs1RetentionResult(null)
+        setGs1RetentionLoading(true)
+        try {
+            setGs1RetentionResult(await apiReq('gs1/retention', { year: Number(gs1RetentionYear) }))
+        } catch (e) {
+            setGs1RetentionError(e?.message || 'GS1 retention probe failed')
+        } finally {
+            setGs1RetentionLoading(false)
+        }
+    }
+
+    const retentionYearOptions = []
+    for (let y = new Date().getFullYear(); y >= 2000; y--)
+        retentionYearOptions.push({ value: String(y), text: String(y) })
 
     const entries = result?.results || []
 
@@ -320,6 +342,32 @@ export default function DevTools() {
                         : <Text>No run state (queues only).</Text>}
                     <Text>fetch: {JSON.stringify(gs1StatusResult.queues?.fetch ?? {})}</Text>
                     <Text>process: {JSON.stringify(gs1StatusResult.queues?.process ?? {})}</Text>
+                </Flex>}
+            </Flex>
+        </Card>
+        <Card title="GS1 retention probe" style={{ padding: 24 }}>
+            <Flex col gap={16} style={{ padding: 8 }}>
+                <Text>Read-only: pages the GS1 message queue for one year and diffs identifiers against stored gs1_products. No run, no writes, watermark untouched.</Text>
+                <Flex gap={12}>
+                    <Select
+                        name="gs1RetentionYear"
+                        value={gs1RetentionYear}
+                        onChange={e => setGs1RetentionYear(e.target.value)}
+                        options={retentionYearOptions}
+                    />
+                </Flex>
+                <Flex>
+                    <Button icon="refresh" onClick={handleGs1Retention} loading={gs1RetentionLoading} disabled={gs1RetentionLoading}>
+                        Probe year
+                    </Button>
+                </Flex>
+                {gs1RetentionError && <Text style={{ color: 'var(--text-error-primary)' }}>{gs1RetentionError}</Text>}
+                {gs1RetentionResult && <Flex col gap={4}>
+                    <Text>year: {gs1RetentionResult.year}, messages: {gs1RetentionResult.messages}, known: {gs1RetentionResult.known}, unknown: {gs1RetentionResult.unknown} (stored docs: {gs1RetentionResult.storedDocs})</Text>
+                    <Text>match — exact: {gs1RetentionResult.matchBreakdown?.exact ?? 0}, gtin-contained: {gs1RetentionResult.matchBreakdown?.gtinContained ?? 0}</Text>
+                    {!!gs1RetentionResult.unknownSamples?.length && <Text>
+                        unknown samples: {gs1RetentionResult.unknownSamples.join(', ')}
+                    </Text>}
                 </Flex>}
             </Flex>
         </Card>
