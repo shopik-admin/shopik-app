@@ -22,7 +22,14 @@ export default function StoreFields({ defaults }) {
 
     return <Flex col gap={10}>
         <Text size="s">storeIds</Text>
-        <Select name="storeIds" multiple options='stores' value={storeIds} onChange={onStoresChange} />
+        <Select
+            name="storeIds"
+            multiple
+            options='stores'
+            value={storeIds}
+            onChange={onStoresChange}
+            placeholder='select_stores'
+        />
 
         <Text size="s">currentStoreId</Text>
         <Select
