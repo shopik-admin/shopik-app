@@ -5,13 +5,9 @@ export default async function nearby(payload, { DL, _admin }) {
     if (!coordinates || !Array.isArray(coordinates) || coordinates.length !== 2)
         throw { status: 400, message: 'coordinates [lng, lat] required' }
 
-    const scope = await storeScope({ DL, _admin })
-    if (scope !== null && !scope.length) return []
-
-    let storeFilter = { active: true }
-    if (scope !== null) {
-        storeFilter.id = { $in: scope }
-    }
+    const scope = storeScope({ _admin })
+    // $in: [] on an empty scope matches nothing, so no early return is needed.
+    const storeFilter = { active: true, ...(scope !== null && { id: { $in: scope } }) }
 
     const stores = await DL.Store.Model.aggregate([
         {

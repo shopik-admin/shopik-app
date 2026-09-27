@@ -1,8 +1,7 @@
 // Shared filter builder for the ops order queue (order/ops/list, order/ops/count).
 // Keeps store scope, today/tomorrow window limits and the permission union in one place
 // so the two endpoints cannot drift apart (e.g. tab badges vs tab lists).
-export default async function buildOpsFilter({ DL, _admin, extraFilter = {}, statusFilter }) {
-    const admin = await DL.Admin.readById(_admin.id)
+export default async function buildOpsFilter({ _admin, extraFilter = {}, statusFilter }) {
     const me = _admin.id
 
     const isSuper = _admin.isSuperAdmin
@@ -13,16 +12,10 @@ export default async function buildOpsFilter({ DL, _admin, extraFilter = {}, sta
     if (!canRead && !canPick && !canShip)
         throw { status: 403, message: 'Forbidden' }
 
-    const filter = { active: true, status: statusFilter }
-
     // Ops shows the current store only — never a client-picked one, never a
     // multi-store fallback. No current store → empty queue (StoreGate forces
     // selection before any orders load). Applies to every role, super included.
-    if (admin?.currentStoreId) {
-        filter.storeId = admin.currentStoreId
-    } else {
-        filter.storeId = { $in: [] }
-    }
+    const filter = { active: true, status: statusFilter, storeId: _admin.currentStoreId || { $in: [] } }
 
     if (!canRead) {
         // Non-read roles are limited to today + tomorrow windows

@@ -21,11 +21,10 @@ export default async function read(payload, { DL, _admin }) {
     }
 
     // Store scoping: superadmin sees all stores, everyone else is limited
-    // to their admin.storeIds (not part of the cached auth payload).
+    // to their admin.storeIds (rides the cached auth payload).
     let scopedStoreIds = null
     if (!_admin.isSuperAdmin) {
-        const fullAdmin = await DL.Admin.readById(_admin.id)
-        scopedStoreIds = fullAdmin?.storeIds ?? []
+        scopedStoreIds = _admin.storeIds ?? []
         if (!scopedStoreIds.length) return []
     }
 

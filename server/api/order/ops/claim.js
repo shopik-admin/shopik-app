@@ -2,7 +2,6 @@ export default async function claim(payload, { DL, _admin, utils }) {
     const { id } = payload
     if (!id) throw { status: 400, message: 'order id required' }
 
-    const fullAdmin = await DL.Admin.readById(_admin.id)
     const adminName = `${_admin.name?.first ?? ''} ${_admin.name?.last ?? ''}`.trim()
 
     const order = await DL.Order.updateOne(
@@ -19,7 +18,7 @@ export default async function claim(payload, { DL, _admin, utils }) {
     if (!order) throw { status: 409, message: 'order is already being picked or not available' }
 
     // store scope sanity — revert if store mismatch
-    if (fullAdmin?.currentStoreId && order.storeId !== fullAdmin.currentStoreId) {
+    if (_admin.currentStoreId && order.storeId !== _admin.currentStoreId) {
         await DL.Order.Model.updateOne({ id }, { $set: { status: 'paid', picker: null, pickStart: null } }).lean()
         throw { status: 403, message: 'order store mismatch' }
     }
