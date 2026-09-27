@@ -2,6 +2,7 @@ import DeliveryView from 'features/Order/DeliveryView'
 import UserView from 'features/User/UserView'
 import MiniCart from 'layout/Cart/miniCart'
 import Logo from 'common/components/Logo'
+import { getSettingFileUrl } from 'common/functions/settingFileUrl'
 import styles from './header.module.css'
 import MainMenu from 'layout/MainMenu'
 import Search from 'layout/Search'
@@ -54,7 +55,10 @@ export default function Header() {
             />
 
             <div className={styles.logoWrap}>
-                <Logo />
+                <Logo
+                    src={getSettingFileUrl(settings?.appearance?.logo) || undefined}
+                    darkSrc={getSettingFileUrl(settings?.appearance?.logoDark) || undefined}
+                />
             </div>
 
             <div className={styles.userDelivery}>

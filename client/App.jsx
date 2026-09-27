@@ -17,6 +17,7 @@ const AppDataContext = createContext()
 export const useAppData = () => useContext(AppDataContext)
 
 export default function App({ data = {} }) {
+    console.log(import.meta.env.VITE_TEST_ENV)
     return <AppDataContext value={data}>
         <TextProvider>
             <Lists sdLists={data.lists}>
@@ -26,15 +27,15 @@ export default function App({ data = {} }) {
                             <CartProvider>
                                 <Header />
                                 <Main>
-                                <Routes>
-                                    {pages.map(({
-                                        path, element: Elm
-                                    }) => <Route key={path} path={path} element={<Elm />} />)}
+                                    <Routes>
+                                        {pages.map(({
+                                            path, element: Elm
+                                        }) => <Route key={path} path={path} element={<Elm />} />)}
                                     </Routes>
                                     <Cart />
                                 </Main>
                             </CartProvider>
-                            </ModalProvider>
+                        </ModalProvider>
                     </User>
                 </OrderProvider>
             </Lists>
