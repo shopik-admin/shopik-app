@@ -1,4 +1,4 @@
-import { OPS_PROXIMITY_RADIUS_M } from '#common/constants.js'
+import { opsProximityRadiusM } from '#common/functions/opsConfig.js'
 import distanceMeters from '#common/functions/distance.js'
 import sharp from 'sharp'
 
@@ -19,7 +19,8 @@ export default async function deliver(payload, { DL, _admin, external, utils }) 
 
     if (!force && coordinates && order.address?.location?.coordinates?.length) {
         const d = distanceMeters(coordinates, order.address.location.coordinates)
-        if (d > OPS_PROXIMITY_RADIUS_M) throw { status: 400, message: `too far: ${Math.round(d)}m > ${OPS_PROXIMITY_RADIUS_M}m (use force if GPS drift)` }
+        const radiusM = opsProximityRadiusM()
+        if (d > radiusM) throw { status: 400, message: `too far: ${Math.round(d)}m > ${radiusM}m (use force if GPS drift)` }
     }
 
     let url = null

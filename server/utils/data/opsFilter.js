@@ -1,8 +1,7 @@
 // Shared filter builder for the ops order queue (order/ops/list, order/ops/count).
 // Keeps store scope, today/tomorrow window limits and the permission union in one place
 // so the two endpoints cannot drift apart (e.g. tab badges vs tab lists).
-export default async function buildOpsFilter({ DL, _admin, extraFilter = {}, statusFilter }) {
-    const admin = await DL.Admin.readById(_admin.id)
+export default async function buildOpsFilter({ _admin, extraFilter = {}, statusFilter }) {
     const me = _admin.id
 
     const isSuper = _admin.isSuperAdmin
@@ -13,19 +12,12 @@ export default async function buildOpsFilter({ DL, _admin, extraFilter = {}, sta
     if (!canRead && !canPick && !canShip)
         throw { status: 403, message: 'Forbidden' }
 
-    const filter = { active: true, status: statusFilter }
+    // Ops shows the current store only — never a client-picked one, never a
+    // multi-store fallback. No current store → empty queue (StoreGate forces
+    // selection before any orders load). Applies to every role, super included.
+    const filter = { active: true, status: statusFilter, storeId: _admin.currentStoreId || { $in: [] } }
 
-    if (canRead) {
-        if (admin?.currentStoreId) {
-            filter.storeId = admin.currentStoreId
-        } else if (!isSuper && admin?.storeIds?.length) {
-            filter.storeId = { $in: admin.storeIds }
-        }
-    } else {
-        // picker/shipper only — must have a currentStoreId to scope
-        if (admin?.currentStoreId) filter.storeId = admin.currentStoreId
-        else if (!isSuper && admin?.storeIds?.length === 1) filter.storeId = admin.storeIds[0]
-        else if (!isSuper && admin?.storeIds?.length) filter.storeId = { $in: admin.storeIds }
+    if (!canRead) {
         // Non-read roles are limited to today + tomorrow windows
         const start = new Date()
         start.setHours(0, 0, 0, 0)
@@ -53,8 +45,10 @@ export default async function buildOpsFilter({ DL, _admin, extraFilter = {}, sta
         permissionOr = or.length ? { $or: or } : null
     }
 
-    // Spread extraFilter (e.g. per-tab filters), keep $or injection safe via $and
-    const finalFilter = { ...filter, ...extraFilter }
+    // Spread extraFilter (e.g. per-tab filters), keep $or injection safe via $and.
+    // A client-passed storeId is dropped — the current store above always wins.
+    const { storeId: _clientStoreId, ...safeExtra } = extraFilter
+    const finalFilter = { ...filter, ...safeExtra }
     let final
     if (permissionOr) {
         if (finalFilter.$or) final = { $and: [finalFilter, permissionOr] }

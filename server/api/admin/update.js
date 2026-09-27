@@ -12,6 +12,8 @@ export default async function update(payload, { DL, validators, utils }) {
     const name = utils.extractFields.getName(payload)
     if (name) payload.name = name
 
+    await validators.storeIds(payload, arguments[1], admin)
+
     const update = diff(admin, payload)
 
     const nothingToUpdate = Object.keys(update).length === 0
@@ -20,6 +22,10 @@ export default async function update(payload, { DL, validators, utils }) {
 
     if (update.roleId) {
         await validators.roleId(update.roleId, arguments[1], true)
+    }
+
+    // storeIds/currentStoreId live in the cached auth payload (getAdmin) — drop it
+    if (update.roleId || update.storeIds || 'currentStoreId' in update) {
         await DL.redis?.del(`admin_auth:${id}`)
     }
 
