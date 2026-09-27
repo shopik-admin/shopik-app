@@ -88,7 +88,7 @@ export default function Search({ }) {
             <Icon name='search' className={styles.searchIcon} />
             <input
                 className={styles.searchInput}
-                placeholder={TR?.('main_search_placeholder') || 'חפש מוצרים'}
+                placeholder={TR?.('main_search_placeholder')}
                 type='search'
                 value={value}
                 onChange={onInput}
@@ -99,8 +99,8 @@ export default function Search({ }) {
                 mode='text'
                 icon='filter'
                 className={styles.filterBtn}
-                aria-label='סינון'
-            //tooltip='סינון'
+                aria-label={TR?.('aria_filter')}
+            //tooltip={TR?.('aria_filter')}
             />
         </div>
         {showResults && <div className={styles.results}>

@@ -9,12 +9,15 @@ import { getSalesCache, setSalesCache } from '#common/functions/salesCache.js'
 
 export function useProductCart(product, sales = {}) {
     const { order = {}, setOrder, queueCartSync } = useOrder()
-    const { settings } = useAppData() || {}
+    const { settings, domainId: appDomainId } = useAppData() || {}
     const shippingConfig = useMemo(() => extractShippingConfig(settings), [settings])
     const user = useUser()
     const amount = order?.cart?.find(item => item.id === product?.id)?.amount ?? product?.amount ?? 0
     const limits = useMemo(() => extractLimits(settings), [settings])
     const productMaxAmount = Number(limits?.productMaxAmount ?? 0) || 0
+    // Fresh guests have no order.domainId yet — fall back to the SSR-resolved
+    // storefront domain so the optimistic update works on the very first click.
+    const effectiveOrder = order?.domainId ? order : { ...order, domainId: order?.domainId || appDomainId }
 
     const updateAmount = (newAmount) => {
         if (productMaxAmount > 0 && Number(newAmount) > productMaxAmount) return
@@ -25,7 +28,7 @@ export function useProductCart(product, sales = {}) {
         if (!missing.length) {
             try {
                 const optimisticOrder = calcOrder({
-                    order: order || {},
+                    order: effectiveOrder || {},
                     product,
                     amount: newAmount,
                     sales: cachedSales,

@@ -8,6 +8,7 @@ import Button from 'common/components/Button'
 import ProductInline from 'common/components/ProductInline'
 import apiReq from 'common/functions/apiReq'
 import render from 'common/functions/render.js'
+import { useText } from 'common/texts/TextProvider'
 import styles from './Orders.module.css'
 
 const statusClass = {
@@ -33,6 +34,7 @@ function formatWindow(win) {
 
 export default function Orders() {
     const navigate = useNavigate()
+    const { TR } = useText?.() || {}
     const [orders, setOrders] = useState(null)
     const [error, setError] = useState('')
     const [expanded, setExpanded] = useState(null)
@@ -49,22 +51,22 @@ export default function Orders() {
         return () => { cancelled = true }
     }, [])
 
-    if (error) return <Flex col gap={12}><Text tag="h2" size="h3" bold>הזמנות</Text><Text mode="error">{error}</Text></Flex>
+    if (error) return <Flex col gap={12}><Text tag="h2" size="h3" bold>orders</Text><Text mode="error">{error}</Text></Flex>
     if (orders === null) return <Flex center style={{ padding: 40 }}><Loader size={28} /></Flex>
     if (!orders.length) return (
         <div>
-            <Text tag="h2" size="h3" bold style={{ marginBottom: 16 }}>הזמנות</Text>
+            <Text tag="h2" size="h3" bold style={{ marginBottom: 16 }}>orders</Text>
             <Flex col gap={12} center style={{ padding: 40 }}>
                 <Icon name="orders" size={32} />
-                <Text mode="sub">אין הזמנות עדיין</Text>
-                <Button onClick={() => navigate('/')}>להתחלת קנייה</Button>
+                <Text mode="sub">no_orders_yet</Text>
+                <Button onClick={() => navigate('/')}>start_shopping</Button>
             </Flex>
         </div>
     )
 
     return (
         <div>
-            <Text tag="h2" size="h3" bold style={{ marginBottom: 16 }}>הזמנות ({orders.length})</Text>
+            <Text tag="h2" size="h3" bold style={{ marginBottom: 16 }}>{`${TR?.('orders')} (${orders.length})`}</Text>
             <div className={styles.orders}>
                 {orders.map(order => {
                     const itemsCount = (order.cart || []).reduce((a, c) => a + (c.amount || 1), 0)
@@ -78,25 +80,25 @@ export default function Orders() {
                             </div>
                             <div className={styles.body}>
                                 <div className={styles.row}>
-                                    <Text className={styles.label}>תאריך</Text>
+                                    <Text className={styles.label}>order_date</Text>
                                     <Text className={styles.value}>{formatDate(order.time || order.window?.leadTimestamp)}</Text>
                                 </div>
                                 <div className={styles.row}>
-                                    <Text className={styles.label}>יעד</Text>
-                                    <Text className={styles.value}>{order.deliveryMethod === 'pickup' ? 'איסוף' : 'משלוח'} {order.address ? `• ${order.address.city || ''} ${order.address.street || ''}`.trim() : ''}</Text>
+                                    <Text className={styles.label}>order_destination</Text>
+                                    <Text className={styles.value}>{order.deliveryMethod === 'pickup' ? TR?.('pickup_short') : TR?.('delivery')} {order.address ? `• ${order.address.city || ''} ${order.address.street || ''}`.trim() : ''}</Text>
                                 </div>
                                 <div className={styles.row}>
-                                    <Text className={styles.label}>חלון אספקה</Text>
+                                    <Text className={styles.label}>delivery_window</Text>
                                     <Text className={styles.value}>{formatWindow(order.window)}</Text>
                                 </div>
                                 <div className={styles.row}>
-                                    <Text className={styles.label}>כמות</Text>
-                                    <Text className={styles.value}>{itemsCount} פריטים</Text>
+                                    <Text className={styles.label}>order_quantity</Text>
+                                    <Text className={styles.value}>{`${itemsCount} ${TR?.('items_suffix')}`}</Text>
                                 </div>
                             </div>
                             <div className={styles.footer}>
                                 <button type="button" className={styles.viewBtn} onClick={() => setExpanded(isOpen ? null : order.id)}>
-                                    {isOpen ? 'הסתר' : 'פרטים'}
+                                    <Text>{isOpen ? 'hide' : 'details_link'}</Text>
                                 </button>
                                 <Text bold className={styles.total}>{render({ type: 'coin', value: total })}</Text>
                             </div>
