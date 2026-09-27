@@ -1,5 +1,4 @@
 import DataManager from 'features/DataManager'
-import StoreFields from './StoreFields'
 import styles from './admins.module.css'
 
 export default function Admins({ }) {
@@ -28,7 +27,8 @@ export default function Admins({ }) {
                 { name: 'idNum', type: 'idNum', required: true },
                 { name: 'phone', type: 'tel', required: true },
                 { name: 'email', type: 'email' },
-                { name: 'storeFields', label: '', type: defaults => <StoreFields defaults={defaults} /> },
+                { name: 'storeIds', type: 'select', options: 'stores', multiple: true },
+                { name: 'currentStoreId', type: 'select', options: 'stores' }
             ]}
         />
     </div>
