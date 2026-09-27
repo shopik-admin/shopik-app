@@ -88,13 +88,13 @@ export default function OrderSummary({ onPayment, paying, showPayBtn = true, mis
     const displayName = (() => {
         const n = order?.name?.first ? order.name : user?.name
         if (n?.first || n?.last) return `${n.first || ''} ${n.last || ''}`.trim()
-        return TR?.('name') || 'שם מלא'
+        return TR?.('full_name')
     })()
 
     // Get active address from user state or order fallback
     const activeAddress = addresses.find(a => a.active) || addresses[0] || order?.address
     const addressText = activeAddress
-        ? `${activeAddress.street} ${activeAddress.building}${activeAddress.apartment ? ' דירה ' + activeAddress.apartment : ''}, ${activeAddress.city}`
+        ? `${activeAddress.street} ${activeAddress.building}${activeAddress.apartment ? ` ${TR?.('apartment')} ` + activeAddress.apartment : ''}, ${activeAddress.city}`
         : 'no_address_selected'
 
     // Get active window from order state
@@ -162,7 +162,7 @@ export default function OrderSummary({ onPayment, paying, showPayBtn = true, mis
                                         e.stopPropagation()
                                         setNameOpen(prev => !prev)
                                     }}
-                                    aria-label={TR?.('edit_name') || 'edit name'}
+                                    aria-label={TR?.('edit_name')}
                                 >
                                     <LuPencil />
                                 </button>
@@ -309,7 +309,7 @@ export default function OrderSummary({ onPayment, paying, showPayBtn = true, mis
                     </Flex>
 
                     {isBelowMinSum && (
-                        <Text size='s' mode='sub' style={{ textAlign: 'center' }}>{TR?.('minimum_order_sum') || 'minimum order sum:'} {render({ type: 'coin', value: minSumThreshold })}</Text>
+                        <Text size='s' mode='sub' style={{ textAlign: 'center' }}>{TR?.('minimum_order_sum')} {render({ type: 'coin', value: minSumThreshold })}</Text>
                     )}
                     {/* CTA Pay Button */}
                     {showPayBtn && (
@@ -338,6 +338,7 @@ export default function OrderSummary({ onPayment, paying, showPayBtn = true, mis
 function NameForm({ initialName, initialEmail, initialPhone, initialSecondPhone, missingFields = [], nameFirstRef, emailRef, secondPhoneRef, onDone }) {
     const user = useUser()
     const { setOrder } = useOrder()
+    const { TR } = useText() || {}
     const [formState, setFormState] = useState({})
 
     async function handleSubmit(data) {
@@ -372,16 +373,16 @@ function NameForm({ initialName, initialEmail, initialPhone, initialSecondPhone,
                 {/* Phone as info only */}
                 {initialPhone ? (
                     <Flex gap={6} alignItems='center'>
-                        <Text size='s' mode='sub'>טלפון:</Text>
+                        <Text size='s' mode='sub'>{`${TR?.('phone_label')}:`}</Text>
                         <Text size='m' bold>{initialPhone}</Text>
                     </Flex>
                 ) : null}
                 <Flex gap={10}>
-                    <Input ref={nameFirstRef} name='name.first' defaultValue={initialName?.first || ''} required label='שם פרטי' placeholder='שם פרטי' />
-                    <Input name='name.last' defaultValue={initialName?.last || ''} required label='שם משפחה' placeholder='שם משפחה' />
+                    <Input ref={nameFirstRef} name='name.first' defaultValue={initialName?.first || ''} required label='name.first' placeholder='name.first' />
+                    <Input name='name.last' defaultValue={initialName?.last || ''} required label='name.last' placeholder='name.last' />
                 </Flex>
-                <Input ref={emailRef} name='email' type='email' defaultValue={initialEmail || ''} required label='אימייל' placeholder='אימייל' />
-                <Input ref={secondPhoneRef} name='secondPhone' type='tel' defaultValue={initialSecondPhone || ''} label='טלפון נוסף' placeholder='טלפון נוסף' />
+                <Input ref={emailRef} name='email' type='email' defaultValue={initialEmail || ''} required label='email_label' placeholder='email_label' />
+                <Input ref={secondPhoneRef} name='secondPhone' type='tel' defaultValue={initialSecondPhone || ''} label='secondPhone' placeholder='secondPhone' />
             </Flex>
         </Form>
     )

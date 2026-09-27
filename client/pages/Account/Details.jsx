@@ -18,15 +18,15 @@ export default function Details() {
     return (
         <div>
             <Text tag='h2' size='h3' bold style={{ marginBottom: 16 }}>
-                פרטים אישיים
+                personal_details
             </Text>
 
             <div style={{ maxWidth: 400 }}>
-                <Form action={updateDetails} submitText='שמור שינויים' {...formState}>
-                    <Input name='name.first' defaultValue={user?.name?.first || ''} placeholder='שם פרטי' label='שם פרטי' required />
-                    <Input name='name.last' defaultValue={user?.name?.last || ''} placeholder='שם משפחה' label='שם משפחה' required />
-                    <Input name='phone' defaultValue={user?.phone || ''} type='tel' minLength={9} maxLength={15} placeholder='מספר טלפון' label='מספר טלפון' required />
-                    <Input name='email' defaultValue={user?.email || ''} type='email' placeholder='דואר אלקטרוני' label='דואר אלקטרוני' required info='for recieve invoices and updates' />
+                <Form action={updateDetails} submitText='save_changes' {...formState}>
+                    <Input name='name.first' defaultValue={user?.name?.first || ''} placeholder='name.first' label='name.first' required />
+                    <Input name='name.last' defaultValue={user?.name?.last || ''} placeholder='name.last' label='name.last' required />
+                    <Input name='phone' defaultValue={user?.phone || ''} type='tel' minLength={9} maxLength={15} placeholder='phone_number' label='phone_number' required />
+                    <Input name='email' defaultValue={user?.email || ''} type='email' placeholder='email_label' label='email_label' required info='invoices_info' />
                 </Form>
             </div>
         </div>

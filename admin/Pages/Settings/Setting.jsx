@@ -3,10 +3,14 @@ import Button from 'common/components/Button'
 import ConfirmButton from 'common/components/ConfirmButton'
 import render from 'common/functions/render'
 import apiReq from 'common/functions/apiReq'
+import { getSettingFileUrl } from 'common/functions/settingFileUrl'
 import { useState, useEffect, useRef } from 'react'
 import { useUser } from 'features/User'
 import styles from './settings.module.css'
 import ConfigEditor from './ConfigEditor.jsx'
+
+const MAX_UPLOAD_BYTES = 8 * 1024 * 1024
+const IMAGE_ACCEPT = 'image/png,image/jpeg,image/webp,.svg,.ico'
 
 export default function Setting({ setting, onUpdate, onEditFull, onDelete }) {
     const { id, key, value: initialValue, renderType, formType, category, public: isPublic } = setting
@@ -17,6 +21,8 @@ export default function Setting({ setting, onUpdate, onEditFull, onDelete }) {
     const [error, setError] = useState(null)
     const [copied, setCopied] = useState(false)
     const [expanded, setExpanded] = useState(false)
+    const [uploading, setUploading] = useState(false)
+    const fileInputRef = useRef(null)
     const lightRef = useRef(null)
     const darkRef = useRef(null)
     const { isSuperAdmin, role: adminRole } = useUser() || {}
@@ -335,6 +341,101 @@ export default function Setting({ setting, onUpdate, onEditFull, onDelete }) {
         )
     }
 
+    const isFileType = formType === 'file' || formType === 'image' || renderType === 'image'
+    const isImageType = formType === 'image' || renderType === 'image'
+
+    async function handleFileSelect(e) {
+        const file = e.target.files?.[0]
+        e.target.value = ''
+        if (!file) return
+        setError(null)
+        if (isImageType && !/^(image\/|.*\.(svg|ico)$)/i.test(`${file.type} ${file.name}`)) {
+            setError('Only image files (png/jpg/webp/svg/ico)')
+            return
+        }
+        if (!isImageType && !/^(application\/pdf|.*\.pdf)$/i.test(`${file.type} ${file.name}`)) {
+            setError('Only PDF files')
+            return
+        }
+        if (file.size > MAX_UPLOAD_BYTES) {
+            setError('File too large (max 8MB)')
+            return
+        }
+        const reader = new FileReader()
+        reader.onload = async () => {
+            const dataUrl = String(reader.result || '')
+            const fileBase64 = dataUrl.includes(',') ? dataUrl.split(',').pop() : dataUrl
+            setUploading(true)
+            try {
+                const res = await apiReq('setting/upload_file', { id, fileBase64, filename: file.name, contentType: file.type })
+                const next = res?.basePath || res?.setting?.value
+                if (!next) throw new Error('Upload failed')
+                await handleSave(next)
+            } catch (err) {
+                setError(err?.message || 'Upload failed')
+            } finally {
+                setUploading(false)
+            }
+        }
+        reader.readAsDataURL(file)
+    }
+
+    // File / image settings — upload to storage, value is the relative path
+    if (isFileType) {
+        const fileUrl = getSettingFileUrl(value)
+        return (
+            <div className={styles.settingItem}>
+                <div className={styles.settingMain}>
+                    <div className={styles.settingInfo}>
+                        <div className={styles.settingKeyRow}>
+                            {onEditFull && <Button className={styles.gearBtn} onClick={() => onEditFull(setting)} title="Edit all fields" icon='edit' />}
+                            {onDelete && <ConfirmButton q={`Delete "${key}"?`} onOk={handleDelete} icon="trash" className={styles.deleteBtn} title="Delete setting" disabled={saving || uploading} />}
+                            <span className={styles.settingKey}>{key}</span>
+                            <label title={isPublic ? 'Public — sent to client' : 'Private — not sent to client'} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', color: isPublic ? 'var(--text-success-primary)' : 'var(--text-tertiary)', cursor: saving ? 'wait' : 'pointer', marginInlineStart: '0.5rem' }}>
+                                <input type="checkbox" checked={!!isPublic} onChange={handlePublicToggle} disabled={saving || uploading} style={{ accentColor: 'var(--bg-brand-primary)' }} />
+                                public
+                            </label>
+                        </div>
+                        {error && <span className={styles.settingError}>{error}</span>}
+                    </div>
+                    <div className={styles.settingControl} style={{ gap: '0.5rem' }}>
+                        {isImageType ? (
+                            fileUrl
+                                ? <img src={fileUrl} alt={key} title={typeof value === 'string' ? value : ''} className={styles.settingThumb} />
+                                : <em className={styles.emptyValue}>Not set</em>
+                        ) : (
+                            <>
+                                <div className={styles.settingValueContainer} style={{ cursor: 'default', flex: 1, minWidth: 0 }}>
+                                    <span className={styles.settingValue} style={{ flex: 1, minWidth: 0 }} title={typeof value === 'string' ? value : ''}>
+                                        {value ? String(value) : <em className={styles.emptyValue}>Not set</em>}
+                                    </span>
+                                </div>
+                                {fileUrl && (
+                                    <a href={fileUrl} target="_blank" rel="noreferrer" className={styles.linkValue}>
+                                        PDF
+                                    </a>
+                                )}
+                            </>
+                        )}
+                        {canEditValues && (
+                            <>
+                                <Button icon="upload" mode="text" disabled={uploading || saving} loading={uploading} onClick={() => fileInputRef.current?.click()} title={isImageType ? 'Upload image (png/jpg/webp/svg/ico)' : 'Upload PDF'} />
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept={isImageType ? IMAGE_ACCEPT : 'application/pdf,.pdf'}
+                                    onChange={handleFileSelect}
+                                    disabled={uploading || saving}
+                                    style={{ display: 'none' }}
+                                />
+                            </>
+                        )}
+                    </div>
+                </div>
+            </div>
+        )
+    }
+
     // Default (text, textarea, date, etc) - keep same container look, only icons differ
     return (
         <div className={styles.settingItem}>
@@ -421,6 +522,17 @@ function renderValueContent(val, renderType, formType, isEditing) {
             </span>
         )
     }
+    const isImage = formType === 'image' || renderType === 'image'
+    if (isImage) {
+        const url = getSettingFileUrl(val)
+        if (!url) return <em className={styles.emptyValue}>Not set</em>
+        return <img src={url} alt="" className={styles.settingThumb} />
+    }
+    if (formType === 'file') {
+        const url = getSettingFileUrl(val)
+        if (!url) return <em className={styles.emptyValue}>Not set</em>
+        return <a href={url} target="_blank" rel="noreferrer" className={styles.linkValue} onClick={(e) => e.stopPropagation()}>PDF</a>
+    }
     return render({ type: renderType, value: val })
 }
 
@@ -451,8 +563,6 @@ function renderFormInput({ formType, editValue, setEditValue, handleKeyDown, han
                 />
             )
         case 'text':
-        case 'file':
-        case 'image':
         case 'link':
         case 'select':
         default:
