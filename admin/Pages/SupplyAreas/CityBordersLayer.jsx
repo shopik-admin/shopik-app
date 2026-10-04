@@ -2,7 +2,6 @@ import { useEffect, useRef } from 'react'
 import { useMap } from 'react-leaflet'
 import L from 'leaflet'
 import { useText } from 'common/texts/TextProvider'
-import apiReq from 'common/functions/apiReq'
 import styles from './supplyAreas.module.css'
 
 // City / municipal jurisdiction borders as a clickable reference overlay.
@@ -16,13 +15,19 @@ import styles from './supplyAreas.module.css'
 // layer stacks whole-council + va'ad subdivision polygons — dissolving leaves
 // one true outline per city/council), drop "ללא שיפוט" (unassigned) areas,
 // topology-preserving simplify (~8%), 5-decimal coords.
-// TO UPDATE: publish a new file from DevTools → City borders (no code change,
-// no redeploy — the map reads the URL from the cityBordersUrl setting).
-// City-borders GeoJSON lives on the files CDN; only its path is stored, in the
-// `cityBordersUrl` setting (published from DevTools, no redeploy). Resolved
-// once per session.
+// Bundled with the admin app at admin/public/static/ and served verbatim out of
+// build/admin/static/ by express.static on the admin host. It is deliberately
+// NOT imported: an import would inline ~1.9MB into the admin JS chunk and
+// download it on every admin page. As a static file the browser fetches it only
+// when this layer is turned on.
+// TO UPDATE: the filename encodes the source release date, so check that item's
+// `modified` date on ArcGIS. If it moved, redo the conversion above, add the
+// result as city-borders.v<YYYY-MM-DD>.geojson, and update BORDERS_FILE. Ships
+// with a redeploy — no upload step, every tenant has it once the image rolls.
 // Permanent name labels only when zoomed in enough to stay readable.
 const LABEL_MIN_ZOOM = 11
+// Path is publicDir-relative to admin/ (served from the admin host).
+const BORDERS_FILE = '/static/city-borders.v2025-10-16.geojson'
 // Manual nudge (meters, [east, north]) applied to the whole layer at load.
 // The file is properly projected so this stays [0, 0] — only touch it if a
 // systematic mismatch against the basemap is ever found (e.g. [70, 40]).
@@ -41,22 +46,11 @@ function applyOffset(fc) {
     return fc
 }
 
-// Shared across remounts (tileset switches recreate the map) — resolved + fetched once.
-let bordersUrlPromise = null
-function loadBordersUrl() {
-    if (!bordersUrlPromise) {
-        bordersUrlPromise = apiReq('supply_area/city_borders', {})
-            .then(res => res?.url || null)
-            .catch(() => null)
-    }
-    return bordersUrlPromise
-}
-
+// Shared across remounts (tileset switches recreate the map) — fetched once per session.
 let bordersPromise = null
 function loadBorders() {
     if (!bordersPromise) {
-        bordersPromise = loadBordersUrl()
-            .then(url => fetch(url))
+        bordersPromise = fetch(BORDERS_FILE)
             .then(r => {
                 if (!r.ok) throw new Error(`city borders HTTP ${r.status}`)
                 return r.json()
@@ -182,12 +176,14 @@ export default function CityBordersLayer({ visible, drawing, toggleMode, geometr
             })
         }
 
-        if (stRef.current.visible) layer.addTo(map)
-        loadBorders().then(data => {
-            if (cancelled) return
-            dataRef.current = data
-            refresh()
-        })
+        if (stRef.current.visible) {
+            layer.addTo(map)
+            loadBorders().then(data => {
+                if (cancelled) return
+                dataRef.current = data
+                refresh()
+            })
+        }
         map.on('moveend zoomend', refresh)
         return () => {
             cancelled = true
