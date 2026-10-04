@@ -13,6 +13,7 @@ import Card from 'common/components/Card'
 import Flex from 'common/components/Flex'
 import Setting from './Setting.jsx'
 import ConfigEditor from './ConfigEditor.jsx'
+import { getSettingFileUrl } from 'common/functions/settingFileUrl'
 
 const FORM_TYPES = [
     'text', 'checkbox', 'switch', 'color', 'select',
@@ -41,6 +42,52 @@ function SettingModalContent({ setting, defaultCategory, defaultSubCategory, def
     })
     const [error, setError] = useState(null)
     const [loading, setLoading] = useState(false)
+    const [pendingFile, setPendingFile] = useState(null)
+    const [modalUploading, setModalUploading] = useState(false)
+    const modalFileRef = useRef(null)
+
+    const isModalFileType = formData.formType === 'file' || formData.formType === 'image' || formData.renderType === 'image'
+    const isModalImage = formData.formType === 'image' || formData.renderType === 'image'
+
+    function handleModalFile(e) {
+        const file = e.target.files?.[0]
+        e.target.value = ''
+        if (!file) return
+        setError(null)
+        if (isModalImage && !/^(image\/|.*\.(svg|ico)$)/i.test(`${file.type} ${file.name}`)) {
+            setError('Only image files (png/jpg/webp/svg/ico)')
+            return
+        }
+        if (!isModalImage && !/^(application\/pdf|.*\.pdf)$/i.test(`${file.type} ${file.name}`)) {
+            setError('Only PDF files')
+            return
+        }
+        if (file.size > 8 * 1024 * 1024) {
+            setError('File too large (max 8MB)')
+            return
+        }
+        const reader = new FileReader()
+        reader.onload = async () => {
+            const dataUrl = String(reader.result || '')
+            const fileBase64 = dataUrl.includes(',') ? dataUrl.split(',').pop() : dataUrl
+            if (isEdit) {
+                setModalUploading(true)
+                try {
+                    const res = await apiReq('setting/upload_file', { id: setting.id, fileBase64, filename: file.name, contentType: file.type })
+                    const next = res?.basePath || res?.setting?.value
+                    if (!next) throw new Error('Upload failed')
+                    setFormData((prev) => ({ ...prev, value: next }))
+                } catch (err) {
+                    setError(err?.message || 'Upload failed')
+                } finally {
+                    setModalUploading(false)
+                }
+            } else {
+                setPendingFile({ fileBase64, filename: file.name, contentType: file.type })
+            }
+        }
+        reader.readAsDataURL(file)
+    }
 
     async function handleSubmit(e) {
         e.preventDefault()
@@ -51,7 +98,12 @@ function SettingModalContent({ setting, defaultCategory, defaultSubCategory, def
             if (isEdit) {
                 result = await apiReq('setting/update', { id: setting.id, ...formData })
             } else {
-                result = await apiReq('setting/create', formData)
+                const toCreate = pendingFile ? { ...formData, value: pendingFile.filename || 'pending upload' } : formData
+                result = await apiReq('setting/create', toCreate)
+                if (pendingFile && result?.id) {
+                    const up = await apiReq('setting/upload_file', { id: result.id, ...pendingFile })
+                    result = up?.setting || { ...result, value: up?.basePath }
+                }
             }
             onSuccess(result || { ...(setting || {}), ...formData })
             onClose()
@@ -154,6 +206,31 @@ function SettingModalContent({ setting, defaultCategory, defaultSubCategory, def
                         <span className={styles.settingKey}>Dark</span>
                         <input type="color" className={styles.inlineColorInput} value={normalizeColorValue(formData.value).dark} onChange={(e) => setFormData({ ...formData, value: { ...normalizeColorValue(formData.value), dark: e.target.value } })} />
                     </label>
+                </div>
+            ) : isModalFileType ? (
+                <div>
+                    <span className={styles.settingKey}>Value ({isModalImage ? 'image: png/jpg/webp/svg/ico' : 'PDF only'})</span>
+                    {typeof formData.value === 'string' && formData.value && !pendingFile && (
+                        <div style={{ margin: '0.35rem 0' }}>
+                            {isModalImage
+                                ? <img src={getSettingFileUrl(formData.value)} alt="" className={styles.settingThumb} style={{ maxHeight: '4rem', maxWidth: '10rem' }} />
+                                : <a href={getSettingFileUrl(formData.value)} target="_blank" rel="noreferrer" className={styles.linkValue}>Open current file</a>}
+                        </div>
+                    )}
+                    {pendingFile && <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '0.25rem 0' }}>Selected: {pendingFile.filename} (uploads on Add)</div>}
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                        <Button type="button" icon="upload" disabled={loading || modalUploading} loading={modalUploading} onClick={() => modalFileRef.current?.click()}>
+                            {isEdit ? 'Upload file' : 'Choose file'}
+                        </Button>
+                        <input
+                            ref={modalFileRef}
+                            type="file"
+                            accept={isModalImage ? 'image/png,image/jpeg,image/webp,.svg,.ico' : 'application/pdf,.pdf'}
+                            onChange={handleModalFile}
+                            disabled={loading || modalUploading}
+                            style={{ display: 'none' }}
+                        />
+                    </div>
                 </div>
             ) : (
                 <Input

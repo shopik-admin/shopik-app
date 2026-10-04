@@ -9,5 +9,10 @@ export function runtimeEnv(key, baked = '') {
     try {
         if (typeof window !== 'undefined' && window.__SD__?.env?.[key]) return window.__SD__.env[key]
     } catch { }
+    // ponytail: SSR render has no window — read the deploy env directly.
+    // Without this first paint bakes VITE_FILES_BASE_URL from build time.
+    try {
+        if (typeof window === 'undefined' && typeof process !== 'undefined' && process.env?.[key]) return process.env[key]
+    } catch { }
     return baked || ''
 }

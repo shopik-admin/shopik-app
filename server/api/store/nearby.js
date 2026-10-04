@@ -1,16 +1,13 @@
+import storeScope from '#server/utils/data/storeScope.js'
+
 export default async function nearby(payload, { DL, _admin }) {
     const { coordinates } = payload
     if (!coordinates || !Array.isArray(coordinates) || coordinates.length !== 2)
         throw { status: 400, message: 'coordinates [lng, lat] required' }
 
-    const admin = await DL.Admin.readById(_admin.id)
-    const isSuper = _admin.isSuperAdmin
-
-    let storeFilter = { active: true }
-    if (!isSuper) {
-        if (!admin?.storeIds?.length) return []
-        storeFilter.id = { $in: admin.storeIds }
-    }
+    const scope = storeScope({ _admin })
+    // $in: [] on an empty scope matches nothing, so no early return is needed.
+    const storeFilter = { active: true, ...(scope !== null && { id: { $in: scope } }) }
 
     const stores = await DL.Store.Model.aggregate([
         {

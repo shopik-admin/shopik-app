@@ -10,10 +10,9 @@ export default async function list(payload, { DL, _admin }) {
         search
     } = payload || {}
 
-    // Shared queue scoping (store, today/tomorrow, permission union) — see opsFilter.js.
-    // If both base and extraFilter have storeId, extra wins — intentional for store picker.
+    // Shared queue scoping (current store, window limits, permission union) — see opsFilter.js,
+    // which also strips any client-passed storeId from extraFilter.
     const { filter: finalFilter, perms: { me } } = await buildOpsFilter({
-        DL,
         _admin,
         extraFilter,
         statusFilter: { $in: ['paid', 'picking', 'picked', 'packed', 'shipped'] }

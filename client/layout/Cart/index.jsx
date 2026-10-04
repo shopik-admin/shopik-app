@@ -137,7 +137,7 @@ export default function Cart({ }) {
                 </Flex>
             </Flex>
             {isBelowMinSum && !emptyCart && (
-                <Text size='s' mode='sub' className={styles.minSumNote}>{TR?.('minimum_order_sum') || 'minimum order sum:'} {render({ type: 'coin', value: minSumThreshold })}</Text>
+                <Text size='s' mode='sub' className={styles.minSumNote}>{TR?.('minimum_order_sum')} {render({ type: 'coin', value: minSumThreshold })}</Text>
             )}
             <Button icon='cart' onClick={goToCheckout} disabled={isBelowMinSum}>
                 <Text>to_pay</Text>

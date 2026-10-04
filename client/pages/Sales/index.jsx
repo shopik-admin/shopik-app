@@ -1,5 +1,6 @@
 import apiReq from '#common/functions/apiReq'
 import { usePage } from 'layout/Page'
+import TR from '#common/texts/TR.js'
 import ProductList, { PRODUCT_LIST_LIMIT } from 'pages/Products/ProductList'
 
 export default function Sales() {
@@ -11,10 +12,10 @@ export default function Sales() {
             data={data}
             loading={loading}
             notFound={pageData?.notFound}
-            title={data?.categoryName || pageData?.title || 'מבצעים'}
+            title={data?.categoryName || pageData?.title || TR('sales')}
             breadcrumbPath='/sales'
             resetKey='sales'
-            emptyText='אין מבצעים כרגע'
+            emptyText={TR('sales_empty')}
             blocks={data?.blocks}
             fetchPage={({ skip, limit }) => apiReq('product/get', { onSale: true, skip, limit })}
         />
@@ -27,8 +28,8 @@ Sales.init = async function () {
         apiReq('display_block/get', { path: '/sales' }).catch(() => ({ blocks: [] }))
     ])
     return {
-        title: 'מבצעים',
-        description: 'מוצרים במבצע',
+        title: TR('sales'),
+        description: TR('page_sales_desc'),
         data: { ...res, blocks: display.blocks || [] }
     }
 }

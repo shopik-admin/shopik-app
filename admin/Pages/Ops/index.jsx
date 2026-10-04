@@ -9,6 +9,8 @@ import Button from 'common/components/Button'
 import Flex from 'common/components/Flex'
 import styles from './ops.module.css'
 import OrderCard from './OrderCard'
+import StoreGate from './StoreGate'
+import StorePill from './StorePill'
 import { todayStr } from '../Windows/dates.js'
 
 const TABS = {
@@ -46,20 +48,17 @@ export default function Ops({ }) {
     const [asShipper, setAsShipper] = useState(readAsShipper)
     function enterShipperView() { writeAsShipper(true); setAsShipper(true) }
     function exitShipperView() { writeAsShipper(false); setAsShipper(false) }
-    if (canRead && !asShipper) return <Flex col>
-        <Flex className={styles.viewToggleFloat}>
-            <Button mode='outline' icon='truck' onClick={enterShipperView}>ops_view_as_shipper</Button>
-        </Flex>
+    if (canRead && !asShipper) return <StoreGate><Flex col>
         <DataManager
             apiRoute='order/ops'
             actions={['refresh']}
             defaultSort={{ 'window.endTimestamp': 1 }}
             cols={opsCols}
         >
-            <OpsInner />
+            <OpsInner onEnterShipper={enterShipperView} />
         </DataManager>
-    </Flex>
-    return <ShipperPickerData canShip={canShip} asShipper={asShipper} onExitShipperView={asShipper ? exitShipperView : null} />
+    </Flex></StoreGate>
+    return <StoreGate><ShipperPickerData canShip={canShip} asShipper={asShipper} onExitShipperView={asShipper ? exitShipperView : null} /></StoreGate>
 }
 
 function waitingFilter(canRead) {
@@ -82,9 +81,13 @@ function ShipperPickerData({ canShip, asShipper, onExitShipperView }) {
     </DataProvider>
 }
 
-function OpsInner() {
+function OpsInner({ onEnterShipper }) {
     const { data: orders = [] } = useData()
     return <Flex col gap={10} className={styles.ops}>
+        <Flex className={styles.viewToggleFloat} gap={8}>
+            {onEnterShipper && <Button mode='outline' icon='truck' onClick={onEnterShipper}>ops_view_as_shipper</Button>}
+            <StorePill />
+        </Flex>
         {orders.map(order => <OrderCard key={order.number} order={order} />)}
     </Flex>
 }
@@ -110,9 +113,10 @@ function ShipperOps({ onExit }) {
     const mineCount = useApi('order/ops/count', { filter: filters[TABS.MINE] })
 
     return <Flex col gap={10} className={styles.ops}>
-        {onExit && <Flex className={styles.viewToggleFloat}>
-            <Button mode='outline' icon='orders' onClick={onExit}>ops_view_as_manager</Button>
-        </Flex>}
+        <Flex className={styles.viewToggleFloat} gap={8}>
+            {onExit && <Button mode='outline' icon='orders' onClick={onExit}>ops_view_as_manager</Button>}
+            <StorePill />
+        </Flex>
         <Tabs
             mode='line'
             active={tab}
@@ -133,6 +137,7 @@ function PickerOps() {
     const pickingCount = useApi('order/ops/count', { filter: pickingFilter })
 
     return <Flex col gap={10} className={styles.ops}>
+        <Flex className={styles.viewToggleFloat}><StorePill /></Flex>
         <Tabs
             mode='line'
             active={TABS.PICKING}

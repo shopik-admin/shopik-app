@@ -1,5 +1,8 @@
+import storeScope, { scopeStoreFilter } from '#server/utils/data/storeScope.js'
+
 export default async function getLists({ DL }, user) {
     const { roleId } = user
+    const scope = storeScope({ _admin: user })
     const [roles, domains, stores] = await Promise.all([
         DL.Role.read({
             $or: [
@@ -8,7 +11,7 @@ export default async function getLists({ DL }, user) {
             ]
         }, { id: 1, name: 1 }, { limit: 0 }),
         DL.Domain.read({}, { id: 1, name: 1, isDefault: 1 }, { limit: 0 }),
-        DL.Store.read({}, { id: 1, name: 1, address: 1 }, { limit: 0 })
+        DL.Store.read(scopeStoreFilter({}, scope), { id: 1, name: 1, address: 1 }, { limit: 0 })
     ])
     const lists = {}
     lists.roles = roles.map(({ id, name }) => ({ value: id, text: name }))

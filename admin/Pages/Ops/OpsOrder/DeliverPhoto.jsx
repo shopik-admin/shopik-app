@@ -6,21 +6,9 @@ import Text from 'common/components/Text'
 import Button from 'common/components/Button'
 import Loader from 'common/components/Loader'
 import apiReq from 'common/functions/apiReq'
+import getPosition from 'common/functions/getPosition'
 import styles from './deliverPhoto.module.css'
 import opsStyles from './opsOrder.module.css'
-
-function getPosition(timeoutMs = 8000) {
-    return new Promise(resolve => {
-        if (!navigator.geolocation) return resolve(null)
-        let done = false
-        const timer = setTimeout(() => { if (!done) { done = true; resolve(null) } }, timeoutMs)
-        navigator.geolocation.getCurrentPosition(
-            pos => { if (!done) { done = true; clearTimeout(timer); resolve([pos.coords.longitude, pos.coords.latitude]) } },
-            () => { if (!done) { done = true; clearTimeout(timer); resolve(null) } },
-            { enableHighAccuracy: true, timeout: timeoutMs, maximumAge: 60000 }
-        )
-    })
-}
 
 function captureFrame(video, maxSide = 1600) {
     const vw = video.videoWidth, vh = video.videoHeight
