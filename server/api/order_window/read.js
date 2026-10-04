@@ -1,3 +1,5 @@
+import storeScope, { narrowStoreIds, assertStoreIdsAllowed } from '#server/utils/data/storeScope.js'
+
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 
 function formatDate(d) {
@@ -20,20 +22,15 @@ export default async function read(payload, { DL, _admin }) {
         }
     }
 
-    // Store scoping: superadmin sees all stores, everyone else is limited
-    // to their admin.storeIds (rides the cached auth payload).
-    let scopedStoreIds = null
-    if (!_admin.isSuperAdmin) {
-        scopedStoreIds = _admin.storeIds ?? []
-        if (!scopedStoreIds.length) return []
-    }
+    // Store scoping via the canonical rule (storeScope) — this route used to
+    // re-derive it from _admin.storeIds alone, which silently returned nothing for
+    // a `store:all` admin with no explicit stores.
+    const scope = storeScope({ _admin })
+    if (scope !== null && !scope.length) return []      // scoped to nothing
 
-    let filterStoreIds = storeIds?.length ? storeIds : scopedStoreIds
-    if (scopedStoreIds && storeIds?.length) {
-        const outside = storeIds.filter(id => !scopedStoreIds.includes(id))
-        if (outside.length) throw { status: 403, message: 'Forbidden stores' }
-        filterStoreIds = storeIds
-    }
+    const requested = storeIds?.length ? storeIds : null
+    assertStoreIdsAllowed(requested, scope)
+    const filterStoreIds = narrowStoreIds(requested, scope)
 
     const filter = {
         // inactive (closed) windows are included so the daily grid can show
