@@ -51,7 +51,7 @@ export function AddressForm({ initialData, onDone, cityRef }) {
     }
 
     return (
-        <Form action={handleSubmit} {...formState} submitText={initialData?.addressId ? 'עדכן כתובת' : 'הוסף כתובת'} autoComplete="off">
+        <Form action={handleSubmit} {...formState} submitText={initialData?.addressId ? 'address_update' : 'address_add'} autoComplete="off">
             <input type="text" style={{ display: 'none' }} autoComplete="off" tabIndex={-1} aria-hidden="true" />
             <input type="password" style={{ display: 'none' }} autoComplete="off" tabIndex={-1} aria-hidden="true" />
             <AddressAutocomplete value={autocomplete} onChange={setAutocomplete} required cityRef={cityRef} />

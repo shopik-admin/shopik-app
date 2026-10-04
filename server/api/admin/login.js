@@ -34,7 +34,9 @@ export default async function login({ idNum, otpToken, otp }, { DL, utils, platf
         id: 1,
         roleId: 1,
         tokens: 1,
-        name: 1
+        name: 1,
+        storeIds: 1,
+        currentStoreId: 1
     }).lean()
 
     await DL.redis?.set(`admin_auth:${admin.id}`, JSON.stringify(updatedAdmin), 'EX', 60 * 60 * 24)

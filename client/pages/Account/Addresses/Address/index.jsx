@@ -7,12 +7,14 @@ import Image from 'common/components/Image'
 import Card from 'common/components/Card'
 import Flex from 'common/components/Flex'
 import Text from 'common/components/Text'
+import { useText } from 'common/texts/TextProvider'
 
 export default function Address({ store, address = {}, active: activeProp, action = {}, onEdit, onRemove }) {
     const { city, street, apartment, building, active: addressActive, hasService } = store?.address || address
     const active = activeProp ?? addressActive
     const isNoService = !store && hasService === false
     const isDisabled = !!action.disabled || isNoService
+    const { TR } = useText?.() || {}
 
     return <Flex
         onClick={isDisabled ? undefined : action.onClick}
@@ -21,7 +23,7 @@ export default function Address({ store, address = {}, active: activeProp, actio
 
         <Flex col gap={7} justifyContent='center'>
             <Text size='s'>{store ? 'store_address_title' : 'address_title'}</Text>
-            <Text bold>{store?.name ? `${store.name} - ` : ''}{street} {building} {apartment && `דירה ${apartment}`}</Text>
+            <Text bold>{store?.name ? `${store.name} - ` : ''}{street} {building} {apartment && `${TR?.('apartment')} ${apartment}`}</Text>
             <Text bold>{city}</Text>
         </Flex>
 

@@ -6,7 +6,6 @@ export default async function count(payload, { DL, _admin }) {
     // the classic total behavior when no extraFilter is passed.
     const { filter: extraFilter = {} } = payload || {}
     const { filter: final } = await buildOpsFilter({
-        DL,
         _admin,
         extraFilter,
         statusFilter: { $ne: 'cart' }

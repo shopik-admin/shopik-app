@@ -1,7 +1,9 @@
 // Public show-all data source for /carousel/:id.
 // Replays the carousel's stored filter with live pagination (always uncached —
 // deep pages are rare and skip-paginated on indexed queries).
-export default async function carousel(payload, { DL, _user, req, utils }) {
+import { withDomainPrice } from '#server/utils/data/withDomainPrice.js'
+
+export default async function carousel(payload, { DL, _user, req, utils, platform }) {
     if (typeof payload.id !== 'string' || !payload.id)
         throw { status: 400, message: 'id required' }
     if (typeof payload.domainId !== 'string' || !payload.domainId)
@@ -55,6 +57,10 @@ export default async function carousel(payload, { DL, _user, req, utils }) {
     }
     products = display.stripStoreIds(products)
     const sales = await display.collectSales(DL, products)
+    // Storefront gets a resolved flat `price` only; admin keeps `prices`.
+    if (!String(platform || '').includes('admin')) {
+        products = withDomainPrice(products, domainId)
+    }
     return { block: carouselMeta(block), products, sales }
 }
 

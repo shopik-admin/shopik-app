@@ -3,7 +3,9 @@
 //   off      → cached value is final (already sliced to preview limit)
 //   annotate → cached wide base (with storeIds), inStock flags added per request
 //   filter   → cached wide base, store-filtered + sliced per request
-export default async function get(payload, { DL, _user, req, utils }) {
+import { withDomainPrice } from '#server/utils/data/withDomainPrice.js'
+
+export default async function get(payload, { DL, _user, req, utils, platform }) {
     // Strict types: body values are client-controlled; objects slip past the
     // `required` check and either throw (path.startsWith) or silently drop
     // filter keys in processFilter (fail-open cross-domain read).
@@ -21,10 +23,13 @@ export default async function get(payload, { DL, _user, req, utils }) {
     const { mode, storeId } = await utils.data.withStock.resolveStockContext(req, { DL, utils }, _user)
     const previewLimit = await display.getPreviewLimit(DL, domainId)
 
+    // Storefront gets a resolved flat `price` only; admin keeps `prices`.
+    const priceFor = (products) =>
+        String(platform || '').includes('admin') ? products : withDomainPrice(products, domainId)
     const key = display.displayCacheKey(domainId, pagePath, mode)
     try {
         const cached = await DL.redis?.get(key)
-        if (cached) return deriveView(JSON.parse(cached), mode, storeId, previewLimit, display)
+        if (cached) return deriveView(JSON.parse(cached), mode, storeId, previewLimit, display, priceFor)
     } catch {}
 
     const now = new Date()
@@ -76,7 +81,7 @@ export default async function get(payload, { DL, _user, req, utils }) {
         const { products, sales } = await display.fetchCarouselBase(DL, block, domainId, baseLimit)
         if (mode === 'off') {
             const limit = Math.min(block.carousel?.limit || previewLimit, previewLimit)
-            const sliced = display.stripStoreIds(products.slice(0, limit))
+            const sliced = priceFor(display.stripStoreIds(products.slice(0, limit)))
             withProducts.push({
                 ...block,
                 products: sliced,
@@ -92,20 +97,22 @@ export default async function get(payload, { DL, _user, req, utils }) {
         await DL.redis?.set(key, JSON.stringify(response), 'EX', display.DISPLAY_CACHE_TTL_SEC)
     } catch {}
 
-    return deriveView(response, mode, storeId, previewLimit, display)
+    return deriveView(response, mode, storeId, previewLimit, display, priceFor)
 }
 
-function deriveView(response, mode, storeId, previewLimit, display) {
+function deriveView(response, mode, storeId, previewLimit, display, priceFor = (p) => p) {
     // The cached base always carries storeIds (needed to derive per-store
     // views); responses never do. Re-deriving is idempotent, so off-mode
-    // entries (already sliced) pass through unchanged.
+    // entries (already sliced) pass through unchanged. Flat pricing is
+    // resolved at serve time (idempotent — already-priced products pass
+    // through), never baked into the cross-request cache shape.
     return {
         blocks: (response.blocks || []).map(block => {
             if (block.kind !== 'product_carousel' || !Array.isArray(block.products)) return block
             const limit = Math.min(block.carousel?.limit || previewLimit, previewLimit)
-            const products = display.stripStoreIds(
+            const products = priceFor(display.stripStoreIds(
                 display.applyStockView(block.products, mode, storeId, limit)
-            )
+            ))
             return { ...block, products, sales: display.filterSalesFor(products, block.sales) }
         })
     }

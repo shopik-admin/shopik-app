@@ -3,6 +3,7 @@ import { calcOrder } from '#common/functions/calcOrder/cart.js'
 import filterClientOrder from '#server/utils/data/filterClientOrder.js'
 import { getOrCreateGuestCart } from '#server/utils/data/getGuestCart.js'
 import getShippingConfig from '#server/utils/data/getShippingConfig.js'
+import { withDomainPriceOne } from '#server/utils/data/withDomainPrice.js'
 
 export default async function product(payload, { DL, _user, utils, cookies, setCookie }) {
     const { id: productId, amount, unitKey, domainId } = payload
@@ -42,6 +43,14 @@ export default async function product(payload, { DL, _user, utils, cookies, setC
         throw { status: 400, message: 'Product does not exist' }
     }
 
+    // Single price source: resolve the order domain's flat `price` here so
+    // calcOrder/buildCartProduct never touch the multi-domain `prices` array.
+    // (cartOrder.domainId is server-stored; payload domainId is router-resolved.)
+    const pricedProduct = withDomainPriceOne(product, cartOrder.domainId || domainId)
+    if (!pricedProduct) {
+        throw { status: 400, message: 'product not available in this domain' }
+    }
+
     const allSaleIds = new Set()
     for (const saleId of product.saleIds || []) {
         allSaleIds.add(saleId)
@@ -69,7 +78,7 @@ export default async function product(payload, { DL, _user, utils, cookies, setC
     }
 
     const shippingConfig = await getShippingConfig(DL, cartOrder.domainId || domainId)
-    const updatedOrder = calcOrder({ order: cartOrder, product, amount, unitKey, sales: salesMap, shippingConfig, user: _user })
+    const updatedOrder = calcOrder({ order: cartOrder, product: pricedProduct, amount, unitKey, sales: salesMap, shippingConfig, user: _user })
 
     const updateData = diff(originalOrder, updatedOrder)
     const nothingToUpdate = Object.keys(updateData).length === 0

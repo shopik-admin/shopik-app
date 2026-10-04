@@ -2,7 +2,7 @@ import { USER_TOKEN_EXPIRY_MS, USER_TOKEN_COOKIE, GUEST_CART_TOKEN_COOKIE } from
 
 export default async function login({ domainId, phone, otpToken, otp }, { DL, utils, platform, setCookie, cookies, clearCookie }) {
     const storedOtp = await DL.Otp.readOne({ token: otpToken })
-    if (!storedOtp || storedOtp.otp !== otp) {
+    if (!storedOtp || storedOtp.otp !== otp || String(storedOtp.phone) !== String(phone)) {
         if (storedOtp?._id) {
             const attempts = (storedOtp.attempts || 0) + 1
             if (attempts >= 5) {
@@ -19,7 +19,8 @@ export default async function login({ domainId, phone, otpToken, otp }, { DL, ut
     if (storedOtp.payload) {
         user = await DL.User.create(storedOtp.payload)
     } else {
-        user = await DL.User.readOne({ domainId, phone })
+        // Resolve against the number the OTP was issued to, never the client-supplied one.
+        user = await DL.User.readOne({ domainId, phone: storedOtp.phone })
         if (!user)
             throw { message: 'login failed', status: 403 }
     }

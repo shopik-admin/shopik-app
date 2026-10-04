@@ -3,6 +3,7 @@ import { enqueueProcessJobs } from '#server/queues/gs1Queues.js'
 import { bufferProduct, bufferRaw, bufferProgress, flush } from './bulk.js'
 import { stageZip, buildFingerprint, hashFingerprint, countStills, rankStills, bucketHasImage, buildImageSizes, isZipBuffer, zipEntryBasenames, baseName, imageExtFromMagic, wrapSingleImage } from './images.js'
 import { mem } from './memlog.js'
+import { aliasCandidates, aliasEnabled, resolveAlias, aliasMinLen } from './alias.js'
 import log from '#server/utils/log.js'
 
 const enrichBatchSize = () => Number(process.env.GS1_ENRICH_BATCH || 500)
@@ -72,45 +73,89 @@ export async function enrichBatch({ DL, external, runId, onlyInStock = true, bar
     if (!page?.length) return { done: true, enriched: 0, skipped: 0, total: 0 }
 
     const barcodes = [...new Set(page.map(r => r?.barcode).filter(Boolean))]
-    const [products, comax] = await Promise.all([
-        DL.Product.read(
-            { barcode: { $in: barcodes } },
-            { _id: 0, barcode: 1, storeIds: 1 },
-            { limit: 0 }
-        ),
-        DL.ComaxProduct.read(
-            { barcode: { $in: barcodes } },
-            { _id: 0, barcode: 1 },
-            { limit: 0 }
-        )
-    ])
+    const products = await DL.Product.read(
+        { barcode: { $in: barcodes } },
+        { _id: 0, barcode: 1, storeIds: 1 },
+        { limit: 0 }
+    )
     const productSet = new Set((products || []).map(p => p.barcode))
     const inStockSet = new Set((products || []).filter(p => (p.storeIds || []).length).map(p => p.barcode))
-    const comaxSet = new Set((comax || []).map(c => c.barcode))
 
     let enriched = 0
     let skipped = 0
+    // passing entries are { gtin, short }: gtin keys the gs1_products raw doc,
+    // short keys the Product write. Exact matches have gtin === short.
     const passing = []
+    const unmatched = []
     for (const barcode of barcodes) {
-        const reason = !productSet.has(barcode) ? 'no-product'
-            : !comaxSet.has(barcode) ? 'no-comax'
-                : (onlyInStock && !inStockSet.has(barcode)) ? 'out-of-stock' : null
+        if (!productSet.has(barcode)) {
+            unmatched.push(barcode)
+            continue
+        }
+        const reason = (onlyInStock && !inStockSet.has(barcode)) ? 'out-of-stock' : null
         if (reason) {
             bufferRaw({ barcode, status: 'skipped', skipReason: reason })
             skipped++
         } else {
-            passing.push(barcode)
+            passing.push({ gtin: barcode, short: barcode })
+        }
+    }
+
+    // Alias fallback: GTINs with no exact Product match resolve to a short
+    // internal code (prefix + zeros + short). Product-only gate — no Comax
+    // check. Ambiguous GTINs (2+ distinct shorts) are skipped, never guessed.
+    if (unmatched.length && aliasEnabled()) {
+        const minLen = aliasMinLen()
+        const candidates = new Set()
+        for (const g of unmatched)
+            for (const c of aliasCandidates(g, minLen)) candidates.add(c)
+        const foundSet = new Set()
+        if (candidates.size) {
+            const aliasProducts = await DL.Product.read(
+                { barcode: { $in: [...candidates] } },
+                { _id: 0, barcode: 1, storeIds: 1 },
+                { limit: 0 }
+            )
+            for (const p of aliasProducts || []) {
+                if (!p?.barcode) continue
+                foundSet.add(p.barcode)
+                if ((p.storeIds || []).length) inStockSet.add(p.barcode)
+            }
+        }
+        for (const g of unmatched) {
+            const r = resolveAlias(g, foundSet, minLen)
+            if (r?.short) {
+                if (onlyInStock && !inStockSet.has(r.short)) {
+                    bufferRaw({ barcode: g, status: 'skipped', skipReason: 'out-of-stock' })
+                    skipped++
+                } else {
+                    passing.push({ gtin: g, short: r.short })
+                    log.info(`[GS1] Alias ${g} → ${r.short}`)
+                }
+            } else if (r?.ambiguous) {
+                bufferRaw({ barcode: g, status: 'skipped', skipReason: 'alias-ambiguous' })
+                log.warn(`[GS1] Ambiguous alias ${g} matches: ${r.ambiguous.join(',')} — skipped`)
+                skipped++
+            } else {
+                bufferRaw({ barcode: g, status: 'skipped', skipReason: 'no-product' })
+                skipped++
+            }
+        }
+    } else {
+        for (const g of unmatched) {
+            bufferRaw({ barcode: g, status: 'skipped', skipReason: 'no-product' })
+            skipped++
         }
     }
 
     if (passing.length) {
         const full = await DL.Gs1Product.read(
-            { barcode: { $in: passing } },
+            { barcode: { $in: passing.map(p => p.gtin) } },
             { _id: 0, barcode: 1, raw: 1 },
             { limit: 0 }
         )
         const fullByBarcode = new Map((full || []).map(r => [r?.barcode, r]))
-        for (const barcode of passing) {
+        for (const { gtin: barcode, short } of passing) {
             const stored = fullByBarcode.get(barcode)
             if (!stored?.raw) {
                 bufferRaw({ barcode, status: 'skipped', skipReason: 'empty-raw' })
@@ -125,12 +170,16 @@ export async function enrichBatch({ DL, external, runId, onlyInStock = true, bar
                 skipped++
                 continue
             }
+            // Alias writes MUST override doc.barcode: bulkWrite $sets the whole
+            // doc, so a GTIN left in mapped.doc would rewrite Product.barcode
+            // (or upsert a duplicate product under the GTIN).
+            const doc = { ...mapped.doc, barcode: short }
             // Supplier removed/unchecked images → clear local images (status untouched).
             if (mapped.removal.deleted || mapped.removal.unchecked) {
-                bufferProduct(barcode, { ...mapped.doc, 'images.product': [] })
+                bufferProduct(short, { ...doc, 'images.product': [] })
                 log.warn(`[GS1] Images cleared for ${barcode} (supplier removal flag)`)
             } else {
-                bufferProduct(barcode, mapped.doc)
+                bufferProduct(short, doc)
             }
             bufferRaw({ barcode, status: 'enriched' })
             enriched++
@@ -171,7 +220,7 @@ export async function runEnrich(opts) {
 // flow picks them up. Covers catalog churn (product created after the skip)
 // and restocks (out-of-stock skip, now in stock — or a false-run following a
 // true-run). map-error/empty-raw are NOT rescuable by enrich alone.
-const RESCUABLE_REASONS = ['no-product', 'no-comax', 'out-of-stock']
+const RESCUABLE_REASONS = ['no-product', 'no-comax', 'out-of-stock', 'alias-ambiguous']
 export async function requeueRescued({ DL, onlyInStock = true, barcode = '' }) {
     const match = barcode
         ? { status: 'skipped', skipReason: { $in: RESCUABLE_REASONS }, barcode }
@@ -184,25 +233,52 @@ export async function requeueRescued({ DL, onlyInStock = true, barcode = '' }) {
     const barcodes = [...new Set((candidates || []).map(r => r?.barcode).filter(Boolean))]
     if (!barcodes.length) return 0
 
-    const [products, comax] = await Promise.all([
-        DL.Product.read(
-            { barcode: { $in: barcodes } },
-            { _id: 0, barcode: 1, storeIds: 1 },
-            { limit: 0 }
-        ),
-        DL.ComaxProduct.read(
-            { barcode: { $in: barcodes } },
-            { _id: 0, barcode: 1 },
-            { limit: 0 }
-        )
-    ])
+    const products = await DL.Product.read(
+        { barcode: { $in: barcodes } },
+        { _id: 0, barcode: 1, storeIds: 1 },
+        { limit: 0 }
+    )
     const productSet = new Set((products || []).map(p => p.barcode))
-    const comaxSet = new Set((comax || []).map(c => c.barcode))
     const inStockSet = new Set((products || []).filter(p => (p.storeIds || []).length).map(p => p.barcode))
+
+    // Alias fallback for GTINs with no exact Product match: product-only gate,
+    // same rule as enrichBatch. Ambiguous GTINs stay skipped.
+    const aliasShortByGtin = new Map()
+    const unmatched = barcodes.filter(b => !productSet.has(b))
+    if (unmatched.length && aliasEnabled()) {
+        const minLen = aliasMinLen()
+        const candidates = new Set()
+        for (const g of unmatched)
+            for (const c of aliasCandidates(g, minLen)) candidates.add(c)
+        if (candidates.size) {
+            const aliasProducts = await DL.Product.read(
+                { barcode: { $in: [...candidates] } },
+                { _id: 0, barcode: 1, storeIds: 1 },
+                { limit: 0 }
+            )
+            const foundSet = new Set()
+            for (const p of aliasProducts || []) {
+                if (!p?.barcode) continue
+                foundSet.add(p.barcode)
+                if ((p.storeIds || []).length) inStockSet.add(p.barcode)
+            }
+            for (const g of unmatched) {
+                const r = resolveAlias(g, foundSet, minLen)
+                if (r?.short) aliasShortByGtin.set(g, r.short)
+            }
+        }
+    }
 
     let rescued = 0
     for (const b of barcodes) {
-        if (!productSet.has(b) || !comaxSet.has(b)) continue
+        const aliasShort = aliasShortByGtin.get(b)
+        if (aliasShort) {
+            if (onlyInStock && !inStockSet.has(aliasShort)) continue
+            bufferRaw({ barcode: b, status: 'fetched' })
+            rescued++
+            continue
+        }
+        if (!productSet.has(b)) continue
         if (onlyInStock && !inStockSet.has(b)) continue
         bufferRaw({ barcode: b, status: 'fetched' })
         rescued++
@@ -255,6 +331,33 @@ export async function runImages({ DL, external, runId, force = false, limit = 0,
             { limit: 0 }
         )
         const productByBarcode = new Map((products || []).map(p => [p.barcode, p]))
+        // Alias fallback: enriched-via-alias raws are keyed by GTIN, so the
+        // exact lookup above misses — resolve to the short-code product.
+        if (aliasEnabled()) {
+            const missing = barcodes.filter(b => !productByBarcode.has(b))
+            if (missing.length) {
+                const minLen = aliasMinLen()
+                const candidates = new Set()
+                for (const g of missing)
+                    for (const c of aliasCandidates(g, minLen)) candidates.add(c)
+                if (candidates.size) {
+                    const aliasProducts = await DL.Product.read(
+                        { barcode: { $in: [...candidates] } },
+                        { _id: 0, id: 1, barcode: 1, images: 1 },
+                        { limit: 0 }
+                    )
+                    const foundSet = new Set((aliasProducts || []).map(p => p.barcode))
+                    const shortByBarcode = new Map((aliasProducts || []).map(p => [p.barcode, p]))
+                    for (const g of missing) {
+                        const r = resolveAlias(g, foundSet, minLen)
+                        if (r?.short) {
+                            productByBarcode.set(g, shortByBarcode.get(r.short))
+                            log.info(`[GS1] Alias ${g} → ${r.short} (images)`)
+                        }
+                    }
+                }
+            }
+        }
 
         await Promise.all(raws.map(stored => limitZip(async () => {
             const barcode = stored.barcode
@@ -313,7 +416,10 @@ export async function runImages({ DL, external, runId, force = false, limit = 0,
                 const update = { 'images.product': images, gs1SyncedAt: new Date() }
                 if ((product.images?.product || []).length === 0 && product.status === 'hidden')
                     update.status = 'active'
-                bufferProduct(barcode, update)
+                // Key by the product's own barcode: alias-enriched raws are
+                // GTIN-keyed, and writing under the GTIN would upsert a
+                // duplicate product. sourceUrls above stay gs1://GTIN.
+                bufferProduct(product.barcode, update)
                 bufferRaw({ barcode, fingerprint, imagesDone: true })
                 totals.reused++
                 return

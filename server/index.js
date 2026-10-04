@@ -12,11 +12,14 @@ import startRefundRetry from '#server/cron/refundRetry.js'
 import startNightlySync from '#server/cron/nightlySync.js'
 import startGs1Sync from '#server/cron/gs1Sync.js'
 import startHolidaySeed from '#server/cron/holidaySeed.js'
+import startWindowSync from '#server/cron/windowSync.js'
 import log from '#server/utils/log.js'
 import compression from 'compression'
 import setupSecurity from './middleware/security.js'
+import { getHeapStatistics } from 'node:v8'
 
 console.log(`\n⚡ Starting server...\n`)
+console.log(`[Heap] limit ${Math.round(getHeapStatistics().heap_size_limit / 1048576)}MB (raise via NODE_OPTIONS=--max-old-space-size=<MB> in the deploy environment)\n`)
 
 const
     bootData = await boot(),
@@ -73,6 +76,7 @@ try {
         startNightlySync(bootData)
         startGs1Sync(bootData)
         startHolidaySeed(bootData)
+        startWindowSync(bootData)
     }
 } catch (e) {
     log.warn('Jobs not started:', e?.message || e)
