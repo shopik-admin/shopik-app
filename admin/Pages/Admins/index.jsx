@@ -27,6 +27,8 @@ export default function Admins({ }) {
                 { name: 'idNum', type: 'idNum', required: true },
                 { name: 'phone', type: 'tel', required: true },
                 { name: 'email', type: 'email' },
+                { name: 'storeIds', type: 'select', options: 'stores', multiple: true },
+                { name: 'currentStoreId', type: 'select', options: 'stores' }
             ]}
         />
     </div>

@@ -5,6 +5,8 @@ export default async function create(payload, { DL, validators, utils }) {
     const name = utils.extractFields.getName(payload)
     if (name) payload.name = name
 
+    await validators.storeIds(payload, arguments[1])
+
     const created = await DL.Admin.create(payload)
     return created
 }

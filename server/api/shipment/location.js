@@ -1,4 +1,4 @@
-import { OPS_PROXIMITY_RADIUS_M } from '#common/constants.js'
+import { opsProximityRadiusM } from '#common/functions/opsConfig.js'
 import distanceMeters from '#common/functions/distance.js'
 
 export default async function location(payload, { DL, _admin }) {
@@ -41,15 +41,16 @@ export default async function location(payload, { DL, _admin }) {
     // proximity check
     const orders = await DL.Order.Model.find({ id: { $in: shipment.orderIds, } }, { _id: 0, id: 1, address: 1, status: 1 }).lean()
     const within = []
+    const radiusM = opsProximityRadiusM()
     for (const o of orders) {
         if (o.status !== 'shipped') continue
         const c = o.address?.location?.coordinates
         if (!c) continue
         const d = distanceMeters(coordinates, c)
-        if (d <= OPS_PROXIMITY_RADIUS_M) within.push({ orderId: o.id, distanceM: Math.round(d) })
+        if (d <= radiusM) within.push({ orderId: o.id, distanceM: Math.round(d) })
     }
 
-    return { within, radiusM: OPS_PROXIMITY_RADIUS_M }
+    return { within, radiusM }
 }
 
 location.config = {

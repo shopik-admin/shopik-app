@@ -272,9 +272,7 @@ export default function Select({
         )}
 
         {name && (isMultiple
-            ? selectedValues.map(v => (
-                <input key={v} type="hidden" name={name} value={v} />
-            ))
+            ? <input type="hidden" name={name} multiple value={JSON.stringify(selectedValues)} />
             : <input ref={hiddenRef} type="hidden" name={name} value={singleValue || ''} />
         )}
         {name && required && !isMultiple && (

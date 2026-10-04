@@ -1,22 +1,23 @@
-export default async function current_store(payload, { DL, _admin }) {
-    const { storeId } = payload
+import storeScope, { assertStoreVisible } from '#server/utils/data/storeScope.js'
+
+export default async function current_store({ storeId }, { DL, _admin }) {
     if (!storeId) throw { status: 400, message: 'storeId required' }
 
-    const admin = await DL.Admin.readById(_admin.id)
-    const isSuper = _admin.isSuperAdmin
+    // Resolve through the canonical rule — storeIds rides the cached auth payload
+    // (getAdmin), invalidated on every switch. An unrestricted admin (super, or
+    // store:all with no explicit stores) may pick any store.
+    const scope = storeScope({ _admin })
+    assertStoreVisible(storeId, scope)
 
-    if (!isSuper) {
-        if (!admin?.storeIds?.includes(storeId))
-            throw { status: 403, message: 'store not allowed' }
-    } else {
-        const store = await DL.Store.readById(storeId)
-        if (!store) throw { status: 400, message: 'store not found' }
-    }
+    // Authorisation first, then existence, so a 403 never reveals whether an id exists.
+    // Only checked for unrestricted admins: a scoped admin's id is already vetted by
+    // membership, and this keeps the common path to one cached read.
+    if (scope === null && !await DL.Store.readById(storeId))
+        throw { status: 400, message: 'store not found' }
 
     await DL.Admin.updateOne({ id: _admin.id }, { currentStoreId: storeId })
     if (DL.redis) await DL.redis.del(`admin_auth:${_admin.id}`).catch(() => {})
-    const updated = await DL.Admin.readById(_admin.id)
-    return { currentStoreId: updated.currentStoreId }
+    return { currentStoreId: storeId }
 }
 
 current_store.config = {
