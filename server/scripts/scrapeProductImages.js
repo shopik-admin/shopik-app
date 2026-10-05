@@ -19,7 +19,7 @@ import { PROVIDER_ORDER } from '#server/services/image/scrape/providers.js'
 
 export default async function scrapeProductImages(
     { DL } = {},
-    { barcode = '', imageless = false, limit = 0, force = false, dryRun = false, concurrency = 3, providers = '', delayMs = 0, retryFailed = false } = {}
+    { barcode = '', imageless = false, limit = 0, force = false, dryRun = false, concurrency = 3, providers = '', delayMs = 0, retryFailed = false, nameMatch = '' } = {}
 ) {
     if (!DL) throw new Error('DL required')
     let barcodes = []
@@ -37,7 +37,10 @@ export default async function scrapeProductImages(
                     { barcode: { $regex: '^[0-9]{8,14}$' } },
                     // Skip already-probed misses (parked with scrapeTriedAt)
                     // unless explicitly retrying them.
-                    ...(retryFailed ? [] : [{ scrapeTriedAt: { $exists: false } }])
+                    ...(retryFailed ? [] : [{ scrapeTriedAt: { $exists: false } }]),
+                    // Optional name pre-filter (e.g. manufacturer-brand sweep
+                    // for providers that only carry own brands).
+                    ...(nameMatch ? [{ name: { $regex: nameMatch } }] : [])
                 ]
             },
             { _id: 0, barcode: 1 }

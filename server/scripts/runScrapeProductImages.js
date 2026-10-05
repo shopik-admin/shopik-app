@@ -24,7 +24,8 @@ await scrapeProductImages(bootData, {
     concurrency: Number(flag('concurrency', 3)) || 3,
     providers: String(flag('providers', '') || ''),
     delayMs: Number(flag('delay-ms', 0)) || 0,
-    retryFailed: !!flag('retry-failed', false)
+    retryFailed: !!flag('retry-failed', false),
+    nameMatch: String(flag('name-match', '') || '')
 })
 console.log('[runScrapeProductImages] Done')
 process.exit(0)
