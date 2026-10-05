@@ -1,8 +1,9 @@
 import { parseXml, normalizeArray } from './parser.js'
-import { buildCustomerOrderParams } from './orderMapper.js'
+import { buildCustomerOrderSoap } from './orderMapper.js'
 import { resolveComaxOrderConfig } from './resolveOrderConfig.js'
 
-const ORDERS_URL = 'https://ws.comax.co.il/Comax_WebServices/CustomersOrders_Service.asmx/WriteCustomersOrderByParamsExtendedPlusPrice'
+const ORDERS_URL = 'https://ws.comax.co.il/Comax_WebServices/CustomersOrders_Service.asmx'
+const SOAP_ACTION = '"http://ws.comax.co.il/Comax_WebServices/WriteCustomersOrderByParamsExtendedPlusPrice"'
 
 function extractResult(parsed) {
     const env = parsed?.['soap:Envelope']?.['soap:Body'] ?? parsed
@@ -17,34 +18,56 @@ function extractResult(parsed) {
  * Price=0 for all lines (client rule). Fail-open: throws on error, caller decides.
  * Returns { docNumber, totalSum, linesCount, totalQuantity }.
  */
-export async function writeCustomerOrder({ DL, order, timeoutMs = 60000 }) {
+export async function writeCustomerOrder({ DL, order, timeoutMs = 60000, opts = {} }) {
     const cfg = await resolveComaxOrderConfig(DL, order.storeId)
     if (!cfg.customerId) throw new Error('missing Comax CustomerID (cash_register.data.OrderCustomerID or COMAX_CUSTOMER_ID)')
     if (!cfg.comaxStoreId) throw new Error('missing Comax StoreID (cash_register.data.OrderStoreID or COMAX_STORE_ID)')
 
-    const { params, lines } = buildCustomerOrderParams(order, {
+    const { xml, lines } = buildCustomerOrderSoap(order, {
         customerId: cfg.customerId,
         comaxStoreId: cfg.comaxStoreId,
         priceListId: cfg.priceListId,
         loginId: cfg.loginId,
         loginPassword: cfg.loginPassword
-    })
+    }, opts)
     if (!lines.length) throw new Error('no packable lines (all missing/zero qty)')
 
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), timeoutMs)
+    // Full sent payload (password excluded) so the logs collection shows
+    // exactly what Comax received. View: logs where action=comax_write_customer_order.
     const log = DL.Log.start({
         action: 'comax_write_customer_order',
         direction: DL.Log.constants.DIRECTION.OUT,
-        data: { request: { orderId: order.id, orderNumber: order.number, customerId: cfg.customerId, storeId: cfg.comaxStoreId, lines: lines.length } }
+        data: {
+            request: {
+                orderId: order.id, orderNumber: order.number,
+                customerId: cfg.customerId, storeId: cfg.comaxStoreId, priceListId: cfg.priceListId,
+                mode: 'ADD', reference: String(order.number || ''), priceFromPriceList: false,
+                transport: 'soap-post',
+                lines: lines.map(l => ({ item: l.item, qty: l.qty, price: opts.unitPrice ?? '0' }))
+            }
+        }
     })
     try {
         log.actor({ type: DL.Log.constants.ACTOR.API })
-        const url = `${ORDERS_URL}?${params.toString()}`
-        const response = await fetch(url, { signal: controller.signal })
-        if (!response.ok) throw new Error(`Comax HTTP ${response.status}: ${response.statusText}`)
-        const xml = await response.text()
-        const result = extractResult(parseXml(xml))
+        // SOAP POST — the ASMX GET form 500s on array params (see orderMapper).
+        const response = await fetch(ORDERS_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'text/xml; charset=utf-8',
+                SOAPAction: SOAP_ACTION
+            },
+            body: xml,
+            signal: controller.signal
+        })
+        // Capture fault bodies — otherwise all we keep is the bare HTTP status.
+        const rawBody = await response.text().catch(() => '')
+        if (!response.ok) {
+            const fault = rawBody.replace(/\s+/g, ' ').trim().slice(0, 800)
+            throw new Error(`Comax HTTP ${response.status}: ${response.statusText}${fault ? ` — ${fault}` : ''}`)
+        }
+        const result = extractResult(parseXml(rawBody))
         const errs = normalizeArray(result?.Err?.ClsErrors).filter(e => e?.ErrorType && String(e.ErrorType) !== 'Unknown' && String(e.ErrorType) !== '')
         // Comax returns Err entries only on failure; empty Err = success
         const hasErr = errs.length > 0 || (result?.DocNumber != null && String(result.DocNumber) === '0' && errs.length > 0)

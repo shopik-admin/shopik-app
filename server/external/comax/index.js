@@ -74,7 +74,7 @@ const comax = ({ DL }) => ({
     getProductsFromFile,
     getPromotions: options => getPromotions({ ...options, DL }),
     getBalance: options => getBalance({ ...options, DL }),
-    writeCustomerOrder: order => writeCustomerOrder({ DL, order }),
+    writeCustomerOrder: (order, opts) => writeCustomerOrder({ DL, order, opts }),
     resolveOrderConfig: storeId => resolveComaxOrderConfig(DL, storeId)
 })
 export default comax

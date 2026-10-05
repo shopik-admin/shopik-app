@@ -114,10 +114,15 @@ export function applySales({ products, sales }) {
         }
     }
 
-    // Process leftover regular amount
+    // Process leftover regular amount.
+    // Basis is the PACKED qty (finalAmount when set at pick time), not the
+    // ordered amount: a partially supplied line must not be charged for units
+    // the customer never receives. At checkout finalAmount is undefined so the
+    // basis falls back to amount and behaviour there is unchanged.
     for (const p of products) {
         const distributedAmount = p.pricesDistribution.reduce((sum, d) => sum + d.amount, 0)
-        const regularAmount = Math.max(0, p.amount - distributedAmount)
+        const packedBasis = p.finalAmount != null ? p.finalAmount : p.amount
+        const regularAmount = Math.max(0, round3(packedBasis - distributedAmount))
 
         if (regularAmount > 0) {
             p.pricesDistribution.push({

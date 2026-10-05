@@ -1,40 +1,65 @@
 import { round2 } from '#common/functions/calcOrder/utils.js'
 
+function esc(v) {
+    return String(v ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+}
+
 /**
- * Map a packed Shopik order to WriteCustomersOrderByParamsExtendedPlusPrice params.
- * Client rule: Price=0 for every line so items land in Comax with no cost.
- * Quantity = finalAmount (packed qty); missing / finalAmount<=0 lines are omitted.
+ * Map a packed Shopik order to a WriteCustomersOrderByParamsExtendedPlusPrice
+ * SOAP request. Client rule: Price=0 for every line so items land in Comax
+ * with no cost. Quantity = finalAmount (packed qty); missing /
+ * finalAmount<=0 lines are omitted.
+ *
+ * NOTE: the operation must be invoked as a SOAP POST. The ASMX GET
+ * (query-string) form 500s on this install — its handler cannot bind the
+ * string[] arrays from the URL (the doc's "link example" is stale).
+ * Optional per-line arrays are omitted, never sent empty.
  */
-export function buildCustomerOrderParams(order, { customerId, comaxStoreId, priceListId, loginId, loginPassword }) {
+export function buildCustomerOrderSoap(order, { customerId, comaxStoreId, priceListId, loginId, loginPassword }, opts = {}) {
+    const unitPrice = opts.unitPrice ?? '0'
+    const sendZeroTotals = Boolean(opts.sendZeroTotals)
     const lines = (order.cart || [])
         .map(l => ({
             // Comax item key: prefer comaxId when present, else barcode
             item: String(l.comaxId || l.barcode || '').trim(),
-            qty: Number(l.finalAmount ?? l.amount ?? 0),
-            barcode: String(l.barcode || '')
+            qty: Number(l.finalAmount ?? l.amount ?? 0)
         }))
         .filter(l => l.item && Number.isFinite(l.qty) && l.qty > 0)
 
-    const params = new URLSearchParams()
-    params.set('CustomerID', String(customerId))
-    params.set('StoreID', String(comaxStoreId || ''))
-    params.set('PriceListID', String(priceListId || ''))
-    params.set('Mode', 'ADD')
-    params.set('Reference', String(order.number || ''))
-    params.set('PriceFromPriceList', 'FALSE')
-    for (const l of lines) {
-        params.append('Items', l.item)
-        params.append('Quantity', String(l.qty))
-        params.append('Price', '0')
-        params.append('DiscountPercent', '')
-        params.append('TotalSum', '')
-        params.append('ItemRemarks', '')
-        params.append('PromoID', '')
-        params.append('PromoRank', '')
+    const arr = (tag, vals) =>
+        vals.length ? `<${tag}>${vals.map(v => `<string>${esc(v)}</string>`).join('')}</${tag}>` : ''
+    const strArrays = [
+        arr('Items', lines.map(l => l.item)),
+        arr('Quantity', lines.map(l => String(l.qty))),
+        arr('Price', lines.map(() => unitPrice))
+    ]
+    if (sendZeroTotals) {
+        strArrays.push(arr('DiscountPercent', lines.map(() => '0')))
+        strArrays.push(arr('TotalSum', lines.map(() => '0')))
     }
-    params.set('LoginID', loginId || '')
-    params.set('LoginPassword', loginPassword || '')
-    return { params, lines }
+    const xml = [
+        '<?xml version="1.0" encoding="utf-8"?>',
+        '<soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">',
+        '<soap:Body>',
+        '<WriteCustomersOrderByParamsExtendedPlusPrice xmlns="http://ws.comax.co.il/Comax_WebServices/">',
+        `<CustomerID>${esc(customerId)}</CustomerID>`,
+        `<StoreID>${esc(comaxStoreId)}</StoreID>`,
+        `<PriceListID>${esc(priceListId)}</PriceListID>`,
+        '<Mode>ADD</Mode>',
+        `<Reference>${esc(order.number || '')}</Reference>`,
+        '<PriceFromPriceList>FALSE</PriceFromPriceList>',
+        ...strArrays,
+        `<LoginID>${esc(loginId)}</LoginID>`,
+        `<LoginPassword>${esc(loginPassword)}</LoginPassword>`,
+        '</WriteCustomersOrderByParamsExtendedPlusPrice>',
+        '</soap:Body>',
+        '</soap:Envelope>'
+    ].join('')
+    return { xml, lines }
 }
 
 export function packedQty(order) {
