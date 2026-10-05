@@ -17,7 +17,6 @@ const AppDataContext = createContext()
 export const useAppData = () => useContext(AppDataContext)
 
 export default function App({ data = {} }) {
-    console.log(import.meta.env.VITE_TEST_ENV)
     return <AppDataContext value={data}>
         <TextProvider>
             <Lists sdLists={data.lists}>
