@@ -452,6 +452,7 @@ export default async function createModels(redis) {
                     }
                 }
                 if (model.cacheStrategy === CACHE_STRATEGIES.HASHSET && redis?.hlen && model.cache) {
+                    const seedStart = Date.now()
                     try {
                         const [
                             currentHashCount,
@@ -463,8 +464,26 @@ export default async function createModels(redis) {
 
                         if (currentHashCount != currentDocsCount) {
                             try {
-                                const docs = await model.find({}, { _id: 0 }).lean()
-                                await model.cache.add(docs)
+                                // Cursor + batches: a single find({}).lean() materializes
+                                // the whole collection (gov_address / geocode_cache can
+                                // be huge) — the cold-start floor and a 512MB-box OOM
+                                // vector. Same final state, bounded memory.
+                                const BATCH = Number(process.env.CACHE_SEED_BATCH || 1000)
+                                let seeded = 0
+                                let batch = []
+                                const flush = async () => {
+                                    if (!batch.length) return
+                                    await model.cache.add(batch)
+                                    seeded += batch.length
+                                    batch = []
+                                }
+                                const cursor = model.find({}, { _id: 0 }).lean().cursor()
+                                for (let doc = await cursor.next(); doc != null; doc = await cursor.next()) {
+                                    batch.push(doc)
+                                    if (batch.length >= BATCH) await flush()
+                                }
+                                await flush()
+                                log.info(`[Cache] Seeded ${model.modelName}: ${seeded}/${currentDocsCount} docs in ${Date.now() - seedStart}ms`)
                             } catch (e) {
                                 log.error('Cache seeding error:', e)
                             }

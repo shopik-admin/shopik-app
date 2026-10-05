@@ -1,8 +1,13 @@
-export default async function status({ orderNumber }, { DL, _user }) {
+export default async function status({ orderNumber, domainId }, { DL, _user }) {
     if (!_user) throw { status: 401, message: 'Unauthorized' }
     if (!orderNumber) throw { status: 400, message: 'Missing orderNumber' }
     const order = await DL.Order.readOne(
-        { number: String(orderNumber) },
+        {
+            number: String(orderNumber),
+            // Router resolves domainId from Origin/Referer for storefront
+            // traffic — scope the sequential-number lookup to this tenant.
+            ...(domainId ? { domainId } : {}),
+        },
         {
             _id: 0,
             id: 1,
@@ -26,7 +31,9 @@ export default async function status({ orderNumber }, { DL, _user }) {
         }
     )
     if (!order) throw { status: 404, message: 'Order not found' }
-    if (String(order.userId ?? '') && String(order.userId) !== String(_user.id))
+    // Strict owner check (same as payment/create): orders without a userId
+    // are never exposed — the empty-userId bypass allowed enumerating them.
+    if (String(order.userId ?? '') !== String(_user.id))
         throw { status: 403, message: 'Not your order' }
     delete order.userId
     return { order }
