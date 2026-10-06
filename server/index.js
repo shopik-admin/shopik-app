@@ -84,7 +84,8 @@ try {
 
 const staticHeaders = (res, filePath) => res.setHeader(
     'Cache-Control',
-    filePath.includes(`${path.sep}assets${path.sep}`)
+    // Versioned by filename (city-borders.v<date>.geojson), so immutable is safe.
+    filePath.endsWith('.geojson') || filePath.includes(`${path.sep}assets${path.sep}`)
         ? 'public, max-age=31536000, immutable'
         : 'public, max-age=0, must-revalidate'
 )
