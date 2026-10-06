@@ -1,6 +1,8 @@
 // Maps a GS1 product payload (GET /external/product/{code}.json) to Shopik Product fields.
 // GS1 wins for content — Comax remains the gate for existence (checked by the caller).
 
+import { pruneEmpty } from './prune.js'
+
 const firstValue = arr => (Array.isArray(arr) ? arr.map(e => e?.value).find(v => v != null && v !== '') : undefined) ?? ''
 
 const joinValues = (arr, sep = ', ') =>
@@ -79,11 +81,13 @@ function mapGs1Details(item, info, main, general, marketing, additional) {
     if (!isEmpty(logisticsAdd.Product_Shelf_Life)) out.shelfLife = logisticsAdd.Product_Shelf_Life
 
     const components = info.Product_Components_and_Instructions_General || {}
-    const allergens = {
+    // pruneEmpty, not a literal: blank leaves arrive as undefined and isEmpty
+    // only counts keys, so a literal would leave a dangling `mayContain: []`.
+    const allergens = pruneEmpty({
         contains: components.Allergen_Type_Code_and_Containment,
         mayContain: components.Allergen_Type_Code_and_Containment_May_Contain
-    }
-    if (!isEmpty(allergens.contains) || !isEmpty(allergens.mayContain)) out.allergens = allergens
+    })
+    if (allergens) out.allergens = allergens
     if (Array.isArray(components.Diet_Information) && components.Diet_Information.length)
         out.diet = components.Diet_Information
 
@@ -99,11 +103,11 @@ function mapGs1Details(item, info, main, general, marketing, additional) {
     Object.keys(serving).forEach(k => { if (isEmpty(serving[k])) delete serving[k] })
     if (Object.keys(serving).length) out.serving = serving
 
-    const nutrition = {
+    const nutrition = pruneEmpty({
         main: info.Nutritional_Values,
         additional: info.Additional_Nutritional_Values
-    }
-    if (!isEmpty(nutrition.main) || !isEmpty(nutrition.additional)) out.nutrition = nutrition
+    })
+    if (nutrition) out.nutrition = nutrition
 
     const messages = [
         marketing.Trade_Item_Marketing_Message,
@@ -129,7 +133,10 @@ function mapGs1Details(item, info, main, general, marketing, additional) {
         discontinued: general.Discontinued_Date_Time,
         productStatus: info.Internal_System_Fields?.Product_Status,
         targetMarket: general.Target_Market,
-        manufacturer: { name: general.Manufacturer_Name, address: general.Manufacturer_Address },
+        manufacturer: pruneEmpty({
+            name: general.Manufacturer_Name,
+            address: general.Manufacturer_Address
+        }),
         tradeUnit: main.Trade_Item_Unit_Descriptor
     }
     Object.keys(ids).forEach(k => { if (isEmpty(ids[k])) delete ids[k] })
@@ -138,7 +145,11 @@ function mapGs1Details(item, info, main, general, marketing, additional) {
     return out
 }
 
-export function mapGs1ToProduct(item) {
+export function mapGs1ToProduct(payload) {
+    // One prune, one object: mapping and the stored raw are derived from the
+    // same tree, so they can never disagree. Idempotent, so re-mapping an
+    // already-pruned stored raw (enrich.js) is a no-op.
+    const item = pruneEmpty(payload) || {}
     const info = item?.product_info || {}
     const main = info.Main_Fields || {}
     const general = info.General_Information || {}
