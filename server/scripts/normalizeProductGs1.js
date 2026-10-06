@@ -97,13 +97,20 @@ export default async function normalizeProductGs1(
     console.log(`[normalizeGs1] scanning products with gs1${dryRun ? ' (DRY RUN — no writes)' : ''}`)
     // NOTE: DL.read can't express this filter — processFilter drops any key
     // outside filterFields and strips $exists — so Model.find is used
-    // directly. Paging by _id is stable: we only $set/$unset `gs1` on
-    // existing docs, never insert/delete or touch the sort key.
-    for (let skip = 0; ; skip += pageSize) {
+    // directly. Paging is by _id RANGE, not skip: $unset removes docs from
+    // this filtered set, shifting everything left, so skip would leap over
+    // shifted docs and never visit them. (A range scan visits each doc
+    // exactly once; only a product gaining gs1 behind the cursor — a
+    // concurrent enrich of an old product — waits for the next run.)
+    let lastId = null
+    for (;;) {
+        const filter = lastId
+            ? { gs1: { $exists: true }, _id: { $gt: lastId } }
+            : { gs1: { $exists: true } }
         const products = await Product.find(
-            { gs1: { $exists: true } },
+            filter,
             { _id: 1, barcode: 1, gs1: 1, gs1ProductCode: 1 }
-        ).sort({ _id: 1 }).skip(skip).limit(pageSize).lean()
+        ).sort({ _id: 1 }).limit(pageSize).lean()
         if (!products?.length) break
 
         // Source raws for this page's resolved GTINs, in one bulk read.
@@ -190,8 +197,8 @@ export default async function normalizeProductGs1(
         totals.written += sets.length + unsets.length
         totals.unset += unsets.length
 
+        lastId = products[products.length - 1]._id
         if (cap && totals.scanned >= cap) break
-        if (products.length < pageSize) break
         if (totals.scanned % 2000 < pageSize)
             console.log(`[normalizeGs1] ${totals.scanned} scanned, ${totals.changed} need normalizing...`)
     }
