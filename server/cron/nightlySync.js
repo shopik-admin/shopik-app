@@ -9,6 +9,8 @@ import importGovAddresses from '#server/scripts/importGovAddresses.js'
 
 const LOCK_KEY = 'nightly-sync:lock'
 const LOCK_TTL_SECONDS = 60 * 60 * 4
+const GOV_LOCK_KEY = 'gov-sync:lock'
+const GOV_LOCK_TTL_SECONDS = 60 * 60 * 4
 
 export default function startNightlySync(bootData) {
 
@@ -48,8 +50,11 @@ export default function startNightlySync(bootData) {
     cron.schedule(govSchedule, async () => {
         let release
         try {
-            release = await acquireLock(DL.redis)
-            if (!release) return
+            release = await acquireLock(DL.redis, GOV_LOCK_KEY, GOV_LOCK_TTL_SECONDS)
+            if (!release) {
+                log.warn('[GovSync] Skipped — another instance holds the lock')
+                return
+            }
             log.warn('[GovSync] Started')
             await importGovAddresses({ DL })
             log.success('[GovSync] Done')

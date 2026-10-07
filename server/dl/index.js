@@ -4,13 +4,13 @@ import connect from './connect.js'
 import { encryptValue, decryptDocs, decryptDoc, isEncrypted } from '#server/utils/settingsEncryption.js'
 
 export default async function createDL(__dirname) {
-    const { redis } = await connect()
+    const { redis, disconnect, health } = await connect()
     const
         [defaults, models] = await Promise.all([
             loadDir(__dirname, './dl/defaults'),
             createModels(redis)
         ]),
-        DL = { redis }
+        DL = { redis, disconnect, health }
 
     for (let entry of Object.entries(models)) {
         const [modelName, Model] = entry

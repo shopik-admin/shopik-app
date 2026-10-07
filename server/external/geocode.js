@@ -15,7 +15,18 @@ async function fetchFromGoogle(address) {
         key: apiKey
     })
 
-    const response = await fetch(`${GOOGLE_MAPS_GEOCODE_URL}?${params}`)
+    const controller = new AbortController()
+    const timeoutMs = Number(process.env.GEOCODE_TIMEOUT_MS || 10000)
+    const t = setTimeout(() => controller.abort(), timeoutMs)
+    let response
+    try {
+        response = await fetch(`${GOOGLE_MAPS_GEOCODE_URL}?${params}`, { signal: controller.signal })
+    } catch (e) {
+        if (e?.name === 'AbortError') throw new Error('Geocoding timed out')
+        throw e
+    } finally {
+        clearTimeout(t)
+    }
 
     if (!response.ok) {
         throw new Error(`Geocoding failed with status: ${response.status}`)

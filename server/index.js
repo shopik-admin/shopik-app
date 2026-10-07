@@ -28,6 +28,18 @@ const
 
 await setupSecurity(app, bootData)
 
+// Liveness/readiness for the orchestrator (Cloud Run, K8s). Unauthenticated
+// and before all other middleware — no DB reads beyond the driver states.
+app.get('/health', async (req, res) => {
+    try {
+        const status = await bootData.DL.health()
+        const ready = status.mongo === true
+        res.status(ready ? 200 : 503).send({ ok: ready, ...status })
+    } catch (e) {
+        res.status(503).send({ ok: false, error: e?.message || 'health check failed' })
+    }
+})
+
 // Domain invariant: exactly one isDefault domain. Storefront requests without a
 // resolvable Origin depend on it — zero means they 500, more than one is ambiguous.
 try {
@@ -66,17 +78,41 @@ app.use(compression())
 
 router(app, bootData)
 
+router(app, bootData)
+
+// Process role: single-process default runs everything (current behavior).
+// For multi-replica deploys, split into web + worker services:
+//   web:    RUN_WORKERS=false RUN_CRON=false  (serves traffic only)
+//   worker: `npm run worker` with RUN_CRON=true (queues + schedules)
+// Cron callbacks are Redis-locked (nightly/gov) or idempotent, but the
+// BullMQ workers must not run in every web replica — duplicate GS1/image
+// processing and competing queue consumers.
+const RUN_WORKERS = process.env.RUN_WORKERS !== 'false' && process.env.RUN_WORKERS !== '0'
+const RUN_CRON = process.env.RUN_CRON !== 'false' && process.env.RUN_CRON !== '0'
+
+function startSchedules(data) {
+    startRefundRetry(data)
+    if (!NO_NIGHT_SYNC) {
+        startNightlySync(data)
+        startGs1Sync(data)
+        startHolidaySeed(data)
+        startWindowSync(data)
+    }
+}
+
 try {
-    await startImageWorker({ DL: bootData.DL })
-    const sizing = resolveSizing()
-    await startGs1FetchWorker({ DL: bootData.DL, external: bootData.external, sizing })
-    await startGs1ProcessWorker({ DL: bootData.DL, sizing })
-    startRefundRetry(bootData)
-    if (!NO_NIGHT_SYNC || PRODUCTION) {
-        startNightlySync(bootData)
-        startGs1Sync(bootData)
-        startHolidaySeed(bootData)
-        startWindowSync(bootData)
+    if (RUN_WORKERS) {
+        await startImageWorker({ DL: bootData.DL })
+        const sizing = resolveSizing()
+        await startGs1FetchWorker({ DL: bootData.DL, external: bootData.external, sizing })
+        await startGs1ProcessWorker({ DL: bootData.DL, sizing })
+    } else {
+        log.info('[Jobs] Workers disabled (RUN_WORKERS=false) — run `npm run worker` elsewhere')
+    }
+    if (RUN_CRON) {
+        startSchedules(bootData)
+    } else {
+        log.info('[Jobs] Crons disabled (RUN_CRON=false)')
     }
 } catch (e) {
     log.warn('Jobs not started:', e?.message || e)
@@ -103,10 +139,30 @@ app.use((req, res, next) => {
 
 ssr(app, bootData)
 
-app.listen(Number(PORT), '0.0.0.0', () => bootData.utils.log.colors((c) => `
+const server = app.listen(Number(PORT), '0.0.0.0', () => bootData.utils.log.colors((c) => `
 ${c.green}${c.bold}🚀 Server Running:${c.reset}
    ${PRODUCTION ? 'Production' : 'Development'} mode
 
      ${c.cyan}Client:${c.reset} ${c.gray}http://localhost:${PORT}${c.reset}
      ${c.cyan}Admin:${c.reset}  ${c.gray}http://admin.localhost:${PORT}${c.reset}\n`
 ))
+
+// Graceful shutdown: stop accepting connections, then release DB handles so
+// the orchestrator never SIGKILLs mid-write. Force-exit after 10s regardless.
+let shuttingDown = false
+function shutdown(signal) {
+    if (shuttingDown) return
+    shuttingDown = true
+    log.warn(`[${signal}] Shutting down...`)
+    setTimeout(() => process.exit(1), 10000).unref()
+    server.close(async () => {
+        try {
+            await bootData.DL.disconnect()
+        } catch (e) {
+            log.error('Shutdown error:', e?.message || e)
+        }
+        process.exit(0)
+    })
+}
+process.on('SIGTERM', () => shutdown('SIGTERM'))
+process.on('SIGINT', () => shutdown('SIGINT'))

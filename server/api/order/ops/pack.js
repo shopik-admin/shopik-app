@@ -1,4 +1,5 @@
 import captureOrder from '#server/utils/data/captureOrder.js'
+import { snapshotSupplierCost } from '#server/utils/data/supplierCost.js'
 
 export default async function pack(payload, { DL, _admin, utils, external }) {
     const { id, bags, boxes } = payload
@@ -29,6 +30,25 @@ export default async function pack(payload, { DL, _admin, utils, external }) {
         'payment.capturedAt': capturedAt,
         'payment.captureProviderTxnId': captureProviderTxnId,
         paymentError: null
+    }
+    // Supplier-cost snapshot (fail-open): never blocks pack.
+    try {
+        const snap = await snapshotSupplierCost({ DL, order })
+        set.cart = snap.cart
+        set.supplierTotal = snap.supplierTotal
+        set.supplierMissingCount = snap.supplierMissingCount
+        set.supplierCapturedAt = snap.supplierCapturedAt
+    } catch {}
+    // Comax customer order with Price=0 (fail-open): pack proceeds regardless.
+    // DocNumber is kept for client cancellation; retry fills it if missing.
+    if (!order.comaxDoc?.docNumber) {
+        try {
+            const orderForComax = set.cart ? { ...order, cart: set.cart } : order
+            const res = await external.comax.writeCustomerOrder(orderForComax)
+            set.comaxDoc = { docNumber: res.docNumber, totalSum: res.totalSum, capturedAt: new Date(), error: null }
+        } catch (e) {
+            set.comaxDoc = { capturedAt: new Date(), error: e?.message || String(e) }
+        }
     }
     if (bags) set.bags = bags
     if (boxes) set.boxes = boxes
