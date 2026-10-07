@@ -6,8 +6,10 @@ import Button from 'common/components/Button'
 import ProductInline from 'common/components/ProductInline'
 import styles from './replaceProduct.module.css'
 import apiReq from 'common/functions/apiReq'
+import useApi from 'common/functions/useApi'
 import classNames from 'common/functions/classNames'
 import { isWeightProduct, getUnitLabel, getUnitInfoText, formatAmount, ProductImage } from 'common/components/Product'
+import { getPickRange, isPickInRange, DEFAULT_PICK_LIMITS } from 'common/functions/pickLimits'
 
 export default function ReplaceProduct({ product = {}, orderId, onClose, onPicked }) {
     const [phase, setPhase] = useState('list') // list | scanning | amount
@@ -37,7 +39,18 @@ export default function ReplaceProduct({ product = {}, orderId, onClose, onPicke
     const repUnitLabel = selected ? getUnitLabel(selected) : ''
     const suppliedNum = supplied === '' ? null : Number(supplied)
     const isSuppliedValid = supplied !== '' && !isNaN(suppliedNum) && suppliedNum > 0
-    const canContinue = isSuppliedValid && !!selected
+    // Same deviation limits as direct picking, judged by the replacement
+    // product's unit type vs the original ordered amount.
+    const { data: pickLimitsData } = useApi('order/ops/pick_limits', { id: orderId })
+    const pickLimits = pickLimitsData || DEFAULT_PICK_LIMITS
+    const repPickRange = selected ? getPickRange(ordered, repWeight, pickLimits) : null
+    const repOutOfRange = isSuppliedValid && !!selected && !!repPickRange && !isPickInRange(suppliedNum, ordered, repWeight, pickLimits)
+    const repRangeLabel = repPickRange
+        ? (repWeight
+            ? `${formatAmount(selected, Math.round(repPickRange.min * 1000) / 1000)} – ${formatAmount(selected, Math.round(repPickRange.max * 1000) / 1000)}`
+            : `עד ${formatAmount(selected, repPickRange.max)}`)
+        : ''
+    const canContinue = isSuppliedValid && !!selected && !repOutOfRange
 
     async function loadSuggestions(text) {
         setSearching(true)
@@ -302,6 +315,12 @@ export default function ReplaceProduct({ product = {}, orderId, onClose, onPicke
             </Flex>
 
             {error && <Flex center><Text size="s" mode="error">{error}</Text></Flex>}
+            {repOutOfRange && (
+                <Flex col center gap={4}>
+                    <Text size="s" bold mode="error">הכמות שהוזנה חורגת מהמותר</Text>
+                    {repRangeLabel && <Text size="xs" mode="sub">מותר: {repRangeLabel}</Text>}
+                </Flex>
+            )}
 
             <Flex col gap={10} className={styles.stickyFooter}>
                 <Button disabled={!canContinue} loading={loading} onClick={handleConfirm} className={styles.confirmBtn}>אשר תחליף</Button>
