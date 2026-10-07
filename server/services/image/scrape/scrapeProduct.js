@@ -1,5 +1,7 @@
 import { createHash } from 'crypto'
-import processImage from '../process.js'
+import resize from '../resize.js'
+import upload from '../upload.js'
+import download from '../download.js'
 import { findCandidate } from './providers.js'
 import log from '#server/utils/log.js'
 
@@ -43,7 +45,12 @@ export default async function scrapeProductImage({ DL, barcode, force = false, d
         Object.keys(main?.sizes || {}).length)
         return { barcode, skipped: 'unchanged' }
 
-    const sizes = await processImage({ productId: product.id, sourceUrl: candidate.sourceUrl })
+    // Prefer the bytes findCandidate already verified: re-downloading here
+    // doubles CDN load and can 429 after verification passed (those hits
+    // were previously lost as processImage errors). Falls back to a fresh
+    // download only when no verified buffer was handed along.
+    const source = candidate.buffer || await download(candidate.sourceUrl)
+    const sizes = await upload({ productId: product.id, sizes: await resize(source) })
     const update = {
         'images.product': [
             { main: true, sourceUrl: sourceRef, hash: candidateHash, sizes }

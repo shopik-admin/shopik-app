@@ -1,8 +1,11 @@
 /**
  * Backfill product images from Israeli retail/manufacturer sites.
- * Provider priority: Rami Levy → Super-Pharm → Osem-Nestle (see
+ * Provider priority: Rami Levy → Yochananof → Super-Pharm → Self-Point
+ * (allcomplete/mehadrin/tivtaam) → Osem-Nestle (see
  * server/services/image/scrape/providers.js). Only the main image, only
- * sources with width>=900 or height>=900 (verified with sharp, no upscales).
+ * sources with width>=600 or height>=600 (verified with sharp, no upscales).
+ * Verified bytes are cached on disk by barcode (data/scrape-cache, gitignored)
+ * so follow-up runs never re-scrape: a disk hit short-circuits providers.
  *
  * Priority: GS1 > scrape > Comax. GS1 mains are never touched; Comax picUrl
  * jobs cannot overwrite scrape mains (enqueue + imageWorker guards).
