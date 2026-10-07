@@ -345,12 +345,19 @@ function NameForm({ initialName, initialEmail, initialPhone, initialSecondPhone,
         setFormState({ loading: true, error: '' })
         try {
             const payload = {}
-            if (data['name.first'] !== undefined) payload['name.first'] = data['name.first']
-            if (data['name.last'] !== undefined) payload['name.last'] = data['name.last']
+            // Form deep-expands dotted names (name.first → { name: { first } }),
+            // so read the nested shape (flat-key fallback for safety).
+            const first = data?.name?.first ?? data['name.first']
+            const last = data?.name?.last ?? data['name.last']
+            if (first !== undefined || last !== undefined) {
+                payload.name = {}
+                if (first !== undefined) payload.name.first = String(first).trim()
+                if (last !== undefined) payload.name.last = String(last).trim()
+            }
             if (data.email !== undefined) payload.email = data.email
             if (data.secondPhone !== undefined && String(data.secondPhone).trim() !== '') payload.secondPhone = String(data.secondPhone).trim()
             const res = await user.userEdit(payload)
-            const updatedName = res?.user?.name || { first: data['name.first'], last: data['name.last'] }
+            const updatedName = res?.user?.name || { first, last }
             const updatedEmail = res?.user?.email || data.email
             const updatedSecondPhone = res?.user?.secondPhone || data.secondPhone
             setOrder(prev => ({

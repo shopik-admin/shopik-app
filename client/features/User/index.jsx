@@ -27,7 +27,7 @@ export default function User({ children, sdUser = {} }) {
     async function userEdit(newData) {
         const res = await apiReq('user/edit', newData)
         setUser({ ...user, ...res.user })
-        return true
+        return res
     }
 
     async function addressEdit(newData) {
