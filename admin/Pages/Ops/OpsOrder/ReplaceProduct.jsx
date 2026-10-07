@@ -10,6 +10,7 @@ import useApi from 'common/functions/useApi'
 import classNames from 'common/functions/classNames'
 import { isWeightProduct, getUnitLabel, getUnitInfoText, formatAmount, ProductImage } from 'common/components/Product'
 import { getPickRange, isPickInRange, DEFAULT_PICK_LIMITS } from 'common/functions/pickLimits'
+import limitDecimalInput from 'common/functions/decimalInput'
 
 export default function ReplaceProduct({ product = {}, orderId, onClose, onPicked }) {
     const [phase, setPhase] = useState('list') // list | scanning | amount
@@ -304,7 +305,7 @@ export default function ReplaceProduct({ product = {}, orderId, onClose, onPicke
                 <Flex col center className={classNames(styles.suppliedBox, [styles.empty, supplied === ''], [styles.match, isSuppliedValid && suppliedNum === ordered], [styles.warning, isSuppliedValid && suppliedNum !== ordered])}>
                     <input
                         value={supplied}
-                        onChange={e => setSupplied(e.target.value.replace(/[^0-9.]/g, ''))}
+                        onChange={e => setSupplied(limitDecimalInput(e.target.value, 3))}
                         placeholder="—"
                         className={styles.suppliedInput}
                         inputMode={repWeight ? 'decimal' : 'numeric'}

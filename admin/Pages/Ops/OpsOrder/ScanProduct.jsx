@@ -10,6 +10,7 @@ import useApi from 'common/functions/useApi'
 import classNames from 'common/functions/classNames'
 import { isWeightProduct, getUnitLabel, formatAmount } from 'common/components/Product'
 import { getPickRange, isPickInRange, DEFAULT_PICK_LIMITS } from 'common/functions/pickLimits'
+import limitDecimalInput from 'common/functions/decimalInput'
 
 export default function ScanProduct({ product = {}, orderId, onClose, onPicked, initialPhase, initialSupplied, initialBarcode, onReplace }) {
     const videoRef = useRef(null)
@@ -258,7 +259,7 @@ export default function ScanProduct({ product = {}, orderId, onClose, onPicked, 
                 <Flex col center className={classNames(styles.suppliedBox, [styles.empty, isSuppliedEmpty], [styles.match, isMatch], [styles.warning, isWarning], [styles.error, isError])}>
                     <input
                         value={supplied}
-                        onChange={e => setSupplied(e.target.value.replace(/[^0-9.]/g, ''))}
+                        onChange={e => setSupplied(limitDecimalInput(e.target.value, 3))}
                         placeholder="—"
                         className={styles.suppliedInput}
                         inputMode={weight ? 'decimal' : 'numeric'}
