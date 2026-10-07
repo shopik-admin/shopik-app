@@ -19,6 +19,11 @@ function getSaleWeight(sales) {
 }
 
 function isSaleEligible(products, sale) {
+    // Plain bundle kinds qualify on the ORDERED qty (orderAvailable): a partly
+    // supplied bundle still earns the relative sale price for packed units.
+    // Receive kinds keep the packed basis (conservative gift granting,
+    // preserves current loop termination).
+    const useOrdered = sale.kind !== SALE_KINDS.RECEIVE_PRICE && sale.kind !== SALE_KINDS.RECEIVE_AMOUNT
     let saleAmount = sale.amount
     let orderSaleAmount = 0
     let orderSalePrice = 0
@@ -26,7 +31,8 @@ function isSaleEligible(products, sale) {
     let missingPrice = isSaleReceivePrice ? sale.price : 0.0
 
     for (const p of products) {
-        const productAmount = Math.min(saleAmount, p.totalAvailableAmount)
+        const thresholdAvail = useOrdered ? (p.orderAvailable ?? p.totalAvailableAmount) : p.totalAvailableAmount
+        const productAmount = Math.min(saleAmount, thresholdAvail)
         saleAmount -= productAmount
         orderSaleAmount += productAmount
         orderSalePrice += p.totalAvailableAmount * p.orderPrice
@@ -85,6 +91,11 @@ export function applySales({ products, sales }) {
 
             if (!result.success) break
 
+            // Ordered qty can qualify a bundle whose packed qty is already
+            // exhausted — stop instead of spinning to saleLimit.
+            const consumed = result.distributions.reduce((sum, d) => sum + (d.saleAmount || 0), 0)
+            if (consumed <= 0) break
+
             if (!saleDetails[sale.saleId]) {
                 saleDetails[sale.saleId] = { used: true, amountToFulfill: 0 }
             }
@@ -114,10 +125,15 @@ export function applySales({ products, sales }) {
         }
     }
 
-    // Process leftover regular amount
+    // Process leftover regular amount.
+    // Basis is the PACKED qty (finalAmount when set at pick time), not the
+    // ordered amount: a partially supplied line must not be charged for units
+    // the customer never receives. At checkout finalAmount is undefined so the
+    // basis falls back to amount and behaviour there is unchanged.
     for (const p of products) {
         const distributedAmount = p.pricesDistribution.reduce((sum, d) => sum + d.amount, 0)
-        const regularAmount = Math.max(0, p.amount - distributedAmount)
+        const packedBasis = p.finalAmount != null ? p.finalAmount : p.amount
+        const regularAmount = Math.max(0, round3(packedBasis - distributedAmount))
 
         if (regularAmount > 0) {
             p.pricesDistribution.push({
