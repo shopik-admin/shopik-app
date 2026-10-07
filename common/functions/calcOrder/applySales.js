@@ -19,11 +19,14 @@ function getSaleWeight(sales) {
 }
 
 function isSaleEligible(products, sale) {
-    // Plain bundle kinds qualify on the ORDERED qty (orderAvailable): a partly
-    // supplied bundle still earns the relative sale price for packed units.
-    // Receive kinds keep the packed basis (conservative gift granting,
-    // preserves current loop termination).
-    const useOrdered = sale.kind !== SALE_KINDS.RECEIVE_PRICE && sale.kind !== SALE_KINDS.RECEIVE_AMOUNT
+    const isReceiveKind = sale.kind === SALE_KINDS.RECEIVE_PRICE || sale.kind === SALE_KINDS.RECEIVE_AMOUNT
+    // Per-unit sales (a plain per-item price or percent discount) have no
+    // bundle threshold: any positive remainder — including a fractional weight
+    // remainder the picker couldn't round to — gets the sale price instead of
+    // being pushed onto the regular price.
+    const isPerUnit = !isReceiveKind
+        && (sale.kind === SALE_KINDS.PRICE || sale.kind === SALE_KINDS.PERCENT)
+        && sale.amount <= 1
     let saleAmount = sale.amount
     let orderSaleAmount = 0
     let orderSalePrice = 0
@@ -31,7 +34,12 @@ function isSaleEligible(products, sale) {
     let missingPrice = isSaleReceivePrice ? sale.price : 0.0
 
     for (const p of products) {
-        const thresholdAvail = useOrdered ? (p.orderAvailable ?? p.totalAvailableAmount) : p.totalAvailableAmount
+        // Threshold basis is what the customer ordered or what was supplied,
+        // whichever is higher: under-supply keeps the relative sale price,
+        // over-supply still bundles the packed units.
+        const thresholdAvail = isReceiveKind
+            ? p.totalAvailableAmount
+            : Math.max(p.orderAvailable ?? p.totalAvailableAmount, p.totalAvailableAmount)
         const productAmount = Math.min(saleAmount, thresholdAvail)
         saleAmount -= productAmount
         orderSaleAmount += productAmount
@@ -39,6 +47,9 @@ function isSaleEligible(products, sale) {
         missingPrice = Math.max(0, missingPrice - orderSalePrice)
 
         if (isSaleReceivePrice ? orderSalePrice >= sale.price : orderSaleAmount >= sale.amount) {
+            return true
+        }
+        if (isPerUnit && thresholdAvail > 0) {
             return true
         }
     }
@@ -92,7 +103,8 @@ export function applySales({ products, sales }) {
             if (!result.success) break
 
             // Ordered qty can qualify a bundle whose packed qty is already
-            // exhausted — stop instead of spinning to saleLimit.
+            // exhausted — stop instead of spinning to saleLimit, and don't
+            // mark the sale used when nothing was actually consumed.
             const consumed = result.distributions.reduce((sum, d) => sum + (d.saleAmount || 0), 0)
             if (consumed <= 0) break
 
