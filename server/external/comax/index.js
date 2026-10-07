@@ -2,6 +2,8 @@ import { buildComaxParams, buildComaxPromotionParams } from './utils.js'
 import { fetchComax, fetchComaxBalance, fetchComaxPromotions } from './client.js'
 import { parseXml, normalizeArray, parseXmlFile } from './parser.js'
 import { mapItem, mapPromotion, mapBalance } from './mapper.js'
+import { writeCustomerOrder } from './orders.js'
+import { resolveComaxOrderConfig } from './resolveOrderConfig.js'
 
 async function getProducts({ DL, ...options }) {
     // 1. Build query params
@@ -71,6 +73,8 @@ const comax = ({ DL }) => ({
     getProducts: options => getProducts({ ...options, DL }),
     getProductsFromFile,
     getPromotions: options => getPromotions({ ...options, DL }),
-    getBalance: options => getBalance({ ...options, DL })
+    getBalance: options => getBalance({ ...options, DL }),
+    writeCustomerOrder: (order, opts) => writeCustomerOrder({ DL, order, opts }),
+    resolveOrderConfig: storeId => resolveComaxOrderConfig(DL, storeId)
 })
 export default comax
