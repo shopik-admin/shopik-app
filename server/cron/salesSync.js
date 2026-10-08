@@ -41,7 +41,7 @@ export async function runSalesSync(
 }
 
 export default function startSalesSync(bootData) {
-    const schedule = process.env.SALES_SYNC_CRON || '0 1 * * *'
+    const schedule = process.env.SALES_SYNC_CRON || '30 3 * * *'
     cron.schedule(schedule, () => runSalesSync(bootData), { timezone: process.env.TZ || 'Asia/Jerusalem' })
     log.info(`[SalesSync] Scheduled: ${schedule}`)
 }
