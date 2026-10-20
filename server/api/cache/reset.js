@@ -43,6 +43,12 @@ export default async function reset(payload, { DL, _admin }) {
     }
 
     try {
+        results.push({ model: 'admin_auth', cacheName: 'admin_auth:*', deletedKeys: await scanDel(redis, 'admin_auth:*') })
+    } catch (e) {
+        results.push({ model: 'admin_auth', cacheName: 'admin_auth:*', error: e?.message || 'failed' })
+    }
+
+    try {
         results.push({ model: 'bull', cacheName: 'bull:*', deletedKeys: await scanDel(redis, 'bull:*') })
     } catch (e) {
         results.push({ model: 'bull', cacheName: 'bull:*', error: e?.message || 'failed' })

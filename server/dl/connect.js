@@ -162,8 +162,17 @@ const getDisconnect = redis => async function disconnect() {
 
 const getHealth = redis => async function health() {
     const mongoOk = mongoose.connection.readyState === 1
-    const redisOk = redis ? await redis.ping() : false
-    return { mongo: mongoOk, redis: redisOk === 'PONG' }
+    // Redis is best-effort (app falls back to direct DB access) — a dead
+    // Redis must report degraded, never throw out of the health check.
+    let redisOk = false
+    if (redis) {
+        try {
+            redisOk = await redis.ping() === 'PONG'
+        } catch {
+            redisOk = false
+        }
+    }
+    return { mongo: mongoOk, redis: redisOk }
 }
 
 export default async function connect() {
