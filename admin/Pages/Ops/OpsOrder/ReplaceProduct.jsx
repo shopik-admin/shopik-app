@@ -264,6 +264,7 @@ export default function ReplaceProduct({ product = {}, orderId, onClose, onPicke
         const repPrice = selected.price ?? selected.prices?.[0]?.price
         const repBarcode = selected.barcode || ''
         const repIsCold = selected.storageType === 'cold' || selected.storageType === 'freeze'
+        const repUnitInfo = getUnitInfoText(selected)
         return <Flex col className={styles.replaceProduct}>
             <Flex alignItems="center" className={styles.header}>
                 <Button mode="text" size="s" onClick={() => setPhase('list')} className={styles.backBtn}>חזרה</Button>
@@ -281,7 +282,7 @@ export default function ReplaceProduct({ product = {}, orderId, onClose, onPicke
                 <Flex alignItems="center" gap={6}>
                     <Icon name={repIsCold ? 'snow' : 'stock'} size={14} />
                     {repPrice != null && <Text size="m" bold>₪{repPrice}</Text>}
-                    <Text size="xs" mode="sub">{getUnitInfoText(selected)}</Text>
+                    {repUnitInfo && <Text size="xs" mode="sub">{repUnitInfo}</Text>}
                 </Flex>
                 <Flex gap={10} alignItems="center">
                     <ProductImage product={selected} size="s" hideSaleBadge />
@@ -410,11 +411,12 @@ export default function ReplaceProduct({ product = {}, orderId, onClose, onPicke
             {results.map(p => {
                 const price = p.price ?? p.prices?.[0]?.price
                 const isCold = p.storageType === 'cold' || p.storageType === 'freeze'
+                const unitInfo = getUnitInfoText(p)
                 return <Flex col key={p.id || p.barcode} className={styles.rowCard}>
                     <Flex alignItems="center" gap={6} className={styles.rowTop}>
                         <Icon name={isCold ? 'snow' : 'stock'} size={14} />
                         {price != null && <Text size="m" bold>₪{price}</Text>}
-                        <Text size="xs" mode="sub">{getUnitInfoText(p)}</Text>
+                        {unitInfo && <Text size="xs" mode="sub">{unitInfo}</Text>}
                     </Flex>
                     <Flex gap={10} alignItems="center">
                         <ProductImage product={p} size="s" hideSaleBadge />
