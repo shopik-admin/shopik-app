@@ -32,7 +32,8 @@ export default async function enrichCart(order, DL) {
         category: 1,
         storageType: 1,
         picking: 1,
-        unit: 1
+        unit: 1,
+        'gs1.netContent': 1
     }).lean()
 
     const byId = new Map(products.map(p => [p.id, p]))
@@ -47,6 +48,9 @@ export default async function enrichCart(order, DL) {
         }
         if (!item.label && prod.label) item.label = prod.label
         if (!item.producer && prod.producer) item.producer = prod.producer
+        if (!item.gs1?.netContent && prod.gs1?.netContent) {
+            item.gs1 = { ...item.gs1, netContent: prod.gs1.netContent }
+        }
         if (!item.category && prod.category) item.category = prod.category
         if (!item.storageType && prod.storageType) item.storageType = prod.storageType
         if (!item.picking && prod.picking) item.picking = prod.picking
@@ -84,7 +88,8 @@ export async function enrichOrders(orders, DL) {
     if (allBarcodes.size) or.push({ barcode: { $in: Array.from(allBarcodes) } })
     const query = or.length === 1 ? or[0] : { $or: or }
     const products = await DL.Product.Model.find(query, {
-        _id: 0, id: 1, barcode: 1, images: 1, label: 1, producer: 1, category: 1, storageType: 1, picking: 1, unit: 1
+        _id: 0, id: 1, barcode: 1, images: 1, label: 1, producer: 1, category: 1, storageType: 1, picking: 1, unit: 1,
+        'gs1.netContent': 1
     }).lean()
     const byId = new Map(products.map(p => [p.id, p]))
     const byBarcode = new Map(products.map(p => [p.barcode, p]))
@@ -98,6 +103,9 @@ export async function enrichOrders(orders, DL) {
             if (!item.images || !item.images.product?.length) item.images = prod.images || item.images
             if (!item.label && prod.label) item.label = prod.label
             if (!item.producer && prod.producer) item.producer = prod.producer
+            if (!item.gs1?.netContent && prod.gs1?.netContent) {
+                item.gs1 = { ...item.gs1, netContent: prod.gs1.netContent }
+            }
             if (!item.category && prod.category) item.category = prod.category
             if (!item.storageType && prod.storageType) item.storageType = prod.storageType
             if (!item.picking && prod.picking) item.picking = prod.picking

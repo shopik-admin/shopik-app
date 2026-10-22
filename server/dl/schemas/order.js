@@ -195,6 +195,11 @@ export const cartSchema = [{
     },
     label: String,
     producer: String,
+    // The net weight of the pack, so a cart row shows the same
+    // "<weight> | <brand>" line as the product card.
+    gs1: {
+        netContent: {}
+    },
     category: {
         id: String,
         title: String,

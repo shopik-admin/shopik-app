@@ -250,12 +250,18 @@ const defaultSelect = {
     producer: 1,
     nutrients: 1,
     unit: 1,
+    // The net weight of the pack — the product card shows it next to the
+    // brand ("125 גרם | תנובה"). Only this leaf is needed for a listing.
+    'gs1.netContent': 1,
     saleIds: 1
 }
 
 const {
     'images.product': _imgProduct,
     'images.mainIndex': _imgMainIndex,
+    // The detail select pulls the whole `gs1` subdoc; projecting both
+    // `gs1` and `gs1.netContent` is a mongoose "Path collision at gs1".
+    'gs1.netContent': _gs1NetContent,
     ...defaultSelectBase
 } = defaultSelect
 

@@ -9,8 +9,11 @@ import KashrutStamps from 'common/components/Kashrut'
 import { DietIcons } from 'common/components/Nutrition'
 import { round2, round3 } from 'common/functions/calcOrder/utils.js'
 import { getProductImageUrl } from 'common/functions/productImageUrl.js'
+import { getUnitLabel, getUnitInfoText } from 'common/functions/productUnitInfo.js'
 import { useState, useEffect } from 'react'
 import { getSalesCache } from '#common/functions/salesCache.js'
+
+export { getUnitLabel, getUnitInfoText }
 
 export function getFirstSale(product, sales) {
     const saleId = product?.saleIds?.[0]
@@ -133,55 +136,12 @@ export function isWeightProduct(product) {
     return t === 'weight' || t === 'WEIGHT'
 }
 
-export function getUnitLabel(product) {
-    const unit = product?.unit || {}
-    const type = unit.type
-    const base = unit.baseUnit
-    if (type === 'weight') {
-        if (base === 'kg') return 'ק"ג'
-        if (base === 'g') return 'גרם'
-        return 'ק"ג'
-    }
-    if (base === 'kg') return 'ק"ג'
-    if (base === 'g') return 'גרם'
-    return "יח'"
-}
-
 export function formatAmount(product, amount) {
     if (amount == null || amount === '') return ''
     const n = Number(amount)
     if (isNaN(n)) return `${amount} ${getUnitLabel(product)}`
     const str = Number.isInteger(n) ? String(n) : String(Math.round(n * 1000) / 1000)
     return `${str} ${getUnitLabel(product)}`
-}
-
-export function getUnitInfoText(product) {
-    if (!product) return ''
-    const label = product.label || product.producer || ''
-    const unit = product.unit
-    let unitText = ''
-    if (unit?.type === 'weight') {
-        if (unit.baseUnit === 'kg') unitText = unit.amount ? `${unit.amount} ק"ג` : 'משקל'
-        else if (unit.baseUnit === 'g') unitText = unit.amount ? `${unit.amount} גרם` : 'משקל'
-        else unitText = 'משקל'
-    } else if (unit?.type === 'pack' || unit?.type === 'item') {
-        unitText = unit.amount ? `${unit.amount} יח'` : ''
-    } else {
-        // fallback to legacy fields
-        if (product.unitType || product.unitAmount) {
-            return getUnitPriceText(product) || ''
-        }
-    }
-    // also handle cart unit with option
-    if (unit?.option?.name) return unit.option.name
-    if (unit?.option?.amount) {
-        const base = unit.baseUnit === 'kg' ? 'ק"ג' : unit.baseUnit === 'g' ? 'גרם' : "יח'"
-        return `${unit.option.amount} ${base}`
-    }
-    if (label && unitText) return `${label} | ${unitText}`
-    if (label) return label
-    if (unitText) return unitText
-    return label || '200 גרם'
 }
 
 export function ProductInfo(props) {

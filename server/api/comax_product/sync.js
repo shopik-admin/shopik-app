@@ -61,11 +61,10 @@ function buildProduct(comax, DL, defaultDomainId, existing, enforceBuyingPrice) 
                     DL.Product.constants.STATUS.ACTIVE :
                     DL.Product.constants.STATUS.HIDDEN
 
-    return {
+    const product = {
         barcode: comax.barcode,
         name: comax.webName || comax.name,
         description: comax.description,
-        producer: comax.manufacturer,
         category,
         prices: mergePrices(existing?.prices, defaultDomainId, comax.price > 0 ? comax.price : null),
         buyingPrice: comax.buyingPrice > 0 ? comax.buyingPrice : null,
@@ -75,6 +74,12 @@ function buildProduct(comax, DL, defaultDomainId, existing, enforceBuyingPrice) 
         },
         unit: buildUnit(comax, DL)
     }
+    // `producer` is the brand. GS1 fills it from BrandName, and an empty
+    // Comax manufacturer must not wipe that — the sync $sets every field it
+    // returns, so an empty string here would erase the brand of every
+    // product Comax has no manufacturer for.
+    if (comax.manufacturer) product.producer = comax.manufacturer
+    return product
 }
 
 // Comax owns only the default domain's price entry — entries for other domains
