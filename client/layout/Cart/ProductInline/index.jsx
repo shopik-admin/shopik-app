@@ -11,7 +11,6 @@ export default function ProductInline({ remove = true, note = true, product, sal
         note={note}
         amount={amount}
         saleTotalAmount={saleTotalAmount}
-        priceMode='row'
         maxAmount={productMaxAmount}
         onRemove={remove ? handleRemove : undefined}
         onUpdateAmount={updateAmount}

@@ -316,7 +316,13 @@ export function ProductPrice({ product, size = 'm', sales, priceMode = 'unit', s
 
         const CurrencySymbol = <Text size='s' bold>₪</Text>
         if (priceMode === 'row') {
-            return <RowPrice product={product} size={size} sales={sales} saleTotalAmount={saleTotalAmount} />
+            const row = getRowPriceInfo(product)
+            // A row price only makes sense for a cart line: it has an amount
+            // and a server-calculated line total. Anything else (a catalog
+            // product, e.g. a search result) keeps the unit price.
+            if (row && row.amount > 0) {
+                return <RowPrice product={product} size={size} sales={sales} saleTotalAmount={saleTotalAmount} />
+            }
         }
         if (saleInfo) {
             const isBundle = saleInfo.isBundle

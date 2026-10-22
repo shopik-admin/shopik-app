@@ -124,6 +124,15 @@ describe('getRowPriceInfo', () => {
         assert.equal(getRowPriceInfo({ amount: 2 }), null)
         assert.equal(getRowPriceInfo(null), null)
     })
+
+    it('has no line total for a catalog product (no amount)', () => {
+        // A catalog product (a search result, a listing card) is not a cart
+        // line: it has no amount and no line total, so the row price must
+        // not be used for it.
+        const row = getRowPriceInfo({ price: 5.9 })
+        assert.equal(row.amount, 0)
+        assert.equal(row.total, 0)
+    })
 })
 
 describe('bundle threshold', () => {
