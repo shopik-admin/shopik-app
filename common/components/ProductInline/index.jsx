@@ -22,6 +22,7 @@ export default function ProductInline({
     variant,
     icon,
     saleTotalAmount,
+    priceMode = 'unit',
     maxAmount = 0,
     ...props
 }) {
@@ -61,7 +62,7 @@ export default function ProductInline({
             <ProductImage product={product} size={size} hideSaleBadge />
             <Flex col gap={5} grow={1} justifyContent='space-around'>
                 <Icon name={iconName} size={16} className={classNames(styles.remove, styles.iconSlot, pillStatus)} />
-                <ProductInfo product={product} sales={sales} size={size} />
+                <ProductInfo product={product} sales={sales} size={size} priceMode={priceMode} saleTotalAmount={saleTotalAmount} />
                 {barcode && <Flex alignItems="center" gap={4} className={styles.barcodeRow}>
                     <Icon name="barcode" size={12} />
                     <Text size="xs" mode="sub">{barcode}</Text>
@@ -98,7 +99,7 @@ export default function ProductInline({
             <ProductImage product={product} size={size} hideSaleBadge />
             <Flex col gap={5} justifyContent='space-around' grow={1}>
                 {remove && onRemove && <Button icon='trash' mode='text' stopPropagation preventDefault onClick={onRemove} className={styles.remove} />}
-                <ProductInfo product={product} sales={sales} size={size} />
+                <ProductInfo product={product} sales={sales} size={size} priceMode={priceMode} saleTotalAmount={saleTotalAmount} />
                 <ProductStamps product={product} />
                 <Flex alignItems='center' justifyContent='space-between'>
                     {note && <Button
