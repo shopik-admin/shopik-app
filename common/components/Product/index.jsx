@@ -9,6 +9,7 @@ import KashrutStamps from 'common/components/Kashrut'
 import { DietIcons } from 'common/components/Nutrition'
 import { round2, round3 } from 'common/functions/calcOrder/utils.js'
 import { getProductImageUrl } from 'common/functions/productImageUrl.js'
+import { getRowPriceInfo, isBundleReached } from 'common/functions/rowPrice.js'
 import { useState, useEffect } from 'react'
 import { getSalesCache } from '#common/functions/salesCache.js'
 
@@ -147,12 +148,18 @@ export function getUnitLabel(product) {
     return "יח'"
 }
 
+export function formatAmountNumber(amount) {
+    if (amount == null || amount === '') return ''
+    const n = Number(amount)
+    if (isNaN(n)) return String(amount)
+    return Number.isInteger(n) ? String(n) : String(Math.round(n * 1000) / 1000)
+}
+
 export function formatAmount(product, amount) {
     if (amount == null || amount === '') return ''
     const n = Number(amount)
     if (isNaN(n)) return `${amount} ${getUnitLabel(product)}`
-    const str = Number.isInteger(n) ? String(n) : String(Math.round(n * 1000) / 1000)
-    return `${str} ${getUnitLabel(product)}`
+    return `${formatAmountNumber(n)} ${getUnitLabel(product)}`
 }
 
 export function getUnitInfoText(product) {
@@ -269,7 +276,37 @@ export function ProductStamps({ product, className, kashrutCount = 1, dietCount 
     </Flex>
 }
 
-export function ProductPrice({ product, size = 'm', sales }) {
+// Row (line) price — the total of the whole cart line instead of the unit
+// price. Used by the cart rows, where the amount is already on screen.
+// The discount colour follows the money, not the promo: a bundle that has not
+// reached its size yet is still a regular price.
+function RowPrice({ product, size, sales, saleTotalAmount }) {
+    const row = getRowPriceInfo(product)
+    if (!row) return null
+
+    const sale = getFirstSale(product, sales)
+    const bundlePending = !isBundleReached(sale, saleTotalAmount != null ? saleTotalAmount : row.amount)
+    const hasDiscount = row.hasDiscount && !bundlePending
+    const total = bundlePending ? row.regular : row.total
+    const unitPrice = row.amount > 0 ? round2(total / row.amount) : row.unitPrice
+
+    const CurrencySymbol = <Text size='s' bold>₪</Text>
+    const unitPriceText = getUnitPriceText(product)
+
+    return <Flex
+        gap={8}
+        alignItems='center'
+        wrap
+        className={classNames(styles.price, styles[size], hasDiscount ? styles.priceDiscount : styles.priceRegular)}
+    >
+        <Text size='xxl' bold className={styles.rowTotal}>{CurrencySymbol}{formatPrice(total)}</Text>
+        {hasDiscount && <Text size='s' lineThrough className={styles.regularPrice}>{CurrencySymbol}{formatPrice(row.regular)}</Text>}
+        {row.amount > 1 && <Text size='s' mode='sub' className={styles.unitPriceHint}>{formatAmountNumber(row.amount)} × {formatPrice(unitPrice)}</Text>}
+        {unitPriceText && <Text size='s' mode='sub' className={styles.forgrams}>{unitPriceText}</Text>}
+    </Flex>
+}
+
+export function ProductPrice({ product, size = 'm', sales, priceMode = 'unit', saleTotalAmount }) {
     try {
         const price = product.price
         if (price == null) return null
@@ -278,6 +315,15 @@ export function ProductPrice({ product, size = 'm', sales }) {
         const saleInfo = sale ? getSalePriceInfo(product, sale) : null
 
         const CurrencySymbol = <Text size='s' bold>₪</Text>
+        if (priceMode === 'row') {
+            const row = getRowPriceInfo(product)
+            // A row price only makes sense for a cart line: it has an amount
+            // and a server-calculated line total. Anything else (a catalog
+            // product, e.g. a search result) keeps the unit price.
+            if (row && row.amount > 0) {
+                return <RowPrice product={product} size={size} sales={sales} saleTotalAmount={saleTotalAmount} />
+            }
+        }
         if (saleInfo) {
             const isBundle = saleInfo.isBundle
             const saleText = isBundle
