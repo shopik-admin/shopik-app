@@ -163,6 +163,32 @@
     text-decoration: line-through;
 }
 
+/* Row total (cart line): the line total instead of the unit price. */
+.rowTotal {
+    color: var(--pc-price, var(--text-primary));
+    font-weight: 700 !important;
+    line-height: 1.2;
+}
+
+/* The colour of a row total follows the money, not the promo banner: the
+   discount colour only when the line really carries a discount. A bundle
+   that has not reached its size yet stays on the regular price colour.
+   --product-price-sale-color is the same token the sale text uses. */
+.priceRegular {
+    --pc-price: var(--text-brand-primary);
+}
+
+.priceDiscount {
+    --pc-price: var(--product-price-sale-color, var(--menu-sales-border));
+}
+
+.unitPriceHint {
+    font-weight: 400;
+    position: relative;
+    top: 1px;
+    margin-inline-start: auto;
+}
+
 /* Regular (non-sale) price — also state-driven so the card reads consistently
    whether or not a sale exists. */
 .basePrice {
@@ -174,6 +200,14 @@
 }
 
 .price.l .salePrice {
+    font-size: 28px;
+}
+
+.price.s .rowTotal {
+    font-size: var(--text-xl);
+}
+
+.price.l .rowTotal {
     font-size: 28px;
 }
 

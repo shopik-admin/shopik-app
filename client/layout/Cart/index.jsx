@@ -129,7 +129,7 @@ export default function Cart({ }) {
             </Flex>
             :
             <Flex col gap={10} className={styles.items} >
-                {cart.map(item => <ProductInline key={item.id} product={item} />)}
+                {cart.map(item => <ProductInline key={item.id} product={item} priceMode='row' />)}
             </Flex>
         }
 

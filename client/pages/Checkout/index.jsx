@@ -258,7 +258,7 @@ export default function Checkout() {
                                 ) : (
                                     <Flex col gap={12} className={styles.cartList}>
                                         {cart.map((item, idx) => (
-                                            <ProductInline key={item.id || idx} product={item} />
+                                            <ProductInline key={item.id || idx} product={item} priceMode='row' />
                                         ))}
                                     </Flex>
                                 )}
