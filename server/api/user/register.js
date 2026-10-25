@@ -43,7 +43,7 @@ export default async function register(payload, { DL, utils, external }) {
         remember,
         payload: filtered
     })
-    await external.sms.otp(filtered.phone, otp, { domainId })
+    await external.sms.otp(filtered.phone, otp, { domainId, voice: true })
 
     return { user: filtered, token }
 }
