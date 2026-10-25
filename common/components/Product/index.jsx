@@ -165,12 +165,27 @@ export function formatAmount(product, amount) {
 // Brand | net content, e.g. "אסם | 500 גרם". Both are GS1/Comax metadata;
 // when either is missing we show only the part we have (and nothing at all
 // when both are missing) instead of inventing a weight.
+export function getUnitInfoParts(product) {
+    if (!product) return { brand: '', netContent: '' }
+    return {
+        brand: String(product.label || '').trim(),
+        netContent: String(product.netContentText || '').trim()
+    }
+}
+
+// Plain string form for places that need the text itself (e.g. concatenation).
 export function getUnitInfoText(product) {
-    if (!product) return ''
-    const brand = String(product.label || '').trim()
-    const netContent = String(product.netContentText || '').trim()
+    const { brand, netContent } = getUnitInfoParts(product)
     if (brand && netContent) return `${brand} | ${netContent}`
     return brand || netContent
+}
+
+// Render form: only the net content is wrapped in <bdi> so a mixed
+// Hebrew/English value cannot reorder around the "|" separator.
+export function ProductUnitInfo({ product }) {
+    const { brand, netContent } = getUnitInfoParts(product)
+    if (brand && netContent) return <>{brand} | <bdi>{netContent}</bdi></>
+    return <>{brand || netContent}</>
 }
 
 export function ProductInfo(props) {
@@ -178,7 +193,7 @@ export function ProductInfo(props) {
     const infoText = getUnitInfoText(product)
     return <Flex gap={4} col className={classNames(styles.info, styles[size])}>
         <ProductPrice {...props} />
-        {infoText && <Text size='xs' mode='sub'>{infoText}</Text>}
+        {infoText && <Text size='xs' mode='sub'><ProductUnitInfo product={product} /></Text>}
         <Text bold>{product.name}</Text>
     </Flex>
 }
