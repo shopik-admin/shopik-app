@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { splitItemBlocks, parseItemBlock } from '../../server/external/comax/parser.js'
+import { splitItemBlocks, parseItemBlock, splitExtendedBalanceBlocks, parseExtendedBalanceBlock } from '../../server/external/comax/parser.js'
 
 function itemXml(i) {
     return `<ClsItems><ID>${i}</ID><Barcode>${1000 + i}</Barcode><Name>מוצר ${i}</Name><Price>${i + 1}.5</Price>` +
@@ -103,5 +103,64 @@ describe('comax item block splitter', () => {
 
         assert.equal(blocks.length, 1)
         assert.equal(parseItemBlock(blocks[0]).ID, 1)
+    })
+})
+
+function balanceXml(i) {
+    return `<ClsItemsBalance_Extended><Barcode>${1000 + i}</Barcode>` +
+        `<DepartmentKod>13</DepartmentKod><SuperDepartmentKod>3</SuperDepartmentKod>` +
+        `<LastSaleDate>01/10/2026 09:15:00</LastSaleDate><SalesLastDays>4</SalesLastDays>` +
+        `<Balance>${i}</Balance></ClsItemsBalance_Extended>`
+}
+
+function balanceDocument(n) {
+    const body = Array.from({ length: n }, (_, i) => balanceXml(i)).join('\n')
+    return `<?xml version="1.0" encoding="utf-8"?>\n<soap:Envelope><soap:Body><ArrayOfClsItemsBalance_Extended>\n` +
+        `${body}\n</ArrayOfClsItemsBalance_Extended></soap:Body></soap:Envelope>\n`
+}
+
+async function collectBalances(source) {
+    const out = []
+    for await (const block of splitExtendedBalanceBlocks(source)) out.push(block)
+    return out
+}
+
+describe('comax sales window block splitter', () => {
+    it('splits the extended balance feed into one block per item', async () => {
+        const blocks = await collectBalances(chunks(balanceDocument(4), 4096))
+
+        assert.equal(blocks.length, 4)
+        for (const block of blocks) {
+            assert.ok(block.startsWith('<ClsItemsBalance_Extended>'))
+            assert.ok(block.endsWith('</ClsItemsBalance_Extended>'))
+        }
+        assert.equal(parseExtendedBalanceBlock(blocks[2]).Barcode, 1002)
+    })
+
+    it('does not confuse the extended tag with a plain item tag', async () => {
+        const doc = `<ArrayOfClsItemsBalance_Extended>${balanceXml(0)}</ArrayOfClsItemsBalance_Extended>`
+
+        assert.equal((await collect(chunks(doc, 4096))).length, 0)
+        assert.equal((await collectBalances(chunks(doc, 4096))).length, 1)
+    })
+
+    it('produces the same blocks no matter where the chunks are cut', async () => {
+        const doc = balanceDocument(5)
+        const expected = await collectBalances(chunks(doc, 4096))
+
+        for (const size of [1, 2, 5, 17, 300]) {
+            const blocks = await collectBalances(chunks(doc, size))
+            assert.deepEqual(blocks, expected, `chunk size ${size}`)
+        }
+    })
+
+    it('parses the sales-window fields out of a block', () => {
+        const row = parseExtendedBalanceBlock(balanceXml(3))
+
+        assert.equal(row.Barcode, 1003)
+        assert.equal(row.DepartmentKod, 13)
+        assert.equal(row.LastSaleDate, '01/10/2026 09:15:00')
+        assert.equal(row.SalesLastDays, 4)
+        assert.equal(row.Balance, 3)
     })
 })

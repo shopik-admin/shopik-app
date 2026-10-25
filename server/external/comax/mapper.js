@@ -117,6 +117,25 @@ export function mapBalance(item) {
     }
 }
 
+/**
+ * A row from `Get_AllItemsBalanceBySearch_Extended` (the sales-window feed).
+ *
+ * Only the fields the storeIds decision needs: the barcode, the department the
+ * window is configured on, and when it last sold in this store. The date
+ * arrives as `DD/MM/YYYY HH:mm:ss`; `LastSaleDate` is empty for an item that
+ * never sold, which `parseComaxDateTime` turns into null.
+ */
+export function mapSalesWindowItem(item) {
+    return {
+        barcode: item.Barcode != null ? String(item.Barcode).trim() : null,
+        departmentCode: item.DepartmentKod != null ? String(item.DepartmentKod) : null,
+        superDepartmentCode: item.SuperDepartmentKod != null ? String(item.SuperDepartmentKod) : null,
+        lastSaleDate: parseComaxDateTime(item.LastSaleDate),
+        salesLastDays: Number(item.SalesLastDays) || 0,
+        balance: Number(item.Balance) || 0
+    }
+}
+
 export function isInStock(b) {
     return !b.error && b.balance > 0
 }

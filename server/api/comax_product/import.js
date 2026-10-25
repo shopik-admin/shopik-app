@@ -1,6 +1,7 @@
 import mem, { collectGarbage } from '#server/utils/mem.js'
 import { PRODUCTS, completeRun } from './watermark.js'
 import { resolveFreshDepartments } from './freshDepartments.js'
+import { resolveSalesWindow, buildDepartmentWindows, buildKeptBarcodes } from './salesWindow.js'
 
 const REGISTER_FILTER = { active: true, type: 'comax' }
 
@@ -248,6 +249,113 @@ export default async function importComaxProducts(payload, { DL, external }) {
         }
     }
 
+    // 4. Sales window — a separate Comax call per store. The in-stock mark
+    // written above survives only while the item sold in that store inside the
+    // window of its department; anything older loses the store id.
+    //
+    // This step only REMOVES. A failed, empty or collapsed response therefore
+    // leaves the stored state untouched instead of mass-deleting it.
+    let windowRemoved = 0
+    let windowSkipped = 0
+    const salesWindow = await resolveSalesWindow(DL)
+
+    if (!salesWindow.enabled) {
+        console.log('[Comax Import] Sales window disabled (no positive window configured)')
+    } else if (typeof external.comax?.streamSalesWindow !== 'function') {
+        console.warn('[Comax Import] Sales window unavailable in this Comax client — skipping')
+    } else {
+        const windows = buildDepartmentWindows(salesWindow)
+        console.log(`[Comax Import] Sales window: default ${windows.defaultDays}d, ` +
+            `${windows.byDepartment.size} department override(s), querying ${windows.maxDays}d`)
+        const lastSaleByBarcode = new Map()
+
+        for (const reg of registers) {
+            const comaxStoreId = String(reg.data?.StockStoreID ?? '').trim()
+            if (!comaxStoreId) continue
+
+            const stats = { blocks: 0, kept: 0, unparsed: 0 }
+            const rows = []
+            let errored = null
+
+            try {
+                for await (const row of external.comax.streamSalesWindow({
+                    storeId: comaxStoreId,
+                    days: windows.maxDays,
+                    timeoutMs: STREAM_TIMEOUT_MS,
+                    stats
+                })) rows.push(row)
+            } catch (e) {
+                errored = e?.message || String(e)
+                console.error(`[Comax Import] store ${reg.storeId}: sales window failed:`, errored)
+                errors.push({ key: `salesWindow:${reg.storeId}`, message: errored })
+            }
+
+            const { kept, lastSale, unknownDates } = buildKeptBarcodes(rows, windows)
+            for (const [barcode, date] of lastSale) {
+                const previous = lastSaleByBarcode.get(barcode)
+                if (!previous || date > previous) lastSaleByBarcode.set(barcode, date)
+            }
+
+            const key = `salesWindow:${reg.storeId}`
+            const previous = Number(previousFeeds[key] ?? 0)
+            const empty = !errored && stats.blocks === 0
+            const collapsed = !errored && previous >= MIN_PREVIOUS && stats.blocks < previous * COLLAPSE_RATIO
+            const unparseable = stats.unparsed > 0
+
+            // Only remember a size that came from a complete, non-empty
+            // response. An empty answer is exactly the suspicious case, and
+            // overwriting the healthy baseline with 0 would disarm the collapse
+            // guard for the next run. A skipped store keeps its last known
+            // size, so the guard still works after a bad night.
+            if (!errored && !unparseable && stats.blocks > 0) feeds[key] = stats.blocks
+            else if (previous > 0) feeds[key] = previous
+
+            if (errored || empty || collapsed || unparseable) {
+                windowSkipped++
+                const reason = errored
+                    ? `feed failed (${errored})`
+                    : empty
+                        ? 'feed returned no items'
+                        : collapsed
+                            ? `feed returned ${stats.blocks} items, down from ${previous}`
+                            : `${stats.unparsed} unparseable block(s)`
+                console.warn(`[Comax Import] store ${reg.storeId}: sales window skipped, keeping stored stock state — ${reason}`)
+                continue
+            }
+
+            if (unknownDates)
+                console.warn(`[Comax Import] store ${reg.storeId}: ${unknownDates} sold row(s) without a usable LastSaleDate — kept`)
+
+            const current = await DL.ComaxProduct.Model.distinct('barcode', { storeIds: reg.storeId })
+            const stale = (current || []).filter(barcode => !kept.has(barcode))
+            if (!stale.length) {
+                console.log(`[Comax Import] store ${reg.storeId}: every in-stock item sold inside its window`)
+                continue
+            }
+
+            for (const part of chunk(stale, PULL_CHUNK)) {
+                const res = await DL.ComaxProduct.Model.updateMany(
+                    { barcode: { $in: part }, storeIds: reg.storeId },
+                    { $pull: { storeIds: reg.storeId } }
+                )
+                windowRemoved += res?.modifiedCount || 0
+            }
+            console.log(`[Comax Import] store ${reg.storeId}: ${stale.length} item(s) not sold inside their window`)
+        }
+
+        // Newest sale per barcode, across stores — informational, for the admin.
+        if (lastSaleByBarcode.size) {
+            const ops = [...lastSaleByBarcode].map(([barcode, lastSaleDate]) => ({
+                updateOne: { filter: { barcode }, update: { $max: { lastSaleDate } } }
+            }))
+            try {
+                for (const part of chunk(ops, BATCH)) await DL.ComaxProduct.Model.bulkWrite(part)
+            } catch (e) {
+                console.warn('[Comax Import] Could not store lastSaleDate:', e?.message || e)
+            }
+        }
+    }
+
     const anyIncomplete = incomplete.length > 0 || errors.length > 0
     const status = written === 0 && anyIncomplete ? 'error' : anyIncomplete || failedDocs > 0 ? 'partial' : 'success'
 
@@ -262,15 +370,16 @@ export default async function importComaxProducts(payload, { DL, external }) {
     })
 
     const summary = `[Comax Import] ${written} item(s) from ${results.length} feed(s), ` +
-        `${removed} storeIds removal(s), status ${status}`
+        `${removed} out-of-stock removal(s), ${windowRemoved} not-sold-in-window removal(s)` +
+        `${windowSkipped ? ` (${windowSkipped} store(s) kept as-is)` : ''}, status ${status}`
 
     if (anyIncomplete) {
         console.warn(summary)
-        return { message: 'Import partially failed', count: written, removed, status, errors }
+        return { message: 'Import partially failed', count: written, removed: removed + windowRemoved, status, errors }
     }
 
     console.log(summary)
-    return { message: 'Import complete', count: written, removed, status }
+    return { message: 'Import complete', count: written, removed: removed + windowRemoved, status }
 }
 
 importComaxProducts.config = {

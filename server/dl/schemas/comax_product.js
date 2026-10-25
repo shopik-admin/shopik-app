@@ -78,7 +78,10 @@ const comaxProductSchema = {
 
     syncedAt: Date,
     lastImportedAt: Date,
-    buyingPriceImportedAt: Date
+    buyingPriceImportedAt: Date,
+    // Latest sale of this barcode in any store, from the sales-window feed.
+    // Informational: the per-store decision is storeIds (see salesWindow.js).
+    lastSaleDate: Date
 }
 
 export default comaxProductSchema

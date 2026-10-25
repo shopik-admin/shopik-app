@@ -1,7 +1,7 @@
 import { buildComaxParams, buildComaxPromotionParams, buildSalesPriceArray } from './utils.js'
-import { fetchComax, fetchComaxBalance, fetchComaxPromotions, fetchComaxStream } from './client.js'
-import { parseXml, normalizeArray, parseXmlFile, splitItemBlocks, parseItemBlock } from './parser.js'
-import { mapItem, mapPromotion, mapBalance } from './mapper.js'
+import { fetchComax, fetchComaxBalance, fetchComaxPromotions, fetchComaxStream, fetchComaxSalesWindowStream } from './client.js'
+import { parseXml, normalizeArray, parseXmlFile, splitItemBlocks, parseItemBlock, splitExtendedBalanceBlocks, parseExtendedBalanceBlock } from './parser.js'
+import { mapItem, mapPromotion, mapBalance, mapSalesWindowItem } from './mapper.js'
 import { writeDeliveryDocument } from './deliveryDocs.js'
 import { getDeliveryDocument, findDeliveryDocByReference } from './deliveryFetch.js'
 import { fetchAndStoreDeliveryDoc, ensureDeliveryDoc } from './deliverySync.js'
@@ -133,6 +133,57 @@ async function* streamDepartmentProducts({ DL, departmentId, storeId, priceListI
     })
 }
 
+/**
+ * One store's recently-sold feed: barcode, department and last sale date.
+ *
+ * This is a different Comax binding (`Get_AllItemsBalanceBySearch_Extended`,
+ * SOAP POST, `NumDaysSold` in the query). It answers "did this sell here in
+ * the last N days" for the whole store in one call — Comax applies the window
+ * before returning, so it must be given the widest configured window; the
+ * per-department cut is made from each row's `LastSaleDate`.
+ *
+ * It carries no `SalesPrice` rows, so it must never be used as a catalog feed.
+ */
+async function* streamSalesWindow({ DL, storeId, days, priceListId, timeoutMs, stats }) {
+    const source = await fetchComaxSalesWindowStream({
+        days,
+        storeId,
+        priceListId: priceListId || process.env.COMAX_PRICELIST_ID,
+        timeoutMs
+    }, { DL })
+
+    let count = 0
+    let blocks = 0
+    let unparsed = 0
+
+    for await (const block of splitExtendedBalanceBlocks(source)) {
+        blocks++
+        let item
+        try {
+            item = parseExtendedBalanceBlock(block)
+        } catch (e) {
+            unparsed++
+            console.warn(`[Comax] Failed to parse sales-window block: ${e?.message || e}`)
+            continue
+        }
+        if (!item) continue
+
+        const row = mapSalesWindowItem(item)
+        if (!row.barcode) continue
+
+        count++
+        yield row
+    }
+
+    if (stats) {
+        stats.blocks = blocks
+        stats.kept = count
+        stats.unparsed = unparsed
+    }
+    if (count === 0) console.log(`[Comax] No sales in the last ${days} day(s) for store ${storeId}`)
+    else console.log(`[Comax] Fetched ${count} sold item(s) for store ${storeId} (${days}d)`)
+}
+
 async function getProductsFromFile({ inputFile }) {
     const items = await parseXmlFile(inputFile)
     const products = items.map(item => mapItem(item)).filter(p => keepProduct(p, false))
@@ -176,6 +227,7 @@ const comax = ({ DL }) => ({
     streamProducts: options => streamProducts({ ...options, DL }),
     streamStoreProducts: options => streamStoreProducts({ ...options, DL }),
     streamDepartmentProducts: options => streamDepartmentProducts({ ...options, DL }),
+    streamSalesWindow: options => streamSalesWindow({ ...options, DL }),
     getProductsFromFile,
     getPromotions: options => getPromotions({ ...options, DL }),
     getBalance: options => getBalance({ ...options, DL }),

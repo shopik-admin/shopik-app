@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { mapItem, extractBuyingPrice, isVatExempt } from '../../server/external/comax/mapper.js'
+import { mapItem, mapSalesWindowItem, extractBuyingPrice, isVatExempt } from '../../server/external/comax/mapper.js'
 
 const DELIVERY = '255'
 
@@ -75,6 +75,40 @@ describe('comax item mapping', () => {
         assert.equal(extractBuyingPrice(item({
             SalesPrice: { ClsItemPrices: [row(255, 4)] }
         }), 255), 4)
+    })
+})
+
+describe('comax sales window mapping', () => {
+    function balanceRow(overrides = {}) {
+        return {
+            Barcode: 1001,
+            DepartmentKod: 13,
+            SuperDepartmentKod: 3,
+            LastSaleDate: '01/10/2026 09:15:00',
+            SalesLastDays: 4,
+            Balance: 2,
+            ...overrides
+        }
+    }
+
+    it('reads the barcode, department and last sale date', () => {
+        const mapped = mapSalesWindowItem(balanceRow())
+
+        assert.equal(mapped.barcode, '1001')
+        assert.equal(mapped.departmentCode, '13')
+        assert.equal(mapped.superDepartmentCode, '3')
+        assert.equal(mapped.salesLastDays, 4)
+        assert.equal(mapped.balance, 2)
+        assert.deepEqual(mapped.lastSaleDate, new Date(2026, 9, 1, 9, 15, 0))
+    })
+
+    it('turns an empty or sentinel date into null', () => {
+        assert.equal(mapSalesWindowItem(balanceRow({ LastSaleDate: '' })).lastSaleDate, null)
+        assert.equal(mapSalesWindowItem(balanceRow({ LastSaleDate: '01/01/0001 00:00:00' })).lastSaleDate, null)
+    })
+
+    it('keeps a missing department as null', () => {
+        assert.equal(mapSalesWindowItem(balanceRow({ DepartmentKod: null })).departmentCode, null)
     })
 })
 
