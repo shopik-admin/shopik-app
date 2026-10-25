@@ -1,4 +1,5 @@
 import { DEFAULT_VOICE, getSmsConfig, sanitizeVoice } from './config.js'
+import { resolveOtpMessage } from './otpMessage.js'
 
 function normalizePhone(raw) {
     let d = String(raw).replace(/\D/g, '')
@@ -9,15 +10,6 @@ function normalizePhone(raw) {
 
 function isValidPhone(d) {
     return /^0?5\d{8}$/.test(d)
-}
-
-/**
- * OTP text is used verbatim for SMS and for the TTS voice call, so the code is
- * space-separated to make the engine read one digit at a time.
- */
-export function formatOtpMessage(code) {
-    const digits = String(code ?? '').replace(/\D/g, '')
-    return `קוד האימות שלך הוא ${digits.split('').join(' ')}. הקוד תקף ל-10 דקות.`
 }
 
 export function buildSmsBody({ username, source, phones, message, tts }) {
@@ -178,7 +170,9 @@ export default function sms({ DL }) {
     }
 
     async function otp(phone, code, opts = {}) {
-        return send([phone], formatOtpMessage(code), opts)
+        const domainId = typeof opts === 'string' ? opts : opts?.domainId
+        const message = await resolveOtpMessage({ DL, domainId, code })
+        return send([phone], message, opts)
     }
 
     return { send, otp, _normalizePhone: normalizePhone }

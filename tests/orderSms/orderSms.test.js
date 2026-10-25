@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import renderOrderSmsTemplate from '../../common/functions/renderOrderSmsTemplate.js'
+import renderSmsTemplate from '../../common/functions/renderSmsTemplate.js'
 import {
     DEFAULT_ORDER_SMS_TEMPLATES,
     ORDER_SMS_TEMPLATE_KEYS,
@@ -66,9 +66,9 @@ function createHarness({ send } = {}) {
     return { DL, external, order, calls }
 }
 
-describe('renderOrderSmsTemplate', () => {
+describe('renderSmsTemplate', () => {
     it('replaces known placeholders and preserves unknown ones', () => {
-        const rendered = renderOrderSmsTemplate(
+        const rendered = renderSmsTemplate(
             '{{customer_first_name}} / {{order_number}} / {{unknown}}',
             { customer_first_name: 'דוד', order_number: '100245' }
         )

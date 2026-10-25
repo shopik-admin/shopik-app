@@ -1,12 +1,13 @@
 /**
- * Seed order SMS templates (idempotent, safe to re-run).
+ * Seed order + OTP SMS templates (idempotent, safe to re-run).
  * Usage:
  *   node server/scripts/runSeed.js seedOrderSmsTemplates
  *   node server/scripts/runSeed.js seedOrderSmsTemplates <domainId>
  *
  * Creates only missing settings and never overwrites edited templates.
- * Stored hidden under category 'notifications' / subCategory 'order-sms' so
- * only the admin SMS Templates page manages them per domain.
+ * Order templates are stored hidden under category 'notifications' /
+ * subCategory 'order-sms', the OTP template under 'notifications' / 'otp-sms',
+ * so only the admin SMS Templates page manages them per domain.
  */
 import {
     DEFAULT_ORDER_SMS_TEMPLATES,
@@ -15,6 +16,12 @@ import {
     ORDER_SMS_SUB_CATEGORY,
     ORDER_SMS_TEMPLATE_KEYS
 } from '#common/constants/orderSms.js'
+import {
+    DEFAULT_OTP_SMS_TEMPLATE,
+    OTP_SMS_CATEGORY,
+    OTP_SMS_SETTING_KEY,
+    OTP_SMS_SUB_CATEGORY
+} from '#common/constants/otpSms.js'
 
 export default async function seedOrderSmsTemplates({ DL }) {
     const domainFilter = process.argv[3]
@@ -51,6 +58,24 @@ export default async function seedOrderSmsTemplates({ DL }) {
                 })
                 created++
             }
+        }
+
+        const existingOtp = await DL.Setting.readOne({ domainId: domain.id, key: OTP_SMS_SETTING_KEY })
+        if (!existingOtp) {
+            await DL.Setting.create({
+                key: OTP_SMS_SETTING_KEY,
+                value: DEFAULT_OTP_SMS_TEMPLATE,
+                domainId: domain.id,
+                category: OTP_SMS_CATEGORY,
+                subCategory: OTP_SMS_SUB_CATEGORY,
+                formType: 'textarea',
+                renderType: 'string',
+                public: false,
+                hidden: true
+            })
+            created++
+        } else if (!existingOtp.hidden) {
+            await DL.Setting.updateOne({ id: existingOtp.id }, { hidden: true })
         }
         console.log(`[orderSmsTemplates] domain ${domain.id} ready`)
     }

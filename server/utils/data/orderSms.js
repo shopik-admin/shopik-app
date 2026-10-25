@@ -4,7 +4,7 @@ import {
     getOrderSmsMethod,
     getOrderSmsTemplateKey
 } from '#common/constants/orderSms.js'
-import renderOrderSmsTemplate from '#common/functions/renderOrderSmsTemplate.js'
+import renderSmsTemplate from '#common/functions/renderSmsTemplate.js'
 
 const STAGE_KEYS = new Set(ORDER_SMS_STAGES.map(stage => stage.key))
 
@@ -90,7 +90,7 @@ export async function sendOrderStageSms({ DL, external, order, stage, adminId } 
             ? await DL.Store.readById(current.storeId).catch(() => null)
             : null
 
-        const message = renderOrderSmsTemplate(template, buildOrderSmsValues({
+        const message = renderSmsTemplate(template, buildOrderSmsValues({
             order: { ...current, name: { ...current.name, first: firstName } },
             domain,
             store

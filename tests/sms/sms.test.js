@@ -1,14 +1,25 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import sms, { buildSmsBody, formatOtpMessage } from '../../server/external/sms/index.js'
+import sms, { buildSmsBody } from '../../server/external/sms/index.js'
 import { DEFAULT_VOICE, getSmsConfig } from '../../server/external/sms/config.js'
+import { buildOtpMessage, spaceDigits } from '../../server/external/sms/otpMessage.js'
+import {
+    DEFAULT_OTP_SMS_TEMPLATE,
+    OTP_SMS_SETTING_KEY,
+    otpSmsSegments
+} from '../../common/constants/otpSms.js'
 
 const PHONE = '0501234567'
 
-function createDl(value = {}) {
+function createDl(value = {}, template = undefined) {
     const logs = []
     const DL = {
-        Setting: { readOne: async () => ({ value }) },
+        Setting: {
+            // `template` undefined = the domain has no OTP template row.
+            readOne: async ({ key } = {}) => key === OTP_SMS_SETTING_KEY
+                ? (template === undefined ? null : { value: template })
+                : { value }
+        },
         Log: {
             constants: { DIRECTION: { OUT: 'out' }, ACTOR: { API: 'api' } },
             start: data => ({
@@ -55,19 +66,35 @@ describe('buildSmsBody', () => {
     })
 })
 
-describe('formatOtpMessage', () => {
+describe('buildOtpMessage', () => {
     it('spaces the digits so TTS reads them one by one', () => {
         assert.equal(
-            formatOtpMessage('482913'),
+            buildOtpMessage('482913'),
             'קוד האימות שלך הוא 4 8 2 9 1 3. הקוד תקף ל-10 דקות.'
         )
     })
 
-    it('strips non-digits', () => {
+    it('strips non-digits from the code', () => {
+        assert.equal(spaceDigits(' 12-34 '), '1 2 3 4')
+    })
+
+    it('uses the default template when none is configured', () => {
+        assert.equal(buildOtpMessage('482913', ''), buildOtpMessage('482913', DEFAULT_OTP_SMS_TEMPLATE))
+        assert.equal(buildOtpMessage('482913', '   '), buildOtpMessage('482913'))
+    })
+
+    it('renders a custom template and keeps unknown variables', () => {
         assert.equal(
-            formatOtpMessage(' 12-34 '),
-            'קוד האימות שלך הוא 1 2 3 4. הקוד תקף ל-10 דקות.'
+            buildOtpMessage('482913', 'הקוד שלך בשפע קליק: {{code}}. בתוקף ל-10 דקות. {{unknown}}'),
+            'הקוד שלך בשפע קליק: 4 8 2 9 1 3. בתוקף ל-10 דקות. {{unknown}}'
         )
+    })
+
+    it('counts Hebrew SMS segments', () => {
+        assert.equal(otpSmsSegments('a'.repeat(70)), 1)
+        assert.equal(otpSmsSegments('a'.repeat(71)), 2)
+        assert.equal(otpSmsSegments('a'.repeat(134)), 2)
+        assert.equal(otpSmsSegments('a'.repeat(135)), 3)
     })
 })
 
@@ -123,6 +150,28 @@ describe('sms.otp voice routing', () => {
 
         assert.deepEqual(fetchStub.calls[0].body.sms.tts, { type: 2, voice: 'ymMale', repeat: 2, rate: 0 })
         assert.equal(fetchStub.calls[0].body.sms.destinations.phone, PHONE)
+    })
+
+    it('uses the per-domain OTP template', async t => {
+        const fetchStub = stubFetch()
+        t.after(fetchStub.restore)
+        const { DL } = createDl({ TOKEN_019: 't', USERNAME_019: 'u' }, 'שפע קליק: הקוד {{code}}')
+        const external = sms({ DL })
+
+        await external.otp(PHONE, '482913', { domainId: 'd1', voice: true })
+
+        assert.equal(fetchStub.calls[0].body.sms.message, 'שפע קליק: הקוד 4 8 2 9 1 3')
+    })
+
+    it('falls back to the default template when the domain row is blank', async t => {
+        const fetchStub = stubFetch()
+        t.after(fetchStub.restore)
+        const { DL } = createDl({ TOKEN_019: 't', USERNAME_019: 'u' }, '  ')
+        const external = sms({ DL })
+
+        await external.otp(PHONE, '482913', { domainId: 'd1' })
+
+        assert.equal(fetchStub.calls[0].body.sms.message, 'קוד האימות שלך הוא 4 8 2 9 1 3. הקוד תקף ל-10 דקות.')
     })
 
     it('does not attach tts when the caller does not ask for voice', async t => {
