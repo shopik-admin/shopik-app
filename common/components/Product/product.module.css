@@ -186,6 +186,7 @@
     font-weight: 400;
     position: relative;
     top: 1px;
+    margin-inline-start: auto;
 }
 
 /* Regular (non-sale) price — also state-driven so the card reads consistently

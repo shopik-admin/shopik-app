@@ -301,8 +301,8 @@ function RowPrice({ product, size, sales, saleTotalAmount }) {
     >
         <Text size='xxl' bold className={styles.rowTotal}>{CurrencySymbol}{formatPrice(total)}</Text>
         {hasDiscount && <Text size='s' lineThrough className={styles.regularPrice}>{CurrencySymbol}{formatPrice(row.regular)}</Text>}
-        {row.amount > 1 && <Text size='s' mode='sub' className={styles.unitPriceHint}>{formatAmountNumber(row.amount)} × {formatPrice(unitPrice)}</Text>}
         {unitPriceText && <Text size='s' mode='sub' className={styles.forgrams}>{unitPriceText}</Text>}
+        {row.amount > 1 && <Text size='s' mode='sub' className={styles.unitPriceHint}>{formatPrice(unitPrice)} × {formatAmountNumber(row.amount)}</Text>}
     </Flex>
 }
 
