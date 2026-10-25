@@ -39,6 +39,24 @@ const nameMap = {
 }
 
 /**
+ * The price lists requested in one response, comma-separated.
+ *
+ * Comax returns them under `item.SalesPrice.ClsItemPrices[]`, so the store feed
+ * gets the retail price (1069) and the delivery/buying price (255) in the same
+ * call instead of a second full import. Note this adds roughly 11% to the
+ * payload and does NOT change `item.Price`, which still reflects `PriceListID`.
+ */
+export function buildSalesPriceArray(options = {}) {
+    const ids = [
+        options.priceListId || process.env.COMAX_PRICELIST_ID,
+        options.deliveryPriceListId || process.env.COMAX_DELIVERY_PRICELIST_ID
+    ]
+        .map(v => String(v ?? '').trim())
+        .filter(Boolean)
+    return [...new Set(ids)].join(',')
+}
+
+/**
  * Convert options object → Comax query params.
  *   camelCase → PascalCase
  *   booleans → 1/0
@@ -71,6 +89,12 @@ export function buildComaxParams(options) {
             result[comaxKey] = value
         }
     }
+
+    // Undocumented but real Comax filters. They are only sent when the caller
+    // asks for them, so every other request stays byte-identical to before.
+    if (options.hasInventory != null) result.HasInventory = options.hasInventory ? 1 : 0
+    if (options.selByPriceList != null) result.SelByPriceList = options.selByPriceList ? 1 : 0
+    if (options.salesPriceArray) result.SalesPriceArray = options.salesPriceArray
 
     return result
 }

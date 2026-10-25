@@ -69,6 +69,7 @@ function buildProduct(comax, DL, defaultDomainId, existing, enforceBuyingPrice) 
         category,
         prices: mergePrices(existing?.prices, defaultDomainId, comax.price > 0 ? comax.price : null),
         buyingPrice: comax.buyingPrice > 0 ? comax.buyingPrice : null,
+        vat: comax.vat !== false,
         status,
         nutrients: {
             alcohol: comax.alcohol
@@ -109,6 +110,7 @@ export default async function syncComax(payload, { DL }) {
         subGroup: 1,
         price: 1,
         buyingPrice: 1,
+        vat: 1,
         showInWeb: 1,
         archived: 1,
         Size: 1,

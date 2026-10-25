@@ -16,6 +16,12 @@ const comaxProductSchema = {
     price: Number,
     supplierPrice: Number,
     buyingPrice: Number,
+    // Comax does not maintain a per-item VAT flag; the import derives it from
+    // the category tree (departments named ללא מע"מ, plus fresh produce 13).
+    vat: Boolean,
+    // Shopik store ids (cash_register.storeId) this item is in stock in.
+    // Written by the per-store HasInventory feed and the fresh-department feed.
+    storeIds: { type: [String], filter: true },
 
     superDepartmentCode: String,
     departmentCode: String,

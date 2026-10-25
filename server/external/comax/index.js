@@ -1,4 +1,4 @@
-import { buildComaxParams, buildComaxPromotionParams } from './utils.js'
+import { buildComaxParams, buildComaxPromotionParams, buildSalesPriceArray } from './utils.js'
 import { fetchComax, fetchComaxBalance, fetchComaxPromotions, fetchComaxStream } from './client.js'
 import { parseXml, normalizeArray, parseXmlFile, splitItemBlocks, parseItemBlock } from './parser.js'
 import { mapItem, mapPromotion, mapBalance } from './mapper.js'
@@ -35,7 +35,7 @@ async function getProducts({ DL, includeZeroPrice, skipLog, silent, timeoutMs, .
     }
 
     // 5. Map to clean objects
-    const products = items.map(mapItem).filter(p => keepProduct(p, includeZeroPrice))
+    const products = items.map(item => mapItem(item, options)).filter(p => keepProduct(p, includeZeroPrice))
 
     if (!silent) console.log(`[Comax] Fetched ${products.length} products`)
 
@@ -75,7 +75,7 @@ async function* streamProducts({ DL, includeZeroPrice, skipLog, silent, timeoutM
         }
         if (!item) continue
 
-        const product = mapItem(item)
+        const product = mapItem(item, options)
         if (!keepProduct(product, includeZeroPrice)) continue
 
         count++
@@ -90,9 +90,52 @@ async function* streamProducts({ DL, includeZeroPrice, skipLog, silent, timeoutM
     if (!silent) console.log(`[Comax] Fetched ${count} products${unparsed ? ` (${unparsed} unparseable)` : ''}`)
 }
 
+/**
+ * One store's in-stock feed.
+ *
+ * `HasInventory=1` turns the catalog call into "what this store can sell now".
+ * The response is well under the 17,000-item cap, so it is complete, and
+ * `LastUpdatedFromDate=` stays empty on purpose: this is a snapshot, not a
+ * delta. `SalesPriceArray` adds the delivery/buying price row to the same
+ * response.
+ */
+async function* streamStoreProducts({ DL, storeId, priceListId, ...options }) {
+    const listId = priceListId || process.env.COMAX_PRICELIST_ID
+    yield* streamProducts({
+        ...options,
+        DL,
+        storeId,
+        priceListId: listId,
+        salesPriceArray: options.salesPriceArray || buildSalesPriceArray({ priceListId: listId }),
+        hasInventory: true,
+        selByPriceList: true
+    })
+}
+
+/**
+ * One fresh (not stock-managed) department.
+ *
+ * Fresh counters — produce, butcher, fish, bakery, deli — are not tracked by
+ * Comax stock, so `HasInventory=1` excludes them (dept 13: 2 items of 1,588).
+ * `DepartmentID` takes exactly one code (comma/pipe/semicolon all return 0),
+ * and the response is store-independent, hence one call per department.
+ */
+async function* streamDepartmentProducts({ DL, departmentId, storeId, priceListId, ...options }) {
+    const listId = priceListId || process.env.COMAX_PRICELIST_ID
+    yield* streamProducts({
+        ...options,
+        DL,
+        departmentId,
+        storeId: storeId || process.env.COMAX_STORE_ID,
+        priceListId: listId,
+        salesPriceArray: options.salesPriceArray || buildSalesPriceArray({ priceListId: listId }),
+        selByPriceList: true
+    })
+}
+
 async function getProductsFromFile({ inputFile }) {
     const items = await parseXmlFile(inputFile)
-    const products = items.map(mapItem).filter(p => keepProduct(p, false))
+    const products = items.map(item => mapItem(item)).filter(p => keepProduct(p, false))
     console.log(`[Comax] Fetched ${products.length} products from file`)
     return products
 
@@ -131,6 +174,8 @@ async function getPromotions({ DL, ...options }) {
 const comax = ({ DL }) => ({
     getProducts: options => getProducts({ ...options, DL }),
     streamProducts: options => streamProducts({ ...options, DL }),
+    streamStoreProducts: options => streamStoreProducts({ ...options, DL }),
+    streamDepartmentProducts: options => streamDepartmentProducts({ ...options, DL }),
     getProductsFromFile,
     getPromotions: options => getPromotions({ ...options, DL }),
     getBalance: options => getBalance({ ...options, DL }),
