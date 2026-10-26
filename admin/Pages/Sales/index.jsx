@@ -28,6 +28,8 @@ export default function Sales({ }) {
                 { key: 'amount', type: 'number' },
                 { key: 'percent', type: 'number' },
                 { key: 'price', type: 'coin' },
+                { key: 'comaxPrice', type: 'coin' },
+                { key: 'trailingTotal', type: 'coin' },
                 { key: 'createdAt', type: 'date' },
                 { key: 'updatedAt', type: 'datetime' },
             ]}

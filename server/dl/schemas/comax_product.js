@@ -16,6 +16,19 @@ const comaxProductSchema = {
     price: Number,
     supplierPrice: Number,
     buyingPrice: Number,
+
+    // Comax "trailing item" (TrailingItem) = the refundable deposit charged
+    // next to the product, e.g. 0.30 for a bottle. It is stored as its own
+    // comax_products row (isTrailingItem) and referenced here from the parent.
+    // price stays the original Comax price; priceWithTrailing is what Shopik
+    // charges and displays (price + trailingPrice).
+    trailingItemId: { type: String, filter: true },
+    trailingItemQuantity: Number,
+    trailingItemPrice: Number,
+    trailingPrice: Number,
+    priceWithTrailing: Number,
+    isTrailingItem: { type: Boolean, filter: true },
+
     // Comax does not maintain a per-item VAT flag; the import derives it from
     // the category tree (departments named ללא מע"מ, plus fresh produce 13).
     vat: Boolean,

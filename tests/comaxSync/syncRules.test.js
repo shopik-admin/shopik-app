@@ -13,6 +13,7 @@ describe('comax sync rules', () => {
     it('excludes explicitly inactive comax products', () => {
         assert.deepEqual(buildSyncFilter(), {
             active: { $ne: false },
+            isTrailingItem: { $ne: true },
             superDepartmentCode: { $exists: true, $nin: ['12', null] },
             departmentCode: { $exists: true },
             groupCode: { $exists: true }

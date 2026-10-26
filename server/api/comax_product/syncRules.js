@@ -1,6 +1,9 @@
 export function buildSyncFilter() {
     return {
         active: { $ne: false },
+        // Deposit products are internal: they are referenced by a parent
+        // product and charged through it, never sold as a catalog item.
+        isTrailingItem: { $ne: true },
         superDepartmentCode: { $exists: true, $nin: ['12', null] },
         departmentCode: { $exists: true },
         groupCode: { $exists: true }

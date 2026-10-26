@@ -76,6 +76,28 @@ describe('comax item mapping', () => {
             SalesPrice: { ClsItemPrices: [row(255, 4)] }
         }), 255), 4)
     })
+
+    it('reads the trailing-item reference and its per-unit quantity', () => {
+        const mapped = mapItem(item({ Price: 6.6, TrailingItem: 555501, PikadonCmt: 2 }))
+
+        assert.equal(mapped.trailingItemId, '555501')
+        assert.equal(mapped.trailingItemQuantity, 2)
+        assert.equal(mapped.price, 6.6)
+        // The calculated fields are only added once the import resolves the
+        // deposit product; the mapper must not invent empty ones.
+        assert.equal('trailingItemPrice' in mapped, false)
+        assert.equal('trailingPrice' in mapped, false)
+        assert.equal('priceWithTrailing' in mapped, false)
+    })
+
+    it('treats a missing or zero trailing item as none', () => {
+        for (const raw of [{ TrailingItem: 0 }, {}, { TrailingItem: '' }]) {
+            const mapped = mapItem(item(raw))
+            assert.equal(mapped.trailingItemId, null)
+            assert.equal('trailingItemQuantity' in mapped, false)
+            assert.equal('trailingPrice' in mapped, false)
+        }
+    })
 })
 
 describe('comax sales window mapping', () => {

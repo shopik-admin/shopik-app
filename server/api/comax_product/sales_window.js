@@ -9,7 +9,7 @@ import { resolveSalesWindow } from './salesWindow.js'
  */
 export async function listDepartments(DL) {
     const rows = await DL.ComaxProduct.Model.aggregate([
-        { $match: { departmentCode: { $nin: [null, ''] } } },
+        { $match: { departmentCode: { $nin: [null, ''] }, isTrailingItem: { $ne: true } } },
         { $group: { _id: { code: '$departmentCode', name: '$department' }, products: { $sum: 1 } } }
     ])
 

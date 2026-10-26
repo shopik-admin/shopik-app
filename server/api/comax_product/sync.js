@@ -14,6 +14,15 @@ function isWeightProduct(comax) {
     return false
 }
 
+// What the customer pays: the Comax price plus the deposit (trailing item)
+// when the import resolved one. priceWithTrailing is written by the import;
+// older rows without it fall back to the plain Comax price.
+function retailPrice(comax) {
+    if (!(comax.price > 0)) return comax.price
+    const withTrailing = Number(comax.priceWithTrailing)
+    return Number.isFinite(withTrailing) && withTrailing > 0 ? withTrailing : comax.price
+}
+
 function buildUnit(comax, DL) {
     const isWeight = isWeightProduct(comax)
     if (isWeight) {
@@ -50,7 +59,8 @@ function buildProduct(comax, DL, defaultDomainId, existing, enforceBuyingPrice) 
     // ACTIVE on the first sync after the image worker attaches their image.
     // Missing sale price or buying price = archived (never created).
     const hasImages = (existing?.images?.product || []).length > 0
-    const missingPrice = !(comax.price > 0) || (enforceBuyingPrice && !(comax.buyingPrice > 0))
+    const price = retailPrice(comax)
+    const missingPrice = !(price > 0) || (enforceBuyingPrice && !(comax.buyingPrice > 0))
     const status = comax.archived ?
         DL.Product.constants.STATUS.ARCHIVED :
         missingPrice ?
@@ -67,7 +77,7 @@ function buildProduct(comax, DL, defaultDomainId, existing, enforceBuyingPrice) 
         description: comax.description,
         producer: comax.manufacturer,
         category,
-        prices: mergePrices(existing?.prices, defaultDomainId, comax.price > 0 ? comax.price : null),
+        prices: mergePrices(existing?.prices, defaultDomainId, price > 0 ? price : null),
         buyingPrice: comax.buyingPrice > 0 ? comax.buyingPrice : null,
         vat: comax.vat !== false,
         status,
@@ -109,6 +119,7 @@ export default async function syncComax(payload, { DL }) {
         subGroupCode: 1,
         subGroup: 1,
         price: 1,
+        priceWithTrailing: 1,
         buyingPrice: 1,
         vat: 1,
         showInWeb: 1,
@@ -171,7 +182,7 @@ export default async function syncComax(payload, { DL }) {
         archivedNoPrice += comaxProducts.filter((c, i) =>
             !c.archived &&
             productsToSync[i].status === DL.Product.constants.STATUS.ARCHIVED &&
-            (!(c.price > 0) || (enforceBuyingPrice && !(c.buyingPrice > 0)))
+            (!(retailPrice(c) > 0) || (enforceBuyingPrice && !(c.buyingPrice > 0)))
         ).length
 
         const result = await DL.Product.bulkWrite({

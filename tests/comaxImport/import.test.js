@@ -95,8 +95,8 @@ function feedSpec(value) {
     return value || { items: [] }
 }
 
-function makeExternal({ stores = {}, departments = {}, products = [], salesWindows = {} } = {}) {
-    const calls = { stores: [], departments: [], salesWindow: [], products: 0 }
+function makeExternal({ stores = {}, departments = {}, products = [], salesWindows = {}, trailingItems = {} } = {}) {
+    const calls = { stores: [], departments: [], salesWindow: [], products: 0, trailingItems: [] }
 
     const feed = spec => async function* (options) {
         const { items, blocks, unparsed = 0, throwAfter = null } = feedSpec(spec)
@@ -118,6 +118,10 @@ function makeExternal({ stores = {}, departments = {}, products = [], salesWindo
             streamProducts: options => {
                 calls.products++
                 return feed(products)(options)
+            },
+            getItemById: async ({ itemId }) => {
+                calls.trailingItems.push(itemId)
+                return trailingItems[itemId] || null
             },
             streamStoreProducts: options => {
                 calls.stores.push(options)
@@ -231,6 +235,113 @@ describe('comax store feed import', () => {
         await importComaxProducts({}, { DL, external })
 
         assert.equal(updateFor(writes, '1000').$set.buyingPrice, 7.5)
+    })
+
+    it('resolves a trailing item and writes the deposit as its own product', async () => {
+        const { DL, writes } = makeDL({ registers: [reg('store-a', '84')] })
+        const { external, calls } = makeExternal({
+            stores: {
+                84: [makeProduct(0, {
+                    price: 6.6,
+                    trailingItemId: '555501',
+                    trailingItemQuantity: 1,
+                    trailingPrice: 0,
+                    priceWithTrailing: 6.6
+                })]
+            },
+            departments: { 13: [] },
+            trailingItems: {
+                555501: {
+                    comaxId: '555501',
+                    barcode: '555501',
+                    name: 'פקדון בקבוק 0.30 שח',
+                    price: 0.3,
+                    superDepartmentCode: '12',
+                    archived: false
+                }
+            }
+        })
+
+        await importComaxProducts({}, { DL, external })
+
+        assert.deepEqual(calls.trailingItems, ['555501'])
+
+        const parent = updateFor(writes, '1000').$set
+        assert.equal(parent.trailingItemPrice, 0.3)
+        assert.equal(parent.trailingPrice, 0.3)
+        assert.equal(parent.priceWithTrailing, 6.9)
+
+        const depositWrite = writes.find(w => w.docs.some(d => d.barcode === '555501'))
+        assert.ok(depositWrite, 'the deposit product is written')
+        assert.equal(depositWrite.docs[0].isTrailingItem, true)
+        assert.equal(depositWrite.upserts[0], true)
+    })
+
+    it('multiplies PikadonCmt into the deposit price', async () => {
+        const { DL, writes } = makeDL({ registers: [reg('store-a', '84')] })
+        const { external } = makeExternal({
+            stores: {
+                84: [makeProduct(0, {
+                    price: 10,
+                    trailingItemId: '555505',
+                    trailingItemQuantity: 6,
+                    priceWithTrailing: 10
+                })]
+            },
+            departments: { 13: [] },
+            trailingItems: { 555505: { barcode: '555505', price: 0.3 } }
+        })
+
+        await importComaxProducts({}, { DL, external })
+
+        const parent = updateFor(writes, '1000').$set
+        assert.equal(parent.trailingItemPrice, 0.3)
+        assert.equal(parent.trailingPrice, 1.8)
+        assert.equal(parent.priceWithTrailing, 11.8)
+    })
+
+    it('keeps the reference but clears calculated prices when the trailing item cannot be read', async () => {
+        const { DL, writes } = makeDL({ registers: [reg('store-a', '84')] })
+        const { external } = makeExternal({
+            stores: {
+                84: [makeProduct(0, {
+                    price: 6.6,
+                    trailingItemId: '999999',
+                    trailingItemQuantity: 1,
+                    priceWithTrailing: 6.6
+                })]
+            },
+            departments: { 13: [] }
+        })
+
+        await importComaxProducts({}, { DL, external })
+
+        const update = updateFor(writes, '1000')
+        assert.equal(update.$set.trailingItemId, '999999')
+        assert.equal(update.$set.trailingItemQuantity, 1)
+        assert.equal(update.$set.trailingPrice, undefined)
+        assert.equal(update.$set.priceWithTrailing, undefined)
+        assert.deepEqual(update.$unset, {
+            trailingItemPrice: '',
+            trailingPrice: '',
+            priceWithTrailing: ''
+        })
+    })
+
+    it('does not store trailing fields on a product without a deposit', async () => {
+        const { DL, writes } = makeDL({ registers: [reg('store-a', '84')] })
+        const { external } = makeExternal({
+            stores: { 84: [makeProduct(0)] },
+            departments: { 13: [] }
+        })
+
+        await importComaxProducts({}, { DL, external })
+
+        const update = updateFor(writes, '1000')
+        for (const key of ['trailingItemId', 'trailingItemQuantity', 'trailingItemPrice', 'trailingPrice', 'priceWithTrailing']) {
+            assert.equal(update.$set[key], undefined, `${key} must not be written`)
+            assert.equal(update.$unset[key], '', `${key} must be cleared`)
+        }
     })
 
     it('removes the store id from items that are no longer in stock', async () => {

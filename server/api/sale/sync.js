@@ -82,12 +82,15 @@ export async function syncProductSaleIds({ DL }) {
     let updatedProducts = 0
 
     if (productUpdates.length > 0) {
-        const result = await DL.Product.bulkWrite({
-            docs: productUpdates,
-            getFilter: p => ({ barcode: { $in: p.barcodes } }),
-            getUpsert: () => false,
-            getUpdate: p => ({ $set: { saleIds: p.saleIds } })
-        })
+        // One `updateMany` per sale group: a single barcode list belongs to one
+        // sale, and `updateOne` would only touch the first product of that list.
+        const ops = productUpdates.map(p => ({
+            updateMany: {
+                filter: { barcode: { $in: p.barcodes } },
+                update: { $set: { saleIds: p.saleIds } }
+            }
+        }))
+        const result = await DL.Product.Model.bulkWrite(ops, { ordered: false })
         updatedProducts += result.modifiedCount || 0
     }
 
