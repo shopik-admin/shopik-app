@@ -5,18 +5,17 @@ import {
 import renderSmsTemplate from '#common/functions/renderSmsTemplate.js'
 
 /**
- * Space-separated digits so the TTS engine reads the code one digit at a time
- * instead of as one big number.
+ * Cleans the input code by removing all non-digit characters.
  */
-export function spaceDigits(code) {
-    return String(code ?? '').replace(/\D/g, '').split('').join(' ')
+export function cleanDigits(code) {
+    return String(code ?? '').replace(/\D/g, '')
 }
 
 export function buildOtpMessage(code, template) {
     const source = typeof template === 'string' && template.trim()
         ? template
         : DEFAULT_OTP_SMS_TEMPLATE
-    return renderSmsTemplate(source, { code: spaceDigits(code) })
+    return renderSmsTemplate(source, { code: cleanDigits(code) })
 }
 
 /**
