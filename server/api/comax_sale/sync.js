@@ -25,6 +25,49 @@ export function trailingTotalForSale({ barcodes, amount, barcodeToDepositMap }) 
     return round2(perUnit * qty)
 }
 
+/**
+ * Model IDs a Comax sale is defined on (`itemsModel`). A promotion can point at
+ * a model instead of listing every barcode, so the sync expands it to all
+ * comax_products whose `models.id` matches.
+ */
+export function modelKodsForSale(cs) {
+    const kods = []
+    for (const ref of (cs.itemsModel || [])) {
+        if (ref?.SwNotActive) continue
+        const kod = ref?.Kod != null ? String(ref.Kod) : ''
+        if (kod && kod !== '0') kods.push(kod)
+    }
+    return [...new Set(kods)]
+}
+
+export function modelBarcodesForSale(cs, modelKodToBarcodes) {
+    const barcodes = []
+    for (const kod of modelKodsForSale(cs)) {
+        for (const barcode of modelKodToBarcodes?.get(kod) || []) barcodes.push(barcode)
+    }
+    return barcodes
+}
+
+/**
+ * modelKod -> all product barcodes carrying that model in `models.id`.
+ * Products belong to a model, so one barcode may appear under several models;
+ * each model's list is deduplicated.
+ */
+export function buildModelKodToBarcodes(products, modelKods) {
+    const map = new Map()
+    for (const product of (products || [])) {
+        if (!product?.barcode) continue
+        for (const model of (product.models || [])) {
+            const id = model?.id != null ? String(model.id) : ''
+            if (!id || !modelKods?.has(id)) continue
+            const list = map.get(id) || []
+            if (!list.includes(product.barcode)) list.push(product.barcode)
+            map.set(id, list)
+        }
+    }
+    return map
+}
+
 // Lowest regular price across all domains — a global sale must discount every domain.
 function minAcrossDomains(prices) {
     if (!Array.isArray(prices)) return undefined
@@ -40,9 +83,11 @@ function minAcrossDomains(prices) {
 function deduplicateKey(cs) {
     const items = (cs.items || []).map(i => String(i.Kod || i)).sort()
     const getItems = (cs.getItems || []).map(i => String(i.Kod || i)).sort()
+    const itemsModel = modelKodsForSale(cs).sort()
     return JSON.stringify({
         items,
         getItems,
+        itemsModel,
         getGiftItem: cs.getGiftItem ? String(cs.getGiftItem) : null,
         quantity: cs.quantity,
         minQty: cs.minQty,
@@ -79,14 +124,20 @@ function deduplicateSales(comaxSales) {
     return { uniqueComaxSales: Array.from(byKey.values()), deduplicateSaleIds }
 }
 
-function buildSale(cs, kodToBarcodeMap, activeBarcodesSet, barcodeToPriceMap, barcodeToDepositMap, DL, stats) {
+function buildSale(cs, kodToBarcodeMap, activeBarcodesSet, barcodeToPriceMap, barcodeToDepositMap, modelKodToBarcodes, DL, stats) {
     if (IGNORE_PROMO_TYPES.includes(cs.promotionType)) {
         return null
     }
     const { KINDS, TYPES, STATUS } = DL.Sale.constants
-    const rawBarcodes = (cs.items || [])
+    const itemBarcodes = (cs.items || [])
         .filter(i => !i.SwNotActive)
         .map(i => kodToBarcodeMap.get(String(i.Kod)) || String(i.Kod))
+    // A sale can target a whole model ("itemsModel") instead of listing every
+    // variant. Expand it to every comax_products row carrying that model.
+    // Unlike explicitly listed items, model barcodes are kept regardless of the
+    // product's current status: the sale must still be ready if the product is
+    // activated later, without another sales sync.
+    const modelBarcodes = modelBarcodesForSale(cs, modelKodToBarcodes)
 
     const rawReceiveBarcodes = (cs.getItems || [])
         .filter(i => !i.SwNotActive)
@@ -180,7 +231,10 @@ function buildSale(cs, kodToBarcodeMap, activeBarcodesSet, barcodeToPriceMap, ba
     const saleName = cs.name || `מבצע ${cs.comaxId}`
     const displayName = cs.name || `מבצע ${cs.comaxId}`
 
-    const validBarcodes = rawBarcodes?.filter(b => activeBarcodesSet.has(b))
+    const validBarcodes = [...new Set([
+        ...itemBarcodes.filter(b => activeBarcodesSet.has(b)),
+        ...modelBarcodes
+    ])]
 
     if (validBarcodes.length === 0) {
         return null
@@ -188,10 +242,18 @@ function buildSale(cs, kodToBarcodeMap, activeBarcodesSet, barcodeToPriceMap, ba
 
     // Comax totals exclude deposits; charge them through the sale price so a
     // "3 ב-20" bundle costs 20.00 and not 19.10.
+    // Deposit math stays on the currently sellable barcodes: model expansion
+    // deliberately keeps inactive products in `barcodes` for later, and their
+    // missing/zero deposit must not zero out the price for today's customers.
     const comaxPrice = price
     let trailingTotal = 0
     if (kind === KINDS.PRICE && price != null) {
-        trailingTotal = trailingTotalForSale({ barcodes: validBarcodes, amount, barcodeToDepositMap })
+        const activeForDeposit = validBarcodes.filter(b => activeBarcodesSet.has(b))
+        trailingTotal = trailingTotalForSale({
+            barcodes: activeForDeposit.length ? activeForDeposit : validBarcodes,
+            amount,
+            barcodeToDepositMap
+        })
         if (trailingTotal > 0) price = round2(price + trailingTotal)
     }
 
@@ -277,6 +339,7 @@ export default async function syncComaxSales(payload, { DL }) {
             getDiscountPercent: 1,
             getGiftItem: 1,
             getItems: 1,
+            itemsModel: 1,
             getTotal: 1,
             getCmt: 1,
             swActive: 1,
@@ -307,8 +370,11 @@ export default async function syncComaxSales(payload, { DL }) {
         (activeProducts || []).map(p => [p.barcode, minAcrossDomains(p?.prices)])
     )
 
-    // Collect all item Kods for barcode resolution
+    // Collect all item Kods for barcode resolution, plus the model Kods some
+    // sales are defined on. Model Kods are resolved through
+    // comax_products.models.id, not through the product barcode.
     const kodsSet = new Set()
+    const modelKodsSet = new Set()
     for (const cs of uniqueComaxSales) {
         if (cs.getGiftItem) kodsSet.add(String(cs.getGiftItem))
         for (const item of (cs.items || [])) {
@@ -317,21 +383,25 @@ export default async function syncComaxSales(payload, { DL }) {
         for (const item of (cs.getItems || [])) {
             if (item.Kod) kodsSet.add(String(item.Kod))
         }
+        for (const kod of modelKodsForSale(cs)) modelKodsSet.add(kod)
     }
 
     const kodArray = Array.from(kodsSet)
+    const modelArray = Array.from(modelKodsSet)
     let kodToBarcodeMap = new Map()
     const barcodeToDepositMap = new Map()
+    const modelKodToBarcodes = new Map()
 
-    if (kodArray.length > 0) {
+    if (kodArray.length > 0 || modelArray.length > 0) {
         const matchingProducts = await DL.ComaxProduct.read(
             {
                 $or: [
                     { comaxId: { $in: kodArray } },
-                    { barcode: { $in: kodArray } }
+                    { barcode: { $in: kodArray } },
+                    { 'models.id': { $in: modelArray } }
                 ]
             },
-            { barcode: 1, comaxId: 1, trailingPrice: 1 },
+            { barcode: 1, comaxId: 1, trailingPrice: 1, models: 1 },
             { limit: 0 }
         )
 
@@ -341,11 +411,15 @@ export default async function syncComaxSales(payload, { DL }) {
             if (p.barcode && Number(p.trailingPrice) > 0)
                 barcodeToDepositMap.set(p.barcode, Number(p.trailingPrice))
         }
+
+        for (const [kod, barcodes] of buildModelKodToBarcodes(matchingProducts, modelKodsSet)) {
+            modelKodToBarcodes.set(kod, barcodes)
+        }
     }
 
     const stats = { skippedInflated: 0 }
     const salesToSync = uniqueComaxSales
-        .map(cs => buildSale(cs, kodToBarcodeMap, activeBarcodesSet, barcodeToPriceMap, barcodeToDepositMap, DL, stats))
+        .map(cs => buildSale(cs, kodToBarcodeMap, activeBarcodesSet, barcodeToPriceMap, barcodeToDepositMap, modelKodToBarcodes, DL, stats))
         .filter(Boolean)
 
     if (stats.skippedInflated > 0) {
