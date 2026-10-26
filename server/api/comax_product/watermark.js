@@ -52,9 +52,13 @@ export async function setSyncState(DL, key, fields = {}) {
  * batch or an unparseable item means those products are missing from the DB,
  * so the old watermark has to stay and the next run re-fetches the same
  * window (upserts are idempotent — the cost is one repeated window).
+ *
+ * `extra` is written as-is (e.g. the per-feed item counts used by the
+ * snapshot import's collapse guard).
  */
-export async function completeRun(DL, key, { startedAt, processed = 0, failed = 0, unparsed = 0, error = null, advance = false, status = null }) {
+export async function completeRun(DL, key, { startedAt, processed = 0, failed = 0, unparsed = 0, error = null, advance = false, status = null, ...extra }) {
     const fields = {
+        ...extra,
         status: status || (error ? 'error' : (advance ? 'success' : 'partial')),
         processed,
         failed: failed + unparsed,

@@ -1,0 +1,17 @@
+.rule {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px;
+    border: 1px solid var(--border-secondary);
+    border-radius: var(--radius-md);
+}
+
+.departments {
+    min-width: 220px;
+}
+
+.days {
+    max-width: 120px;
+    flex-shrink: 0;
+}

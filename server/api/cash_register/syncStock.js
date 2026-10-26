@@ -25,7 +25,34 @@ async function applyStoreIdsDelta({ storeId, inStockBarcodes, outOfStockBarcodes
     return { inStock: inStockBarcodes.size, outOfStock: outOfStockBarcodes.size, updated }
 }
 
-export default async function syncStockForStores({ storeId: onlyStoreId } = {}, { DL, external }) {
+/**
+ * Read the in-stock barcodes the import recorded for one store.
+ * Paged: a store holds thousands of items and the doc is never loaded whole.
+ */
+async function readInStockBarcodes(DL, storeId) {
+    const BATCH = Number(process.env.COMAX_SYNC_BATCH || 1000)
+    const barcodes = new Set()
+    for (let skip = 0; ; skip += BATCH) {
+        const rows = await DL.ComaxProduct.read(
+            { storeIds: storeId, barcode: { $nin: [null, ''] } },
+            { _id: 0, barcode: 1 },
+            { limit: BATCH, skip, sort: { barcode: 1 } }
+        )
+        if (!rows?.length) break
+        for (const row of rows) if (row.barcode) barcodes.add(row.barcode)
+        if (rows.length < BATCH) break
+    }
+    return barcodes
+}
+
+/**
+ * Copy the per-store stock state the import wrote on comax_products
+ * (`storeIds`) onto products.storeIds, which is what the storefront filters on.
+ *
+ * The import is the source of truth: a store's feed is a complete snapshot, so
+ * "not in comax_products.storeIds" means out of stock for that store.
+ */
+export default async function syncStockForStores({ storeId: onlyStoreId } = {}, { DL }) {
     const filter = { active: true, type: 'comax' }
     if (onlyStoreId) filter.storeId = onlyStoreId
 
@@ -43,22 +70,28 @@ export default async function syncStockForStores({ storeId: onlyStoreId } = {}, 
             details.push({ storeId: reg.storeId, error: msg })
             continue
         }
-        const params = {
-            storeId: comaxStoreId,
-            loginId: process.env.COMAX_LOGIN_ID,
-            loginPassword: process.env.COMAX_LOGIN_PASSWORD,
-            priceListId: process.env.COMAX_PRICELIST_ID,
-        }
         const log = DL.Log.start({
             action: 'comax_sync_stock',
             direction: DL.Log.constants.DIRECTION.OUT,
-            data: { request: { storeId: reg.storeId, comaxStoreId, params: { StoreID: params.storeId, PriceListID: params.priceListId } } }
+            data: { request: { storeId: reg.storeId, comaxStoreId } }
         })
         log.actor({ type: DL.Log.constants.ACTOR.API })
         try {
-            const balances = await external.comax.getBalance(params)
-            const inStockBarcodes = new Set(balances.filter(b => !b.error && b.balance > 0).map(b => b.barcode))
-            const outOfStockBarcodes = new Set(balances.filter(b => !b.error && b.balance <= 0).map(b => b.barcode))
+            const inStockBarcodes = await readInStockBarcodes(DL, reg.storeId)
+            if (inStockBarcodes.size === 0) {
+                // An empty set is far more likely a broken/empty import than a
+                // store that sells nothing. Pulling every storeId would empty
+                // the whole storefront, so skip instead.
+                const msg = 'no in-stock items in comax_products — skipping this store'
+                await log.error({ storeId: reg.storeId, message: msg }).catch(() => {})
+                details.push({ storeId: reg.storeId, error: msg })
+                continue
+            }
+
+            const current = await DL.Product.Model.distinct('barcode', { storeIds: reg.storeId })
+            const outOfStockBarcodes = new Set(
+                (current || []).filter(barcode => barcode && !inStockBarcodes.has(barcode))
+            )
 
             const result = await applyStoreIdsDelta({ storeId: reg.storeId, inStockBarcodes, outOfStockBarcodes, DL })
             await log.success({ storeId: reg.storeId, ...result })

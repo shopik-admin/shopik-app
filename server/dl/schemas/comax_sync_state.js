@@ -19,7 +19,10 @@ const comaxSyncStateSchema = {
     failed: { type: Number, default: 0 },
     startedAt: Date,
     finishedAt: Date,
-    error: String
+    error: String,
+    // Per-feed item counts of the last complete run, e.g.
+    // { 'store:store-1': 9009, 'department:13': 1587 }.
+    feeds: Object
 }
 
 export const meta = {}

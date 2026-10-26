@@ -1,7 +1,46 @@
 import { normalizeArray } from './parser.js'
 import { parseComaxDate, parseComaxDateTime } from './utils.js'
 
-export function mapItem(item) {
+// Departments that are VAT-exempt even though their name does not say so.
+// Fresh produce is exempt by law; its Comax department is named
+// "פירות וירקות טריים" (the taxed sibling, dept 9, is "עם מע\"מ").
+const VAT_EXEMPT_DEPARTMENT_CODES = new Set(['13'])
+
+// "ללא מע\"מ" with the quotes/spaces removed. Matching is done on the
+// quote-stripped name so every spelling of the gershayim matches.
+const VAT_EXEMPT_NAME = /\u05DC\u05DC\u05D0\s*\u05DE\u05E2\u05DE/
+
+/**
+ * Comax does not maintain a per-item VAT flag: `IsIncludeVat` belongs to the
+ * price list (1069 is always true, 255/100/101 always false), including for
+ * departments literally named "ללא מע\"מ". So the tax status is derived from
+ * the category tree instead, at import time.
+ */
+export function isVatExempt(item) {
+    if (VAT_EXEMPT_DEPARTMENT_CODES.has(String(item.DepartmentCode ?? '').trim())) return true
+    return [item.Department, item.Group, item.Sub_Group].some(name =>
+        typeof name === 'string' && VAT_EXEMPT_NAME.test(name.replace(/["'`\u05F3\u05F4]/g, ''))
+    )
+}
+
+/**
+ * The delivery/buying price row, when the response carries one.
+ *   row present with a positive price → that price
+ *   row present but 0/negative       → null (clears the stored value)
+ *   row absent                       → undefined (leave the stored value alone)
+ */
+export function extractBuyingPrice(item, deliveryPriceListId = process.env.COMAX_DELIVERY_PRICELIST_ID) {
+    const id = String(deliveryPriceListId ?? '').trim()
+    if (!id) return undefined
+    const rows = normalizeArray(item.SalesPrice?.ClsItemPrices)
+    // PriceListID is parsed as a number by fast-xml-parser — compare as strings.
+    const row = rows.find(r => String(r?.PriceListID ?? '').trim() === id)
+    if (!row) return undefined
+    const price = Number(row.Price)
+    return price > 0 ? price : null
+}
+
+export function mapItem(item, { deliveryPriceListId } = {}) {
     return {
         comaxId: String(item.ID ?? ''),
         barcode: item.Barcode ?? null,
@@ -12,6 +51,7 @@ export function mapItem(item) {
 
         price: Number(item.Price) || undefined,
         supplierPrice: Number(item.SupplierPrice) || undefined,
+        buyingPrice: extractBuyingPrice(item, deliveryPriceListId),
 
         superDepartmentCode: item.SuperDepartmentCode ?? null,
         superDepartment: item.SuperDepartment ?? null,
@@ -50,8 +90,8 @@ export function mapItem(item) {
         colors: normalizeArray(item.Colors?.Color).map(c => ({ id: c.ID, name: c.Name })),
         sizes: normalizeArray(item.Sizes?.Size).map(s => ({ id: s.ID, name: s.Name })),
         models: normalizeArray(item.ItemModel)?.map(m => ({ id: m.ID, name: m.Name })) ?? [],
-        prices: normalizeArray(item.ClsItemPrices?.ClsItemPrice).map(p => ({
-            priceListId: p.PriceListID,
+        prices: normalizeArray(item.SalesPrice?.ClsItemPrices).map(p => ({
+            priceListId: p.PriceListID != null ? String(p.PriceListID) : null,
             price: Number(p.Price)
         })),
 
@@ -60,6 +100,7 @@ export function mapItem(item) {
         blockSalesDate: parseComaxDate(item.BlockSalesDate),
         blockPurchaseDate: parseComaxDate(item.BlockPurchaseDate),
 
+        vat: !isVatExempt(item),
         showInWeb: item.NotShowInWeb === false || item.NotShowInWeb === '0' || item.NotShowInWeb === 0 || item.NotShowInWeb === 'false',
         archived: !!item.ArchiveDate
     }
@@ -73,6 +114,25 @@ export function mapBalance(item) {
         balance: Number(item.Balance) || 0,
         balanceAvailable: item.BalanceAvailabale != null && item.BalanceAvailabale !== '' ? Number(item.BalanceAvailabale) : null,
         error: item.ErrorMessage || null,
+    }
+}
+
+/**
+ * A row from `Get_AllItemsBalanceBySearch_Extended` (the sales-window feed).
+ *
+ * Only the fields the storeIds decision needs: the barcode, the department the
+ * window is configured on, and when it last sold in this store. The date
+ * arrives as `DD/MM/YYYY HH:mm:ss`; `LastSaleDate` is empty for an item that
+ * never sold, which `parseComaxDateTime` turns into null.
+ */
+export function mapSalesWindowItem(item) {
+    return {
+        barcode: item.Barcode != null ? String(item.Barcode).trim() : null,
+        departmentCode: item.DepartmentKod != null ? String(item.DepartmentKod) : null,
+        superDepartmentCode: item.SuperDepartmentKod != null ? String(item.SuperDepartmentKod) : null,
+        lastSaleDate: parseComaxDateTime(item.LastSaleDate),
+        salesLastDays: Number(item.SalesLastDays) || 0,
+        balance: Number(item.Balance) || 0
     }
 }
 

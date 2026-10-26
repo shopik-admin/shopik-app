@@ -1,117 +1,385 @@
 import mem, { collectGarbage } from '#server/utils/mem.js'
-import { PRODUCTS, resolveImportStart, completeRun } from './watermark.js'
+import { PRODUCTS, completeRun } from './watermark.js'
+import { resolveFreshDepartments } from './freshDepartments.js'
+import { resolveSalesWindow, buildDepartmentWindows, buildKeptBarcodes } from './salesWindow.js'
 
+const REGISTER_FILTER = { active: true, type: 'comax' }
+
+function chunk(array, size) {
+    if (!array.length) return []
+    if (array.length <= size) return [array]
+    const parts = []
+    for (let i = 0; i < array.length; i += size) parts.push(array.slice(i, i + size))
+    return parts
+}
+
+/**
+ * Import what each store can actually sell, plus the counters Comax does not
+ * stock-manage.
+ *
+ *   store feed       one Get_AllItemsDetailsBySearch per active cash register
+ *                    with HasInventory=1 → the complete in-stock set of that
+ *                    store (well under the 17,000-item cap, never truncated)
+ *   department feed  one call per configured fresh department without
+ *                    HasInventory (produce, butcher, fish, bakery, deli…)
+ *
+ * Both feeds are snapshots: `LastUpdatedFromDate` stays empty, so there is no
+ * watermark to advance. `comax_sync_state` only records the run status and the
+ * per-feed sizes used by the collapse guard.
+ *
+ * Absence from the response now means "out of stock", and that inference is
+ * only safe when the response is complete — hence the guards: an empty,
+ * truncated or collapsed feed never removes a storeIds entry.
+ */
 export default async function importComaxProducts(payload, { DL, external }) {
     const startedAt = new Date()
-    const { from, source } = await resolveImportStart(DL, PRODUCTS, 'lastImportedAt')
 
-    // Batched writes over a STREAMED catalog. The response is never held in
-    // memory as a whole: a mass price update makes the Comax delta the
-    // entire catalog (hundreds of MB) and buffering it as one string + one
-    // parsed tree + one mapped array exhausted the container. One item is
-    // parsed at a time and released as soon as it lands in a batch.
-    // Tune via COMAX_IMPORT_BATCH (default 1000, same as COMAX_SYNC_BATCH in
-    // sync.js). The stream timeout is an IDLE timeout (reset on every chunk)
-    // — a slow but healthy multi-minute download must not be killed half way.
+    // Batched writes over a streamed response: one item in memory at a time.
     const BATCH = Number(process.env.COMAX_IMPORT_BATCH || 1000)
     const STREAM_TIMEOUT_MS = Number(process.env.COMAX_STREAM_IDLE_TIMEOUT_MS || 600000)
-    // The stream churns through one short-lived object graph per product.
-    // V8 collects when it feels like it, which lets the RSS overshoot the
-    // container limit on a very large catalog. When the process runs with
-    // --expose-gc, collect on a fixed schedule to keep the RSS flat.
     const GC_EVERY = Number(process.env.COMAX_IMPORT_GC_EVERY || 20)
+    const PULL_CHUNK = Number(process.env.COMAX_STORE_PULL_CHUNK || 5000)
 
-    const stats = { blocks: 0, kept: 0, unparsed: 0 }
-    let batch = []
-    let count = 0
-    let failed = 0
+    // Get_AllItemsDetailsBySearch silently truncates at 17,000 items. A feed
+    // sitting at the cap is missing products, so it may add but never remove.
+    const ITEM_CAP = Number(process.env.COMAX_RESPONSE_ITEM_CAP || 17000)
+    // A response far smaller than the previous run's is suspicious even when it
+    // is not empty: Comax has answered from a half-built spool before.
+    const MIN_PREVIOUS = Number(process.env.COMAX_FEED_MIN_PREVIOUS || 100)
+    const COLLAPSE_RATIO = Number(process.env.COMAX_FEED_COLLAPSE_RATIO || 0.5)
+
+    const previousState = await DL.ComaxSyncState
+        .readOne({ key: PRODUCTS }, { _id: 0, feeds: 1 })
+        .catch(() => null)
+    const previousFeeds = previousState?.feeds || {}
+
+    const registers = await DL.CashRegister.read(REGISTER_FILTER, { _id: 0, storeId: 1, data: 1 }, { limit: 0 })
+    if (!registers?.length) {
+        console.warn('[Comax Import] No active Comax cash registers — nothing to import')
+        await completeRun(DL, PRODUCTS, { startedAt, status: 'skipped' })
+        return { message: 'No active cash registers', count: 0 }
+    }
+
+    const storeIds = [...new Set(registers.map(r => r.storeId).filter(Boolean))]
+    const feeds = {}
+    const results = []
+    const errors = []
+    let written = 0
+    let failedDocs = 0
+    let unparsedDocs = 0
     let batchNo = 0
 
-    const flush = async () => {
-        if (!batch.length) return
-        const docs = batch
-        batch = []
-        batchNo++
-        try {
-            await DL.ComaxProduct.bulkWrite({
-                docs,
-                getUpsert: p => p.price > 0 && !p.archived,
-                getFilter: p => ({ barcode: p.barcode }),
-            })
-        } catch (e) {
-            failed += docs.length
-            console.error(`[Comax Import] batch ${batchNo} failed:`, e?.message || e)
-        }
-        count += docs.length
-        mem(`batch ${batchNo}: ${count} products`, 'ComaxImport')
-        if (GC_EVERY > 0 && batchNo % GC_EVERY === 0) collectGarbage()
+    const writeBatch = async (docs, addStoreIds) => {
+        await DL.ComaxProduct.bulkWrite({
+            docs,
+            getFilter: p => ({ barcode: p.barcode }),
+            // The store feed owns creation: only sellable, non-archived items.
+            getUpsert: p => p.price > 0 && !p.archived,
+            getUpdate: p => {
+                // storeIds is owned by $addToSet, never by $set — a feed only
+                // asserts "in stock here", it never replaces other stores.
+                const { storeIds: _storeIds, ...fields } = p
+                const $addToSet = addStoreIds.length
+                    ? { storeIds: addStoreIds.length === 1 ? addStoreIds[0] : { $each: addStoreIds } }
+                    : null
+                return $addToSet ? { $set: fields, $addToSet } : { $set: fields }
+            }
+        })
     }
 
-    console.log(`[Comax Import] Streaming from ${from ? from.toISOString() : 'the start of the catalog'} (${source})`)
+    /**
+     * Stream one feed into comax_products and report how trustworthy its
+     * "absent = out of stock" reading is.
+     */
+    const runFeed = async ({ key, label, addStoreIds, stream }) => {
+        const stats = { blocks: 0, kept: 0, unparsed: 0 }
+        const barcodes = new Set()
+        let batch = []
+        let count = 0
+        let failed = 0
+        let errored = null
+
+        const flush = async () => {
+            if (!batch.length) return
+            const docs = batch
+            batch = []
+            batchNo++
+            try {
+                await writeBatch(docs, addStoreIds)
+            } catch (e) {
+                failed += docs.length
+                console.error(`[Comax Import] ${label} batch ${batchNo} failed:`, e?.message || e)
+            }
+            count += docs.length
+            mem(`${label}: ${count} products`, 'ComaxImport')
+            if (GC_EVERY > 0 && batchNo % GC_EVERY === 0) collectGarbage()
+        }
+
+        try {
+            for await (const p of stream(stats)) {
+                p.lastImportedAt = startedAt
+                if (p.barcode != null) barcodes.add(String(p.barcode))
+                batch.push(p)
+                if (batch.length >= BATCH) await flush()
+            }
+            await flush()
+        } catch (e) {
+            await flush()
+            errored = e?.message || String(e)
+            errors.push({ key, message: errored })
+            console.error(`[Comax Import] ${label} failed:`, errored)
+        }
+
+        const blocks = stats.blocks
+        const empty = !errored && blocks === 0
+        const truncated = blocks >= ITEM_CAP
+        const previous = Number(previousFeeds[key] ?? 0)
+        const collapsed = !errored && previous >= MIN_PREVIOUS && blocks < previous * COLLAPSE_RATIO
+
+        if (empty) console.warn(`[Comax Import] ${label} returned no items — keeping the stored stock state`)
+        if (truncated) console.error(`[Comax Import] ${label} hit the ${ITEM_CAP}-item cap (${blocks}) — additions only`)
+        if (collapsed) console.warn(`[Comax Import] ${label} returned ${blocks} items, down from ${previous} — additions only`)
+
+        const removalsSafe = !errored && !empty && !truncated && !collapsed &&
+            failed === 0 && stats.unparsed === 0
+
+        // Only remember a feed size that came from a complete response:
+        // a truncated or errored one must not poison the next comparison.
+        if (!errored && !truncated && stats.unparsed === 0) feeds[key] = blocks
+
+        written += count
+        failedDocs += failed
+        unparsedDocs += stats.unparsed
+
+        results.push({ key, label, barcodes, removalsSafe, blocks, count, failed })
+    }
+
+    console.log(`[Comax Import] Store feed: ${registers.length} register(s), ${storeIds.length} store(s)`)
     mem('start', 'ComaxImport')
 
-    try {
-        for await (const p of external.comax.streamProducts({
-            lastUpdatedFromDate: from ?? '',
-            timeoutMs: STREAM_TIMEOUT_MS,
-            stats
-        })) {
-            p.lastImportedAt = startedAt
-            batch.push(p)
-            if (batch.length >= BATCH) await flush()
+    // 1. Per-store in-stock feed.
+    let firstComaxStoreId = ''
+    for (const reg of registers) {
+        const comaxStoreId = String(reg.data?.StockStoreID ?? '').trim()
+        if (!comaxStoreId) {
+            const message = 'missing StockStoreID — set cash_register.data.StockStoreID'
+            console.error(`[Comax Import] store ${reg.storeId}: ${message}`)
+            errors.push({ key: `store:${reg.storeId}`, message })
+            continue
         }
-        await flush()
-    } catch (e) {
-        // The stream died half way. The products already written stay, but the
-        // watermark must NOT advance — the next run re-fetches the same delta.
-        await flush()
-        await completeRun(DL, PRODUCTS, {
-            startedAt,
-            processed: count - failed,
-            failed,
-            unparsed: stats.unparsed,
-            error: e
+        firstComaxStoreId ||= comaxStoreId
+
+        // Optional count cross-check against the balance endpoint. Off by
+        // default: it is a second multi-MB call per store and its result is
+        // scoped by ChangesAfter, so a gap is informational at best.
+        if (process.env.COMAX_BALANCE_CROSSCHECK === 'true' && typeof external.comax.getBalance === 'function') {
+            try {
+                const balances = await external.comax.getBalance({ storeId: comaxStoreId })
+                const inStock = balances.filter(b => !b.error && b.balance > 0).length
+                console.log(`[Comax Import] store ${reg.storeId}: items feed vs balance = ${inStock}`)
+            } catch (e) {
+                console.warn(`[Comax Import] store ${reg.storeId}: balance cross-check failed:`, e?.message || e)
+            }
+        }
+
+        await runFeed({
+            key: `store:${reg.storeId}`,
+            label: `store ${reg.storeId} (Comax ${comaxStoreId})`,
+            addStoreIds: [reg.storeId],
+            stream: stats => external.comax.streamStoreProducts({
+                storeId: comaxStoreId,
+                timeoutMs: STREAM_TIMEOUT_MS,
+                stats
+            })
         })
-        throw e
     }
 
-    if (stats.blocks === 0) {
-        // Not a single <ClsItems> block in the response — the format may have
-        // changed, or Comax answered with an error document. Either way it is
-        // not a trustworthy "nothing changed" answer, so the watermark stays
-        // put and the next run asks for the same window again.
-        console.warn('[Comax Import] No <ClsItems> blocks in the response — not advancing the watermark')
-        await completeRun(DL, PRODUCTS, { startedAt, processed: 0, failed, unparsed: stats.unparsed, status: 'skipped' })
-        return { message: 'No products to import', count: 0 }
+    // 2. Fresh (not stock-managed) departments. The response is
+    // store-independent, so these items are in stock in every active store.
+    const freshDepartments = await resolveFreshDepartments(DL)
+    console.log(`[Comax Import] Fresh departments: ${freshDepartments.join(', ')}`)
+
+    for (const departmentId of freshDepartments) {
+        await runFeed({
+            key: `department:${departmentId}`,
+            label: `department ${departmentId}`,
+            addStoreIds: storeIds,
+            stream: stats => external.comax.streamDepartmentProducts({
+                departmentId,
+                storeId: firstComaxStoreId || undefined,
+                timeoutMs: STREAM_TIMEOUT_MS,
+                stats
+            })
+        })
     }
 
-    // Only a fully written delta may move the watermark forward — otherwise
-    // the products that never made it into the DB would be skipped forever.
-    const advance = failed === 0 && stats.unparsed === 0
+    // 3. Removals. Only a run in which every feed was complete may conclude
+    // that a barcode is out of stock: a single empty/failed fresh department
+    // would otherwise hide its whole counter.
+    let removed = 0
+    const incomplete = results.filter(r => !r.removalsSafe)
+    if (incomplete.length) {
+        console.warn(`[Comax Import] Skipping storeIds removals — incomplete feed(s): ${incomplete.map(r => r.label).join(', ')}`)
+    } else {
+        const freshBarcodes = new Set()
+        for (const r of results) {
+            if (!r.key.startsWith('department:')) continue
+            for (const barcode of r.barcodes) freshBarcodes.add(barcode)
+        }
+
+        for (const reg of registers) {
+            const feed = results.find(r => r.key === `store:${reg.storeId}`)
+            if (!feed) continue
+
+            const keep = new Set(feed.barcodes)
+            for (const barcode of freshBarcodes) keep.add(barcode)
+
+            const current = await DL.ComaxProduct.Model.distinct('barcode', { storeIds: reg.storeId })
+            const stale = (current || []).filter(barcode => !keep.has(barcode))
+            if (!stale.length) continue
+
+            for (const part of chunk(stale, PULL_CHUNK)) {
+                const res = await DL.ComaxProduct.Model.updateMany(
+                    { barcode: { $in: part }, storeIds: reg.storeId },
+                    { $pull: { storeIds: reg.storeId } }
+                )
+                removed += res?.modifiedCount || 0
+            }
+            console.log(`[Comax Import] store ${reg.storeId}: ${stale.length} item(s) no longer in stock`)
+        }
+    }
+
+    // 4. Sales window — a separate Comax call per store. The in-stock mark
+    // written above survives only while the item sold in that store inside the
+    // window of its department; anything older loses the store id.
+    //
+    // This step only REMOVES. A failed, empty or collapsed response therefore
+    // leaves the stored state untouched instead of mass-deleting it.
+    let windowRemoved = 0
+    let windowSkipped = 0
+    const salesWindow = await resolveSalesWindow(DL)
+
+    if (!salesWindow.enabled) {
+        console.log('[Comax Import] Sales window disabled (no positive window configured)')
+    } else if (typeof external.comax?.streamSalesWindow !== 'function') {
+        console.warn('[Comax Import] Sales window unavailable in this Comax client — skipping')
+    } else {
+        const windows = buildDepartmentWindows(salesWindow)
+        console.log(`[Comax Import] Sales window: default ${windows.defaultDays}d, ` +
+            `${windows.byDepartment.size} department override(s), querying ${windows.maxDays}d`)
+        const lastSaleByBarcode = new Map()
+
+        for (const reg of registers) {
+            const comaxStoreId = String(reg.data?.StockStoreID ?? '').trim()
+            if (!comaxStoreId) continue
+
+            const stats = { blocks: 0, kept: 0, unparsed: 0 }
+            const rows = []
+            let errored = null
+
+            try {
+                for await (const row of external.comax.streamSalesWindow({
+                    storeId: comaxStoreId,
+                    days: windows.maxDays,
+                    timeoutMs: STREAM_TIMEOUT_MS,
+                    stats
+                })) rows.push(row)
+            } catch (e) {
+                errored = e?.message || String(e)
+                console.error(`[Comax Import] store ${reg.storeId}: sales window failed:`, errored)
+                errors.push({ key: `salesWindow:${reg.storeId}`, message: errored })
+            }
+
+            const { kept, lastSale, unknownDates } = buildKeptBarcodes(rows, windows)
+            for (const [barcode, date] of lastSale) {
+                const previous = lastSaleByBarcode.get(barcode)
+                if (!previous || date > previous) lastSaleByBarcode.set(barcode, date)
+            }
+
+            const key = `salesWindow:${reg.storeId}`
+            const previous = Number(previousFeeds[key] ?? 0)
+            const empty = !errored && stats.blocks === 0
+            const collapsed = !errored && previous >= MIN_PREVIOUS && stats.blocks < previous * COLLAPSE_RATIO
+            const unparseable = stats.unparsed > 0
+
+            // Only remember a size that came from a complete, non-empty
+            // response. An empty answer is exactly the suspicious case, and
+            // overwriting the healthy baseline with 0 would disarm the collapse
+            // guard for the next run. A skipped store keeps its last known
+            // size, so the guard still works after a bad night.
+            if (!errored && !unparseable && stats.blocks > 0) feeds[key] = stats.blocks
+            else if (previous > 0) feeds[key] = previous
+
+            if (errored || empty || collapsed || unparseable) {
+                windowSkipped++
+                const reason = errored
+                    ? `feed failed (${errored})`
+                    : empty
+                        ? 'feed returned no items'
+                        : collapsed
+                            ? `feed returned ${stats.blocks} items, down from ${previous}`
+                            : `${stats.unparsed} unparseable block(s)`
+                console.warn(`[Comax Import] store ${reg.storeId}: sales window skipped, keeping stored stock state — ${reason}`)
+                continue
+            }
+
+            if (unknownDates)
+                console.warn(`[Comax Import] store ${reg.storeId}: ${unknownDates} sold row(s) without a usable LastSaleDate — kept`)
+
+            const current = await DL.ComaxProduct.Model.distinct('barcode', { storeIds: reg.storeId })
+            const stale = (current || []).filter(barcode => !kept.has(barcode))
+            if (!stale.length) {
+                console.log(`[Comax Import] store ${reg.storeId}: every in-stock item sold inside its window`)
+                continue
+            }
+
+            for (const part of chunk(stale, PULL_CHUNK)) {
+                const res = await DL.ComaxProduct.Model.updateMany(
+                    { barcode: { $in: part }, storeIds: reg.storeId },
+                    { $pull: { storeIds: reg.storeId } }
+                )
+                windowRemoved += res?.modifiedCount || 0
+            }
+            console.log(`[Comax Import] store ${reg.storeId}: ${stale.length} item(s) not sold inside their window`)
+        }
+
+        // Newest sale per barcode, across stores — informational, for the admin.
+        if (lastSaleByBarcode.size) {
+            const ops = [...lastSaleByBarcode].map(([barcode, lastSaleDate]) => ({
+                updateOne: { filter: { barcode }, update: { $max: { lastSaleDate } } }
+            }))
+            try {
+                for (const part of chunk(ops, BATCH)) await DL.ComaxProduct.Model.bulkWrite(part)
+            } catch (e) {
+                console.warn('[Comax Import] Could not store lastSaleDate:', e?.message || e)
+            }
+        }
+    }
+
+    const anyIncomplete = incomplete.length > 0 || errors.length > 0
+    const status = written === 0 && anyIncomplete ? 'error' : anyIncomplete || failedDocs > 0 ? 'partial' : 'success'
+
     await completeRun(DL, PRODUCTS, {
         startedAt,
-        processed: count - failed,
-        failed,
-        unparsed: stats.unparsed,
-        advance
+        processed: written - failedDocs,
+        failed: failedDocs,
+        unparsed: unparsedDocs,
+        status,
+        error: errors[0]?.message,
+        feeds
     })
 
-    if (!advance) {
-        console.warn(`[Comax Import] ${failed + stats.unparsed} product(s) not written — watermark not advanced, the next run re-fetches the same delta`)
-        return { message: 'Import partially failed', count }
+    const summary = `[Comax Import] ${written} item(s) from ${results.length} feed(s), ` +
+        `${removed} out-of-stock removal(s), ${windowRemoved} not-sold-in-window removal(s)` +
+        `${windowSkipped ? ` (${windowSkipped} store(s) kept as-is)` : ''}, status ${status}`
+
+    if (anyIncomplete) {
+        console.warn(summary)
+        return { message: 'Import partially failed', count: written, removed: removed + windowRemoved, status, errors }
     }
 
-    if (count === 0) {
-        console.log('[Comax Import] No products to import')
-        return { message: 'No products to import', count: 0 }
-    }
-
-    console.log(`[Comax Import] Inserted/updated ${count} products`)
-
-    return {
-        message: 'Import complete',
-        count,
-    }
+    console.log(summary)
+    return { message: 'Import complete', count: written, removed: removed + windowRemoved, status }
 }
 
 importComaxProducts.config = {

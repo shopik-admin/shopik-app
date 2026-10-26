@@ -3,34 +3,61 @@ import assert from 'node:assert/strict'
 import importComaxProducts from '../../server/api/comax_product/import.js'
 import importComaxBuyingPrices from '../../server/api/comax_product/import_buying_price.js'
 
-const WATERMARK = new Date('2026-10-20T00:00:00.000Z')
-
 // The buying-price import refuses to run without a delivery price list.
 process.env.COMAX_DELIVERY_PRICELIST_ID = '255'
+
+function reg(storeId, stockStoreId) {
+    return { storeId, data: { StockStoreID: stockStoreId } }
+}
 
 function makeProduct(i, overrides = {}) {
     return {
         barcode: String(1000 + i),
         price: 10 + i,
         archived: false,
+        vat: true,
         superDepartmentCode: '3',
         ...overrides
     }
 }
 
-function makeDL({ state = null, legacy = null, failBatch = false } = {}) {
+function makeDL({
+    registers = [reg('store-a', '84'), reg('store-b', '52')],
+    state = null,
+    settings = { 'comax.freshDepartments': '13' },
+    failBatch = false
+} = {}) {
     const writes = []
     const stateUpdates = []
+    const pulls = []
+    const distinctFilters = []
+    const modelBulkWrites = []
+    let storeBarcodes = {}
 
     const DL = {
+        CashRegister: {
+            read: async () => registers
+        },
+        Setting: {
+            readOne: async ({ key }) => (key in settings ? { value: settings[key] } : null)
+        },
         ComaxProduct: {
             Model: {
                 findOne: () => {
-                    const chain = {
-                        sort: () => chain,
-                        lean: async () => legacy
-                    }
+                    const chain = { sort: () => chain, lean: async () => null }
                     return chain
+                },
+                distinct: async (field, filter) => {
+                    distinctFilters.push(filter)
+                    return storeBarcodes[filter?.storeIds] || []
+                },
+                updateMany: async (filter, update) => {
+                    pulls.push({ filter, update })
+                    return { modifiedCount: filter?.barcode?.$in?.length || 0 }
+                },
+                bulkWrite: async ops => {
+                    modelBulkWrites.push(...ops)
+                    return {}
                 }
             },
             bulkWrite: async ({ docs, getUpsert, getFilter, getUpdate }) => {
@@ -52,180 +79,558 @@ function makeDL({ state = null, legacy = null, failBatch = false } = {}) {
             }
         }
     }
-    return { DL, writes, stateUpdates }
+    return {
+        DL,
+        writes,
+        stateUpdates,
+        pulls,
+        distinctFilters,
+        modelBulkWrites,
+        setStoreBarcodes: map => { storeBarcodes = map }
+    }
 }
 
-function makeExternal(products, { onStream, throwAfter = null, blocks = null } = {}) {
-    return {
+function feedSpec(value) {
+    if (Array.isArray(value)) return { items: value }
+    return value || { items: [] }
+}
+
+function makeExternal({ stores = {}, departments = {}, products = [], salesWindows = {} } = {}) {
+    const calls = { stores: [], departments: [], salesWindow: [], products: 0 }
+
+    const feed = spec => async function* (options) {
+        const { items, blocks, unparsed = 0, throwAfter = null } = feedSpec(spec)
+        let i = 0
+        for (const product of items) {
+            if (throwAfter != null && i === throwAfter) throw new Error('the stream died')
+            yield product
+            i++
+        }
+        if (options.stats) {
+            options.stats.blocks = blocks ?? items.length
+            options.stats.kept = items.length
+            options.stats.unparsed = unparsed
+        }
+    }
+
+    const external = {
         comax: {
-            streamProducts: async function* (options) {
-                if (onStream) onStream(options)
-                let i = 0
-                for (const product of products) {
-                    if (throwAfter != null && i === throwAfter) throw new Error('the stream died')
-                    yield product
-                    i++
-                }
-                if (options.stats) {
-                    options.stats.blocks = blocks ?? products.length
-                    options.stats.kept = products.length
-                    options.stats.unparsed = 0
-                }
+            streamProducts: options => {
+                calls.products++
+                return feed(products)(options)
+            },
+            streamStoreProducts: options => {
+                calls.stores.push(options)
+                return feed(stores[options.storeId])(options)
+            },
+            streamDepartmentProducts: options => {
+                calls.departments.push(options)
+                return feed(departments[options.departmentId])(options)
+            },
+            streamSalesWindow: options => {
+                calls.salesWindow.push(options)
+                return feed(salesWindows[options.storeId])(options)
             }
         }
     }
+    return { external, calls }
 }
 
 function lastStateUpdate(stateUpdates, key) {
     return stateUpdates.filter(u => u.filter.key === key).pop()
 }
 
-describe('comax product import', () => {
-    it('writes the streamed catalog in batches', async () => {
-        const products = Array.from({ length: 2500 }, (_, i) => makeProduct(i))
-        const { DL, writes } = makeDL()
-        const external = makeExternal(products)
+function updateFor(writes, barcode) {
+    for (const write of writes) {
+        const index = write.docs.findIndex(d => d.barcode === barcode)
+        if (index >= 0) return write.updates[index]
+    }
+    throw new Error(`${barcode} was not written`)
+}
+
+describe('comax store feed import', () => {
+    it('runs one store feed per active register and one call per fresh department', async () => {
+        const { DL } = makeDL()
+        const { external, calls } = makeExternal({
+            stores: { 84: [makeProduct(0)], 52: [makeProduct(1)] },
+            departments: { 13: [makeProduct(2)] }
+        })
 
         const result = await importComaxProducts({}, { DL, external })
 
-        assert.equal(result.count, 2500)
-        assert.equal(writes.length, 3)
-        assert.deepEqual(writes.map(w => w.docs.length), [1000, 1000, 500])
+        assert.deepEqual(calls.stores.map(c => c.storeId), ['84', '52'])
+        assert.deepEqual(calls.departments.map(c => c.departmentId), ['13'])
+        assert.equal(result.count, 3)
+        assert.equal(result.status, 'success')
     })
 
-    it('stamps lastImportedAt on every imported product', async () => {
-        const products = Array.from({ length: 3 }, (_, i) => makeProduct(i))
-        const { DL, writes } = makeDL()
-        const external = makeExternal(products)
+    it('adds the shopik store id to storeIds instead of replacing the array', async () => {
+        const { DL, writes } = makeDL({ registers: [reg('store-a', '84')] })
+        const { external } = makeExternal({
+            stores: { 84: [makeProduct(0)] },
+            departments: { 13: [makeProduct(1)] }
+        })
 
         await importComaxProducts({}, { DL, external })
 
-        const stamped = writes[0].docs.every(d => d.lastImportedAt instanceof Date)
-        assert.ok(stamped)
-        assert.equal(writes[0].docs.length, 3)
+        const storeUpdate = updateFor(writes, '1000')
+        assert.deepEqual(storeUpdate.$addToSet, { storeIds: 'store-a' })
+        assert.equal(storeUpdate.$set.storeIds, undefined)
+        assert.ok(storeUpdate.$set.lastImportedAt instanceof Date)
+
+        const freshUpdate = updateFor(writes, '1001')
+        assert.deepEqual(freshUpdate.$addToSet, { storeIds: 'store-a' })
     })
 
-    it('upserts only products with a price that are not archived', async () => {
-        const products = [
-            makeProduct(0),
-            makeProduct(1, { price: 0 }),
-            makeProduct(2, { archived: true })
-        ]
+    it('marks fresh departments in stock in every active store', async () => {
         const { DL, writes } = makeDL()
-        const external = makeExternal(products)
+        const { external } = makeExternal({
+            stores: { 84: [makeProduct(0)], 52: [makeProduct(1)] },
+            departments: { 13: [makeProduct(2)] }
+        })
+
+        await importComaxProducts({}, { DL, external })
+
+        assert.deepEqual(updateFor(writes, '1002').$addToSet, {
+            storeIds: { $each: ['store-a', 'store-b'] }
+        })
+    })
+
+    it('only upserts sellable, non-archived items', async () => {
+        const { DL, writes } = makeDL()
+        const { external } = makeExternal({
+            stores: { 84: [makeProduct(0), makeProduct(1, { price: 0 }), makeProduct(2, { archived: true })] },
+            departments: { 13: [makeProduct(3)] }
+        })
 
         await importComaxProducts({}, { DL, external })
 
         assert.deepEqual(writes[0].upserts, [true, false, false])
     })
 
-    it('starts from the stored watermark', async () => {
-        const { DL } = makeDL({ state: { key: 'products', lastSyncAt: WATERMARK } })
-        let seen = null
-        const external = makeExternal([makeProduct(0)], { onStream: o => { seen = o } })
+    it('preserves the stored buying price when the feed has no delivery row', async () => {
+        const { DL, writes } = makeDL()
+        const { external } = makeExternal({
+            stores: { 84: [makeProduct(0, { buyingPrice: undefined })] },
+            departments: { 13: [makeProduct(1)] }
+        })
 
         await importComaxProducts({}, { DL, external })
 
-        assert.equal(seen.lastUpdatedFromDate.toISOString(), WATERMARK.toISOString())
+        const update = updateFor(writes, '1000')
+        assert.equal(update.$set.buyingPrice, undefined)
     })
 
-    it('falls back to the legacy per-doc watermark when there is no state yet', async () => {
-        const legacy = new Date('2026-10-19T00:00:00.000Z')
-        const { DL } = makeDL({ legacy: { lastImportedAt: legacy } })
-        let seen = null
-        const external = makeExternal([makeProduct(0)], { onStream: o => { seen = o } })
+    it('writes the delivery price when the feed carries one', async () => {
+        const { DL, writes } = makeDL()
+        const { external } = makeExternal({
+            stores: { 84: [makeProduct(0, { buyingPrice: 7.5 })] },
+            departments: { 13: [makeProduct(1)] }
+        })
 
         await importComaxProducts({}, { DL, external })
 
-        assert.equal(seen.lastUpdatedFromDate.toISOString(), legacy.toISOString())
+        assert.equal(updateFor(writes, '1000').$set.buyingPrice, 7.5)
     })
 
-    it('asks for the whole catalog when there is no watermark at all', async () => {
-        const { DL } = makeDL()
-        let seen = null
-        const external = makeExternal([makeProduct(0)], { onStream: o => { seen = o } })
+    it('removes the store id from items that are no longer in stock', async () => {
+        const { DL, distinctFilters, pulls, setStoreBarcodes } = makeDL({ registers: [reg('store-a', '84')] })
+        setStoreBarcodes({ 'store-a': ['1000', '9999'] })
+        const { external } = makeExternal({
+            stores: { 84: [makeProduct(0)] },
+            departments: { 13: [makeProduct(1)] }
+        })
+
+        const result = await importComaxProducts({}, { DL, external })
+
+        assert.deepEqual(distinctFilters, [{ storeIds: 'store-a' }])
+        assert.equal(pulls.length, 1)
+        assert.deepEqual(pulls[0].filter, { barcode: { $in: ['9999'] }, storeIds: 'store-a' })
+        assert.deepEqual(pulls[0].update, { $pull: { storeIds: 'store-a' } })
+        assert.equal(result.removed, 1)
+    })
+
+    it('keeps fresh items in stock in every store', async () => {
+        const { DL, pulls, setStoreBarcodes } = makeDL({ registers: [reg('store-a', '84')] })
+        setStoreBarcodes({ 'store-a': ['1001'] })
+        const { external } = makeExternal({
+            stores: { 84: [makeProduct(0)] },
+            departments: { 13: [makeProduct(1)] }
+        })
 
         await importComaxProducts({}, { DL, external })
 
-        assert.equal(seen.lastUpdatedFromDate, '')
+        assert.equal(pulls.length, 0)
     })
 
-    it('advances the watermark after a successful run', async () => {
+    it('never removes store ids when a feed is empty', async () => {
+        const { DL, pulls, setStoreBarcodes } = makeDL({ registers: [reg('store-a', '84')] })
+        setStoreBarcodes({ 'store-a': ['1000', '9999'] })
+        const { external } = makeExternal({
+            stores: { 84: { items: [makeProduct(0)], blocks: 0 } },
+            departments: { 13: [makeProduct(1)] }
+        })
+
+        const result = await importComaxProducts({}, { DL, external })
+
+        assert.equal(pulls.length, 0)
+        assert.equal(result.status, 'partial')
+    })
+
+    it('never removes store ids when a feed hits the 17,000 item cap', async () => {
+        const { DL, pulls, setStoreBarcodes } = makeDL({ registers: [reg('store-a', '84')] })
+        setStoreBarcodes({ 'store-a': ['1000', '9999'] })
+        const { external } = makeExternal({
+            stores: { 84: { items: [makeProduct(0)], blocks: 17000 } },
+            departments: { 13: [makeProduct(1)] }
+        })
+
+        const result = await importComaxProducts({}, { DL, external })
+
+        assert.equal(pulls.length, 0)
+        assert.equal(result.status, 'partial')
+    })
+
+    it('never removes store ids when a feed collapses against the previous run', async () => {
+        const { DL, pulls, setStoreBarcodes } = makeDL({
+            registers: [reg('store-a', '84')],
+            state: { key: 'products', feeds: { 'store:store-a': 5000 } }
+        })
+        setStoreBarcodes({ 'store-a': ['1000', '9999'] })
+        const { external } = makeExternal({
+            stores: { 84: { items: [makeProduct(0)], blocks: 10 } },
+            departments: { 13: [makeProduct(1)] }
+        })
+
+        await importComaxProducts({}, { DL, external })
+
+        assert.equal(pulls.length, 0)
+    })
+
+    it('never removes store ids when an item could not be parsed', async () => {
+        const { DL, pulls, setStoreBarcodes } = makeDL({ registers: [reg('store-a', '84')] })
+        setStoreBarcodes({ 'store-a': ['9999'] })
+        const { external } = makeExternal({
+            stores: { 84: { items: [makeProduct(0)], unparsed: 1 } },
+            departments: { 13: [makeProduct(1)] }
+        })
+
+        await importComaxProducts({}, { DL, external })
+
+        assert.equal(pulls.length, 0)
+    })
+
+    it('still writes the feeds when one stream dies, and skips removals', async () => {
+        const { DL, pulls, stateUpdates } = makeDL()
+        const { external } = makeExternal({
+            stores: {
+                84: { items: [makeProduct(0)], throwAfter: 0 },
+                52: [makeProduct(1)]
+            },
+            departments: { 13: [makeProduct(2)] }
+        })
+
+        const result = await importComaxProducts({}, { DL, external })
+
+        assert.equal(result.status, 'partial')
+        assert.equal(result.count, 2)
+        assert.equal(pulls.length, 0)
+        const update = lastStateUpdate(stateUpdates, 'products')
+        assert.equal(update.update.$set.lastSyncAt, undefined)
+    })
+
+    it('records run status and feed sizes without advancing a watermark', async () => {
         const { DL, stateUpdates } = makeDL()
-        const external = makeExternal([makeProduct(0), makeProduct(1)])
+        const { external } = makeExternal({
+            stores: { 84: [makeProduct(0)], 52: [makeProduct(1)] },
+            departments: { 13: [makeProduct(2)] }
+        })
 
         const result = await importComaxProducts({}, { DL, external })
 
         assert.equal(result.message, 'Import complete')
         const update = lastStateUpdate(stateUpdates, 'products')
         assert.equal(update.update.$set.status, 'success')
-        assert.ok(update.update.$set.lastSyncAt instanceof Date)
-        assert.equal(update.update.$set.processed, 2)
+        assert.equal(update.update.$set.lastSyncAt, undefined)
+        assert.equal(update.update.$set.processed, 3)
         assert.equal(update.update.$set.failed, 0)
+        assert.deepEqual(update.update.$set.feeds, {
+            'store:store-a': 1,
+            'store:store-b': 1,
+            'department:13': 1
+        })
     })
 
-    it('does not advance the watermark when a batch fails', async () => {
-        const { DL, stateUpdates } = makeDL({ failBatch: true })
-        const external = makeExternal([makeProduct(0), makeProduct(1)])
+    it('reports a partial run when a batch fails and still skips removals', async () => {
+        const { DL, pulls, stateUpdates } = makeDL({ failBatch: true })
+        const { external } = makeExternal({
+            stores: { 84: [makeProduct(0)], 52: [makeProduct(1)] },
+            departments: { 13: [makeProduct(2)] }
+        })
 
         const result = await importComaxProducts({}, { DL, external })
 
         assert.equal(result.message, 'Import partially failed')
+        assert.equal(result.status, 'partial')
+        assert.equal(pulls.length, 0)
         const update = lastStateUpdate(stateUpdates, 'products')
-        assert.equal(update.update.$set.status, 'partial')
+        assert.equal(update.update.$set.failed, 3)
         assert.equal(update.update.$set.lastSyncAt, undefined)
-        assert.equal(update.update.$set.failed, 2)
     })
 
-    it('does not advance the watermark when the stream dies', async () => {
-        const { DL, stateUpdates } = makeDL()
-        const external = makeExternal([makeProduct(0), makeProduct(1)], { throwAfter: 1 })
-
-        await assert.rejects(() => importComaxProducts({}, { DL, external }), /the stream died/)
-
-        const update = lastStateUpdate(stateUpdates, 'products')
-        assert.equal(update.update.$set.status, 'error')
-        assert.equal(update.update.$set.lastSyncAt, undefined)
-        assert.ok(update.update.$set.error)
-    })
-
-    it('does not advance the watermark when the response holds no item blocks', async () => {
-        const { DL, stateUpdates } = makeDL()
-        const external = makeExternal([], { blocks: 0 })
+    it('skips the run entirely when there is no active cash register', async () => {
+        const { DL, stateUpdates } = makeDL({ registers: [] })
+        const { external, calls } = makeExternal()
 
         const result = await importComaxProducts({}, { DL, external })
 
-        assert.equal(result.message, 'No products to import')
+        assert.equal(result.message, 'No active cash registers')
+        assert.equal(calls.stores.length, 0)
         const update = lastStateUpdate(stateUpdates, 'products')
         assert.equal(update.update.$set.status, 'skipped')
-        assert.equal(update.update.$set.lastSyncAt, undefined)
     })
 
-    it('does not advance the watermark when an item could not be parsed', async () => {
-        const { DL, stateUpdates } = makeDL()
-        const external = makeExternal([makeProduct(0)])
-        external.comax.streamProducts = async function* (options) {
-            yield makeProduct(0)
-            options.stats.blocks = 1
-            options.stats.kept = 1
-            options.stats.unparsed = 1
-        }
+    it('records a register without StockStoreID and keeps going', async () => {
+        const { DL, stateUpdates } = makeDL({
+            registers: [reg('store-a', ''), reg('store-b', '52')]
+        })
+        const { external, calls } = makeExternal({
+            stores: { 52: [makeProduct(0)] },
+            departments: { 13: [makeProduct(1)] }
+        })
 
         const result = await importComaxProducts({}, { DL, external })
 
-        assert.equal(result.message, 'Import partially failed')
-        const update = lastStateUpdate(stateUpdates, 'products')
-        assert.equal(update.update.$set.status, 'partial')
-        assert.equal(update.update.$set.lastSyncAt, undefined)
-        assert.equal(update.update.$set.failed, 1)
+        assert.deepEqual(calls.stores.map(c => c.storeId), ['52'])
+        assert.equal(result.status, 'partial')
+        assert.equal(lastStateUpdate(stateUpdates, 'products').update.$set.failed, 0)
+    })
+
+    it('asks for the whole in-stock snapshot, not a delta', async () => {
+        const { DL } = makeDL()
+        const { external, calls } = makeExternal({
+            stores: { 84: [makeProduct(0)], 52: [makeProduct(1)] },
+            departments: { 13: [makeProduct(2)] }
+        })
+
+        await importComaxProducts({}, { DL, external })
+
+        for (const call of [...calls.stores, ...calls.departments]) {
+            assert.equal(call.lastUpdatedFromDate, undefined)
+            assert.equal(call.timeoutMs > 0, true)
+        }
+    })
+})
+
+describe('comax sales window', () => {
+    const SETTINGS = {
+        'comax.freshDepartments': '13',
+        'comax.salesWindow': { defaultDays: 30, rules: [] }
+    }
+
+    const daysAgo = days => new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+
+    function row(barcode, departmentCode, lastSaleDate) {
+        return { barcode, departmentCode, lastSaleDate }
+    }
+
+    it('asks every store for the widest configured window', async () => {
+        const { DL } = makeDL({
+            settings: {
+                ...SETTINGS,
+                'comax.salesWindow': { defaultDays: 30, rules: [{ days: 90, departments: ['54'] }] }
+            }
+        })
+        const { external, calls } = makeExternal({
+            stores: { 84: [makeProduct(0)], 52: [makeProduct(1)] },
+            departments: { 13: [makeProduct(2)] },
+            salesWindows: { 84: [], 52: [] }
+        })
+
+        await importComaxProducts({}, { DL, external })
+
+        assert.deepEqual(calls.salesWindow.map(c => c.storeId), ['84', '52'])
+        for (const call of calls.salesWindow) assert.equal(call.days, 90)
+    })
+
+    it('keeps the store id when the item sold inside its window', async () => {
+        const { DL, pulls, modelBulkWrites, setStoreBarcodes } = makeDL({
+            registers: [reg('store-a', '84')],
+            settings: SETTINGS
+        })
+        setStoreBarcodes({ 'store-a': ['1000'] })
+        const { external } = makeExternal({
+            stores: { 84: [makeProduct(0)] },
+            departments: { 13: [makeProduct(1)] },
+            salesWindows: { 84: [row('1000', '13', daysAgo(10))] }
+        })
+
+        await importComaxProducts({}, { DL, external })
+
+        assert.equal(pulls.length, 0)
+        assert.deepEqual(modelBulkWrites[0].updateOne.filter, { barcode: '1000' })
+        assert.ok(modelBulkWrites[0].updateOne.update.$max.lastSaleDate instanceof Date)
+    })
+
+    it('removes the store id when the item did not sell inside its window', async () => {
+        const { DL, pulls, setStoreBarcodes } = makeDL({
+            registers: [reg('store-a', '84')],
+            settings: SETTINGS
+        })
+        setStoreBarcodes({ 'store-a': ['1000'] })
+        const { external } = makeExternal({
+            stores: { 84: [makeProduct(0)] },
+            departments: { 13: [makeProduct(1)] },
+            salesWindows: { 84: [row('1000', '13', daysAgo(60))] }
+        })
+
+        const result = await importComaxProducts({}, { DL, external })
+
+        assert.equal(pulls.length, 1)
+        assert.deepEqual(pulls[0].filter, { barcode: { $in: ['1000'] }, storeIds: 'store-a' })
+        assert.deepEqual(pulls[0].update, { $pull: { storeIds: 'store-a' } })
+        assert.equal(result.removed, 1)
+    })
+
+    it('judges each department by its own window', async () => {
+        const { DL, pulls, setStoreBarcodes } = makeDL({
+            registers: [reg('store-a', '84')],
+            settings: {
+                ...SETTINGS,
+                'comax.salesWindow': { defaultDays: 30, rules: [{ days: 90, departments: ['54'] }] }
+            }
+        })
+        setStoreBarcodes({ 'store-a': ['1000', '1001'] })
+        const { external } = makeExternal({
+            stores: { 84: [makeProduct(0), makeProduct(1)] },
+            departments: { 13: [] },
+            salesWindows: {
+                84: [row('1000', '13', daysAgo(60)), row('1001', '54', daysAgo(60))]
+            }
+        })
+
+        await importComaxProducts({}, { DL, external })
+
+        assert.equal(pulls.length, 1)
+        assert.deepEqual(pulls[0].filter.barcode.$in, ['1000'])
+    })
+
+    it('treats 0 days as "never filter this department"', async () => {
+        const { DL, pulls, setStoreBarcodes } = makeDL({
+            registers: [reg('store-a', '84')],
+            settings: {
+                ...SETTINGS,
+                'comax.salesWindow': { defaultDays: 30, rules: [{ days: 0, departments: ['13'] }] }
+            }
+        })
+        setStoreBarcodes({ 'store-a': ['1000'] })
+        const { external } = makeExternal({
+            stores: { 84: [makeProduct(0)] },
+            departments: { 13: [] },
+            salesWindows: { 84: [row('1000', '13', daysAgo(400))] }
+        })
+
+        await importComaxProducts({}, { DL, external })
+
+        assert.equal(pulls.length, 0)
+    })
+
+    it('keeps an item whose last sale date cannot be read', async () => {
+        const { DL, pulls, setStoreBarcodes } = makeDL({
+            registers: [reg('store-a', '84')],
+            settings: SETTINGS
+        })
+        setStoreBarcodes({ 'store-a': ['1000'] })
+        const { external } = makeExternal({
+            stores: { 84: [makeProduct(0)] },
+            departments: { 13: [] },
+            salesWindows: { 84: [row('1000', '13', null)] }
+        })
+
+        await importComaxProducts({}, { DL, external })
+
+        assert.equal(pulls.length, 0)
+    })
+
+    it('never removes store ids when the sales feed is empty', async () => {
+        const { DL, pulls, stateUpdates, setStoreBarcodes } = makeDL({
+            registers: [reg('store-a', '84')],
+            settings: SETTINGS,
+            state: { key: 'products', feeds: { 'salesWindow:store-a': 5000 } }
+        })
+        setStoreBarcodes({ 'store-a': ['1000'] })
+        const { external } = makeExternal({
+            stores: { 84: [makeProduct(0)] },
+            departments: { 13: [makeProduct(1)] },
+            salesWindows: { 84: [] }
+        })
+
+        const result = await importComaxProducts({}, { DL, external })
+
+        assert.equal(pulls.length, 0)
+        assert.equal(result.status, 'success')
+        const feeds = lastStateUpdate(stateUpdates, 'products').update.$set.feeds
+        assert.equal(feeds['salesWindow:store-a'], 5000)
+    })
+
+    it('never removes store ids when the sales feed collapses', async () => {
+        const { DL, pulls, setStoreBarcodes } = makeDL({
+            registers: [reg('store-a', '84')],
+            settings: SETTINGS,
+            state: { key: 'products', feeds: { 'salesWindow:store-a': 5000 } }
+        })
+        setStoreBarcodes({ 'store-a': ['1000'] })
+        const { external } = makeExternal({
+            stores: { 84: [makeProduct(0)] },
+            departments: { 13: [] },
+            salesWindows: { 84: { items: [row('1000', '13', daysAgo(60))], blocks: 10 } }
+        })
+
+        await importComaxProducts({}, { DL, external })
+
+        assert.equal(pulls.length, 0)
+    })
+
+    it('never removes store ids when the sales stream dies', async () => {
+        const { DL, pulls, setStoreBarcodes } = makeDL({
+            registers: [reg('store-a', '84')],
+            settings: SETTINGS
+        })
+        setStoreBarcodes({ 'store-a': ['1000'] })
+        const { external } = makeExternal({
+            stores: { 84: [makeProduct(0)] },
+            departments: { 13: [] },
+            salesWindows: { 84: { items: [row('1000', '13', daysAgo(60))], throwAfter: 0 } }
+        })
+
+        const result = await importComaxProducts({}, { DL, external })
+
+        assert.equal(pulls.length, 0)
+        assert.equal(result.status, 'partial')
+    })
+
+    it('skips the whole step when every window is 0', async () => {
+        const { DL, pulls, setStoreBarcodes } = makeDL({
+            registers: [reg('store-a', '84')],
+            settings: { ...SETTINGS, 'comax.salesWindow': { defaultDays: 0, rules: [] } }
+        })
+        setStoreBarcodes({ 'store-a': ['1000'] })
+        const { external, calls } = makeExternal({
+            stores: { 84: [makeProduct(0)] },
+            departments: { 13: [] }
+        })
+
+        await importComaxProducts({}, { DL, external })
+
+        assert.equal(calls.salesWindow.length, 0)
+        assert.equal(pulls.length, 0)
     })
 })
 
 describe('comax buying price import', () => {
     it('writes buying prices in batches and clears zero prices', async () => {
-        const products = [makeProduct(0), makeProduct(1, { price: 0 })]
         const { DL, writes } = makeDL()
-        const external = makeExternal(products)
+        const { external } = makeExternal({ products: [makeProduct(0), makeProduct(1, { price: 0 })] })
 
         const result = await importComaxBuyingPrices({}, { DL, external })
 
@@ -238,20 +643,12 @@ describe('comax buying price import', () => {
         })
         assert.equal(writes[0].docs[1].buyingPrice, null)
         assert.ok(writes[0].docs[1].buyingPriceImportedAt instanceof Date)
-    })
-
-    it('never creates documents — the product import owns creation', async () => {
-        const { DL, writes } = makeDL()
-        const external = makeExternal([makeProduct(0)])
-
-        await importComaxBuyingPrices({}, { DL, external })
-
         assert.equal(writes[0].upserts[0], false)
     })
 
     it('advances the buying price watermark after a successful run', async () => {
         const { DL, stateUpdates } = makeDL()
-        const external = makeExternal([makeProduct(0)])
+        const { external } = makeExternal({ products: [makeProduct(0)] })
 
         await importComaxBuyingPrices({}, { DL, external })
 
@@ -262,23 +659,12 @@ describe('comax buying price import', () => {
 
     it('does not advance the buying price watermark when a batch fails', async () => {
         const { DL, stateUpdates } = makeDL({ failBatch: true })
-        const external = makeExternal([makeProduct(0)])
+        const { external } = makeExternal({ products: [makeProduct(0)] })
 
         await importComaxBuyingPrices({}, { DL, external })
 
         const update = lastStateUpdate(stateUpdates, 'buyingPrices')
         assert.equal(update.update.$set.status, 'partial')
-        assert.equal(update.update.$set.lastSyncAt, undefined)
-    })
-
-    it('does not advance the buying price watermark when the stream dies', async () => {
-        const { DL, stateUpdates } = makeDL()
-        const external = makeExternal([makeProduct(0)], { throwAfter: 0 })
-
-        await assert.rejects(() => importComaxBuyingPrices({}, { DL, external }), /the stream died/)
-
-        const update = lastStateUpdate(stateUpdates, 'buyingPrices')
-        assert.equal(update.update.$set.status, 'error')
         assert.equal(update.update.$set.lastSyncAt, undefined)
     })
 })

@@ -1,7 +1,20 @@
 import DataManager from 'features/DataManager'
 import apiReq from 'common/functions/apiReq'
+import { useModal } from 'common/components/Modal'
+import SalesWindowModal from './SalesWindowModal'
 
 export default function ComaxProducts({ }) {
+    const { openModal, closeModal } = useModal()
+
+    const salesWindow = {
+        icon: 'settings',
+        text: 'comax_products_sales_window',
+        onClick: () => openModal(
+            <SalesWindowModal onClose={closeModal} />,
+            { title: 'comax_products_sales_window' }
+        ),
+        permission: 'comax_product:update'
+    }
     const importProducts = {
         icon: 'download',
         text: 'comax_products_import',
@@ -40,7 +53,7 @@ export default function ComaxProducts({ }) {
     }
     return <DataManager
         apiRoute='comax_product'
-        actions={[importProducts, importBuyingPrices, syncProducts, syncStock, 'export', 'refresh']}
+        actions={[importProducts, importBuyingPrices, syncProducts, syncStock, salesWindow, 'export', 'refresh']}
         rowActions={['active']}
         defaultSort={{ lastImportedAt: -1 }}
         cols={[
