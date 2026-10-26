@@ -2,6 +2,29 @@ import { updateSalesAndProducts } from '../sale/sync.js'
 import { findInflatedBarcode } from '#server/utils/data/validateSalePrice.js'
 const IGNORE_PROMO_TYPES = [18, 19, 5, 6, 9, 10]
 
+const round2 = n => Math.round(Number(n) * 100) / 100
+
+/**
+ * The deposit total a Comax sale total is missing.
+ *
+ * Comax's `Total` for a promotion excludes the trailing items (deposits) of
+ * the products it covers: "3 ב-20" on 0.30-deposit bottles arrives as 19.10.
+ * A bundle may mix deposit and non-deposit items, so the per-unit deposit is
+ * the cheapest eligible one — the same order the bundle consumes.
+ */
+export function trailingTotalForSale({ barcodes, amount, barcodeToDepositMap }) {
+    const qty = Number(amount) || 0
+    if (!qty || !Array.isArray(barcodes) || !barcodes.length || !barcodeToDepositMap) return 0
+
+    let perUnit = null
+    for (const barcode of barcodes) {
+        const deposit = Number(barcodeToDepositMap.get(barcode)) || 0
+        if (perUnit === null || deposit < perUnit) perUnit = deposit
+    }
+    if (!perUnit) return 0
+    return round2(perUnit * qty)
+}
+
 // Lowest regular price across all domains — a global sale must discount every domain.
 function minAcrossDomains(prices) {
     if (!Array.isArray(prices)) return undefined
@@ -56,7 +79,7 @@ function deduplicateSales(comaxSales) {
     return { uniqueComaxSales: Array.from(byKey.values()), deduplicateSaleIds }
 }
 
-function buildSale(cs, kodToBarcodeMap, activeBarcodesSet, barcodeToPriceMap, DL, stats) {
+function buildSale(cs, kodToBarcodeMap, activeBarcodesSet, barcodeToPriceMap, barcodeToDepositMap, DL, stats) {
     if (IGNORE_PROMO_TYPES.includes(cs.promotionType)) {
         return null
     }
@@ -163,6 +186,15 @@ function buildSale(cs, kodToBarcodeMap, activeBarcodesSet, barcodeToPriceMap, DL
         return null
     }
 
+    // Comax totals exclude deposits; charge them through the sale price so a
+    // "3 ב-20" bundle costs 20.00 and not 19.10.
+    const comaxPrice = price
+    let trailingTotal = 0
+    if (kind === KINDS.PRICE && price != null) {
+        trailingTotal = trailingTotalForSale({ barcodes: validBarcodes, amount, barcodeToDepositMap })
+        if (trailingTotal > 0) price = round2(price + trailingTotal)
+    }
+
     // Block inflated kind=price sales: sale price must be strictly lower than
     // regular total (min domain price x amount) for every barcode — skip otherwise
     if (kind === KINDS.PRICE && price != null && barcodeToPriceMap) {
@@ -190,6 +222,8 @@ function buildSale(cs, kodToBarcodeMap, activeBarcodesSet, barcodeToPriceMap, DL
         amount,
         limit: cs.maxQty || 0,
         price,
+        comaxPrice,
+        trailingTotal: trailingTotal || undefined,
         percent,
         barcodes: validBarcodes,
         description: cs.remarkForPrint || undefined,
@@ -287,6 +321,7 @@ export default async function syncComaxSales(payload, { DL }) {
 
     const kodArray = Array.from(kodsSet)
     let kodToBarcodeMap = new Map()
+    const barcodeToDepositMap = new Map()
 
     if (kodArray.length > 0) {
         const matchingProducts = await DL.ComaxProduct.read(
@@ -296,19 +331,21 @@ export default async function syncComaxSales(payload, { DL }) {
                     { barcode: { $in: kodArray } }
                 ]
             },
-            { barcode: 1, comaxId: 1 },
+            { barcode: 1, comaxId: 1, trailingPrice: 1 },
             { limit: 0 }
         )
 
         for (const p of matchingProducts) {
             if (p.comaxId) kodToBarcodeMap.set(String(p.comaxId), p.barcode)
             if (p.barcode) kodToBarcodeMap.set(String(p.barcode), p.barcode)
+            if (p.barcode && Number(p.trailingPrice) > 0)
+                barcodeToDepositMap.set(p.barcode, Number(p.trailingPrice))
         }
     }
 
     const stats = { skippedInflated: 0 }
     const salesToSync = uniqueComaxSales
-        .map(cs => buildSale(cs, kodToBarcodeMap, activeBarcodesSet, barcodeToPriceMap, DL, stats))
+        .map(cs => buildSale(cs, kodToBarcodeMap, activeBarcodesSet, barcodeToPriceMap, barcodeToDepositMap, DL, stats))
         .filter(Boolean)
 
     if (stats.skippedInflated > 0) {

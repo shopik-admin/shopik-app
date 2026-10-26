@@ -1,4 +1,5 @@
 import mem, { collectGarbage } from '#server/utils/mem.js'
+import { round2 } from '#common/functions/calcOrder/utils.js'
 import { PRODUCTS, completeRun } from './watermark.js'
 import { resolveFreshDepartments } from './freshDepartments.js'
 import { resolveSalesWindow, buildDepartmentWindows, buildKeptBarcodes } from './salesWindow.js'
@@ -69,20 +70,84 @@ export default async function importComaxProducts(payload, { DL, external }) {
     let unparsedDocs = 0
     let batchNo = 0
 
+    // A product's TrailingItem is the deposit product charged next to it
+    // (e.g. 0.30 for a bottle). Deposit products live in super-department 12,
+    // which the catalog feeds exclude, so they are resolved on demand by Comax
+    // id and cached for the whole run (a handful of ids at most).
+    const trailingCache = new Map()
+
+    const resolveTrailingItem = async id => {
+        const key = String(id)
+        if (trailingCache.has(key)) return trailingCache.get(key)
+
+        let product = null
+        if (typeof external.comax?.getItemById === 'function') {
+            try {
+                product = await external.comax.getItemById({ itemId: key })
+            } catch (e) {
+                console.warn(`[Comax Import] trailing item ${key} could not be read:`, e?.message || e)
+            }
+        }
+        trailingCache.set(key, product)
+        return product
+    }
+
+    // Fill the calculated price next to the original Comax price. A failed
+    // lookup leaves the item at its own price instead of inventing a deposit.
+    const applyTrailingItem = async p => {
+        if (!p.trailingItemId) return
+
+        const trailing = await resolveTrailingItem(p.trailingItemId)
+        if (!trailing) return
+
+        const quantity = Number(p.trailingItemQuantity) || 1
+        const price = Number(trailing.price) || 0
+        p.trailingItemPrice = price
+        p.trailingPrice = round2(price * quantity)
+        if (p.price > 0) p.priceWithTrailing = round2(p.price + p.trailingPrice)
+    }
+
+    // Fields that only describe a trailing item. Products without one must not
+    // carry them at all (a null/0 default on 40k rows is just noise), so the
+    // update removes them explicitly instead of writing empty values.
+    const TRAILING_FIELDS = ['trailingItemId', 'trailingItemQuantity', 'trailingItemPrice', 'trailingPrice', 'priceWithTrailing']
+    const RESOLVED_TRAILING_FIELDS = ['trailingItemPrice', 'trailingPrice', 'priceWithTrailing']
+
     const writeBatch = async (docs, addStoreIds) => {
         await DL.ComaxProduct.bulkWrite({
             docs,
             getFilter: p => ({ barcode: p.barcode }),
             // The store feed owns creation: only sellable, non-archived items.
-            getUpsert: p => p.price > 0 && !p.archived,
+            // Deposit products are internal, so they are upserted by their own
+            // write even though they never appear in a store feed.
+            getUpsert: p => p.isTrailingItem || (p.price > 0 && !p.archived),
             getUpdate: p => {
                 // storeIds is owned by $addToSet, never by $set — a feed only
                 // asserts "in stock here", it never replaces other stores.
                 const { storeIds: _storeIds, ...fields } = p
+                let $unset
+
+                if (!p.trailingItemId) {
+                    for (const key of TRAILING_FIELDS) delete fields[key]
+                    $unset = Object.fromEntries(TRAILING_FIELDS.map(key => [key, '']))
+                } else if (p.trailingPrice == null) {
+                    // The reference is known but the deposit could not be
+                    // resolved this run: keep the reference, drop stale prices.
+                    for (const key of RESOLVED_TRAILING_FIELDS) delete fields[key]
+                    $unset = Object.fromEntries(RESOLVED_TRAILING_FIELDS.map(key => [key, '']))
+                } else if (p.priceWithTrailing == null) {
+                    delete fields.priceWithTrailing
+                    $unset = { priceWithTrailing: '' }
+                }
+
                 const $addToSet = addStoreIds.length
                     ? { storeIds: addStoreIds.length === 1 ? addStoreIds[0] : { $each: addStoreIds } }
                     : null
-                return $addToSet ? { $set: fields, $addToSet } : { $set: fields }
+                return {
+                    $set: fields,
+                    ...($unset ? { $unset } : {}),
+                    ...($addToSet ? { $addToSet } : {})
+                }
             }
         })
     }
@@ -118,6 +183,7 @@ export default async function importComaxProducts(payload, { DL, external }) {
         try {
             for await (const p of stream(stats)) {
                 p.lastImportedAt = startedAt
+                await applyTrailingItem(p)
                 if (p.barcode != null) barcodes.add(String(p.barcode))
                 batch.push(p)
                 if (batch.length >= BATCH) await flush()
@@ -211,6 +277,24 @@ export default async function importComaxProducts(payload, { DL, external }) {
                 stats
             })
         })
+    }
+
+    // 2b. Deposit products referenced by the feeds. They are never catalog
+    // items, so each one is written on its own; the parent already carries the
+    // reference and the calculated price. A failed lookup simply leaves the
+    // parent at its own price until the next run.
+    const trailingDocs = [...trailingCache.values()]
+        .filter(trailing => trailing?.barcode)
+        .map(trailing => ({ ...trailing, isTrailingItem: true, lastImportedAt: startedAt }))
+    if (trailingDocs.length) {
+        try {
+            await writeBatch(trailingDocs, [])
+            written += trailingDocs.length
+            console.log(`[Comax Import] ${trailingDocs.length} trailing item(s): ${trailingDocs.map(t => t.barcode).join(', ')}`)
+        } catch (e) {
+            failedDocs += trailingDocs.length
+            console.error('[Comax Import] trailing items batch failed:', e?.message || e)
+        }
     }
 
     // 3. Removals. Only a run in which every feed was complete may conclude

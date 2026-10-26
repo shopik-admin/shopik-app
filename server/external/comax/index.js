@@ -10,13 +10,15 @@ import { resolveDeliveryConfig } from './resolveDeliveryConfig.js'
 // Super-department 12 is excluded from the catalog.
 // includeZeroPrice (buying-price import): zero-price items must survive so a
 // removed price can clear the stored value instead of silently keeping it.
-function keepProduct(product, includeZeroPrice) {
-    if (product.superDepartmentCode == 12) return false
+// includeInternal (trailing-item lookup): deposit products live in super
+// department 12 and must be readable even though they are never catalog items.
+function keepProduct(product, includeZeroPrice, includeInternal) {
+    if (!includeInternal && product.superDepartmentCode == 12) return false
     if (!includeZeroPrice && !(product.price > 0)) return false
     return true
 }
 
-async function getProducts({ DL, includeZeroPrice, skipLog, silent, timeoutMs, ...options }) {
+async function getProducts({ DL, includeZeroPrice, includeInternal, skipLog, silent, timeoutMs, ...options }) {
     // 1. Build query params
     const params = buildComaxParams(options)
 
@@ -35,7 +37,7 @@ async function getProducts({ DL, includeZeroPrice, skipLog, silent, timeoutMs, .
     }
 
     // 5. Map to clean objects
-    const products = items.map(item => mapItem(item, options)).filter(p => keepProduct(p, includeZeroPrice))
+    const products = items.map(item => mapItem(item, options)).filter(p => keepProduct(p, includeZeroPrice, includeInternal))
 
     if (!silent) console.log(`[Comax] Fetched ${products.length} products`)
 
@@ -55,7 +57,7 @@ async function getProducts({ DL, includeZeroPrice, skipLog, silent, timeoutMs, .
  * how many failed to parse — an empty delta and a changed response format
  * look the same from the outside.
  */
-async function* streamProducts({ DL, includeZeroPrice, skipLog, silent, timeoutMs, stats, ...options }) {
+async function* streamProducts({ DL, includeZeroPrice, includeInternal, skipLog, silent, timeoutMs, stats, ...options }) {
     const params = buildComaxParams(options)
     const source = await fetchComaxStream({ params, timeoutMs, skipLog }, { DL })
 
@@ -76,7 +78,7 @@ async function* streamProducts({ DL, includeZeroPrice, skipLog, silent, timeoutM
         if (!item) continue
 
         const product = mapItem(item, options)
-        if (!keepProduct(product, includeZeroPrice)) continue
+        if (!keepProduct(product, includeZeroPrice, includeInternal)) continue
 
         count++
         yield product
@@ -88,6 +90,24 @@ async function* streamProducts({ DL, includeZeroPrice, skipLog, silent, timeoutM
         stats.unparsed = unparsed
     }
     if (!silent) console.log(`[Comax] Fetched ${count} products${unparsed ? ` (${unparsed} unparseable)` : ''}`)
+}
+
+/**
+ * One item by its Comax ID, including super-department 12 items.
+ *
+ * Used to resolve a product's TrailingItem (the deposit product) into its
+ * price and barcode. Deposit products are deliberately excluded from the
+ * catalog feeds, so this is the only way to read them.
+ */
+async function getItemById({ DL, itemId, includeInternal = true, includeZeroPrice = true, ...options }) {
+    // Drain the (single-item) response instead of returning from the middle of
+    // the generator: that would skip its completion log and leave the request
+    // log hanging without a success/error entry.
+    let found = null
+    for await (const product of streamProducts({ ...options, DL, itemId, includeInternal, includeZeroPrice })) {
+        if (!found) found = product
+    }
+    return found
 }
 
 /**
@@ -224,6 +244,7 @@ async function getPromotions({ DL, ...options }) {
 
 const comax = ({ DL }) => ({
     getProducts: options => getProducts({ ...options, DL }),
+    getItemById: options => getItemById({ ...options, DL }),
     streamProducts: options => streamProducts({ ...options, DL }),
     streamStoreProducts: options => streamStoreProducts({ ...options, DL }),
     streamDepartmentProducts: options => streamDepartmentProducts({ ...options, DL }),

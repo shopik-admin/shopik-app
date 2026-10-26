@@ -40,7 +40,20 @@ export function extractBuyingPrice(item, deliveryPriceListId = process.env.COMAX
     return price > 0 ? price : null
 }
 
+/**
+ * Comax charges a "trailing item" (TrailingItem) next to certain products —
+ * the refundable bottle deposit. The item's own Price excludes it, so the
+ * deposit is a separate product (usually 555501 "פקדון בקבוק 0.30") sold
+ * PikadonCmt times per unit. A TrailingItem of 0 means "no trailing item".
+ */
+export function trailingItemId(item) {
+    const id = Number(item.TrailingItem)
+    return Number.isFinite(id) && id > 0 ? String(id) : null
+}
+
 export function mapItem(item, { deliveryPriceListId } = {}) {
+    const price = Number(item.Price) || undefined
+    const trailingId = trailingItemId(item)
     return {
         comaxId: String(item.ID ?? ''),
         barcode: item.Barcode ?? null,
@@ -49,9 +62,15 @@ export function mapItem(item, { deliveryPriceListId } = {}) {
         remark: item.Remark ?? null,
         serial: item.SerialNo ?? null,
 
-        price: Number(item.Price) || undefined,
+        price,
         supplierPrice: Number(item.SupplierPrice) || undefined,
         buyingPrice: extractBuyingPrice(item, deliveryPriceListId),
+
+        // Deposit reference only. The import resolves it to the deposit product
+        // and then adds trailingItemPrice / trailingPrice / priceWithTrailing;
+        // products without a trailing item carry none of those fields.
+        trailingItemId: trailingId,
+        ...(trailingId ? { trailingItemQuantity: Number(item.PikadonCmt) || 1 } : {}),
 
         superDepartmentCode: item.SuperDepartmentCode ?? null,
         superDepartment: item.SuperDepartment ?? null,

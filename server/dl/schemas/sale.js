@@ -32,6 +32,12 @@ const saleSchema = {
         filter: true
     },
     price: Number,
+    // Comax's own total (before its trailing items). `price` is what Shopik
+    // charges: the original total plus the deposits of the bundle. Stored so
+    // the two can be reconciled.
+    comaxPrice: Number,
+    // Deposit total included in `price` (e.g. 3 bottles x 0.30 = 0.90).
+    trailingTotal: Number,
     percent: Number,
     receive: {
         variety: Boolean, // the receive barcodes are idential to the sale.barcodes
