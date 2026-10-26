@@ -37,7 +37,7 @@ const SAMPLE_VALUES = {
     pickup_store_name: 'סניף ירושלים'
 }
 
-const OTP_SAMPLE_VALUES = { code: '1 2 3 4 5 6' }
+const OTP_SAMPLE_VALUES = { code: '123456' }
 
 function stageTitleKey(method, stage) {
     const methodKey = typeof method === 'string' ? method : method?.key

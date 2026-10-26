@@ -57,7 +57,7 @@ export default function DevTools() {
     const [holidaySyncError, setHolidaySyncError] = useState(null)
     const [holidaySyncing, setHolidaySyncing] = useState(false)
     const [voicePhone, setVoicePhone] = useState('')
-    const [voiceMessage, setVoiceMessage] = useState('קוד האימות שלך הוא 1 2 3 4 5 6. הקוד תקף ל-10 דקות.')
+    const [voiceMessage, setVoiceMessage] = useState('קוד האימות שלך הוא 123456. הקוד תקף ל-10 דקות.')
     const [voiceType, setVoiceType] = useState('4')
     const [voiceVoice, setVoiceVoice] = useState('ymMale')
     const [voiceRepeat, setVoiceRepeat] = useState('2')
@@ -424,7 +424,7 @@ export default function DevTools() {
                     <Input label="Rate (-10..10)" type="number" value={voiceRate} onChange={e => setVoiceRate(e.target.value)} placeholder="0" />
                 </Flex>
                 <Input label="Message" value={voiceMessage} onChange={e => setVoiceMessage(e.target.value)} />
-                <Text>Digits are read one by one when separated: try "1 2 3 4 5 6" vs "123456" to hear the difference.</Text>
+                <Text>Digits are read one by one even when not separated: "123456" reads as "1 2 3 4 5 6".</Text>
                 <Flex gap={12}>
                     <Flex col gap={4}>
                         <Text>Type</Text>

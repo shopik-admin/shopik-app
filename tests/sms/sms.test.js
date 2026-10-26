@@ -2,7 +2,7 @@ import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import sms, { buildSmsBody } from '../../server/external/sms/index.js'
 import { DEFAULT_VOICE, getSmsConfig } from '../../server/external/sms/config.js'
-import { buildOtpMessage, spaceDigits } from '../../server/external/sms/otpMessage.js'
+import { buildOtpMessage, cleanDigits } from '../../server/external/sms/otpMessage.js'
 import {
     DEFAULT_OTP_SMS_TEMPLATE,
     OTP_SMS_SETTING_KEY,
@@ -70,12 +70,12 @@ describe('buildOtpMessage', () => {
     it('spaces the digits so TTS reads them one by one', () => {
         assert.equal(
             buildOtpMessage('482913'),
-            'קוד האימות שלך הוא 4 8 2 9 1 3. הקוד תקף ל-10 דקות.'
+            'קוד האימות שלך הוא 482913. הקוד תקף ל-10 דקות.'
         )
     })
 
     it('strips non-digits from the code', () => {
-        assert.equal(spaceDigits(' 12-34 '), '1 2 3 4')
+        assert.equal(cleanDigits(' 12-34 '), '1234')
     })
 
     it('uses the default template when none is configured', () => {
@@ -86,7 +86,7 @@ describe('buildOtpMessage', () => {
     it('renders a custom template and keeps unknown variables', () => {
         assert.equal(
             buildOtpMessage('482913', 'הקוד שלך בשפע קליק: {{code}}. בתוקף ל-10 דקות. {{unknown}}'),
-            'הקוד שלך בשפע קליק: 4 8 2 9 1 3. בתוקף ל-10 דקות. {{unknown}}'
+            'הקוד שלך בשפע קליק: 482913. בתוקף ל-10 דקות. {{unknown}}'
         )
     })
 
@@ -133,7 +133,7 @@ describe('sms.otp voice routing', () => {
 
         assert.equal(fetchStub.calls.length, 1)
         assert.equal('tts' in fetchStub.calls[0].body.sms, false)
-        assert.match(fetchStub.calls[0].body.sms.message, /4 8 2 9 1 3/)
+        assert.match(fetchStub.calls[0].body.sms.message, /482913/)
     })
 
     it('adds tts type 2 when the domain has voice enabled', async t => {
@@ -160,7 +160,7 @@ describe('sms.otp voice routing', () => {
 
         await external.otp(PHONE, '482913', { domainId: 'd1', voice: true })
 
-        assert.equal(fetchStub.calls[0].body.sms.message, 'שפע קליק: הקוד 4 8 2 9 1 3')
+        assert.equal(fetchStub.calls[0].body.sms.message, 'שפע קליק: הקוד 482913')
     })
 
     it('falls back to the default template when the domain row is blank', async t => {
@@ -171,7 +171,7 @@ describe('sms.otp voice routing', () => {
 
         await external.otp(PHONE, '482913', { domainId: 'd1' })
 
-        assert.equal(fetchStub.calls[0].body.sms.message, 'קוד האימות שלך הוא 4 8 2 9 1 3. הקוד תקף ל-10 דקות.')
+        assert.equal(fetchStub.calls[0].body.sms.message, 'קוד האימות שלך הוא 482913. הקוד תקף ל-10 דקות.')
     })
 
     it('does not attach tts when the caller does not ask for voice', async t => {
