@@ -9,6 +9,17 @@ import Input from 'common/components/Input'
 import Select from 'common/components/Select'
 import apiReq from 'common/functions/apiReq'
 
+const VOICE_TYPE_OPTIONS = [
+    { value: '4', text: '4 — call only (any number)' },
+    { value: '2', text: '2 — SMS to regular, call to kosher' },
+    { value: '3', text: '3 — SMS + call to every number' }
+]
+
+const VOICE_OPTIONS = [
+    { value: 'ymMale', text: 'Male' },
+    { value: 'ymFemale', text: 'Female' }
+]
+
 export default function DevTools() {
     const [result, setResult] = useState(null)
     const [error, setError] = useState(null)
@@ -45,6 +56,15 @@ export default function DevTools() {
     const [holidaySyncResult, setHolidaySyncResult] = useState(null)
     const [holidaySyncError, setHolidaySyncError] = useState(null)
     const [holidaySyncing, setHolidaySyncing] = useState(false)
+    const [voicePhone, setVoicePhone] = useState('')
+    const [voiceMessage, setVoiceMessage] = useState('קוד האימות שלך הוא 1 2 3 4 5 6. הקוד תקף ל-10 דקות.')
+    const [voiceType, setVoiceType] = useState('4')
+    const [voiceVoice, setVoiceVoice] = useState('ymMale')
+    const [voiceRepeat, setVoiceRepeat] = useState('2')
+    const [voiceRate, setVoiceRate] = useState('0')
+    const [voiceResult, setVoiceResult] = useState(null)
+    const [voiceError, setVoiceError] = useState(null)
+    const [voiceLoading, setVoiceLoading] = useState(false)
 
     async function handleRefresh() {
         setError(null)
@@ -136,6 +156,27 @@ export default function DevTools() {
             setHolidaySyncError(e?.message || 'Holiday sync failed')
         } finally {
             setHolidaySyncing(false)
+        }
+    }
+
+    async function handleVoiceTest() {
+        setVoiceError(null)
+        setVoiceResult(null)
+        setVoiceLoading(true)
+        try {
+            const payload = {
+                phone: voicePhone.trim(),
+                message: voiceMessage,
+                type: Number(voiceType),
+                voice: voiceVoice
+            }
+            if (voiceRepeat.trim() !== '') payload.repeat = Number(voiceRepeat)
+            if (voiceRate.trim() !== '') payload.rate = Number(voiceRate)
+            setVoiceResult(await apiReq('sms/voice_test', payload))
+        } catch (e) {
+            setVoiceError(e?.message || 'Voice test failed')
+        } finally {
+            setVoiceLoading(false)
         }
     }
 
@@ -371,6 +412,39 @@ export default function DevTools() {
                     {!!gs1RetentionResult.unknownSamples?.length && <Text>
                         unknown samples: {gs1RetentionResult.unknownSamples.join(', ')}
                     </Text>}
+                </Flex>}
+            </Flex>
+        </Card>
+        <Card title="SMS voice test (019 TTS)" style={{ padding: 24 }}>
+            <Flex col gap={16} style={{ padding: 8 }}>
+                <Text>Send one TTS message to one phone number. Type 4 calls every number, so use it to hear the voice on a regular phone too. Type 2 is what voice OTP uses: regular phones get the SMS, kosher phones get the call. Playback is asynchronous — the provider returns status 0 immediately.</Text>
+                <Flex gap={12}>
+                    <Input label="Phone" value={voicePhone} onChange={e => setVoicePhone(e.target.value)} placeholder="0501234567" />
+                    <Input label="Repeat (times)" type="number" value={voiceRepeat} onChange={e => setVoiceRepeat(e.target.value)} placeholder="2" />
+                    <Input label="Rate (-10..10)" type="number" value={voiceRate} onChange={e => setVoiceRate(e.target.value)} placeholder="0" />
+                </Flex>
+                <Input label="Message" value={voiceMessage} onChange={e => setVoiceMessage(e.target.value)} />
+                <Text>Digits are read one by one when separated: try "1 2 3 4 5 6" vs "123456" to hear the difference.</Text>
+                <Flex gap={12}>
+                    <Flex col gap={4}>
+                        <Text>Type</Text>
+                        <Select name="voiceType" value={voiceType} onChange={e => setVoiceType(e.target.value)} options={VOICE_TYPE_OPTIONS} />
+                    </Flex>
+                    <Flex col gap={4}>
+                        <Text>Voice</Text>
+                        <Select name="voiceVoice" value={voiceVoice} onChange={e => setVoiceVoice(e.target.value)} options={VOICE_OPTIONS} />
+                    </Flex>
+                </Flex>
+                <Flex>
+                    <Button icon="phoneOutgoing" onClick={handleVoiceTest} loading={voiceLoading} disabled={voiceLoading || !voicePhone.trim() || !voiceMessage.trim()}>
+                        Send voice test
+                    </Button>
+                </Flex>
+                {voiceError && <Text style={{ color: 'var(--text-error-primary)' }}>{voiceError}</Text>}
+                {voiceResult && <Flex col gap={4}>
+                    <Text>status: {voiceResult.providerMessage}{voiceResult.shipmentId != null ? ` · shipment: ${voiceResult.shipmentId}` : ''}</Text>
+                    <Text>type: {voiceResult.type}, voice: {voiceResult.tts?.voice || '(config)'}, repeat: {voiceResult.tts?.repeat ?? '(config)'}, rate: {voiceResult.tts?.rate ?? '(config)'}, domain: {voiceResult.domainId}</Text>
+                    {voiceResult.stubbed && <Text>Stubbed — the domain has no TOKEN_019 configured, no call was made.</Text>}
                 </Flex>}
             </Flex>
         </Card>

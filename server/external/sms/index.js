@@ -1,4 +1,5 @@
-import { getSmsConfig } from './config.js'
+import { DEFAULT_VOICE, getSmsConfig, sanitizeVoice } from './config.js'
+import { resolveOtpMessage } from './otpMessage.js'
 
 function normalizePhone(raw) {
     let d = String(raw).replace(/\D/g, '')
@@ -11,15 +12,47 @@ function isValidPhone(d) {
     return /^0?5\d{8}$/.test(d)
 }
 
+export function buildSmsBody({ username, source, phones, message, tts }) {
+    const body = {
+        sms: {
+            user: { username },
+            source,
+            destinations: { phone: phones.length === 1 ? phones[0] : phones },
+            message
+        }
+    }
+    if (tts) body.sms.tts = tts
+    return body
+}
+
+/**
+ * `voice: true`      -> use the domain config, only when VOICE.enabled is on.
+ * `voice: {...}`     -> explicit override (admin dev tools); ignores `enabled`.
+ * falsy              -> plain SMS.
+ */
+function resolveTts(requested, voiceConfig) {
+    if (!requested) return null
+    const base = voiceConfig || DEFAULT_VOICE
+    if (requested === true) {
+        if (!base.enabled) return null
+        return { type: base.type, voice: base.voice, repeat: base.repeat, rate: base.rate }
+    }
+    if (typeof requested === 'object') {
+        const override = sanitizeVoice(requested)
+        return { type: override.type, voice: override.voice, repeat: override.repeat, rate: override.rate }
+    }
+    return null
+}
+
 export default function sms({ DL }) {
     async function send(phones, message, opts = {}) {
-        let domainId = opts.domainId || (typeof opts === 'string' ? opts : undefined)
-        // also allow opts as string for backward compat
-        if (!domainId && opts && typeof opts === 'object' && opts.domainId) domainId = opts.domainId
+        // backward compat: opts used to be a bare domainId string
+        if (!opts || typeof opts !== 'object') opts = typeof opts === 'string' ? { domainId: opts } : {}
+        const domainId = opts.domainId || undefined
 
         let logPromise, log
         // resolve config early for logging (but log even if domainId missing)
-        let token, username, source, endpoint
+        let token, username, source, endpoint, voiceSettings
         let configError = null
         try {
             const cfg = await getSmsConfig(DL, domainId)
@@ -27,13 +60,18 @@ export default function sms({ DL }) {
             username = cfg.username
             source = cfg.source
             endpoint = cfg.endpoint
+            voiceSettings = cfg.voice
         } catch (e) {
             configError = e
             token = ''
             username = ''
             source = 'Shopik'
             endpoint = 'https://019sms.co.il/api'
+            voiceSettings = DEFAULT_VOICE
         }
+
+        const tts = resolveTts(opts?.voice, voiceSettings)
+        const channel = tts ? 'sms+voice' : 'sms'
 
         try {
             const logData = {
@@ -44,6 +82,8 @@ export default function sms({ DL }) {
                         phones,
                         body: message,
                         source,
+                        channel,
+                        tts: tts || undefined,
                         domainId: domainId || '(missing)',
                         username: username ? `${username.slice(0, 3)}***` : '(missing)'
                     }
@@ -64,8 +104,8 @@ export default function sms({ DL }) {
             }
 
             if (!token) {
-                console.warn('[sms] TOKEN_019 not set for domain', domainId, '— stubbing send', { phones: normalized, message })
-                logPromise = log.success({ message: 'stubbed (no TOKEN_019)', phones: normalized, domainId })
+                console.warn('[sms] TOKEN_019 not set for domain', domainId, '— stubbing send', { phones: normalized, message, channel })
+                logPromise = log.success({ message: 'stubbed (no TOKEN_019)', phones: normalized, domainId, channel })
                 return { stubbed: true, phones: normalized }
             }
             if (!username) {
@@ -74,15 +114,7 @@ export default function sms({ DL }) {
                 throw new Error(errMsg)
             }
 
-            const phoneField = normalized.length === 1 ? normalized[0] : normalized
-            const body = {
-                sms: {
-                    user: { username },
-                    source,
-                    destinations: { phone: phoneField },
-                    message
-                }
-            }
+            const body = buildSmsBody({ username, source, phones: normalized, message, tts })
 
             const controller = new AbortController()
             const timeout = setTimeout(() => controller.abort(), 15000)
@@ -113,8 +145,8 @@ export default function sms({ DL }) {
                 throw err
             }
 
-            console.log(`[sms] Sent to ${normalized.join(', ')}: "${message.slice(0, 80)}" → shipment ${data.shipment_id || data.message} [domain:${domainId}]`)
-            logPromise = log.success({ message: data.message || 'sent', shipment_id: data.shipment_id, phones: normalized, providerResponse: data, domainId })
+            console.log(`[sms] Sent (${channel}) to ${normalized.join(', ')}: "${message.slice(0, 80)}" → shipment ${data.shipment_id || data.message} [domain:${domainId}]`)
+            logPromise = log.success({ message: data.message || 'sent', shipment_id: data.shipment_id, phones: normalized, providerResponse: data, domainId, channel })
             return data
         } catch (error) {
             const errData = {
@@ -126,7 +158,7 @@ export default function sms({ DL }) {
             if (log) logPromise = log.error(errData)
             else {
                 try {
-                    const fallbackLog = DL.Log.start({ action: 'sms', direction: DL.Log.constants.DIRECTION.OUT, data: { request: { phones, body: message } } })
+                    const fallbackLog = DL.Log.start({ action: 'sms', direction: DL.Log.constants.DIRECTION.OUT, data: { request: { phones, body: message, channel } } })
                     fallbackLog.actor({ type: DL.Log.constants.ACTOR.API })
                     logPromise = fallbackLog.error(errData)
                 } catch { }
@@ -138,7 +170,9 @@ export default function sms({ DL }) {
     }
 
     async function otp(phone, code, opts = {}) {
-        return send([phone], `Your OTP: ${code}\nValid for 10 minutes`, opts)
+        const domainId = typeof opts === 'string' ? opts : opts?.domainId
+        const message = await resolveOtpMessage({ DL, domainId, code })
+        return send([phone], message, opts)
     }
 
     return { send, otp, _normalizePhone: normalizePhone }

@@ -24,7 +24,7 @@ export default async function login_otp({ phone, remember, domainId }, { DL, ext
     const token = uid()
     const otp = uid(6, true)
     await DL.Otp.create({ phone, token, otp, remember: toRemember(remember) })
-    await external.sms.otp(phone, otp, { domainId })
+    await external.sms.otp(phone, otp, { domainId, voice: true })
 
     return { token }
 }

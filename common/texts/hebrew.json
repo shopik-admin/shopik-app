@@ -190,7 +190,7 @@
         "last": "שם משפחה",
         "lastImportedAt": "תאריך ייבוא",
         "limit": "מגבלה",
-        "login_subTitle": "הזן/י תעודת זהות לקבלת קוד אימות חד-פעמי ב-SMS",
+        "login_subTitle": "הזן/י תעודת זהות לקבלת קוד אימות חד-פעמי",
         "login_submitButton": "שליחת קוד",
         "login_title": "כניסה למערכת",
         "logistics": "תפעול",
@@ -946,8 +946,8 @@
         "aria_tiktok": "טיקטוק",
         "aria_twitter": "טוויטר",
         "SMS Templates": "תבניות SMS",
-        "order_sms_title": "תבניות SMS להזמנות",
-        "order_sms_subtitle": "ערכו את ההודעות שנשלחות בכל שלב בהזמנה. התבניות מוגדרות עבור הדומיין הנבחר.",
+        "order_sms_title": "תבניות SMS",
+        "order_sms_subtitle": "ערכו את ההודעות שנשלחות ללקוחות: עדכוני הזמנות וקודי אימות. התבניות מוגדרות עבור הדומיין הנבחר.",
         "order_sms_sidebar_title": "תבניות",
         "order_sms_method_delivery": "משלוח",
         "order_sms_method_pickup": "איסוף עצמי",
@@ -978,6 +978,13 @@
         "order_sms_var_delivery_window_start": "תחילת חלון",
         "order_sms_var_delivery_window_end": "סוף חלון",
         "order_sms_var_order_link": "קישור להזמנה",
-        "order_sms_var_pickup_store_name": "שם חנות האיסוף"
+        "order_sms_var_pickup_store_name": "שם חנות האיסוף",
+        "otp_sms_group_title": "קודי אימות",
+        "otp_sms_title": "קוד אימות (OTP)",
+        "otp_sms_description": "נשלח בהתחברות, בהרשמה ובשינוי מספר טלפון. אותה הודעה משמשת גם לשיחה קולית בטלפון כשר.",
+        "otp_sms_voice_note": "ההודעה מוקראת בקול בשיחה לטלפון כשר — הימנעו מקישורים וסימנים מיוחדים.",
+        "otp_sms_var_code": "קוד אימות (נקרא ספרה-ספרה)",
+        "otp_sms_counter_one": "[chars] תווים · הודעת SMS אחת",
+        "otp_sms_counter_many": "[chars] תווים · [segments] הודעות SMS"
     }
 }

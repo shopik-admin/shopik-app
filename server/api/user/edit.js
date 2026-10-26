@@ -45,7 +45,7 @@ export default async function edit(payload, { DL, _user, external, utils }) {
             otp,
             userId: _user.id
         })
-        await external.sms.otp(update.phone, otp, { domainId: payload.domainId })
+        await external.sms.otp(update.phone, otp, { domainId: payload.domainId, voice: true })
         delete update.phone
     }
 

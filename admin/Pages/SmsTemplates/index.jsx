@@ -7,7 +7,7 @@ import Text from 'common/components/Text'
 import { useText } from 'common/texts/TextProvider'
 import useApi from 'common/functions/useApi'
 import apiReq from 'common/functions/apiReq'
-import renderOrderSmsTemplate from 'common/functions/renderOrderSmsTemplate'
+import renderSmsTemplate from 'common/functions/renderSmsTemplate'
 import {
     DEFAULT_ORDER_SMS_TEMPLATES,
     ORDER_SMS_CATEGORY,
@@ -17,6 +17,14 @@ import {
     ORDER_SMS_TEMPLATE_KEYS,
     ORDER_SMS_VARIABLES
 } from 'common/constants/orderSms.js'
+import {
+    DEFAULT_OTP_SMS_TEMPLATE,
+    OTP_SMS_CATEGORY,
+    OTP_SMS_SETTING_KEY,
+    OTP_SMS_SUB_CATEGORY,
+    OTP_SMS_VARIABLES,
+    otpSmsSegments
+} from 'common/constants/otpSms.js'
 import styles from './smsTemplates.module.css'
 
 const SAMPLE_VALUES = {
@@ -28,6 +36,8 @@ const SAMPLE_VALUES = {
     order_link: 'https://shefa.click/account/orders',
     pickup_store_name: 'סניף ירושלים'
 }
+
+const OTP_SAMPLE_VALUES = { code: '1 2 3 4 5 6' }
 
 function stageTitleKey(method, stage) {
     const methodKey = typeof method === 'string' ? method : method?.key
@@ -52,7 +62,19 @@ function buildTemplates(settings) {
             originals[key] = value
         }
     }
+    const savedOtp = byKey[OTP_SMS_SETTING_KEY]?.value
+    const otpValue = typeof savedOtp === 'string' && savedOtp.trim() ? savedOtp : DEFAULT_OTP_SMS_TEMPLATE
+    templates[OTP_SMS_SETTING_KEY] = otpValue
+    originals[OTP_SMS_SETTING_KEY] = otpValue
     return { byKey, templates, originals }
+}
+
+function subCategoryForKey(key) {
+    return key === OTP_SMS_SETTING_KEY ? OTP_SMS_SUB_CATEGORY : ORDER_SMS_SUB_CATEGORY
+}
+
+function categoryForKey(key) {
+    return key === OTP_SMS_SETTING_KEY ? OTP_SMS_CATEGORY : ORDER_SMS_CATEGORY
 }
 
 export default function SmsTemplates() {
@@ -84,8 +106,8 @@ export default function SmsTemplates() {
 
     const domainSettings = useMemo(() => settings.filter(setting =>
         setting.domainId === domainId
-        && setting.category === ORDER_SMS_CATEGORY
-        && setting.subCategory === ORDER_SMS_SUB_CATEGORY
+        && [ORDER_SMS_CATEGORY, OTP_SMS_CATEGORY].includes(setting.category)
+        && [ORDER_SMS_SUB_CATEGORY, OTP_SMS_SUB_CATEGORY].includes(setting.subCategory)
     ), [settings, domainId])
 
     useEffect(() => {
@@ -100,20 +122,37 @@ export default function SmsTemplates() {
         [domainSettings]
     )
 
-    const keys = useMemo(() => ORDER_SMS_METHODS.flatMap(method =>
-        ORDER_SMS_STAGES.map(stage => ORDER_SMS_TEMPLATE_KEYS[method.key][stage.key])
-    ), [])
+    const keys = useMemo(() => [
+        ...ORDER_SMS_METHODS.flatMap(method =>
+            ORDER_SMS_STAGES.map(stage => ORDER_SMS_TEMPLATE_KEYS[method.key][stage.key])
+        ),
+        OTP_SMS_SETTING_KEY
+    ], [])
 
     const changedKeys = keys.filter(key => templates[key] !== originals[key])
     const dirty = changedKeys.length > 0
 
-    const selectedMethod = ORDER_SMS_METHODS.find(method =>
+    const isOtp = selectedKey === OTP_SMS_SETTING_KEY
+    const selectedMethod = isOtp ? null : ORDER_SMS_METHODS.find(method =>
         Object.values(ORDER_SMS_TEMPLATE_KEYS[method.key]).includes(selectedKey)
     )
     const selectedStage = selectedMethod
         ? ORDER_SMS_STAGES.find(stage => ORDER_SMS_TEMPLATE_KEYS[selectedMethod.key][stage.key] === selectedKey)
         : null
     const selectedValue = templates[selectedKey] ?? ''
+
+    const selectedMeta = isOtp
+        ? { title: t('otp_sms_title'), description: t('otp_sms_description') }
+        : selectedMethod && selectedStage
+            ? { title: t(stageTitleKey(selectedMethod, selectedStage)), description: t(stageDescriptionKey(selectedStage)) }
+            : null
+    const selectedVariables = isOtp
+        ? OTP_SMS_VARIABLES
+        : ORDER_SMS_VARIABLES.filter(variable =>
+            variable.key !== 'pickup_store_name' || selectedMethod?.key === 'pickup')
+    const previewValues = isOtp ? OTP_SAMPLE_VALUES : SAMPLE_VALUES
+    const previewText = renderSmsTemplate(selectedValue, previewValues)
+    const previewSegments = otpSmsSegments(previewText)
 
     function updateTemplate(key, value) {
         setTemplates(prev => ({ ...prev, [key]: value }))
@@ -153,8 +192,8 @@ export default function SmsTemplates() {
                     key,
                     value,
                     domainId,
-                    category: ORDER_SMS_CATEGORY,
-                    subCategory: ORDER_SMS_SUB_CATEGORY,
+                    category: categoryForKey(key),
+                    subCategory: subCategoryForKey(key),
                     formType: 'textarea',
                     renderType: 'string',
                     public: false,
@@ -202,6 +241,17 @@ export default function SmsTemplates() {
         <div className={styles.layout}>
             <nav className={styles.sidebar}>
                 <div className={styles.sidebarHeader}>{t('order_sms_sidebar_title')}</div>
+                <div className={styles.sidebarGroup}>
+                    <div className={styles.groupTitle}>{t('otp_sms_group_title')}</div>
+                    <button
+                        type="button"
+                        className={`${styles.sidebarItem} ${isOtp ? styles.sidebarItemActive : ''}`}
+                        onClick={() => setSelectedKey(OTP_SMS_SETTING_KEY)}
+                    >
+                        <span>{t('otp_sms_title')}</span>
+                        {templates[OTP_SMS_SETTING_KEY] !== originals[OTP_SMS_SETTING_KEY] && <span className={styles.unsavedDot} title={t('order_sms_unsaved')} />}
+                    </button>
+                </div>
                 {ORDER_SMS_METHODS.map(method => <div key={method.key} className={styles.sidebarGroup}>
                     <div className={styles.groupTitle}>{t(`order_sms_method_${method.key}`)}</div>
                     {ORDER_SMS_STAGES.map(stage => {
@@ -221,11 +271,11 @@ export default function SmsTemplates() {
             </nav>
 
             <section className={styles.editor}>
-                {selectedMethod && selectedStage ? <>
+                {selectedMeta ? <>
                     <div className={styles.editorHeader}>
                         <div>
-                            <Text size="l" bold>{t(stageTitleKey(selectedMethod, selectedStage))}</Text>
-                            <Text size="s" className={styles.muted}>{t(stageDescriptionKey(selectedStage))}</Text>
+                            <Text size="l" bold>{selectedMeta.title}</Text>
+                            <Text size="s" className={styles.muted}>{selectedMeta.description}</Text>
                         </div>
                         <Text size="xs" className={styles.muted}>{selectedKey}</Text>
                     </div>
@@ -241,24 +291,33 @@ export default function SmsTemplates() {
                     />
 
                     <div className={styles.variables}>
-                        {ORDER_SMS_VARIABLES.map(variable => {
-                            if (variable.key === 'pickup_store_name' && selectedMethod.key !== 'pickup') return null
-                            return <button
-                                key={variable.key}
-                                type="button"
-                                className={styles.variable}
-                                title={t(`order_sms_var_${variable.key}`)}
-                                disabled={!canEdit}
-                                onClick={() => insertVariable(selectedKey, variable.key)}
-                            >{`{{${variable.key}}}`}</button>
-                        })}
+                        {selectedVariables.map(variable => <button
+                            key={variable.key}
+                            type="button"
+                            className={styles.variable}
+                            title={isOtp ? t('otp_sms_var_code') : t(`order_sms_var_${variable.key}`)}
+                            disabled={!canEdit}
+                            onClick={() => insertVariable(selectedKey, variable.key)}
+                        >{`{{${variable.key}}}`}</button>)}
                     </div>
+
+                    {isOtp && <Text size="xs" className={styles.muted}>{t('otp_sms_voice_note')}</Text>}
 
                     <div className={styles.preview}>
                         <Text size="xs" className={styles.muted}>{t('order_sms_preview')}</Text>
                         <div className={styles.previewBody} dir="rtl">
-                            <bdi dir="rtl">{renderOrderSmsTemplate(selectedValue, SAMPLE_VALUES) || '—'}</bdi>
+                            <bdi dir="rtl">{previewText || '—'}</bdi>
                         </div>
+                        {isOtp && <Text
+                            size="xs"
+                            className={styles.muted}
+                            style={previewSegments > 1 ? { color: 'var(--text-error-primary)' } : undefined}
+                        >
+                            {t(previewSegments === 1 ? 'otp_sms_counter_one' : 'otp_sms_counter_many', {
+                                chars: previewText.length,
+                                segments: previewSegments
+                            })}
+                        </Text>}
                     </div>
 
                     <div className={styles.editorFooter}>
