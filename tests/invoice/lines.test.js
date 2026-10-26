@@ -1,0 +1,156 @@
+import { describe, it } from 'node:test'
+import assert from 'node:assert/strict'
+import {
+    couponTotalOf,
+    collectInvoiceItems,
+    allocateCoupon,
+    buildShippingLine,
+    buildInvoiceLines,
+    invoiceTotal,
+    assertTotalsMatch,
+    buildCreditLines
+} from '../../common/functions/invoice/lines.js'
+
+const mixedCart = () => ([
+    { id: '1', barcode: 'T1', name: 'Tomatoes', finalAmount: 2, totalSum: 50, vat: false, unit: { baseUnit: 'kg' } },
+    { id: '2', barcode: 'M1', name: 'Milk', finalAmount: 3, totalSum: 100, vat: true, unit: { baseUnit: 'unit' } },
+    { id: '3', barcode: 'X1', name: 'Missing', missing: true, finalAmount: 0, totalSum: 0, vat: true }
+])
+
+describe('couponTotalOf', () => {
+    it('sums the applied discount of every coupon', () => {
+        assert.equal(couponTotalOf([{ discount: 10 }, { discount: 5.5 }]), 15.5)
+    })
+
+    it('handles missing coupons', () => {
+        assert.equal(couponTotalOf(undefined), 0)
+        assert.equal(couponTotalOf([]), 0)
+    })
+})
+
+describe('collectInvoiceItems', () => {
+    it('drops missing and zero-gross lines', () => {
+        const items = collectInvoiceItems(mixedCart())
+        assert.deepEqual(items.map(i => i.name), ['Tomatoes', 'Milk'])
+    })
+
+    it('keeps the VAT class snapshot (undefined is taxable for legacy data)', () => {
+        const items = collectInvoiceItems([
+            { id: 'a', name: 'Exempt', totalSum: 10, finalAmount: 1, vat: false },
+            { id: 'b', name: 'Legacy', totalSum: 10, finalAmount: 1 }
+        ])
+        assert.equal(items[0].vat, false)
+        assert.equal(items[1].vat, true)
+    })
+
+    it('uses finalAmount (packed quantity), not the ordered amount', () => {
+        const [item] = collectInvoiceItems([
+            { id: 'a', name: 'Weighted', amount: 5, finalAmount: 2.35, totalSum: 23.5 }
+        ])
+        assert.equal(item.quantity, 2.35)
+        assert.equal(item.gross, 23.5)
+    })
+})
+
+describe('allocateCoupon', () => {
+    it('splits the discount proportionally across mixed lines', () => {
+        const items = allocateCoupon({ items: collectInvoiceItems(mixedCart()), couponTotal: 15 })
+        assert.deepEqual(items.map(i => i.gross), [45, 90])
+        assert.deepEqual(items.map(i => i.discount), [5, 10])
+    })
+
+    it('gives the rounding remainder to the largest line', () => {
+        const items = allocateCoupon({
+            items: [
+                { id: 'a', name: 'A', gross: 33.33, vat: true },
+                { id: 'b', name: 'B', gross: 33.33, vat: true },
+                { id: 'c', name: 'C', gross: 33.33, vat: true }
+            ],
+            couponTotal: 10
+        })
+        const discounts = items.map(i => i.discount)
+        assert.equal(Math.round(discounts.reduce((a, b) => a + b, 0) * 100) / 100, 10)
+        assert.deepEqual(discounts, [3.34, 3.33, 3.33])
+    })
+
+    it('never allocates a discount to an excluded (missing) line', () => {
+        const items = allocateCoupon({ items: collectInvoiceItems(mixedCart()), couponTotal: 15 })
+        assert.equal(items.some(i => i.name === 'Missing'), false)
+    })
+
+    it('clamps the coupon to the included total and ignores zero lines', () => {
+        const items = allocateCoupon({
+            items: [{ id: 'a', name: 'A', gross: 10, vat: true }],
+            couponTotal: 99
+        })
+        assert.equal(items[0].gross, 0)
+        assert.equal(items[0].discount, 10)
+    })
+})
+
+describe('buildShippingLine', () => {
+    it('is a separate taxable line', () => {
+        assert.deepEqual(buildShippingLine(20, { name: 'משלוח' }), {
+            productId: '__shipping', barcode: null, name: 'משלוח',
+            quantity: 1, gross: 20, vat: true, discount: 0
+        })
+    })
+
+    it('is null when shipping is zero', () => {
+        assert.equal(buildShippingLine(0), null)
+        assert.equal(buildShippingLine(undefined), null)
+    })
+})
+
+describe('buildInvoiceLines', () => {
+    it('reconciles the served lines + shipping to the captured amount', () => {
+        const order = {
+            cart: mixedCart(),
+            coupons: [{ discount: 15 }],
+            finalShipping: 20
+        }
+        const lines = buildInvoiceLines({ order })
+        assert.equal(invoiceTotal(lines), 155)
+        assert.equal(lines.coupon, 15)
+        assert.equal(lines.shippingLine.gross, 20)
+        assert.equal(assertTotalsMatch({ ...lines, captured: 155 }), 155)
+    })
+
+    it('matches the charge when the coupon leaves an agorah remainder', () => {
+        const order = {
+            cart: [
+                { id: 'a', name: 'A', finalAmount: 1, totalSum: 33.33, vat: true },
+                { id: 'b', name: 'B', finalAmount: 1, totalSum: 33.33, vat: false },
+                { id: 'c', name: 'C', finalAmount: 1, totalSum: 33.33, vat: true }
+            ],
+            coupons: [{ discount: 10 }],
+            finalShipping: 0
+        }
+        const lines = buildInvoiceLines({ order })
+        assert.equal(invoiceTotal(lines), 89.99)
+    })
+
+    it('does not reconcile when the captured amount was computed differently', () => {
+        const order = { cart: mixedCart(), coupons: [], finalShipping: 20 }
+        assert.throws(
+            () => assertTotalsMatch({ ...buildInvoiceLines({ order }), captured: 999 }),
+            /does not match captured/
+        )
+    })
+})
+
+describe('buildCreditLines', () => {
+    it('looks the VAT class up from the order line and keeps shipping taxable', () => {
+        const lines = buildCreditLines({
+            refundItems: [
+                { productId: '1', barcode: 'T1', name: 'Tomatoes', amount: 15 },
+                { productId: '__shipping', name: 'shipping', amount: 5 }
+            ],
+            cart: mixedCart()
+        })
+        assert.equal(lines[0].vat, false)
+        assert.equal(lines[1].vat, true)
+        assert.equal(lines[0].gross, 15)
+        assert.equal(lines[1].gross, 5)
+    })
+})

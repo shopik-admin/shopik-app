@@ -6,13 +6,13 @@ import resolveBotUser from '#server/utils/auth/resolveBotUser.js'
  * Body: { orderNumber, userToken }
  * - Ownership enforced via userToken (per dev spec: user token +
  *   order number required).
- * - Invoices are issued for the capture transaction only
- *   (order.payment.captureProviderTxnId) via HYP
- *   (Komax integration is catalog-only).
- * Returns: { url }
+ * - The document is the one issued by EZcount at capture and stored on the
+ *   Invoice collection. No provider call is made here, so a bot request can
+ *   never create a document.
+ * Returns: { url, number, status }
  */
 export default async function invoice_link(payload, info) {
-    const { DL, external, utils } = info
+    const { DL, utils } = info
     const { orderNumber, userToken, domainId } = payload || {}
     if (orderNumber == null) throw { status: 400, message: 'orderNumber required' }
 
@@ -23,46 +23,30 @@ export default async function invoice_link(payload, info) {
     if (String(order.userId) !== String(user.id))
         throw { status: 403, message: 'Not your order' }
 
-    // Capture-only: the invoice belongs to the capture transaction.
-    const providerTxnId = order.payment?.captureProviderTxnId
-    if (!providerTxnId)
+    const record = await DL.Invoice
+        .readOne({ orderId: order.id, kind: 'invoice', status: 'issued' })
+        .catch(() => null)
+
+    if (!record?.docUrl) {
+        // Legacy orders keep the link stored on the order.
+        if (order.invoice?.url)
+            return { url: order.invoice.url, number: order.invoice.number, status: 'issued', legacy: true }
         throw { status: 404, message: 'No invoice available yet' }
-
-    // Single issuance: serve the stored doc when present.
-    try {
-        const txn = await DL.PaymentTransaction.readOne(
-            { orderId: order.id, providerTxnId: String(providerTxnId) },
-            { _id: 0, invoiceUrl: 1 }
-        )
-        if (txn?.invoiceUrl) return { url: txn.invoiceUrl }
-    } catch { }
-
-    let url
-    try {
-        url = await external.hyp.invoiceLink(String(providerTxnId))
-    } catch (e) {
-        throw { status: e.status || 502, message: e.message || 'Failed to generate invoice link' }
     }
-    try {
-        await DL.PaymentTransaction?.Model?.updateOne(
-            { orderId: order.id, providerTxnId: String(providerTxnId) },
-            { invoiceUrl: url }
-        )
-    } catch { }
 
     try {
-        const { record, userActor } = utils.data.timeline
-        await record({
+        const { record: recordEvent, userActor } = utils.data.timeline
+        await recordEvent({
             DL, order,
             eventType: DL.Timeline.constants.EVENT_TYPES.INVOICE_OPEN,
             actor: userActor(user),
-            context: { step: 'invoice_opened', provider: 'hyp', providerTxnId: String(providerTxnId) },
+            context: { step: 'invoice_opened', provider: 'ezcount', docNumber: record.docNumber },
             outcome: { success: true },
             metadata: { source: 'bot/invoice_link' }
         })
     } catch { }
 
-    return { url }
+    return { url: record.docUrl, number: record.docNumber, status: record.status }
 }
 
 invoice_link.config = {

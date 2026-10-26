@@ -1,5 +1,13 @@
+/**
+ * GET/POST /api/payment/invoice
+ *
+ * Serves the document stored on the order / Invoice collection. There is no
+ * on-demand fallback to the payment provider: an invoice only exists after the
+ * capture issued it, so this endpoint can never produce a document for an
+ * uncharged order.
+ */
 export default async function invoice(payload, info) {
-    const { DL, external, utils, _admin, _user, query } = info
+    const { DL, utils, _admin, _user, query } = info
     const body = payload || {}
     const q = query || {}
     const orderId = body.orderId || q.orderId || q.order_id
@@ -12,8 +20,7 @@ export default async function invoice(payload, info) {
     // auth: admin with transaction:read can view any; otherwise user must own order
     let isAdmin = false
     if (_admin) {
-        try { isAdmin = _admin.hasPermission('transaction:read') || _admin.hasPermission('payment_transaction:read') || _admin.hasPermission('order:payment') } catch { isAdmin = false }
-        // also allow super
+        try { isAdmin = _admin.hasPermission('invoice:read') || _admin.hasPermission('transaction:read') || _admin.hasPermission('payment_transaction:read') || _admin.hasPermission('order:payment') } catch { isAdmin = false }
         if (!isAdmin && _admin.hasPermission) {
             try { isAdmin = _admin.hasPermission('admin:super') } catch { }
         }
@@ -23,90 +30,73 @@ export default async function invoice(payload, info) {
         if (String(order.userId) !== String(_user.id)) throw { status: 403, message: 'Not your order' }
     }
 
-    // find latest successful transaction for invoice (capture preferred, then auth)
-    // try PaymentTransaction collection
+    let record = null
 
-    // specific transaction requested (e.g. one refund's own invoice doc) —
-    // must be a successful txn of this order
-    let providerTxnId = null
-    let cachedUrl = null
+    // A specific transaction was requested: return the document linked to it
+    // (a credit note for a refund, or the invoice for a capture leg).
     if (wantedTxnId) {
-        let wanted = null
-        try {
-            const found = await DL.PaymentTransaction.read(
-                { orderId: order.id, providerTxnId: String(wantedTxnId), status: 'success' },
-                { _id: 0, providerTxnId: 1, invoiceUrl: 1 }
-            )
-            if (Array.isArray(found) && found[0]) wanted = found[0]
-        } catch { }
-        if (!wanted?.providerTxnId) throw { status: 404, message: 'Transaction not found for this order' }
-        providerTxnId = wanted.providerTxnId
-        cachedUrl = wanted.invoiceUrl || null
+        const txn = await DL.PaymentTransaction
+            .readOne({ orderId: order.id, providerTxnId: String(wantedTxnId) }, { _id: 0, invoiceId: 1, creditInvoiceId: 1 })
+            .catch(() => null)
+        if (!txn) throw { status: 404, message: 'Transaction not found for this order' }
+        const invoiceId = txn.creditInvoiceId || txn.invoiceId
+        if (invoiceId) record = await DL.Invoice.readById(invoiceId).catch(() => null)
     }
 
-    // fallback: no PaymentTransaction yet but order has payment.providerTxnId
-    if (!providerTxnId) providerTxnId = order.payment?.captureProviderTxnId || order.payment?.providerTxnId
-    if (!providerTxnId) {
-        let txn = null
-        if (!txn) {
-            try {
-                const Model = DL.PaymentTransaction?.Model
-                if (Model) {
-                    txn = await Model.findOne({ orderId: order.id, status: 'success', kind: { $in: ['capture', 'auth'] } }).sort({ createdAt: -1 }).lean()
-                    if (!txn) {
-                        // also check refund? refunds have their own docs, but primary invoice is capture
-                        txn = await Model.findOne({ orderId: order.id, status: 'success' }).sort({ createdAt: -1 }).lean()
-                    }
-                }
-            } catch { }
+    if (!record) {
+        record = await DL.Invoice
+            .readOne({ orderId: order.id, kind: 'invoice', status: 'issued' })
+            .catch(() => null)
+    }
+
+    // Legacy orders issued through Hyp keep their stored link for viewing.
+    if (!record && order.invoice?.url) {
+        const result = {
+            url: order.invoice.url,
+            number: order.invoice.number,
+            status: 'issued',
+            legacy: true,
+            vatBreakdown: order.vatBreakdown || null
         }
-
-        if (!txn) {
-            // fallback via DL read
-            try {
-                const list = await DL.PaymentTransaction.read({ orderId: order.id, status: 'success' }, { _id: 0 }, { sort: { createdAt: -1 }, limit: 1 })
-                if (Array.isArray(list) && list[0]) txn = list[0]
-            } catch { }
-        }
-
-        if (!txn?.providerTxnId)
-            throw { status: 404, message: 'No invoice available yet' }
-
-        providerTxnId = txn?.providerTxnId
-        cachedUrl = txn?.invoiceUrl || null
+        await recordOpen({ DL, utils, order, actor: _admin ? utils.data.timeline.adminActor(_admin) : utils.data.timeline.userActor(_user), source: 'payment/invoice' })
+        return result
     }
 
-    // Single issuance: serve the stored doc when present, otherwise generate
-    // once, persist it, and only then record the timeline entry.
-    if (cachedUrl) return { url: cachedUrl, providerTxnId: String(providerTxnId), cached: true }
+    if (!record) throw { status: 404, message: 'No invoice available yet' }
 
-    let url
-    try {
-        url = await external.hyp.invoiceLink(String(providerTxnId))
-    } catch (e) {
-        throw { status: e.status || 502, message: e.message || 'Failed to generate invoice link' }
+    await recordOpen({ DL, utils, order, actor: _admin ? utils.data.timeline.adminActor(_admin) : utils.data.timeline.userActor(_user), source: 'payment/invoice' })
+
+    const credits = await DL.Invoice
+        .read({ orderId: order.id, kind: 'credit', status: 'issued' }, { _id: 0 })
+        .catch(() => [])
+
+    return {
+        url: record.docUrl,
+        number: record.docNumber,
+        docId: record.docId,
+        status: record.status,
+        kind: record.kind,
+        amount: record.amount,
+        vatBreakdown: record.vatBreakdown || order.vatBreakdown || null,
+        credits: (credits || []).map(c => ({
+            number: c.docNumber, url: c.docUrl, amount: c.amount, issuedAt: c.issuedAt
+        })),
+        cached: true
     }
-    try {
-        await DL.PaymentTransaction?.Model?.updateOne(
-            { orderId: order.id, providerTxnId: String(providerTxnId) },
-            { invoiceUrl: url }
-        )
-    } catch { }
+}
 
+async function recordOpen({ DL, utils, order, actor, source }) {
     try {
-        const { record, adminActor, userActor } = utils.data.timeline
-        const actor = _admin ? adminActor(_admin) : userActor(_user)
+        const { record } = utils.data.timeline
         await record({
             DL, order,
             eventType: DL.Timeline.constants.EVENT_TYPES.INVOICE_OPEN,
             actor,
-            context: { step: 'invoice_opened', provider: 'hyp', providerTxnId: String(providerTxnId) },
+            context: { step: 'invoice_opened', provider: 'ezcount' },
             outcome: { success: true },
-            metadata: { source: 'payment/invoice' }
+            metadata: { source }
         })
     } catch { }
-
-    return { url, providerTxnId: String(providerTxnId) }
 }
 
 invoice.config = {

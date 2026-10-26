@@ -1,5 +1,6 @@
 import { validateRefundRequest, round2, getChargedSum } from '#common/functions/refundCalc.js'
 import { planRefundLegs, executeRefundPlan, distributeCoveredAmount } from '#server/utils/data/refundCaptures.js'
+import { issueCreditNote } from '#server/utils/data/invoice.js'
 import { recordRefund } from '#server/utils/data/userStats.js'
 
 // Persist covered money onto the order: per-line refundedAmount (+shipping),
@@ -142,6 +143,17 @@ export default async function refund(payload, info) {
             try {
                 await recordRefund(DL, order, coveredTotal)
             } catch { }
+            // The money left the business: offset the document for the part
+            // that was actually refunded, even though the call failed.
+            await issueCreditNote({
+                DL, external, utils, order, user: info._user,
+                refundItems: coveredItems,
+                amount: coveredTotal,
+                refundTxnId: completed[0]?.providerTxnId,
+                reason,
+                source: 'payment/refund:partial',
+                actor: adminActor(_admin)
+            }).catch(() => null)
         }
         await record({
             DL, order,
@@ -177,7 +189,23 @@ export default async function refund(payload, info) {
         metadata: { source: 'payment/refund', referenceOrderNumber: order.number }
     })
 
-    return { refunded: totalRefund, providerTxnId: completed[0]?.providerTxnId, refundedTotal: newRefunded, ...(multi ? { refunds: completed } : {}) }
+    const credit = await issueCreditNote({
+        DL, external, utils, order, user: info._user,
+        refundItems,
+        amount: totalRefund,
+        refundTxnId: completed[0]?.providerTxnId,
+        reason,
+        source: 'payment/refund',
+        actor: adminActor(_admin)
+    }).catch(() => null)
+
+    return {
+        refunded: totalRefund,
+        providerTxnId: completed[0]?.providerTxnId,
+        refundedTotal: newRefunded,
+        ...(multi ? { refunds: completed } : {}),
+        ...(credit?.status === 'issued' ? { creditNumber: credit.docNumber, creditUrl: credit.docUrl } : {})
+    }
 }
 
 refund.config = {

@@ -15,6 +15,7 @@ export default function Products({ }) {
                 { key: 'name' },
                 { key: 'label' },
                 { key: 'category.title' },
+                { key: 'vat', type: 'boolean' },
                 { key: 'createdAt', type: 'date' },
                 { key: 'updatedAt', type: 'datetime' },
                 { key: 'active', type: 'boolean' },

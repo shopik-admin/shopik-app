@@ -27,6 +27,8 @@ export default function Details() {
                     <Input name='name.last' defaultValue={user?.name?.last || ''} placeholder='name.last' label='name.last' required />
                     <Input name='phone' defaultValue={user?.phone || ''} type='tel' minLength={9} maxLength={15} placeholder='phone_number' label='phone_number' required />
                     <Input name='email' defaultValue={user?.email || ''} type='email' placeholder='email_label' label='email_label' required info='invoices_info' />
+                    <Input name='taxId' defaultValue={user?.taxId || ''} placeholder='invoice_tax_id' label='invoice_tax_id' inputMode='numeric' maxLength={9} />
+                    <Input name='companyName' defaultValue={user?.companyName || ''} placeholder='invoice_company_name' label='invoice_company_name' maxLength={100} />
                 </Form>
             </div>
         </div>

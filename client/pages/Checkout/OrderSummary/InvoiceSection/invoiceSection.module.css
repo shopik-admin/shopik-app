@@ -1,0 +1,12 @@
+.content {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 4px 2px 6px;
+}
+
+/* The billing form has no submit button (values are sent with "Pay"), so the
+   shared Form footer is empty here — don't reserve its padding. */
+.content form > div:last-child:empty {
+    padding-top: 0;
+}

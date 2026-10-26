@@ -3,6 +3,7 @@ import smsFactory from './sms/index.js'
 import comaxFactory from './comax/index.js'
 import hypFactory from './hyp/index.js'
 import gs1Factory from './gs1/index.js'
+import ezcountFactory from './ezcount/index.js'
 
 export default function externalBuilder({ DL }) {
     const sms = smsFactory({ DL })
@@ -10,12 +11,14 @@ export default function externalBuilder({ DL }) {
     const hyp = hypFactory({ DL })
     const geocode = geocodeFactory({ DL })
     const gs1 = gs1Factory({ DL })
+    const ezcount = ezcountFactory({ DL })
 
     return {
         sms,
         geocode,
         comax,
         hyp,
-        gs1
+        gs1,
+        ezcount
     }
 }

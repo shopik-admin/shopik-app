@@ -35,7 +35,7 @@ function RefundRow({ entry, busyTxnId, onInvoice }) {
             {products.length > 0 && <Text size='m' mode='sub'>{products.length} {TR('items_suffix')}</Text>}
             <Text size='m' mode='sub'>{actorLabel(entry, TR)}</Text>
             {context.providerTxnId && <Button
-                mode='outline' icon='invoice' permission='order:payment'
+                mode='outline' icon='invoice' permission='invoice:read'
                 loading={busyTxnId === context.providerTxnId}
                 onClick={() => onInvoice(context.providerTxnId)}
                 className={styles.invoiceBtn}

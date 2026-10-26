@@ -64,7 +64,13 @@ const paymentTransactionSchema = {
     error: String,
     // Single-issuance invoice doc (PrintHesh link): generated eagerly on
     // capture/refund success, served from here on later requests.
-    invoiceUrl: String
+    invoiceUrl: String,
+    // EZcount document linkage (invoice issued for this capture/refund).
+    invoiceId: String,
+    invoiceDocNumber: String,
+    invoiceStatus: String,
+    creditInvoiceId: String,
+    creditDocNumber: String
 }
 
 const index = [

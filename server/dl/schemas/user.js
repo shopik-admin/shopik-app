@@ -176,6 +176,10 @@ const userSchema = {
     pickupStoreId: String,
     noMinOrderSum: Boolean, // do not enforce minimum order sum
     sendTaxInvoiceToEmail: Boolean,
+    // Billing details for a tax invoice (company / עוסק). The email stays the
+    // existing user.email; a per-order override lives on order.invoiceRequest.
+    taxId: { type: String, trim: true, userEditable: true },
+    companyName: { type: String, trim: true, userEditable: true },
     privacyPolicyValidationRequired: { type: Boolean, default: true },
     termsValidationRequired: { type: Boolean, default: true },
     isTestUser: Boolean,
@@ -189,6 +193,8 @@ const defaultSelect = {
     name: 1,
     phone: 1,
     email: 1,
+    taxId: 1,
+    companyName: 1,
     addresses: 1,
     deliveryMethod: 1,
     pickupStoreId: 1,

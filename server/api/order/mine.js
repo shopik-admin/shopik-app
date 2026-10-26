@@ -25,6 +25,7 @@ export default async function mine(payload, { DL, _user }) {
         'payment.cardCompany': 1,
         'payment.authorizedAmount': 1,
         'payment.capturedAt': 1,
+        invoice: 1,
     }
     const Model = DL.Order.Model
     const docs = await Model.find(filter, select)

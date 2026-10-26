@@ -41,7 +41,12 @@ const DETAILS_SELECT = {
     picker: 1,
     pickFinalizer: 1,
     shipper: 1,
-    cancelReason: 1
+    cancelReason: 1,
+    invoice: 1,
+    invoiceRequest: 1,
+    invoiceError: 1,
+    vatBreakdown: 1,
+    billingAdjustment: 1
 }
 
 export default async function details({ id }, { DL }) {
