@@ -10,7 +10,7 @@ import { useState } from 'react'
 
 export default function DataActions({ actions = [], cols = [] }) {
     const
-        { apiRoute, data, callReq, createUpdate, search, sort } = useData(),
+        { apiRoute, data, refresh, createUpdate, search, sort, filter } = useData(),
         { TR } = useText(),
         [exporting, setExporting] = useState(false),
         createPermission = usePermission(`${apiRoute}:create`),
@@ -20,7 +20,7 @@ export default function DataActions({ actions = [], cols = [] }) {
         if (exporting) return
         setExporting(true)
         try {
-            const rows = await apiReq(`${apiRoute}/read`, { limit: 0, search, sort })
+            const rows = await apiReq(`${apiRoute}/read`, { limit: 0, search, sort, filter })
             const date = new Date().toISOString().slice(0, 10)
             downloadCsv(cols, rows || [], `${apiRoute}-${date}.csv`, TR)
         } catch (err) {
@@ -33,7 +33,7 @@ export default function DataActions({ actions = [], cols = [] }) {
     const defaultActions = {
         add: { icon: 'add', text: 'action_add', onClick: () => createUpdate(), hide: !createPermission, mode: 'brand' },
         export: { icon: 'csv', text: 'action_export', tooltip: 'export_csv_tooltip', seperator: true, onClick: exportCurrentView, loading: exporting, hide: !exportPermission },
-        refresh: { icon: 'refresh', text: 'action_refresh', tooltip: 'refresh_tooltip', onClick: () => callReq() }
+        refresh: { icon: 'refresh', text: 'action_refresh', tooltip: 'refresh_tooltip', onClick: () => refresh() }
     }
 
     const resolved = actions
@@ -48,7 +48,7 @@ export default function DataActions({ actions = [], cols = [] }) {
             ...rest,
             text: text || TR?.(tooltip) || tooltip,
             tooltip: tooltip || text,
-            onClick: () => onClick?.({ refresh: callReq }),
+            onClick: () => onClick?.({ refresh }),
         }
     }
 
