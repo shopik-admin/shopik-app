@@ -1,5 +1,6 @@
 import usePermission from 'common/permissions/usePermision'
 import ContextMenu from 'common/components/ContextMenu'
+import Button from 'common/components/Button'
 import { useText } from 'common/texts/TextProvider'
 import styles from './dataActions.module.css'
 import apiReq from 'common/functions/apiReq'
@@ -10,7 +11,7 @@ import { useState } from 'react'
 
 export default function DataActions({ actions = [], cols = [] }) {
     const
-        { apiRoute, data, refresh, createUpdate, search, sort, filter } = useData(),
+        { apiRoute, refresh, createUpdate, search, sort, filter, loading } = useData(),
         { TR } = useText(),
         [exporting, setExporting] = useState(false),
         createPermission = usePermission(`${apiRoute}:create`),
@@ -32,11 +33,15 @@ export default function DataActions({ actions = [], cols = [] }) {
 
     const defaultActions = {
         add: { icon: 'add', text: 'action_add', onClick: () => createUpdate(), hide: !createPermission, mode: 'brand' },
-        export: { icon: 'csv', text: 'action_export', tooltip: 'export_csv_tooltip', seperator: true, onClick: exportCurrentView, loading: exporting, hide: !exportPermission },
-        refresh: { icon: 'refresh', text: 'action_refresh', tooltip: 'refresh_tooltip', onClick: () => refresh() }
+        export: { icon: 'csv', text: 'action_export', tooltip: 'export_csv_tooltip', seperator: true, onClick: exportCurrentView, loading: exporting, hide: !exportPermission }
     }
 
+    // Refresh stays visible next to the search box instead of being buried in
+    // the ⋯ menu (it is the action used most often).
+    const hasRefresh = actions.includes('refresh')
+
     const resolved = actions
+        .filter(action => action !== 'refresh')
         .map(action => typeof action == 'string' ? defaultActions[action] : action)
         .filter(Boolean)
 
@@ -53,7 +58,14 @@ export default function DataActions({ actions = [], cols = [] }) {
     }
 
     // ContextMenu hides denied items and renders null / inline icon / ⋯ menu for 0 / 1 / 2+.
-    return <Flex reverse gap={10} className={styles.dataActions} alignItems='center'>
-        <ContextMenu options={resolved.map(toOption)} />
+    return <Flex gap={10} className={styles.dataActions} alignItems='center'>
+        {resolved.length ? <ContextMenu options={resolved.map(toOption)} /> : null}
+        {hasRefresh && <Button
+            mode='text'
+            icon='refresh'
+            tooltip='refresh_tooltip'
+            loading={loading}
+            onClick={refresh}
+        />}
     </Flex>
 }
