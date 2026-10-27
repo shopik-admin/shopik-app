@@ -136,7 +136,7 @@ export default function Reports() {
                         <Text bold text='reports_created' />
                         {result.reused && <Badge><Text size='xs' text='reports_reused' /></Badge>}
                     </Flex>
-                    <Text size='s' className={styles.muted}>
+                    <Text size='s' tag='bdi' className={styles.muted}>
                         {[result.fileName, `${result.rowCount} ${TR('reports_col_rows')}`, formatSize(result.sizeBytes), formatDate(result.generatedAt), result.generatedByName]
                             .filter(Boolean)
                             .join(' · ')}
