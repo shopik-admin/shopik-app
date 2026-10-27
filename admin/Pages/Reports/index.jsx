@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import Button from 'common/components/Button'
 import Card from 'common/components/Card'
 import Checkbox from 'common/components/Checkbox'
@@ -136,11 +136,18 @@ export default function Reports() {
                         <Text bold text='reports_created' />
                         {result.reused && <Badge><Text size='xs' text='reports_reused' /></Badge>}
                     </Flex>
-                    <Text size='s' tag='bdi' className={styles.muted}>
-                        {[result.fileName, `${result.rowCount} ${TR('reports_col_rows')}`, formatSize(result.sizeBytes), formatDate(result.generatedAt), result.generatedByName]
-                            .filter(Boolean)
-                            .join(' · ')}
-                    </Text>
+                    <Flex gap={6} wrap alignItems='center' className={styles.meta}>
+                        {[
+                            result.fileName,
+                            `${result.rowCount} ${TR('reports_col_rows')}`,
+                            formatSize(result.sizeBytes),
+                            formatDate(result.generatedAt),
+                            result.generatedByName
+                        ].filter(Boolean).map((part, index) => <Fragment key={index}>
+                            {index > 0 && <span aria-hidden='true' className={styles.separator}>·</span>}
+                            <bdi>{part}</bdi>
+                        </Fragment>)}
+                    </Flex>
                 </Flex>
                 <a href={result.url}>
                     <Button icon='download' text='reports_download' />
