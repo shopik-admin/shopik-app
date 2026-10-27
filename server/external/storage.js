@@ -43,6 +43,15 @@ const storage = {
             metadata: cacheControl ? { cacheControl } : undefined
         })
         return path
+    },
+    // Read side, used by the report download route: the files live in the
+    // private bucket, so they are streamed through our own authenticated API.
+    getFileStream(path) {
+        return getBucket().file(path).createReadStream()
+    },
+    async fileExists(path) {
+        const [exists] = await getBucket().file(path).exists()
+        return !!exists
     }
 }
 
