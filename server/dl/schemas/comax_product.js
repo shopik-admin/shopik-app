@@ -45,7 +45,10 @@ const comaxProductSchema = {
     group: { type: String, filter: true },
     subGroup: { type: String, filter: true },
     supplierId: String,
-    supplierName: String,
+    // Comax SupplierName. The import writes `supplier` (see external/comax/
+    // mapper.js), so this field name has to match it or the value is dropped
+    // by the schema and never reaches the DB.
+    supplier: { type: String, filter: true },
     manufacturerCode: String,
     manufacturer: String,
 

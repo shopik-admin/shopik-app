@@ -17,6 +17,7 @@ import DisplayBlocks from 'Pages/DisplayBlocks'
 import ComaxProducts from 'Pages/ComaxProducts'
 import SupplyAreas from 'Pages/SupplyAreas'
 import ComaxSales from 'Pages/ComaxSales'
+import Reports from 'Pages/Reports'
 import Windows from 'Pages/Windows'
 import Ops from 'Pages/Ops'
 import OpsOrder from 'Pages/Ops/OpsOrder'
@@ -48,6 +49,8 @@ const pages = [
 
     { key: 'comax-products', name: 'Comax Products', path: '/comax-products', section: 'comax', icon: 'products', component: ComaxProducts, permission: 'comax_product:read' },
     { key: 'comax-sales', name: 'Comax Sales', path: '/comax-sales', section: 'comax', icon: 'sale', component: ComaxSales, permission: 'comax_sale:read' },
+
+    { key: 'reports', name: 'reports_page', path: '/reports', section: 'reports', icon: 'reports', component: Reports, permission: 'report:read' },
 
     { key: 'logs', name: 'Logs', path: '/logs', section: 'system', icon: 'log', component: Logs, permission: 'log:read' },
     { key: 'permissions', name: 'permissions', path: '/permissions', section: 'system', icon: 'key', component: Permissions, permission: 'role:create' },
