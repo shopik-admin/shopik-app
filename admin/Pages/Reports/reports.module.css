@@ -16,6 +16,18 @@
     color: var(--text-secondary);
 }
 
+/* Result meta line: one isolated run per value, so numbers, "2.0 MB" and the
+   ".xlsx" of the file name keep their own order instead of being reordered by
+   the surrounding RTL paragraph. */
+.meta {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+.separator {
+    opacity: 0.6;
+}
+
 .controls {
     padding: 0.75rem 0;
     border-bottom: 1px solid var(--border-primary);
