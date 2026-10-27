@@ -36,6 +36,7 @@ const pages = [
     { key: 'sales', name: 'Sales', path: '/sales', section: 'content', icon: 'sale', component: Sales, permission: 'sale:read' },
     { key: 'coupons', name: 'Coupons', path: '/coupons', section: 'content', icon: 'coupon', component: Coupons, permission: 'coupon:read' },
     { key: 'display-blocks', name: 'display_blocks', path: '/display-blocks', section: 'content', icon: 'blocks', component: DisplayBlocks, permission: 'display_block:read' },
+    { key: 'reports', name: 'reports_page', path: '/reports', section: 'content', icon: 'reports', component: Reports, permission: 'report:read' },
 
     { key: 'admins', name: 'Admins', path: '/admins', section: 'management', icon: 'persons', component: Admins, permission: 'admin:read' },
     { key: 'domains', name: 'Domains', path: '/domains', section: 'management', icon: 'domains', component: Domains, permission: 'domain:read' },
@@ -50,7 +51,6 @@ const pages = [
     { key: 'comax-products', name: 'Comax Products', path: '/comax-products', section: 'comax', icon: 'products', component: ComaxProducts, permission: 'comax_product:read' },
     { key: 'comax-sales', name: 'Comax Sales', path: '/comax-sales', section: 'comax', icon: 'sale', component: ComaxSales, permission: 'comax_sale:read' },
 
-    { key: 'reports', name: 'reports_page', path: '/reports', section: 'reports', icon: 'reports', component: Reports, permission: 'report:read' },
 
     { key: 'logs', name: 'Logs', path: '/logs', section: 'system', icon: 'log', component: Logs, permission: 'log:read' },
     { key: 'permissions', name: 'permissions', path: '/permissions', section: 'system', icon: 'key', component: Permissions, permission: 'role:create' },
