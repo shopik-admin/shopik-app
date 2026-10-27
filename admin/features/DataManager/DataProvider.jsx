@@ -29,7 +29,11 @@ export default function DataProvider({ children, apiRoute = '', form, limit = 30
     const
         [count, setCount] = useState(),
         countReqId = useRef(0),
-        moreReqId = useRef(0),
+        // Dataset version: bumped whenever the query changes (sort/search/filter)
+        // or refresh() runs. A load-more response from the old query is dropped.
+        dataVersion = useRef(0),
+        inFlight = useRef(false),
+        dataLenRef = useRef(0),
         [sort, setSort] = useState(defaultSort),
         [search, setSearch] = useState(parseInitialSearch),
         [filter, setFilter] = useState(() => initialFilter ?? parseInitialFilter()),
@@ -39,9 +43,15 @@ export default function DataProvider({ children, apiRoute = '', form, limit = 30
         { openModal, closeModal } = useModal()
 
     const data = page ? [...page, ...extraRows] : undefined
-    const hasMore = count != null
-        ? (data?.length ?? 0) < count
-        : (page?.length ?? 0) >= limit
+    // Latest committed row count — read by loadMore at call time so concurrent
+    // scroll events can't reuse a stale `skip`.
+    dataLenRef.current = data?.length || 0
+    // `page == null` guard: count can resolve before the first page, which used
+    // to make hasMore true while skip was 0 (page 1 appended on top of page 1).
+    const hasMore = page == null ? false
+        : count != null
+            ? (data?.length ?? 0) < count
+            : (page?.length ?? 0) >= limit
 
     // URL persistence for filter + search (no sensitive info)
     useEffect(() => {
@@ -66,31 +76,45 @@ export default function DataProvider({ children, apiRoute = '', form, limit = 30
             .catch(() => { })
     }
 
-    useEffect(() => {
-        ++moreReqId.current
-        callReq({ sort, search, limit, filter })
+    function resetPaging() {
+        ++dataVersion.current
+        inFlight.current = false
         setExtraRows([])
+        setLoadingMore(false)
+    }
+
+    useEffect(() => {
+        resetPaging()
+        callReq({ sort, search, limit, filter })
         const to = setTimeout(fetchCount, 300)
         return () => clearTimeout(to)
     }, [sort, search, filter])
 
     async function loadMore() {
-        if (loadingMore || !hasMore) return
-        const reqId = ++moreReqId.current
+        // `loading` covers the window between a query change and the new first
+        // page arriving, where `data` still holds the previous query's rows.
+        if (inFlight.current || loading || !hasMore) return
+        const version = dataVersion.current
+        const skip = dataLenRef.current
+        inFlight.current = true
         setLoadingMore(true)
         try {
-            const rows = await apiReq(`${apiRoute}/read`, { limit, search, sort, filter, skip: (page?.length || 0) + extraRows.length })
-            if (reqId === moreReqId.current)
-                setExtraRows(prev => [...prev, ...rows])
-        } finally {
-            if (reqId === moreReqId.current)
+            const rows = await apiReq(`${apiRoute}/read`, { limit, search, sort, filter, skip })
+            // Query changed / refreshed mid-flight — extraRows was cleared and
+            // these rows belong to the previous dataset.
+            if (version === dataVersion.current)
+                setExtraRows(prev => [...prev, ...(rows || [])])
+        } catch { }
+        finally {
+            if (version === dataVersion.current) {
+                inFlight.current = false
                 setLoadingMore(false)
+            }
         }
     }
 
     function refresh() {
-        ++moreReqId.current
-        setExtraRows([])
+        resetPaging()
         callReq({ sort, search, limit, filter })
         fetchCount()
     }
@@ -119,7 +143,7 @@ export default function DataProvider({ children, apiRoute = '', form, limit = 30
         sort, setSort,
         search, setSearch,
         filter, setFilter,
-        createUpdate, form, updateData, loadMore, loadingMore, hasMore
+        createUpdate, form, updateData, loadMore, loadingMore, hasMore, refresh
     }}>
         {children}
     </DataContext>
