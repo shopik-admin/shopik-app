@@ -333,6 +333,20 @@ export default async function importComaxProducts(payload, { DL, external }) {
         }
     }
 
+    // 3b. Store ids that no longer belong to an active register can never be
+    // asserted by a feed again, so they are stale by definition. Independent of
+    // feed completeness (the register list is DB state), but guarded so an empty
+    // register list can never empty the catalog.
+    let prunedStoreIds = 0
+    if (storeIds.length) {
+        const res = await DL.ComaxProduct.Model.updateMany(
+            { storeIds: { $exists: true } },
+            { $pull: { storeIds: { $nin: storeIds } } }
+        )
+        prunedStoreIds = res?.modifiedCount || 0
+        if (prunedStoreIds) console.log(`[Comax Import] ${prunedStoreIds} item(s) dropped a store id of an inactive register`)
+    }
+
     // 4. Sales window — a separate Comax call per store. The in-stock mark
     // written above survives only while the item sold in that store inside the
     // window of its department; anything older loses the store id.
@@ -454,16 +468,17 @@ export default async function importComaxProducts(payload, { DL, external }) {
     })
 
     const summary = `[Comax Import] ${written} item(s) from ${results.length} feed(s), ` +
-        `${removed} out-of-stock removal(s), ${windowRemoved} not-sold-in-window removal(s)` +
+        `${removed} out-of-stock removal(s), ${windowRemoved} not-sold-in-window removal(s), ` +
+        `${prunedStoreIds} stale-store removal(s)` +
         `${windowSkipped ? ` (${windowSkipped} store(s) kept as-is)` : ''}, status ${status}`
 
     if (anyIncomplete) {
         console.warn(summary)
-        return { message: 'Import partially failed', count: written, removed: removed + windowRemoved, status, errors }
+        return { message: 'Import partially failed', count: written, removed: removed + windowRemoved, prunedStoreIds, status, errors }
     }
 
     console.log(summary)
-    return { message: 'Import complete', count: written, removed: removed + windowRemoved, status }
+    return { message: 'Import complete', count: written, removed: removed + windowRemoved, prunedStoreIds, status }
 }
 
 importComaxProducts.config = {

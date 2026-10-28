@@ -14,8 +14,11 @@ export async function resolveStockContext(req, bootData, injectedUser) {
     return { mode, storeId }
 }
 
+// Stock filtering is per store: without a resolved store there is nothing to
+// filter on. Products that are in stock nowhere are hidden by the nightly sync
+// (see buildProduct in api/comax_product/sync.js), so they never reach here.
 export function applyStockFilter(filter, storeId, mode) {
-    if (!storeId || mode !== 'filter') return filter
+    if (mode !== 'filter' || !storeId) return filter
     return { ...filter, storeIds: storeId }
 }
 

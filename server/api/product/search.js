@@ -10,10 +10,9 @@ export default async function search(payload, { DL, req, _user, _admin, utils, p
     const safeSkip = Math.max(0, Number(skip) || 0)
     const safeLimit = Math.min(Math.max(1, Number(limit) || 20), 100)
     const { mode, storeId } = await utils.data.withStock.resolveStockContext(req, { DL, utils }, _user)
-    const wantFilter = mode === 'filter' && !!storeId
     const wantAnnotate = mode === 'annotate' && !!storeId
 
-    const effectiveFilter = wantFilter ? utils.data.withStock.applyStockFilter(filter, storeId, mode) : filter
+    const effectiveFilter = utils.data.withStock.applyStockFilter(filter, storeId, mode)
     // Hidden products are replacement candidates for the admin picker flow only.
     // Public routes skip admin auth in the router, so resolve the admin session
     // here (token verified by getAdmin) when the admin cookie is present.

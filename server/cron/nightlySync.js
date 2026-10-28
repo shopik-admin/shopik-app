@@ -3,7 +3,6 @@ import log from '#server/utils/log.js'
 import { acquireLock } from '#server/utils/redisLock.js'
 import importComaxProducts from '#server/api/comax_product/import.js'
 import syncComax from '#server/api/comax_product/sync.js'
-import syncStockForStores from '#server/api/cash_register/syncStock.js'
 import enqueueChangedImages from '#server/services/image/enqueue.js'
 import importGovAddresses from '#server/scripts/importGovAddresses.js'
 import mem from '#server/utils/mem.js'
@@ -36,14 +35,8 @@ export default function startNightlySync(bootData) {
             mem('after product sync', 'NightlySync')
             const enqueueResult = await enqueueChangedImages(DL)
             mem('after image enqueue', 'NightlySync')
-            let stockResult = { syncedStores: 0 }
-            try {
-                stockResult = await syncStockForStores({}, { DL, external })
-            } catch (e) {
-                log.error('[NightlySync] stock sync failed:', e?.message || e)
-            }
 
-            log.success(`[NightlySync] Done: import=${importResult.count}, sync=${syncResult.synced}, images=${enqueueResult.enqueued}, stock=${JSON.stringify(stockResult)}`)
+            log.success(`[NightlySync] Done: import=${importResult.count}, sync=${syncResult.synced}, images=${enqueueResult.enqueued}`)
         } catch (e) {
             log.error('[NightlySync] Failed:', e?.message || e)
         } finally {
