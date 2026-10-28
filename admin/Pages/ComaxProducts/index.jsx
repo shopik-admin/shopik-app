@@ -24,15 +24,6 @@ export default function ComaxProducts({ }) {
         },
         permission: 'comax_product:update'
     }
-    const importBuyingPrices = {
-        icon: 'download',
-        text: 'comax_products_buying_price_import',
-        onClick: async ({ refresh }) => {
-            await apiReq(`comax_product/import_buying_price`)
-            refresh?.()
-        },
-        permission: 'comax_product:update'
-    }
     const syncProducts = {
         icon: 'sync',
         text: 'comax_products_sync',
@@ -42,18 +33,9 @@ export default function ComaxProducts({ }) {
         },
         permission: 'comax_product:update'
     }
-    const syncStock = {
-        icon: 'stockSync',
-        text: 'comax_products_stock_sync',
-        onClick: async ({ refresh }) => {
-            await apiReq(`cash_register/sync`, {})
-            refresh?.()
-        },
-        permission: 'cash_register:sync'
-    }
     return <DataManager
         apiRoute='comax_product'
-        actions={[importProducts, importBuyingPrices, syncProducts, syncStock, salesWindow, 'export', 'refresh']}
+        actions={[importProducts, syncProducts, salesWindow, 'export', 'refresh']}
         rowActions={['active']}
         defaultSort={{ lastImportedAt: -1 }}
         cols={[

@@ -80,7 +80,6 @@ export default [
     'cash_register:read',
     'cash_register:update',
     'cash_register:id',
-    'cash_register:sync',
     'report:read',
     'report:run',
     'api_key:create',

@@ -1,9 +1,9 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import importComaxProducts from '../../server/api/comax_product/import.js'
-import importComaxBuyingPrices from '../../server/api/comax_product/import_buying_price.js'
 
-// The buying-price import refuses to run without a delivery price list.
+// The store feed's delivery row is read with this price list, so set it before
+// the mapper sees any fixture item.
 process.env.COMAX_DELIVERY_PRICELIST_ID = '255'
 
 function reg(storeId, stockStoreId) {
@@ -30,6 +30,7 @@ function makeDL({
     const writes = []
     const stateUpdates = []
     const pulls = []
+    const prunes = []
     const distinctFilters = []
     const modelBulkWrites = []
     let storeBarcodes = {}
@@ -52,6 +53,12 @@ function makeDL({
                     return storeBarcodes[filter?.storeIds] || []
                 },
                 updateMany: async (filter, update) => {
+                    // An id-scoped pull removes one barcode from one store; the
+                    // store-list prune keeps a filter without a barcode.
+                    if (filter?.storeIds?.$exists) {
+                        prunes.push({ filter, update })
+                        return { modifiedCount: 1 }
+                    }
                     pulls.push({ filter, update })
                     return { modifiedCount: filter?.barcode?.$in?.length || 0 }
                 },
@@ -84,6 +91,7 @@ function makeDL({
         writes,
         stateUpdates,
         pulls,
+        prunes,
         distinctFilters,
         modelBulkWrites,
         setStoreBarcodes: map => { storeBarcodes = map }
@@ -374,6 +382,35 @@ describe('comax store feed import', () => {
         assert.equal(pulls.length, 0)
     })
 
+    it('prunes the store ids of registers that no longer exist', async () => {
+        const { DL, prunes } = makeDL()
+        const { external } = makeExternal({
+            stores: { 84: [makeProduct(0)], 52: [makeProduct(1)] },
+            departments: { 13: [makeProduct(2)] }
+        })
+
+        const result = await importComaxProducts({}, { DL, external })
+
+        assert.deepEqual(prunes, [{
+            filter: { storeIds: { $exists: true } },
+            update: { $pull: { storeIds: { $nin: ['store-a', 'store-b'] } } }
+        }])
+        assert.equal(result.prunedStoreIds, 1)
+    })
+
+    it('prunes stale store ids even when a feed is incomplete', async () => {
+        const { DL, prunes } = makeDL()
+        const { external } = makeExternal({
+            stores: { 84: { items: [makeProduct(0)], throwAfter: 0 }, 52: [makeProduct(1)] },
+            departments: { 13: [makeProduct(2)] }
+        })
+
+        const result = await importComaxProducts({}, { DL, external })
+
+        assert.equal(prunes.length, 1)
+        assert.equal(result.status, 'partial')
+    })
+
     it('never removes store ids when a feed is empty', async () => {
         const { DL, pulls, setStoreBarcodes } = makeDL({ registers: [reg('store-a', '84')] })
         setStoreBarcodes({ 'store-a': ['1000', '9999'] })
@@ -490,13 +527,14 @@ describe('comax store feed import', () => {
     })
 
     it('skips the run entirely when there is no active cash register', async () => {
-        const { DL, stateUpdates } = makeDL({ registers: [] })
+        const { DL, stateUpdates, prunes } = makeDL({ registers: [] })
         const { external, calls } = makeExternal()
 
         const result = await importComaxProducts({}, { DL, external })
 
         assert.equal(result.message, 'No active cash registers')
         assert.equal(calls.stores.length, 0)
+        assert.equal(prunes.length, 0)
         const update = lastStateUpdate(stateUpdates, 'products')
         assert.equal(update.update.$set.status, 'skipped')
     })
@@ -735,47 +773,5 @@ describe('comax sales window', () => {
 
         assert.equal(calls.salesWindow.length, 0)
         assert.equal(pulls.length, 0)
-    })
-})
-
-describe('comax buying price import', () => {
-    it('writes buying prices in batches and clears zero prices', async () => {
-        const { DL, writes } = makeDL()
-        const { external } = makeExternal({ products: [makeProduct(0), makeProduct(1, { price: 0 })] })
-
-        const result = await importComaxBuyingPrices({}, { DL, external })
-
-        assert.equal(result.count, 2)
-        assert.equal(writes.length, 1)
-        assert.deepEqual(writes[0].docs[0], {
-            barcode: '1000',
-            buyingPrice: 10,
-            buyingPriceImportedAt: writes[0].docs[0].buyingPriceImportedAt
-        })
-        assert.equal(writes[0].docs[1].buyingPrice, null)
-        assert.ok(writes[0].docs[1].buyingPriceImportedAt instanceof Date)
-        assert.equal(writes[0].upserts[0], false)
-    })
-
-    it('advances the buying price watermark after a successful run', async () => {
-        const { DL, stateUpdates } = makeDL()
-        const { external } = makeExternal({ products: [makeProduct(0)] })
-
-        await importComaxBuyingPrices({}, { DL, external })
-
-        const update = lastStateUpdate(stateUpdates, 'buyingPrices')
-        assert.equal(update.update.$set.status, 'success')
-        assert.ok(update.update.$set.lastSyncAt instanceof Date)
-    })
-
-    it('does not advance the buying price watermark when a batch fails', async () => {
-        const { DL, stateUpdates } = makeDL({ failBatch: true })
-        const { external } = makeExternal({ products: [makeProduct(0)] })
-
-        await importComaxBuyingPrices({}, { DL, external })
-
-        const update = lastStateUpdate(stateUpdates, 'buyingPrices')
-        assert.equal(update.update.$set.status, 'partial')
-        assert.equal(update.update.$set.lastSyncAt, undefined)
     })
 })
