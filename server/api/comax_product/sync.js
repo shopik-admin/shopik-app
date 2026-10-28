@@ -1,6 +1,6 @@
 import buildCategories from './build_categories.js'
 import { buildCategoryPathIds, groupId, subGroupId } from './categoryIds.js'
-import { buildSyncFilter, hideInactiveProducts } from './syncRules.js'
+import { buildSyncFilter, hideInactiveProducts, hideStorelessProducts } from './syncRules.js'
 import enqueueChangedImages from '#server/services/image/enqueue.js'
 import log from '#server/utils/log.js'
 
@@ -151,9 +151,11 @@ export default async function syncComax(payload, { DL }) {
         console.log(`[Comax Sync] Hidden ${hiddenInactive} product(s) for inactive Comax items`)
 
     if (!total) {
-        if (hiddenInactive) await buildCategories(payload, { DL })
-        console.log('[Comax Sync] No products to sync')
-        return { synced: 0, updated: 0, created: 0, hiddenInactive }
+        // Still sweep: the catalog can hold products whose Comax row is gone.
+        const hiddenNoStock = await hideStorelessProducts({ DL })
+        if (hiddenInactive || hiddenNoStock) await buildCategories(payload, { DL })
+        console.log(`[Comax Sync] No products to sync${hiddenNoStock ? ` — hid ${hiddenNoStock} storeless product(s)` : ''}`)
+        return { synced: 0, updated: 0, created: 0, hiddenInactive, hiddenNoStock }
     }
 
     const defaultDomain = await DL.Domain.readOne({ isDefault: true, active: true }, { _id: 0, id: 1 })
@@ -169,7 +171,6 @@ export default async function syncComax(payload, { DL }) {
     let created = 0
     let updated = 0
     let hiddenNoImage = 0
-    let hiddenNoStock = 0
     let archivedNoPrice = 0
 
     for (let skip = 0; skip < total; skip += BATCH) {
@@ -190,7 +191,6 @@ export default async function syncComax(payload, { DL }) {
         const existingByBarcode = new Map((existingProducts || []).map(p => [p.barcode, p]))
 
         const productsToSync = comaxProducts.map(c => buildProduct(c, DL, defaultDomain.id, existingByBarcode.get(c.barcode), enforceBuyingPrice))
-        hiddenNoStock += comaxProducts.filter(c => Array.isArray(c.storeIds) && !c.storeIds.length).length
         hiddenNoImage += productsToSync.filter(p =>
             p.status === DL.Product.constants.STATUS.HIDDEN &&
             (existingByBarcode.get(p.barcode)?.images?.product || []).length === 0
@@ -220,6 +220,10 @@ export default async function syncComax(payload, { DL }) {
         const m = process.memoryUsage()
         console.log(`[Comax Sync] batch ${Math.floor(skip / BATCH) + 1}/${Math.ceil(total / BATCH)}: ${synced}/${total} (heap ${Math.round(m.heapUsed / 1048576)}MB)`)
     }
+
+    // Backstop for products the loop never visits: no Comax row (or one the
+    // sync filter excludes) means their status would never be re-evaluated.
+    const hiddenNoStock = await hideStorelessProducts({ DL })
 
     console.log(`[Comax Sync] Created ${created}, updated ${updated}, hidden (no image): ${hiddenNoImage}, hidden (no stock): ${hiddenNoStock}, archived (no price): ${archivedNoPrice}, hidden (inactive): ${hiddenInactive}`)
 
