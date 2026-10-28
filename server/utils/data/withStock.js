@@ -15,7 +15,7 @@ export async function resolveStockContext(req, bootData, injectedUser) {
 }
 
 export function applyStockFilter(filter, storeId, mode) {
-    if (!storeId || mode !== 'filter') return filter
+    if (!storeId || mode !== 'filter') return { ...filter, 'storeIds.0': { $exists: true } }
     return { ...filter, storeIds: storeId }
 }
 
