@@ -18,10 +18,10 @@ describe('vatTypeOf', () => {
 })
 
 describe('buildInvoiceItems', () => {
-    it('sends quantity 1 with the exact charged gross as the price', () => {
+    it('sends actual quantity with unit price as the price', () => {
         const items = buildInvoiceItems(lines)
-        assert.deepEqual(items.map(i => i.amount), ['1', '1', '1'])
-        assert.deepEqual(items.map(i => i.price), ['45.00', '90.00', '20.00'])
+        assert.deepEqual(items.map(i => i.amount), ['2', '3', '1'])
+        assert.deepEqual(items.map(i => i.price), ['22.50', '30.00', '20.00'])
     })
 
     it('carries the VAT class per line', () => {
@@ -29,10 +29,10 @@ describe('buildInvoiceItems', () => {
         assert.deepEqual(items.map(i => i.vat_type), ['NON', 'INC', 'INC'])
     })
 
-    it('keeps the real quantity in the description', () => {
+    it('keeps clean description with weight unit if applicable', () => {
         const items = buildInvoiceItems(lines)
-        assert.equal(items[0].details, 'Tomatoes (2 ק"ג)')
-        assert.equal(items[1].details, 'Milk 3% (3 יח\')')
+        assert.equal(items[0].details, 'Tomatoes (ק"ג)')
+        assert.equal(items[1].details, 'Milk 3%')
     })
 
     it('drops zero-gross lines', () => {

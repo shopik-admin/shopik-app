@@ -32,6 +32,8 @@ export function formatQuantity(amount, unit) {
 
 export function describeInvoiceLine(line = {}) {
     const name = cleanText(line.name, 160) || 'פריט'
-    const qty = formatQuantity(line.quantity ?? line.amount, line.unit)
-    return qty ? `${name} (${qty})` : name
+    const base = line.unit?.baseUnit
+    if (base === 'kg') return `${name} (ק"ג)`
+    if (base === 'g') return `${name} (ג')`
+    return name
 }

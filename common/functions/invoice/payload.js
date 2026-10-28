@@ -20,16 +20,19 @@ export function vatTypeOf(vat) {
 /**
  * One EZcount item row.
  *
- * `amount` is always 1 and `price` is the exact gross charged for the line:
- * quantities are rounded/weighted in the cart and a quantity × price product
- * would not reproduce the charged total. The real quantity is part of the
- * description, so the document stays auditable.
+ * `amount` is the actual item quantity (e.g. 2, 3, 1.35) and `price` is the unit price.
+ * Rounding drifts across lines are reconciled with a dedicated rounding line so
+ * the sum of `amount * price` matches the charged total exactly.
  */
 export function buildInvoiceItem(line = {}) {
+    const qty = Number(line.quantity ?? line.amount ?? 1)
+    const unitPrice = line.price != null
+        ? Number(line.price)
+        : (qty > 0 ? round2(Number(line.gross) / qty) : Number(line.gross) || 0)
     return {
         details: describeInvoiceLine(line),
-        amount: '1',
-        price: round2(Number(line.gross) || 0).toFixed(2),
+        amount: String(qty),
+        price: round2(unitPrice).toFixed(2),
         vat_type: vatTypeOf(line.vat)
     }
 }
@@ -82,7 +85,7 @@ export function buildDocPayload({
     // positive-only and a credit is not a payment.
     if (docType === DOC_TYPE.INVOICE) {
         if (items.length)
-            payload.price_total = round2(items.reduce((sum, item) => sum + Number(item.price || 0), 0))
+            payload.price_total = round2(items.reduce((sum, item) => sum + round2(Number(item.amount || 1) * Number(item.price || 0)), 0))
         if (Array.isArray(payment) && payment.length) payload.payment = payment
     }
 

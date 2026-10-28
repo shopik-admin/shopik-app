@@ -223,7 +223,8 @@ describe('issueInvoice', () => {
         assert.equal(payload.price_total, 155)
         assert.equal(payload.payment[0].payment_sum, 155)
         assert.deepEqual(payload.item.map(i => i.vat_type), ['NON', 'INC', 'INC'])
-        assert.deepEqual(payload.item.map(i => i.price), ['45.00', '90.00', '20.00'])
+        assert.deepEqual(payload.item.map(i => i.amount), ['2', '3', '1'])
+        assert.deepEqual(payload.item.map(i => i.price), ['22.50', '30.00', '20.00'])
         assert.equal(payload.item.length, 3)
 
         // Local record + order mirror.

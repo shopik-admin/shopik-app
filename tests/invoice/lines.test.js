@@ -4,6 +4,8 @@ import {
     couponTotalOf,
     collectInvoiceItems,
     allocateCoupon,
+    computeUnitPrice,
+    buildRoundingLine,
     buildShippingLine,
     buildInvoiceLines,
     invoiceTotal,
@@ -88,11 +90,59 @@ describe('allocateCoupon', () => {
     })
 })
 
+describe('computeUnitPrice', () => {
+    it('computes exact unit price when divisible', () => {
+        assert.equal(computeUnitPrice(50, 2), 25)
+        assert.equal(computeUnitPrice(45, 1), 45)
+    })
+
+    it('rounds unit price when it does not overshoot line gross', () => {
+        // 10 / 3 = 3.3333... -> 3.33 -> 3 * 3.33 = 9.99 <= 10
+        assert.equal(computeUnitPrice(10, 3), 3.33)
+    })
+
+    it('floors unit price when round2 would overshoot line gross', () => {
+        // 20 / 3 = 6.6666... -> round2 would be 6.67 -> 3 * 6.67 = 20.01 > 20 -> floors to 6.66
+        assert.equal(computeUnitPrice(20, 3), 6.66)
+    })
+
+    it('computes unit price for fractional weights', () => {
+        // 1.345 kg at 8.90 = 11.9705 -> gross 11.97. 11.97 / 1.345 = 8.8996... -> 8.90
+        assert.equal(computeUnitPrice(11.97, 1.345), 8.90)
+    })
+
+    it('handles zero or non-positive quantities safely', () => {
+        assert.equal(computeUnitPrice(10, 0), 10)
+        assert.equal(computeUnitPrice(10, -1), 10)
+    })
+})
+
+describe('buildRoundingLine', () => {
+    it('creates a positive rounding adjustment line when drift > 0', () => {
+        assert.deepEqual(buildRoundingLine(0.02), {
+            productId: '__rounding',
+            barcode: null,
+            name: 'הפרשי עיגול',
+            quantity: 1,
+            gross: 0.02,
+            price: 0.02,
+            vat: true,
+            discount: 0
+        })
+    })
+
+    it('returns null when drift is zero or negative', () => {
+        assert.equal(buildRoundingLine(0), null)
+        assert.equal(buildRoundingLine(-0.01), null)
+        assert.equal(buildRoundingLine(undefined), null)
+    })
+})
+
 describe('buildShippingLine', () => {
     it('is a separate taxable line', () => {
         assert.deepEqual(buildShippingLine(20, { name: 'משלוח' }), {
             productId: '__shipping', barcode: null, name: 'משלוח',
-            quantity: 1, gross: 20, vat: true, discount: 0
+            quantity: 1, gross: 20, price: 20, vat: true, discount: 0
         })
     })
 
@@ -114,6 +164,23 @@ describe('buildInvoiceLines', () => {
         assert.equal(lines.coupon, 15)
         assert.equal(lines.shippingLine.gross, 20)
         assert.equal(assertTotalsMatch({ ...lines, captured: 155 }), 155)
+    })
+
+    it('creates a rounding line when multi-pack promo creates agora drift', () => {
+        const order = {
+            cart: [
+                { id: '1', barcode: 'Y1', name: 'Yogurt', finalAmount: 3, totalSum: 10, vat: true }
+            ],
+            coupons: [],
+            finalShipping: 0
+        }
+        const lines = buildInvoiceLines({ order })
+        assert.equal(lines.items[0].price, 3.33)
+        assert.equal(lines.drift, 0.01)
+        assert.ok(lines.roundingLine)
+        assert.equal(lines.roundingLine.gross, 0.01)
+        assert.equal(lines.total, 10)
+        assert.equal(assertTotalsMatch({ ...lines, captured: 10 }), 10)
     })
 
     it('matches the charge when the coupon leaves an agorah remainder', () => {

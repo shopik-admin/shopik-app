@@ -40,6 +40,7 @@ const invoiceSchema = {
         name: String,
         quantity: Number,
         gross: Number,
+        price: Number,
         vat: Boolean
     }],
     notes: String,

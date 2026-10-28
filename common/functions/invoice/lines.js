@@ -83,26 +83,82 @@ export function allocateCoupon({ items = [], couponTotal = 0 } = {}) {
 export function buildShippingLine(shipping = 0, { name = 'משלוח' } = {}) {
     const amount = round2(Number(shipping) || 0)
     if (!(amount > 0)) return null
-    return { productId: '__shipping', barcode: null, name, quantity: 1, gross: amount, vat: true, discount: 0 }
+    return { productId: '__shipping', barcode: null, name, quantity: 1, gross: amount, price: amount, vat: true, discount: 0 }
 }
 
 /**
- * The invoice body: served lines after coupon + shipping.
+ * Compute the effective unit price for a line.
+ * If rounding to 2 decimals would cause quantity * price to overshoot the line gross,
+ * we floor to 2 decimal places so that quantity * price <= gross.
+ * This guarantees that across all lines, the computed total is <= charged,
+ * meaning any rounding drift is always >= 0 (never negative).
+ */
+export function computeUnitPrice(gross, quantity) {
+    const q = Number(quantity) || 0
+    const g = round2(Number(gross) || 0)
+    if (!(q > 0)) return g
+    const raw = g / q
+    const rounded = round2(raw)
+    if (round2(q * rounded) > g) {
+        return round2(Math.floor((raw + 1e-9) * 100) / 100)
+    }
+    return rounded
+}
+
+/**
+ * Rounding adjustment line. Appended when line-level (quantity * price)
+ * rounding produces a residual difference against the captured total.
+ */
+export function buildRoundingLine(drift = 0, { name = 'הפרשי עיגול' } = {}) {
+    const amount = round2(Number(drift) || 0)
+    if (!(amount > 0)) return null
+    return {
+        productId: '__rounding',
+        barcode: null,
+        name,
+        quantity: 1,
+        gross: amount,
+        price: amount,
+        vat: true,
+        discount: 0
+    }
+}
+
+/**
+ * The invoice body: served lines after coupon + shipping + rounding reconciliation.
  * `order.finalShipping` is written by captureOrder and is the amount charged.
  */
 export function buildInvoiceLines({ order, settings = {} } = {}) {
-    const items = allocateCoupon({
+    const rawItems = allocateCoupon({
         items: collectInvoiceItems(order?.cart),
         couponTotal: couponTotalOf(order?.coupons)
     })
+    const items = rawItems.map(item => ({
+        ...item,
+        price: computeUnitPrice(item.gross, item.quantity)
+    }))
     const shipping = round2(Number(order?.finalShipping ?? order?.shipping ?? 0) || 0)
     const shippingLine = buildShippingLine(shipping, { name: settings.shippingLabel })
-    const total = round2(items.reduce((acc, item) => acc + item.gross, 0) + shipping)
-    return { items, shippingLine, shipping, total, coupon: couponTotalOf(order?.coupons) }
+
+    const invoicedItemsGross = round2(items.reduce((acc, item) => acc + round2(item.quantity * item.price), 0))
+    const totalWithoutRounding = round2(invoicedItemsGross + (shippingLine?.gross || 0))
+    const targetTotal = round2(rawItems.reduce((acc, item) => acc + item.gross, 0) + shipping)
+    const drift = round2(targetTotal - totalWithoutRounding)
+    const roundingLine = buildRoundingLine(drift, { name: settings.roundingLabel })
+
+    const total = round2(totalWithoutRounding + (roundingLine?.gross || 0))
+    return { items, shippingLine, roundingLine, shipping, total, drift, coupon: couponTotalOf(order?.coupons) }
 }
 
-export function invoiceTotal({ items = [], shippingLine } = {}) {
-    return round2(items.reduce((acc, item) => acc + item.gross, 0) + (shippingLine?.gross || 0))
+export function invoiceTotal({ items = [], shippingLine, roundingLine } = {}) {
+    const itemsSum = round2(items.reduce((acc, item) => {
+        const q = Number(item.quantity ?? 1)
+        const p = item.price != null ? Number(item.price) : round2(Number(item.gross) / q)
+        return acc + round2(q * p)
+    }, 0))
+    const ship = shippingLine ? round2((Number(shippingLine.quantity) || 1) * (shippingLine.price != null ? Number(shippingLine.price) : Number(shippingLine.gross) || 0)) : 0
+    const round = roundingLine ? round2((Number(roundingLine.quantity) || 1) * (roundingLine.price != null ? Number(roundingLine.price) : Number(roundingLine.gross) || 0)) : 0
+    return round2(itemsSum + ship + round)
 }
 
 /**
@@ -126,12 +182,14 @@ export function buildCreditLines({ refundItems = [], cart = [] } = {}) {
             const line = shipping
                 ? null
                 : (byId.get(String(item.productId)) || byBarcode.get(String(item.productId)) || byBarcode.get(String(item.barcode)))
+            const amount = round2(Number(item.amount))
             return {
                 productId: item.productId,
                 barcode: item.barcode ?? line?.barcode,
                 name: shipping ? (item.name || 'משלוח') : (item.name || line?.name || 'פריט'),
                 quantity: 1,
-                gross: round2(Number(item.amount)),
+                gross: amount,
+                price: amount,
                 vat: shipping ? true : (typeof item.vat === 'boolean' ? item.vat : line?.vat !== false),
                 unit: line?.unit ? { type: line.unit.type, baseUnit: line.unit.baseUnit } : undefined
             }
@@ -142,8 +200,8 @@ export function buildCreditLines({ refundItems = [], cart = [] } = {}) {
  * The document total must equal the captured amount. This is the only hard
  * assertion in the flow: a mismatch means the wrong rows would be invoiced.
  */
-export function assertTotalsMatch({ items = [], shippingLine, captured } = {}) {
-    const total = invoiceTotal({ items, shippingLine })
+export function assertTotalsMatch({ items = [], shippingLine, roundingLine, captured } = {}) {
+    const total = invoiceTotal({ items, shippingLine, roundingLine })
     const charged = round2(Number(captured) || 0)
     if (Math.abs(total - charged) > INVOICE_EPS) {
         const error = new Error(`invoice total ${total} does not match captured ${charged}`)
