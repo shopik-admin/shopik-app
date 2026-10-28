@@ -3,11 +3,16 @@
  *
  * Usage: node server/scripts/runSeedEzcountSetting.js
  *          [--domain <domainId>] [--enabled true] [--shadow true|false]
- *          [--api-key <key>] [--developer-email <email>] [--base-url <url>]
+ *          [--api-key <key>] [--created-by-api-key <key>]
+ *          [--developer-email <email>] [--base-url <url>]
  *          [--crn-threshold <amount>]
  *
- * Credentials can also come from EZCOUNT_API_KEY / EZCOUNT_DEVELOPER_EMAIL /
- * EZCOUNT_BASE_URL. The script never prints the key back.
+ * Distributor accounts must also pass --created-by-api-key (or set
+ * EZCOUNT_CREATED_BY_API_KEY); ordinary accounts leave it unset.
+ *
+ * Credentials can also come from EZCOUNT_API_KEY / EZCOUNT_CREATED_BY_API_KEY /
+ * EZCOUNT_DEVELOPER_EMAIL / EZCOUNT_BASE_URL. The script never prints the key
+ * back.
  *
  * Only explicitly supplied keys are written: re-running it to flip `enabled`
  * or `shadowMode` after go-live never wipes the stored credentials or the
@@ -23,7 +28,7 @@ function parseBool(value) {
 
 export default async function seedEzcountSetting(
     { DL } = {},
-    { domainId, enabled, apiKey, developerEmail, baseUrl, shadowMode, crnThreshold } = {}
+    { domainId, enabled, apiKey, createdByApiKey, developerEmail, baseUrl, shadowMode, crnThreshold } = {}
 ) {
     if (!DL?.Setting) throw new Error('DL required')
 
@@ -36,9 +41,11 @@ export default async function seedEzcountSetting(
 
     const overrides = {}
     const key = apiKey || process.env.EZCOUNT_API_KEY
+    const createdBy = createdByApiKey || process.env.EZCOUNT_CREATED_BY_API_KEY
     const email = developerEmail || process.env.EZCOUNT_DEVELOPER_EMAIL
     const url = baseUrl || process.env.EZCOUNT_BASE_URL
     if (key) overrides.apiKey = key
+    if (createdBy) overrides.createdByApiKey = createdBy
     if (email) overrides.developerEmail = email
     if (url) overrides.baseUrl = url
     if (enabled !== undefined) overrides.enabled = parseBool(enabled)

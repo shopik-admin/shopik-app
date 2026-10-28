@@ -17,7 +17,7 @@ const HEX_SECRET_RE = /\b[a-f0-9]{48,}\b/gi
 // Provider messages are accurate but not always actionable; append a short
 // hint for the two failures that are configuration, not code, problems.
 const PROVIDER_HINTS = [
-    [/created_by_api_key/i, 'this account is a distributor: also send the distributor key (created_by_api_key)'],
+    [/created_by_api_key/i, 'this account is a distributor: created_by_api_key must be the distributor key (not this key), matching the environment'],
     [/not correct for the environment/i, 'the API key belongs to a different environment: demo and production keys are not interchangeable']
 ]
 
@@ -164,7 +164,7 @@ export default function ezcountFactory({ DL }) {
      * Create a document. `payload` is the pure document body built by
      * common/functions/invoice/payload.js; credentials are added here.
      *
-     * `id_transaction` is sent by the caller and is EZcount's own dedupe key:
+     * `transaction_id` is sent by the caller and is EZcount's own dedupe key:
      * repeating a request with the same id returns the existing document
      * instead of creating a second one.
      *
@@ -178,7 +178,6 @@ export default function ezcountFactory({ DL }) {
         const secrets = [apiKey, createdByApiKey, developerEmail]
         const body = {
             api_key: apiKey,
-            created_by_api_key: apiKey,
             developer_email: developerEmail,
             ...payload
         }

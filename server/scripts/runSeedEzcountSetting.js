@@ -3,7 +3,7 @@ import seedEzcountSetting from './seedEzcountSetting.js'
 
 // Seed/refresh the EZcount Setting for every domain (or --domain <id>).
 // Usage: node server/scripts/runSeedEzcountSetting.js [--domain id]
-//          [--enabled true] [--shadow true] [--api-key KEY]
+//          [--enabled true] [--shadow true] [--api-key KEY] [--created-by-api-key KEY]
 //          [--developer-email EMAIL] [--base-url URL] [--crn-threshold 5000]
 // Only supplied flags are written; the rest of the stored config is kept.
 const args = process.argv.slice(2)
@@ -23,6 +23,7 @@ await seedEzcountSetting(bootData, {
     enabled: flag('enabled', undefined),
     shadowMode: flag('shadow', undefined),
     apiKey: flag('api-key', undefined),
+    createdByApiKey: flag('created-by-api-key', undefined),
     developerEmail: flag('developer-email', undefined),
     baseUrl: flag('base-url', undefined),
     crnThreshold: flag('crn-threshold', undefined)

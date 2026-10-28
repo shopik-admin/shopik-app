@@ -7,7 +7,7 @@ import {
     INVOICE_EPS
 } from '#common/functions/invoice/lines.js'
 import { buildInvoiceNotes } from '#common/functions/invoice/notes.js'
-import { buildDocPayload, DOC_TYPE } from '#common/functions/invoice/payload.js'
+import { buildDocPayload, buildPaymentRow, DOC_TYPE } from '#common/functions/invoice/payload.js'
 import { readVatSummary } from '#common/functions/invoice/summary.js'
 import { cleanText } from '#common/functions/invoice/format.js'
 import log from '#server/utils/log.js'
@@ -18,6 +18,7 @@ export const PENDING_TTL_MS = 2 * 60 * 1000
 export const DEFAULT_SETTINGS = {
     enabled: false,
     apiKey: '',
+    createdByApiKey: '',
     developerEmail: '',
     baseUrl: '',
     docType: DOC_TYPE.INVOICE,
@@ -26,6 +27,8 @@ export const DEFAULT_SETTINGS = {
     autoIssue: true,
     sendEmail: true,
     shadowMode: false,
+    paymentType: 9,
+    paymentName: 'כרטיס אשראי',
     invoiceNotes: { replaced: true, missing: true, coupon: true },
     crnThreshold: 5000
 }
@@ -53,9 +56,21 @@ export async function getEzcountConfig(DL, domainId) {
 
     const config = { ...DEFAULT_SETTINGS, ...(stored || {}) }
     config.invoiceNotes = { ...DEFAULT_SETTINGS.invoiceNotes, ...(stored?.invoiceNotes || {}) }
-    config.apiKey = config.apiKey || process.env.EZCOUNT_API_KEY || ''
-    config.developerEmail = config.developerEmail || process.env.EZCOUNT_DEVELOPER_EMAIL || ''
+    // Credentials stored in the Setting win over env; record where each one
+    // came from so a stale stored key is never mistaken for an env problem.
+    const storedApiKey = config.apiKey
+    const storedCreatedBy = config.createdByApiKey
+    const storedEmail = config.developerEmail
+    config.apiKey = storedApiKey || process.env.EZCOUNT_API_KEY || ''
+    config.createdByApiKey = storedCreatedBy || process.env.EZCOUNT_CREATED_BY_API_KEY || ''
+    config.developerEmail = storedEmail || process.env.EZCOUNT_DEVELOPER_EMAIL || ''
     config.baseUrl = config.baseUrl || process.env.EZCOUNT_BASE_URL || ''
+    config.sources = {
+        apiKey: config.apiKey ? (storedApiKey ? 'setting' : 'env') : 'missing',
+        createdByApiKey: config.createdByApiKey ? (storedCreatedBy ? 'setting' : 'env') : 'missing',
+        developerEmail: config.developerEmail ? (storedEmail ? 'setting' : 'env') : 'missing',
+        baseUrl: config.baseUrl ? ((stored?.baseUrl) ? 'setting' : 'env') : 'default'
+    }
 
     const envEnabled = envBool('EZCOUNT_ENABLED')
     if (envEnabled !== undefined) config.enabled = envEnabled
@@ -304,10 +319,14 @@ export async function issueInvoice({
         notes,
         settings: config,
         sendEmail: config.sendEmail,
+        payment: [buildPaymentRow({ amount: charged, settings: config })],
         idTransaction: idempotencyKey
     })
 
-    const { record } = await findOrCreateInvoice({
+    const itemSnapshot = items.map(({ productId, barcode, name, quantity, gross, vat }) => ({
+        productId, barcode, name, quantity, gross, vat
+    }))
+    const { record, created } = await findOrCreateInvoice({
         DL,
         idempotencyKey,
         defaults: {
@@ -319,14 +338,22 @@ export async function issueInvoice({
             provider: 'ezcount',
             amount: charged,
             docType: Number(config.docType) || DOC_TYPE.INVOICE,
-            items: items.map(({ productId, barcode, name, quantity, gross, vat }) => ({
-                productId, barcode, name, quantity, gross, vat
-            })),
+            items: itemSnapshot,
             notes,
             email: customer.email ? { to: customer.email, requestedAt: new Date() } : undefined,
             request: payload
         }
     })
+
+    // A retry (failed record, manual re-issue, cron) reuses the original row, so
+    // the create defaults never land. Refresh the audit snapshot explicitly, or
+    // the record ends up "issued" with no trace of what was actually sent.
+    if (!created) {
+        await DL.Invoice.updateOne(
+            { id: record.id },
+            { request: payload, items: itemSnapshot, notes, amount: charged }
+        ).catch(() => null)
+    }
 
     if (config.shadowMode) {
         await DL.Invoice.updateOne(
@@ -482,10 +509,14 @@ export async function issueCreditNote({
         notes,
         settings: config,
         sendEmail: config.sendEmail,
+        parent: invoice.docId || undefined,
         idTransaction: key
     })
 
-    const { record } = await findOrCreateInvoice({
+    const creditItemSnapshot = lines.map(({ productId, barcode, name, quantity, gross, vat }) => ({
+        productId, barcode, name, quantity, gross, vat
+    }))
+    const { record, created } = await findOrCreateInvoice({
         DL,
         idempotencyKey: key,
         defaults: {
@@ -497,9 +528,7 @@ export async function issueCreditNote({
             provider: 'ezcount',
             amount: total,
             docType: Number(config.creditDocType) || DOC_TYPE.CREDIT,
-            items: lines.map(({ productId, barcode, name, quantity, gross, vat }) => ({
-                productId, barcode, name, quantity, gross, vat
-            })),
+            items: creditItemSnapshot,
             notes,
             linkedInvoiceId: invoice.id,
             linkedDocNumber: invoice.docNumber,
@@ -508,6 +537,22 @@ export async function issueCreditNote({
             request: payload
         }
     })
+
+    // Same as the invoice path: a retried credit note must keep the payload it
+    // was actually sent with, plus the linkage to the document it offsets.
+    if (!created) {
+        await DL.Invoice.updateOne(
+            { id: record.id },
+            {
+                request: payload,
+                items: creditItemSnapshot,
+                notes,
+                amount: total,
+                linkedInvoiceId: invoice.id,
+                linkedDocNumber: invoice.docNumber
+            }
+        ).catch(() => null)
+    }
 
     if (config.shadowMode) {
         await DL.Invoice.updateOne(

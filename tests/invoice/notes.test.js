@@ -1,6 +1,7 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import { buildInvoiceNotes } from '../../common/functions/invoice/notes.js'
+import hebrewTexts from '../../common/texts/hebrew.json' with { type: 'json' }
 
 const replacementCart = () => ([
     {
@@ -26,7 +27,7 @@ describe('buildInvoiceNotes', () => {
             orderNumber: 12345
         })
         assert.equal(notes, [
-            'הוחלף: Potatoes 2 ק"ג → Prepared salad 2 יח\'',
+            'הוחלף: Potatoes 2 ק"ג ← Prepared salad 2 יח\'',
             'לא סופק: Tomatoes 1 ק"ג',
             'קופון SAVE10: -15.00'
         ].join('\n'))
@@ -52,7 +53,7 @@ describe('buildInvoiceNotes', () => {
             { barcode: 'B', name: 'Replacement', amount: 2, finalAmount: 2, replacement: { originalBarcode: 'A' }, unit: { baseUnit: 'unit' } }
         ]
         const notes = buildInvoiceNotes({ cart, orderNumber: 1 })
-        assert.equal(notes, "הוחלף: Original 2 יח' → Replacement 2 יח'")
+        assert.equal(notes, "הוחלף: Original 2 יח' ← Replacement 2 יח'")
     })
 
     it('uses the replacement line quantity, not the original one', () => {
@@ -61,7 +62,7 @@ describe('buildInvoiceNotes', () => {
             { barcode: 'B', name: 'Replacement', amount: 1, finalAmount: 1, replacement: { originalBarcode: 'A' }, unit: { baseUnit: 'unit' } }
         ]
         const notes = buildInvoiceNotes({ cart, orderNumber: 1 })
-        assert.equal(notes, 'הוחלף: Original 3 יח\' → Replacement 1 יח\'')
+        assert.equal(notes, 'הוחלף: Original 3 יח\' ← Replacement 1 יח\'')
     })
 
     it('keeps each entry on one line and strips control characters', () => {
@@ -94,13 +95,25 @@ describe('buildInvoiceNotes', () => {
             include: { missing: false }
         })
         assert.equal(notes, [
-            'הוחלף: Potatoes 2 ק"ג → Prepared salad 2 יח\'',
+            'הוחלף: Potatoes 2 ק"ג ← Prepared salad 2 יח\'',
             'קופון SAVE10: -15.00'
         ].join('\n'))
     })
 
     it('returns an empty string when there is nothing to report', () => {
         assert.equal(buildInvoiceNotes({ cart: [], coupons: [], orderNumber: 1 }), '')
+    })
+
+    it('takes its wording from hebrew.json', () => {
+        const texts = hebrewTexts.texts
+        const original = texts.invoice_note_replaced
+        texts.invoice_note_replaced = 'הוחלף: [from] <- [to]'
+        try {
+            const notes = buildInvoiceNotes({ cart: replacementCart(), orderNumber: 1 })
+            assert.equal(notes.split('\n')[0], 'הוחלף: Potatoes 2 ק"ג <- Prepared salad 2 יח\'')
+        } finally {
+            texts.invoice_note_replaced = original
+        }
     })
 
     it('caps the total length and still points at the order', () => {

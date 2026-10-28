@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { buildDocPayload, buildInvoiceItems, vatTypeOf, DOC_TYPE, VAT_TYPE } from '../../common/functions/invoice/payload.js'
+import { buildDocPayload, buildInvoiceItems, buildPaymentRow, vatTypeOf, DOC_TYPE, VAT_TYPE } from '../../common/functions/invoice/payload.js'
 import { readVatSummary } from '../../common/functions/invoice/summary.js'
 
 const lines = [
@@ -54,7 +54,7 @@ describe('buildDocPayload', () => {
         assert.equal(payload.customer_crn, '514123456')
         assert.equal(payload.dont_send_email, 'false')
         assert.equal(payload.lang, 'he')
-        assert.equal(payload.id_transaction, 'invoice:o1')
+        assert.equal(payload.transaction_id, 'invoice:o1')
         assert.equal(payload.item.length, 3)
     })
 
@@ -67,10 +67,30 @@ describe('buildDocPayload', () => {
         assert.equal(payload.comment, 'זיכוי לחשבונית 30012')
     })
 
-    it('never sends payment or card fields', () => {
+    it('sends the captured total as price_total on a 320 (mandatory field)', () => {
+        const payload = buildDocPayload({ order, lines, customer })
+        assert.equal(payload.price_total, 155)
+    })
+
+    it('does not send price_total on a credit note', () => {
+        const payload = buildDocPayload({ order, lines, customer, docType: DOC_TYPE.CREDIT })
+        assert.equal('price_total' in payload, false)
+    })
+
+    it('carries the payment row on a 320 and never on a credit note', () => {
+        const payment = [buildPaymentRow({ amount: 155, settings: { paymentType: 9, paymentName: 'כרטיס אשראי' } })]
+        const invoice = buildDocPayload({ order, lines, customer, payment })
+        assert.equal(invoice.payment.length, 1)
+        assert.equal(invoice.payment[0].payment_sum, 155)
+
+        const credit = buildDocPayload({ order, lines, customer, docType: DOC_TYPE.CREDIT, payment })
+        assert.equal('payment' in credit, false)
+    })
+
+    it('never sends card data or settlement fields', () => {
         const payload = buildDocPayload({ order, lines, customer })
         const keys = Object.keys(payload)
-        assert.equal(keys.some(k => /card|token|terminal|payment|cvv/i.test(k)), false)
+        assert.equal(keys.some(k => /card|token|terminal|cvv|^cc_/i.test(k)), false)
         assert.equal(keys.includes('item'), true)
     })
 
@@ -92,6 +112,24 @@ describe('buildDocPayload', () => {
         })
         assert.equal(payload.lang, 'en')
         assert.equal(payload.dont_send_email, 'true')
+    })
+})
+
+describe('buildPaymentRow', () => {
+    it('defaults to the neutral "other" payment type', () => {
+        const row = buildPaymentRow({ amount: 155, date: new Date(2026, 9, 28) })
+        assert.equal(row.payment_type, 9)
+        assert.equal(row.payment_sum, 155)
+        assert.equal(row.date, '28/10/2026')
+        assert.equal(row.other_payment_type_name, 'כרטיס אשראי')
+        assert.equal('cc_number' in row, false)
+    })
+
+    it('uses the configured type and name', () => {
+        const row = buildPaymentRow({ amount: 20.005, settings: { paymentType: 9, paymentName: 'Hyp' }, date: new Date(2026, 0, 5) })
+        assert.equal(row.payment_sum, 20.01)
+        assert.equal(row.other_payment_type_name, 'Hyp')
+        assert.equal(row.date, '05/01/2026')
     })
 })
 

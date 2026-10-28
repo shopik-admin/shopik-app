@@ -62,14 +62,28 @@ export function buildDocPayload({
     notes = '',
     settings = {},
     sendEmail = true,
+    payment = null,
+    parent,
     idTransaction
 } = {}) {
     const email = cleanText(customer.email || order.email, 120)
+    const items = buildInvoiceItems(lines)
     const payload = {
         type: docType,
         lang: settings.language || 'he',
         customer_name: customerName(customer, order),
-        item: buildInvoiceItems(lines)
+        item: items
+    }
+
+    // 320 (invoice receipt) rejects the request without `price_total` and a
+    // payment row. Our rows carry the exact charged gross, so their sum is the
+    // captured total — no recalculation, and it matches assertTotalsMatch by
+    // construction. Credit notes (330) must not carry either: price_total is
+    // positive-only and a credit is not a payment.
+    if (docType === DOC_TYPE.INVOICE) {
+        if (items.length)
+            payload.price_total = round2(items.reduce((sum, item) => sum + Number(item.price || 0), 0))
+        if (Array.isArray(payment) && payment.length) payload.payment = payment
     }
 
     if (email) {
@@ -91,7 +105,30 @@ export function buildDocPayload({
     if (address) payload.customer_address = address
 
     if (notes) payload.comment = notes
-    if (idTransaction) payload.id_transaction = String(idTransaction)
+    // Credit notes link to the document they offset by its UUID (`parent`).
+    if (parent) payload.parent = String(parent)
+    if (idTransaction) payload.transaction_id = String(idTransaction)
 
     return payload
+}
+
+/**
+ * One payment row for an invoice receipt (320).
+ *
+ * EZcount requires card fields (brand, last 4, deal type) for payment_type 3,
+ * but our capture flow never stores them, so the supported default is 9
+ * ("other") with a free-text name. Switching to 3 means persisting the card
+ * metadata at capture time first.
+ */
+export function buildPaymentRow({ amount, settings = {}, date = new Date() } = {}) {
+    const type = Number(settings.paymentType) || 9
+    const day = String(date.getDate()).padStart(2, '0')
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const row = {
+        payment_type: type,
+        payment_sum: round2(Number(amount) || 0),
+        date: `${day}/${month}/${date.getFullYear()}`
+    }
+    if (type === 9) row.other_payment_type_name = cleanText(settings.paymentName, 40) || 'כרטיס אשראי'
+    return row
 }

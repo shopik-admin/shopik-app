@@ -217,9 +217,11 @@ describe('issueInvoice', () => {
         assert.equal(external.calls.length, 1)
         const payload = external.calls[0].payload
         assert.equal(payload.type, 320)
-        assert.equal(payload.id_transaction, 'invoice:o1')
+        assert.equal(payload.transaction_id, 'invoice:o1')
         assert.equal(payload.dont_send_email, 'false')
         assert.equal(payload.customer_email, 'dana@example.com')
+        assert.equal(payload.price_total, 155)
+        assert.equal(payload.payment[0].payment_sum, 155)
         assert.deepEqual(payload.item.map(i => i.vat_type), ['NON', 'INC', 'INC'])
         assert.deepEqual(payload.item.map(i => i.price), ['45.00', '90.00', '20.00'])
         assert.equal(payload.item.length, 3)
@@ -345,7 +347,10 @@ describe('issueCreditNote', () => {
 
         const payload = external.calls[1].payload
         assert.equal(payload.type, 330)
-        assert.equal(payload.id_transaction, 'credit:o1:r1')
+        assert.equal(payload.transaction_id, 'credit:o1:r1')
+        assert.equal(payload.parent, 'uuid-1')
+        assert.equal('price_total' in payload, false)
+        assert.equal('payment' in payload, false)
         assert.deepEqual(payload.item.map(i => i.vat_type), ['NON', 'INC'])
         assert.deepEqual(payload.item.map(i => i.price), ['15.00', '5.00'])
         assert.match(payload.comment, /30012/)
@@ -411,5 +416,61 @@ describe('issueCreditNote', () => {
         await issueCreditNote(args)
         assert.equal(external.calls.length, 2) // invoice + one credit
         assert.equal(DL.Invoice.docs.filter(d => d.kind === 'credit').length, 1)
+    })
+})
+
+describe('retrying an existing record', () => {
+    // Found live: a record that failed under an older payload kept no `request`,
+    // and after the successful retry it stayed empty — the issued document had
+    // no audit trail. Retries must refresh the snapshot they were sent with.
+    it('refreshes the stored payload on an invoice retry', async () => {
+        const DL = makeFakeDL({ settings: ENABLED_SETTING })
+        DL.PaymentTransaction.docs.push({ id: 'txn1', orderId: 'o1', kind: 'capture', status: 'success', amount: 155 })
+        DL.Order.docs.push({ id: 'o1', number: 12345 })
+        const failed = await DL.Invoice.create({
+            domainId: 'd1', orderId: 'o1', orderNumber: 12345, userId: 'u1',
+            kind: 'invoice', provider: 'ezcount', status: 'failed', amount: 155,
+            idempotencyKey: 'invoice:o1'
+        })
+
+        const record = await issueInvoice({
+            DL, external: fakeExternal(OK_RESPONSE), utils,
+            order: orderFixture(), captured: 155, force: true
+        })
+
+        assert.equal(record.status, 'issued')
+        const stored = await DL.Invoice.readOne({ id: failed.id })
+        assert.equal(stored.request.transaction_id, 'invoice:o1')
+        assert.equal(stored.request.price_total, 155)
+        assert.deepEqual(stored.request.item.map(i => i.vat_type), ['NON', 'INC', 'INC'])
+        assert.equal(stored.items.length, 3)
+        assert.equal(stored.amount, 155)
+    })
+
+    it('refreshes the stored payload and link on a credit retry', async () => {
+        const DL = makeFakeDL({ settings: ENABLED_SETTING })
+        DL.PaymentTransaction.docs.push({ id: 'txn1', orderId: 'o1', kind: 'capture', status: 'success', amount: 155 })
+        DL.Order.docs.push({ id: 'o1', number: 12345 })
+        const external = fakeExternal(OK_RESPONSE)
+        await issueInvoice({ DL, external, utils, order: orderFixture(), captured: 155 })
+
+        const failed = await DL.Invoice.create({
+            domainId: 'd1', orderId: 'o1', orderNumber: 12345, userId: 'u1',
+            kind: 'credit', provider: 'ezcount', status: 'failed', amount: 15,
+            idempotencyKey: 'credit:o1:r1'
+        })
+
+        const credit = await issueCreditNote({
+            DL, external, utils, order: orderFixture(),
+            refundItems: [{ productId: '1', name: 'Tomatoes', amount: 15 }],
+            amount: 15, refundTxnId: 'r1', force: true
+        })
+
+        assert.equal(credit.status, 'issued')
+        const stored = await DL.Invoice.readOne({ id: failed.id })
+        assert.equal(stored.request.parent, 'uuid-1')
+        assert.equal(stored.request.transaction_id, 'credit:o1:r1')
+        assert.equal(stored.linkedInvoiceId, DL.Invoice.docs[0].id)
+        assert.equal(stored.items.length, 1)
     })
 })
