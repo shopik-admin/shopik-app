@@ -363,7 +363,7 @@ async function createModelFromSchema(schemaPath) {
         const processed = { ...filter }
         Object.keys(processed).forEach(key => {
             if (key === '$or') return // allow search-generated $or
-            if (!Model.filterFields?.has(key))
+            if (!Model.filterFields?.has(key) && !Model.filterFields.has(key.split('.')[0]))
                 delete processed[key]
             else {
                 const val = processed[key]
