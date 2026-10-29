@@ -9,9 +9,10 @@ export default function CartProvider({ children }) {
     const [cartOpen, setCartOpen] = useState(false)
     const location = useLocation()
 
-    // Close the cart whenever the route changes
     useEffect(() => {
-        setCartOpen(false)
+        if (location.pathname.startsWith('/checkout')) {
+            setCartOpen(false)
+        }
     }, [location.pathname])
 
     const toggleCart = () => setCartOpen(prev => !prev)
