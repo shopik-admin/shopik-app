@@ -21,3 +21,15 @@ export function fallbackCartTotals(cart) {
     }
     return { sum, sumNoCoupon, savings: Math.max(0, round2(sumNoCoupon - sum)) }
 }
+
+// The total checkout shows the customer. `payment/create` charges the stored
+// server order, so this is the amount it must never exceed — a cart the client
+// failed to sync would otherwise be charged at a higher total than displayed.
+export function checkoutDisplayTotal(order) {
+    if (!order) return 0
+    const hasCoupon = !!(order.coupons && order.coupons.length)
+    if (hasCoupon && order.finalSumWithShipping != null) return Number(order.finalSumWithShipping)
+    if (order.sumWithShipping != null) return Number(order.sumWithShipping)
+    const sum = Number(order.sum ?? order.finalSum ?? 0)
+    return round2(sum + Number(order.shipping || 0))
+}

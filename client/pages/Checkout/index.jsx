@@ -14,13 +14,14 @@ import apiReq from 'common/functions/apiReq'
 import Loader from 'common/components/Loader'
 import { useAppData } from 'App'
 import { useMemo, useRef } from 'react'
+import { checkoutDisplayTotal } from 'common/functions/cartTotals.js'
 import { extractLimits, getMinSumForMethod, getRemainingToMin } from '#common/functions/limits.js'
 import useMediaQuery from 'common/functions/useMediaQuery'
 import render from '#common/functions/render.js'
 import { isElevatorRequired } from '#common/functions/address.js'
 
 export default function Checkout() {
-    const { order = {}, setOrder } = useOrder()
+    const { order = {}, setOrder, refreshCart } = useOrder()
     const user = useUser()
     const { TR } = useText() || {}
     const navigate = useNavigate()
@@ -84,6 +85,12 @@ export default function Checkout() {
         if (!user?.id) navigate('/')
         else if (!order?.cart || !order.cart.length) navigate('/')
     }, [user, order?.cart])
+    // Reconcile with the server when the customer reaches checkout: the cart
+    // in client state can be optimistic or stale (debounced edit, another
+    // tab/device) while the payment charges the server order.
+    useEffect(() => {
+        if (user?.id) refreshCart()
+    }, [refreshCart, user?.id])
     // If window lead time has passed, clear it from the order and prompt user to pick a new one
     useEffect(() => {
         if (!order?.window?.leadTimestamp) return
@@ -176,10 +183,28 @@ export default function Checkout() {
         setPaying(true)
         setMissingFields([])
         try {
-            const res = await apiReq('payment/create', { orderId: order.id, invoiceRequest: order.invoiceRequest })
+            // Charge only what the customer was shown: flush edits still in the
+            // debounce window, pull the authoritative cart, and refuse to start
+            // a payment for a total higher than the one on screen.
+            const expectedAmount = checkoutDisplayTotal(order)
+            const freshOrder = await refreshCart()
+            if (freshOrder && checkoutDisplayTotal(freshOrder) > expectedAmount + 0.01) {
+                setPayError({ message: TR?.('cart_changed_confirm') })
+                return
+            }
+            const res = await apiReq('payment/create', {
+                orderId: freshOrder?.id || order.id,
+                expectedAmount,
+                invoiceRequest: order.invoiceRequest
+            })
             if (res?.paymentUrl) setPaymentUrl(res.paymentUrl)
         } catch (e) {
             console.error('payment create failed:', e)
+            if (e?.code === 'CART_CHANGED') {
+                await refreshCart()
+                setPayError({ message: TR?.('cart_changed_confirm') })
+                return
+            }
             setPayError(e)
             const fields = e?.missingFields || e?.data?.missingFields || []
             if (Array.isArray(fields) && fields.length) {
