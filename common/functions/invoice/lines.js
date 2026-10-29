@@ -179,18 +179,24 @@ export function buildCreditLines({ refundItems = [], cart = [] } = {}) {
         .filter(item => item && Number(item.amount) > 0)
         .map(item => {
             const shipping = item.productId === '__shipping'
-            const line = shipping
+            const general = item.productId === '__general'
+            // Pseudo items (shipping / general refund) have no cart line.
+            const line = (shipping || general)
                 ? null
                 : (byId.get(String(item.productId)) || byBarcode.get(String(item.productId)) || byBarcode.get(String(item.barcode)))
             const amount = round2(Number(item.amount))
             return {
                 productId: item.productId,
                 barcode: item.barcode ?? line?.barcode,
-                name: shipping ? (item.name || 'משלוח') : (item.name || line?.name || 'פריט'),
+                name: shipping
+                    ? (item.name || 'משלוח')
+                    : general
+                        ? 'החזר כללי'
+                        : (item.name || line?.name || 'פריט'),
                 quantity: 1,
                 gross: amount,
                 price: amount,
-                vat: shipping ? true : (typeof item.vat === 'boolean' ? item.vat : line?.vat !== false),
+                vat: (shipping || general) ? true : (typeof item.vat === 'boolean' ? item.vat : line?.vat !== false),
                 unit: line?.unit ? { type: line.unit.type, baseUnit: line.unit.baseUnit } : undefined
             }
         })

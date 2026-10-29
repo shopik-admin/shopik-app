@@ -1,9 +1,17 @@
 import { MAX_ATTEMPTS } from '#server/cron/refundRetry.js'
+import {
+    DEFAULT_REFUND_REASONS,
+    parseRefundReasons,
+    parseSettingBoolean,
+    REFUND_ALLOW_OTHER_KEY,
+    REFUND_REASONS_KEY,
+} from '#common/constants/refundReasons.js'
 
 const DETAILS_SELECT = {
     _id: 0,
     id: 1,
     number: 1,
+    domainId: 1,
     status: 1,
     userId: 1,
     paid: 1,
@@ -83,7 +91,30 @@ export default async function details({ id }, { DL }) {
         paymentVoided = Boolean(voidTxn)
     }
 
-    return { ...order, paidAt, manualRequired, paymentVoided }
+    // General-refund reasons are configured per domain. Missing settings fall
+    // back to the built-in list and keep the free-text "other" option enabled.
+    let refundSettings = []
+    try {
+        refundSettings = await DL.Setting.read(
+            { domainId: order.domainId, key: { $in: [REFUND_REASONS_KEY, REFUND_ALLOW_OTHER_KEY] } },
+            { _id: 0, key: 1, value: 1 }
+        ) || []
+    } catch { refundSettings = [] }
+    const refundByKey = Object.fromEntries(refundSettings.map(s => [s.key, s.value]))
+    const hasReasonsSetting = Object.prototype.hasOwnProperty.call(refundByKey, REFUND_REASONS_KEY)
+    const refundReasons = hasReasonsSetting
+        ? parseRefundReasons(refundByKey[REFUND_REASONS_KEY])
+        : DEFAULT_REFUND_REASONS
+    const refundAllowOther = parseSettingBoolean(refundByKey[REFUND_ALLOW_OTHER_KEY], true)
+
+    return {
+        ...order,
+        paidAt,
+        manualRequired,
+        paymentVoided,
+        refundReasons,
+        refundAllowOther,
+    }
 }
 
 details.config = {

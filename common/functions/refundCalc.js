@@ -19,6 +19,39 @@ export function getRemaining(order) {
     return round2(getChargedSum(order) - Number(order?.refundedTotal || 0))
 }
 
+export function productSum(order) {
+    return round2(Number(order?.finalSum ?? order?.sum ?? 0))
+}
+
+// Product-side money still refundable (excludes shipping). Line refunds and
+// general refunds both consume this pool.
+export function productRefundRemaining(order) {
+    const refundedProduct = round2(
+        Number(order?.refundedTotal || 0) - Number(order?.refundedShipping || 0)
+    )
+    return Math.max(0, round2(productSum(order) - refundedProduct))
+}
+
+// Clamp requested product refunds to the product-side remainder: line items
+// first (in the order received), then the general amount. A previous general
+// refund therefore caps later product refunds even when the lines sum higher.
+export function capRefundProducts(order, items = [], generalAmount = 0) {
+    let left = productRefundRemaining(order)
+    const cappedItems = []
+    for (const it of (Array.isArray(items) ? items : [])) {
+        const amount = round2(Number(it?.amount || 0))
+        if (!(amount > 0)) continue
+        const take = round2(Math.min(amount, Math.max(0, left)))
+        if (take > 0) cappedItems.push({ ...it, amount: take })
+        left = round2(left - take)
+    }
+    const general = round2(Math.min(
+        Math.max(0, Number(generalAmount || 0)),
+        Math.max(0, left)
+    ))
+    return { items: cappedItems, generalAmount: general }
+}
+
 export function hasPercentCoupon(order) {
     return (order?.coupons || []).some(c => c?.percent === true || c?.benefit === 'percent')
 }
@@ -103,11 +136,13 @@ export function suggestRefundForQty(line, qty) {
 }
 
 // Authoritative validation shared with the server endpoint.
-export function validateRefundRequest(order, items = [], shippingAmount = 0) {
+export function validateRefundRequest(order, items = [], shippingAmount = 0, generalAmount = 0) {
     const errors = []
     const list = Array.isArray(items) ? items : []
     const ship = round2(Number(shippingAmount || 0))
+    const general = round2(Number(generalAmount || 0))
     if (ship < 0) errors.push('Invalid shipping refund amount')
+    if (general < 0) errors.push('Invalid general refund amount')
     let itemsTotal = 0
     const cartById = new Map((order?.cart || []).map(l => [String(l.id), l]))
     const cartByBarcode = new Map((order?.cart || []).map(l => [String(l.barcode), l]))
@@ -134,7 +169,11 @@ export function validateRefundRequest(order, items = [], shippingAmount = 0) {
         const maxShip = shippingRemaining(order)
         if (ship - maxShip > REFUND_EPS) errors.push(`Shipping refund exceeds remaining (${maxShip})`)
     }
-    const totalRefund = round2(itemsTotal + ship)
+    const productMax = productRefundRemaining(order)
+    if (round2(itemsTotal + general) - productMax > REFUND_EPS) {
+        errors.push(`Products refund exceeds remaining product amount (${productMax})`)
+    }
+    const totalRefund = round2(itemsTotal + ship + general)
     if (!(totalRefund > 0)) errors.push('Refund total must be > 0')
     const remaining = getRemaining(order)
     if (totalRefund - remaining > REFUND_EPS) errors.push(`Refund exceeds remaining amount (${remaining})`)
