@@ -47,7 +47,8 @@ docs1
 
 ai/
 
-reports/
+# Local report scratch scripts/outputs at the repo root (not the source dirs).
+/reports/
 
 old.*
 # Local scrape image cache (barcode-keyed verification bytes, see

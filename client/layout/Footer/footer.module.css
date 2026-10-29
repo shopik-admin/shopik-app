@@ -17,14 +17,14 @@
         color: var(--footer-fg);
         font-size: var(--text-sm);
         line-height: 1.8;
-        text-align: center;
+        text-align: start;
     }
 
     .columnTitle {
         color: var(--footer-fg-strong);
         font-size: var(--text-md);
         line-height: 1.4;
-        text-align: center;
+        text-align: start;
     }
 
     .row {
@@ -35,7 +35,7 @@
         color: var(--footer-fg);
         font-size: var(--text-sm);
         line-height: 1.5;
-        text-align: center;
+        text-align: start;
         cursor: pointer;
         transition: color .2s ease;
 
@@ -72,18 +72,20 @@
 
 .top {
     display: grid;
-    grid-template-columns: 1.25fr repeat(3, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
     column-gap: 48px;
     row-gap: 40px;
+    align-items: start;
 }
 
 .brand {
+    justify-self: start;
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: flex-start;
     justify-content: flex-start;
     gap: 22px;
-    text-align: center;
+    text-align: start;
 
     /* Beats Logo_logo img sizing regardless of stylesheet order */
     .logo img {
@@ -91,22 +93,35 @@
         width: auto;
         max-width: 170px;
         object-fit: contain;
-        object-position: center;
+        object-position: start;
     }
+}
+
+.middle {
+    justify-self: center;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 48px;
+    flex-wrap: wrap;
 }
 
 .column {
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: flex-start;
     gap: 16px;
     min-width: 0;
+}
+
+.contact {
+    justify-self: end;
 }
 
 .list {
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: flex-start;
     gap: 12px;
     margin: 0;
     padding: 0;
@@ -115,7 +130,7 @@
 
 .item {
     display: flex;
-    justify-content: center;
+    justify-content: flex-start;
     max-width: 100%;
 }
 
@@ -207,16 +222,25 @@
     }
 
     .top {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: 1fr 1fr;
         column-gap: 32px;
         row-gap: 36px;
+    }
+
+    .middle {
+        justify-self: start;
+        justify-content: flex-start;
+    }
+
+    .contact {
+        justify-self: end;
     }
 }
 
 
 /* =================================
-   MOBILE: brand centered, 2 link columns,
-   contact full width
+   MOBILE: brand centered, link columns,
+   contact centered
    ================================= */
 
 @media screen and (max-width: 700px) {
@@ -228,6 +252,7 @@
             align-items: center;
             text-align: center;
             gap: 16px;
+            justify-self: center;
         }
 
         .tagline {
@@ -241,23 +266,35 @@
     }
 
     .top {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        column-gap: 20px;
-        row-gap: 32px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 32px;
     }
 
-    .column:last-child {
-        grid-column: 1 / -1;
+    .middle {
+        display: flex;
+        justify-content: center;
+        gap: 32px;
+        width: 100%;
+        flex-wrap: wrap;
+        justify-self: center;
+    }
+
+    .contact {
+        width: 100%;
+        align-items: center;
+        justify-self: center;
     }
 
     .contactList {
-        align-items: stretch;
+        align-items: center;
         width: 100%;
     }
 
-    /* RTL: flex-start pins the rows to the right edge */
+    /* RTL: center items for clean mobile stack */
     .contactList .item {
-        justify-content: flex-start;
+        justify-content: center;
     }
 
     .bottom {

@@ -3,7 +3,8 @@ import assert from 'node:assert/strict'
 import {
     buildSyncFilter,
     hideActiveProduct,
-    hideInactiveProducts
+    hideInactiveProducts,
+    hideStorelessProducts
 } from '../../server/api/comax_product/syncRules.js'
 
 const STATUS = { ACTIVE: 'active', HIDDEN: 'hidden' }
@@ -107,5 +108,37 @@ describe('comax sync rules', () => {
         }
 
         assert.equal(await hideInactiveProducts({ DL }), 0)
+    })
+
+    it('hides every active product that is in no store', async () => {
+        const calls = []
+        const DL = {
+            Product: {
+                constants: { STATUS },
+                update: async (filter, update) => {
+                    calls.push({ filter, update })
+                    return { modifiedCount: 7 }
+                }
+            }
+        }
+
+        const hidden = await hideStorelessProducts({ DL })
+
+        assert.equal(hidden, 7)
+        assert.deepEqual(calls, [{
+            filter: { status: 'active', 'storeIds.0': { $exists: false } },
+            update: { status: 'hidden' }
+        }])
+    })
+
+    it('counts only the products the sweep actually changed', async () => {
+        const DL = {
+            Product: {
+                constants: { STATUS },
+                update: async () => ({ modifiedCount: 0 })
+            }
+        }
+
+        assert.equal(await hideStorelessProducts({ DL }), 0)
     })
 })

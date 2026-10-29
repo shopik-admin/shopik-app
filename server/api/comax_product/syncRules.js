@@ -52,3 +52,19 @@ export async function hideInactiveProducts({ DL, batchSize } = {}) {
 
     return hidden
 }
+
+/**
+ * A product in no store cannot be sold. buildProduct already hides the rows
+ * the sync visits, but a product whose Comax row disappeared (or never existed)
+ * is never visited, so it would stay ACTIVE with an empty storeIds forever.
+ * This sweep is the backstop: any ACTIVE product with no store becomes HIDDEN,
+ * whatever its barcode or source.
+ */
+export async function hideStorelessProducts({ DL }) {
+    const { ACTIVE, HIDDEN } = statuses(DL)
+    const res = await DL.Product.update(
+        { status: ACTIVE, 'storeIds.0': { $exists: false } },
+        { status: HIDDEN }
+    )
+    return res?.modifiedCount || 0
+}
