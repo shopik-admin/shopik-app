@@ -61,8 +61,8 @@
         right: 0;
 
         width: 240px;
-        min-height: min(460px, calc(100dvh - 96px));
-        max-height: calc(100dvh - 96px);
+        /*  min-height: min(460px, calc(100dvh - 96px)); */
+        max-height: calc(100dvh - 150px);
 
         box-sizing: border-box;
 
