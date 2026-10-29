@@ -1,7 +1,7 @@
 import OrderProvider from 'features/Order/OrderProvider'
 import { ModalProvider } from 'common/components/Modal'
 import TextProvider from 'common/texts/TextProvider'
-import { createContext, useContext } from 'react'
+import { createContext, useContext, useEffect } from 'react'
 import { Routes, Route, useLocation } from 'react-router'
 import Lists from 'common/features/Lists'
 import Header from 'layout/Header'
@@ -20,6 +20,10 @@ export const useAppData = () => useContext(AppDataContext)
 export default function App({ data = {} }) {
     const { pathname } = useLocation()
     const hideFooter = pathname === '/checkout' || pathname.startsWith('/checkout/')
+
+    useEffect(() => {
+        window.scrollTo(0, 0)
+    }, [pathname])
     return <AppDataContext value={data}>
         <TextProvider>
             <Lists sdLists={data.lists}>
