@@ -143,6 +143,7 @@
         font-weight: 400;
         position: relative;
         top: 1px;
+        white-space: nowrap;
     }
 
     &.sale {

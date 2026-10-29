@@ -14,21 +14,10 @@ import styles from './footer.module.css'
 // Settings -> footer -> columns.
 const DEFAULT_COLUMNS = [
     {
-        title: 'footer_title_news',
+        title: 'footer_title_info',
         links: [
-            { text: 'footer_link_faq' },
-            { text: 'footer_link_accessibility' },
-            { text: 'footer_link_press', tag: 'footer_tag_new' },
-            { text: 'footer_link_shipping_methods' }
-        ]
-    },
-    {
-        title: 'footer_title_guide',
-        links: [
-            { text: 'footer_link_products' },
-            { text: 'footer_link_accessibility' },
-            { text: 'footer_link_press', tag: 'footer_tag_new' },
-            { text: 'footer_link_shipping_methods' }
+            { text: 'info_terms' },
+            { text: 'info_privacy' },
         ]
     }
 ]
@@ -117,16 +106,18 @@ export default function Footer() {
                     <Text className={styles.tagline} size='s'>footer_tagline</Text>
                 </div>
 
-                {columns.map(({ title, links = [] }, ci) => <div key={ci} className={styles.column}>
-                    {title && <Text tag='h2' size='m' bold className={styles.columnTitle}>{title}</Text>}
-                    <ul className={styles.list}>
-                        {links.map((row, ri) => <li key={ri} className={styles.item}>
-                            <LinkRow row={row} />
-                        </li>)}
-                    </ul>
-                </div>)}
+                <div className={styles.middle}>
+                    {columns.map(({ title, links = [] }, ci) => <div key={ci} className={styles.column}>
+                        {title && <Text tag='h2' size='m' bold className={styles.columnTitle}>{title}</Text>}
+                        <ul className={styles.list}>
+                            {links.map((row, ri) => <li key={ri} className={styles.item}>
+                                <LinkRow row={row} />
+                            </li>)}
+                        </ul>
+                    </div>)}
+                </div>
 
-                <div className={styles.column}>
+                <div className={classNames(styles.column, styles.contact)}>
                     <Text tag='h2' size='m' bold className={styles.columnTitle}>footer_title_contact</Text>
                     <ul className={classNames(styles.list, styles.contactList)}>
                         {contact.map((row, ri) => <li key={ri} className={styles.item}>
