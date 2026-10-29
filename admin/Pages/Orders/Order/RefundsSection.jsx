@@ -23,7 +23,9 @@ function RefundRow({ entry, busyTxnId, onInvoice }) {
     const { TR } = useText()
     const context = entry.context || {}
     const allItems = Array.isArray(context.items) ? context.items : []
-    const products = allItems.filter(i => i.productId !== '__shipping')
+    const products = allItems.filter(i => i.productId !== '__shipping' && i.productId !== '__general')
+    const generalItem = allItems.find(i => i.productId === '__general')
+    const generalAmount = Number(generalItem?.amount ?? context.generalAmount ?? 0)
     const shipItem = allItems.find(i => i.productId === '__shipping')
     const shipAmount = Number(shipItem?.amount ?? context.shippingAmount ?? 0)
     const amount = Number(context.amount || 0)
@@ -49,6 +51,10 @@ function RefundRow({ entry, busyTxnId, onInvoice }) {
                 <Text size='m' ellipsis={1}>{item.name || item.barcode || item.productId}</Text>
                 <Text size='m'>{coin(item.amount)}</Text>
             </Flex>)}
+            {generalAmount > 0 && <Flex gap={8} alignItems='center' justifyContent='space-between'>
+                <Text size='m'>{TR('refund_general')}</Text>
+                <Text size='m'>{coin(generalAmount)}</Text>
+            </Flex>}
             {shipAmount > 0 && <Flex gap={8} alignItems='center' justifyContent='space-between'>
                 <Text size='m'>{TR('refund_shipping')}</Text>
                 <Text size='m'>{coin(shipAmount)}</Text>

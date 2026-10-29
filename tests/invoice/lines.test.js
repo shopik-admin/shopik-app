@@ -220,4 +220,15 @@ describe('buildCreditLines', () => {
         assert.equal(lines[0].gross, 15)
         assert.equal(lines[1].gross, 5)
     })
+
+    it('turns a general refund into a taxable standalone credit line', () => {
+        const lines = buildCreditLines({
+            refundItems: [{ productId: '__general', name: 'general', amount: 25 }],
+            cart: mixedCart()
+        })
+        assert.equal(lines.length, 1)
+        assert.equal(lines[0].name, 'החזר כללי')
+        assert.equal(lines[0].gross, 25)
+        assert.equal(lines[0].vat, true)
+    })
 })
