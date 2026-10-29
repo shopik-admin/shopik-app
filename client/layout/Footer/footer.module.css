@@ -17,14 +17,14 @@
         color: var(--footer-fg);
         font-size: var(--text-sm);
         line-height: 1.8;
-        text-align: center;
+        text-align: start;
     }
 
     .columnTitle {
         color: var(--footer-fg-strong);
         font-size: var(--text-md);
         line-height: 1.4;
-        text-align: center;
+        text-align: start;
     }
 
     .row {
@@ -35,7 +35,7 @@
         color: var(--footer-fg);
         font-size: var(--text-sm);
         line-height: 1.5;
-        text-align: center;
+        text-align: start;
         cursor: pointer;
         transition: color .2s ease;
 
@@ -82,10 +82,10 @@
     justify-self: start;
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: flex-start;
     justify-content: flex-start;
     gap: 22px;
-    text-align: center;
+    text-align: start;
 
     /* Beats Logo_logo img sizing regardless of stylesheet order */
     .logo img {
@@ -93,7 +93,7 @@
         width: auto;
         max-width: 170px;
         object-fit: contain;
-        object-position: center;
+        object-position: start;
     }
 }
 
@@ -109,7 +109,7 @@
 .column {
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: flex-start;
     gap: 16px;
     min-width: 0;
 }
@@ -121,7 +121,7 @@
 .list {
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: flex-start;
     gap: 12px;
     margin: 0;
     padding: 0;
@@ -130,7 +130,7 @@
 
 .item {
     display: flex;
-    justify-content: center;
+    justify-content: flex-start;
     max-width: 100%;
 }
 

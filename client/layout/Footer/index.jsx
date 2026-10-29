@@ -16,8 +16,8 @@ const DEFAULT_COLUMNS = [
     {
         title: 'footer_title_info',
         links: [
-            { text: 'info_terms' },
-            { text: 'info_privacy' },
+            { text: 'info_terms', to: '/terms', },
+            { text: 'info_privacy', to: '/privacy', },
         ]
     }
 ]
@@ -39,7 +39,7 @@ function LinkRow({ row }) {
         {tag && <span className={styles.tag}>{TR?.(tag) || tag}</span>}
     </>
 
-    if (to) return <Link className={styles.row} to={to}>{body}</Link>
+    if (to) return <Link className={styles.row} to={to} onClick={() => window.scrollTo(0, 0)}>{body}</Link>
     if (href) return <a className={styles.row} href={href} target='_blank' rel='noopener noreferrer'>{body}</a>
     return <span className={classNames(styles.row, styles.inert)}>{body}</span>
 }
