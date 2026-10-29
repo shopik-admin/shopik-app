@@ -484,6 +484,7 @@
         "edit_address": "ערוך כתובת",
         "edit_delivery_time": "ערוך מועד אספקה",
         "payment_failed_generic": "אירעה שגיאה ביצירת התשלום, נסו שוב",
+        "cart_changed_confirm": "הסל שלך עודכן מאז שפתחת את הקופה. אנא בדוק את הכמות והמחיר ולחץ שוב על התשלום.",
         "addresses": "כתובות",
         "addresses-subtitle": "נהלו את כתובות האספקה שלכם",
         "no addresses yet": "עוד אין כתובות שמורות",

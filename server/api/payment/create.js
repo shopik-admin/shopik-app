@@ -17,6 +17,21 @@ export default async function create(payload, info) {
     const amount = order.finalSumWithShipping ?? order.finalSum ?? order.sum
     if (!amount || Number(amount) <= 0) throw { status: 400, message: 'Order amount must be > 0' }
 
+    // Never charge more than the total the storefront displayed. The client
+    // sends what it showed; if the server cart is higher (a cart edit the
+    // client missed, another tab/device, or an unsynced optimistic update) we
+    // ask the customer to review the new total instead of charging it.
+    const expectedAmount = Number(payload.expectedAmount)
+    if (Number.isFinite(expectedAmount) && Number(amount) > expectedAmount + 0.01) {
+        throw {
+            status: 409,
+            code: 'CART_CHANGED',
+            message: 'Order total changed since it was displayed',
+            amount: Number(amount),
+            expectedAmount
+        }
+    }
+
     // Enforce minSum / minSumPickup based on post-sale pre-coupon total (sumBeforeCoupon == order.sum)
     try {
         const limitsSetting = await DL.Setting.readOne({ key: 'limits' })
