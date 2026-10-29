@@ -1,6 +1,7 @@
 import { round2 } from '#common/functions/calcOrder/utils.js'
 import { remainderRefundItems } from '#common/functions/refundCalc.js'
-import { planRefundLegs, executeRefundPlan } from '#server/utils/data/refundCaptures.js'
+import { planRefundLegs, executeRefundPlan, distributeCoveredAmount } from '#server/utils/data/refundCaptures.js'
+import { issueCreditNote } from '#server/utils/data/invoice.js'
 import { recordCancel, recordRefund } from '#server/utils/data/userStats.js'
 import { releaseWindowReservation } from '#server/utils/data/windowGroups.js'
 
@@ -128,6 +129,20 @@ export default async function cancel(payload, info) {
         })
         await recordStatusCanceled()
         await releaseWindowSlot()
+        // The charge was voided but the tax invoice was already issued, so it
+        // must be offset by a credit note for the un-offset remainder (prior
+        // partial refunds already have their own credit notes).
+        const voidAmount = round2(
+            Number(order.finalSumWithShipping ?? order.finalSum ?? 0) - Number(order.refundedTotal || 0)
+        )
+        if (voidAmount > 0) await issueCreditNote({
+            DL, external, utils, order,
+            amount: voidAmount,
+            refundItems: remainderRefundItems(order),
+            reason: reason || 'ביטול עסקה',
+            source: 'payment/cancel:cancel_trans',
+            actor: adminActor(_admin)
+        }).catch(() => null)
         return { canceled: true, mode: 'cancel_trans' }
     }
 
@@ -179,6 +194,15 @@ export default async function cancel(payload, info) {
                     await recordRefund(DL, order, coveredTotal)
                     await recordCancel(DL, order, 0)
                 } catch { }
+                await issueCreditNote({
+                    DL, external, utils, order,
+                    amount: coveredTotal,
+                    refundItems: distributeCoveredAmount(remainderRefundItems(order), coveredTotal),
+                    refundTxnId: completed[0]?.providerTxnId,
+                    reason: reason || 'ביטול עסקה',
+                    source: 'payment/cancel:refund_pending',
+                    actor: adminActor(_admin)
+                }).catch(() => null)
             }
             await DL.Order.updateOne({ id: order.id }, {
                 status: DL.Order.constants.ORDER_STATUS.CANCELED, cancelDate: new Date(),
@@ -238,6 +262,15 @@ export default async function cancel(payload, info) {
         })
         await recordStatusCanceled()
         await releaseWindowSlot()
+        await issueCreditNote({
+            DL, external, utils, order,
+            amount: remaining,
+            refundItems: remainderRefundItems(order),
+            refundTxnId: newId,
+            reason: reason || 'ביטול עסקה',
+            source: 'payment/cancel:refund_fallback',
+            actor: adminActor(_admin)
+        }).catch(() => null)
         return { canceled: true, mode: 'refund_fallback', refunded: remaining, providerTxnId: newId, ...(multi ? { refunds: completed } : {}) }
     }
 }

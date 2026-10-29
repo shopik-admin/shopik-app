@@ -42,6 +42,9 @@ export function buildCartProduct({ product, amount, unitKey, domainId, existingS
         price,
         totalPrice: round2(calculatedAmount * price),
         status: existingStatus || CART_PRODUCT_STATUS.CLIENT_ADD,
+        // Snapshot for the tax invoice; replacements are built through this
+        // same function, so they inherit the replacement product's class.
+        vat: product.vat !== false,
         saleIds: product.saleIds || [],
         priceDistribution: [],
         missing: false,

@@ -88,7 +88,7 @@ async function hypFetch(url, { timeoutMs = 15000 } = {}) {
     }
 }
 
-function buildSignQuery({ masof, key, passp, amount, orderNumber, orderId, customer, sendInvoiceEmail, tmp }) {
+function buildSignQuery({ masof, key, passp, amount, orderNumber, orderId, customer, tmp }) {
     const params = new URLSearchParams()
     params.set('action', 'APISign')
     params.set('What', 'SIGN')
@@ -112,10 +112,8 @@ function buildSignQuery({ masof, key, passp, amount, orderNumber, orderId, custo
         const digits = String(customer.phone).replace(/\D/g, '')
         params.set('phone', digits)
     }
-    params.set('SendHesh', 'True')
     if (customer?.email) {
         params.set('email', customer.email)
-        if (sendInvoiceEmail) params.set('SendHesh', 'True')
     }
     return params.toString()
 }
@@ -171,8 +169,7 @@ export default function hypFactory({ DL }) {
                 orderNumber: order.number,
                 orderId: order.id,
                 customer: customer || { name: order.name, phone: order.phone, email: order.email },
-                tmp: 6,
-                sendInvoiceEmail: Boolean(order.email)
+                tmp: 6
             })
             const text = await hypFetch(`${baseUrl}?${query}`)
             if (!text || text.includes('CCode') && text.includes('CCode=')) {

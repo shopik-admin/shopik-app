@@ -10,6 +10,7 @@ import OrderStatusSection from './OrderStatusSection'
 import OrderActions from './OrderActions'
 import RefundSection from './RefundSection'
 import RefundsSection from './RefundsSection'
+import InvoiceSection from './InvoiceSection'
 import ProductsSection from './ProductsSection'
 import OrderDetailsCard from './OrderDetailsCard'
 import PaymentDetailsCard from './PaymentDetailsCard'
@@ -58,6 +59,7 @@ export default function Order() {
         {refundMode
             ? <RefundSection order={order} onDone={async () => { await refresh(); setRefundMode(false) }} onExit={() => setRefundMode(false)} />
             : <ProductsSection order={order} />}
+        <InvoiceSection order={order} onChanged={refresh} />
         {Number(order.refundedTotal || 0) > 0 && <RefundsSection order={order} />}
     </DetailPage>
 }

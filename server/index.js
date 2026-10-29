@@ -9,6 +9,7 @@ import startGs1FetchWorker from '#server/workers/gs1FetchWorker.js'
 import startGs1ProcessWorker from '#server/workers/gs1ProcessWorker.js'
 import { resolveSizing } from '#server/services/gs1/sizing.js'
 import startRefundRetry from '#server/cron/refundRetry.js'
+import startInvoiceRetry from '#server/cron/invoiceRetry.js'
 import startNightlySync from '#server/cron/nightlySync.js'
 import startGs1Sync from '#server/cron/gs1Sync.js'
 import startHolidaySeed from '#server/cron/holidaySeed.js'
@@ -90,6 +91,7 @@ try {
     await startGs1FetchWorker({ DL: bootData.DL, external: bootData.external, sizing })
     await startGs1ProcessWorker({ DL: bootData.DL, sizing })
     startRefundRetry(bootData)
+    startInvoiceRetry(bootData)
     if (isComaxDeliveryEnabled()) startDeliveryDocsSync(bootData)
     if (!NO_NIGHT_SYNC || PRODUCTION) {
         startNightlySync(bootData)

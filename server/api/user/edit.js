@@ -8,7 +8,7 @@ export default async function edit(payload, { DL, _user, external, utils }) {
     // Allowlist: ignore any client-supplied internal fields (blocked,
     // noMinOrderSum, domainId, isTestUser, comments, ...). Phone flows
     // through OTP verification below (never written directly).
-    const ALLOWED_USER_FIELDS = ['name', 'email', 'phone', 'secondPhone', 'getOffers', 'replaceProducts', 'notAtHome']
+    const ALLOWED_USER_FIELDS = ['name', 'email', 'phone', 'secondPhone', 'getOffers', 'replaceProducts', 'notAtHome', 'taxId', 'companyName']
     const sanitizedPayload = {}
     for (const key of ALLOWED_USER_FIELDS) {
         if (payload[key] !== undefined) sanitizedPayload[key] = payload[key]

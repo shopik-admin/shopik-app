@@ -1,6 +1,6 @@
 import getShippingConfig from './getShippingConfig.js'
-import { attachInvoiceUrl } from './orderInvoice.js'
 import { adjustPaidTotal } from './userStats.js'
+import { issueInvoice } from './invoice.js'
 import { calcShipping } from '#common/functions/shipping.js'
 import { round2 } from '#common/functions/calcOrder/utils.js'
 
@@ -82,9 +82,6 @@ async function okCapture({ DL, utils, actor, external, order, amount, providerTx
         status: DL.PaymentTransaction.constants.TRANSACTION_STATUS.SUCCESS,
         amount, providerTxnId, providerCode: 0, providerData
     })
-    // Eager single-issuance invoice doc for this capture leg. Best-effort:
-    // a missing link means payment/invoice generates it on first click.
-    await attachInvoiceUrl({ DL, external, providerTxnId }).catch(() => { })
     await recordCapture({
         DL, utils, actor, order, ok: true, step,
         providerTxnId, amount, authorizedAmount, capturedTotal,
@@ -275,5 +272,16 @@ export default async function captureOrder({ DL, _admin, _user, utils, external,
         } catch { }
     }
 
-    return { captureAmount, totals, captureProviderTxnId, capturedAt }
+    // One document per order, only after every capture leg succeeded. Best
+    // effort: a failure here must never fail the charge (it is recorded on the
+    // Invoice + timeline and retried by an admin/cron).
+    const invoice = await issueInvoice({
+        DL, external, utils,
+        order: { ...order, ...totals },
+        captured: captureAmount,
+        source,
+        actor
+    }).catch(() => null)
+
+    return { captureAmount, totals, captureProviderTxnId, capturedAt, invoice }
 }

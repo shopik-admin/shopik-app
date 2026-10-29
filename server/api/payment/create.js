@@ -1,6 +1,7 @@
 import { releaseWindowReservation } from '#server/utils/data/windowGroups.js'
 import { findByLocation } from '#server/external/supplyArea.js'
 import { isElevatorRequired } from '#common/functions/address.js'
+import { normalizeInvoiceRequest } from '#common/functions/invoice/request.js'
 
 export default async function create(payload, info) {
     const { DL, external, utils, _user } = info
@@ -100,6 +101,20 @@ export default async function create(payload, info) {
             if (storeId !== (order.storeId ?? null)) updates.storeId = storeId
         }
     }
+
+    // Billing details captured at checkout. They belong to this order (the
+    // invoice snapshot), never to the payment request: no card data is sent
+    // to EZcount at capture time. `undefined` means "no billing input" and
+    // keeps whatever is stored; an empty object clears it.
+    const invoice = normalizeInvoiceRequest(payload.invoiceRequest)
+    if (invoice.errors.length) throw {
+        status: 400,
+        message: invoice.errors[0],
+        code: 'INVOICE_INVALID',
+        errors: invoice.errors,
+        missingFields: ['invoice']
+    }
+    if (invoice.value !== undefined) updates.invoiceRequest = invoice.value
 
     // If the chosen window's lead time has passed, remove it and treat as missing
     if (order.window?.leadTimestamp) {

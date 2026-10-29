@@ -1,5 +1,4 @@
 import { round2 } from '#common/functions/calcOrder/utils.js'
-import { attachInvoiceUrl } from './orderInvoice.js'
 
 const EPS = 0.001
 
@@ -126,8 +125,6 @@ export async function executeRefundPlan({ DL, external, order, plan, reason, ite
             reason,
             ...((!multi || i === 0) ? { items } : {})
         })
-        // Eager single-issuance invoice doc for this credit. Best-effort.
-        await attachInvoiceUrl({ DL, external, providerTxnId: newId }).catch(() => { })
         completed.push({ providerTxnId: newId, parentProviderTxnId: leg.providerTxnId, amount: leg.amount, hypRes })
     }
     return { completed, failed }

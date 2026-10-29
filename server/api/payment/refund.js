@@ -1,5 +1,6 @@
-import { validateRefundRequest, round2, getChargedSum } from '#common/functions/refundCalc.js'
+import { validateRefundRequest, capRefundProducts, round2, getChargedSum } from '#common/functions/refundCalc.js'
 import { planRefundLegs, executeRefundPlan, distributeCoveredAmount } from '#server/utils/data/refundCaptures.js'
+import { issueCreditNote } from '#server/utils/data/invoice.js'
 import { recordRefund } from '#server/utils/data/userStats.js'
 
 // Persist covered money onto the order: per-line refundedAmount (+shipping),
@@ -7,7 +8,7 @@ import { recordRefund } from '#server/utils/data/userStats.js'
 async function applyRefundAccounting({ DL, order, coveredItems, coveredTotal }) {
     const Model = DL.Order.Model
     for (const ri of coveredItems) {
-        if (ri.productId === '__shipping' || !(Number(ri.amount || 0) > 0)) continue
+        if (String(ri.productId).startsWith('__') || !(Number(ri.amount || 0) > 0)) continue
         let matched = false
         try {
             const res = await Model.updateOne(
@@ -73,11 +74,12 @@ async function manualRefund({ DL, utils, _admin, order, amount, reason }) {
 
 export default async function refund(payload, info) {
     const { DL, external, utils, _admin } = info
-    const { orderId, items = [], shippingAmount = 0, reason, manual = false, amount = 0 } = payload
+    const { orderId, items = [], shippingAmount = 0, generalAmount = 0, reason, manual = false, amount = 0 } = payload
 
     const ship = round2(Number(shippingAmount || 0))
+    const general = round2(Number(generalAmount || 0))
     const list = Array.isArray(items) ? items : []
-    if (!manual && list.length === 0 && !(ship > 0)) throw { status: 400, message: 'items required' }
+    if (!manual && list.length === 0 && !(ship > 0) && !(general > 0)) throw { status: 400, message: 'items required' }
 
     const order = await DL.Order.readById(orderId)
     if (!order) throw { status: 404, message: 'Order not found' }
@@ -86,17 +88,22 @@ export default async function refund(payload, info) {
     if (!order.payment?.captureProviderTxnId) throw { status: 400, message: 'No capture transaction on order' }
     if (order.status === DL.Order.constants.ORDER_STATUS.CANCELED) throw { status: 400, message: 'Order already canceled' }
 
+    // Product refunds are clamped to what is still refundable, so a previous
+    // general refund caps later line refunds even if the selected lines sum
+    // higher.
+    const capped = capRefundProducts(order, list, general)
+
     // Authoritative coupon-aware validation (flat coupon: full line price,
     // percent coupon: proportional share; shipping capped separately;
     // global total capped by actually charged sum). See refundCalc.js.
-    const { totalRefund, errors } = validateRefundRequest(order, list, ship)
+    const { totalRefund, errors } = validateRefundRequest(order, capped.items, ship, capped.generalAmount)
     if (errors.length > 0) throw { status: 400, message: errors[0] }
 
     // per-line lookup for audit rows
     const cartById = new Map(order.cart.map(l => [String(l.id), l]))
     const cartByBarcode = new Map(order.cart.map(l => [String(l.barcode), l]))
     const refundItems = []
-    for (const it of list) {
+    for (const it of capped.items) {
         const line = cartById.get(String(it.productId)) || cartByBarcode.get(String(it.productId))
         if (!line) throw { status: 400, message: `Product ${it.productId} not in order` }
         refundItems.push({
@@ -105,6 +112,9 @@ export default async function refund(payload, info) {
             name: line.name,
             amount: round2(Number(it.amount))
         })
+    }
+    if (capped.generalAmount > 0) {
+        refundItems.push({ productId: '__general', name: 'general', amount: capped.generalAmount })
     }
     if (ship > 0) {
         refundItems.push({ productId: '__shipping', name: 'shipping', amount: ship })
@@ -120,7 +130,7 @@ export default async function refund(payload, info) {
             DL, order,
             eventType: DL.Timeline.constants.EVENT_TYPES.REFUND,
             actor: adminActor(_admin),
-            context: { step: 'refund_failed', amount: totalRefund, shippingAmount: ship, reason, legsTotal },
+            context: { step: 'refund_failed', amount: totalRefund, shippingAmount: ship, generalAmount: capped.generalAmount, reason, legsTotal },
             outcome: { success: false, errorMessage: msg },
             metadata: { source: 'payment/refund' }
         })
@@ -142,13 +152,24 @@ export default async function refund(payload, info) {
             try {
                 await recordRefund(DL, order, coveredTotal)
             } catch { }
+            // The money left the business: offset the document for the part
+            // that was actually refunded, even though the call failed.
+            await issueCreditNote({
+                DL, external, utils, order, user: info._user,
+                refundItems: coveredItems,
+                amount: coveredTotal,
+                refundTxnId: completed[0]?.providerTxnId,
+                reason,
+                source: 'payment/refund:partial',
+                actor: adminActor(_admin)
+            }).catch(() => null)
         }
         await record({
             DL, order,
             eventType: DL.Timeline.constants.EVENT_TYPES.REFUND,
             actor: adminActor(_admin),
             context: {
-                step: 'refund_failed', amount: totalRefund, coveredTotal, shippingAmount: ship, reason,
+                step: 'refund_failed', amount: totalRefund, coveredTotal, shippingAmount: ship, generalAmount: capped.generalAmount, reason,
                 refunds: completed, failedLeg: { providerTxnId: failed.providerTxnId, amount: failed.amount, providerData: failed.hypRes }
             },
             outcome: { success: false, errorMessage: failed.message },
@@ -169,7 +190,7 @@ export default async function refund(payload, info) {
         context: {
             step: 'refund', provider: 'hyp',
             providerTxnId: completed[0]?.providerTxnId, parentProviderTxnId: completed[0]?.parentProviderTxnId,
-            amount: totalRefund, shippingAmount: ship, reason, items: refundItems,
+            amount: totalRefund, shippingAmount: ship, generalAmount: capped.generalAmount, reason, items: refundItems,
             ...(multi ? { refunds: completed } : {})
         },
         changes: { oldData: { refundedTotal: prevRefunded }, newData: { refundedTotal: newRefunded } },
@@ -177,7 +198,23 @@ export default async function refund(payload, info) {
         metadata: { source: 'payment/refund', referenceOrderNumber: order.number }
     })
 
-    return { refunded: totalRefund, providerTxnId: completed[0]?.providerTxnId, refundedTotal: newRefunded, ...(multi ? { refunds: completed } : {}) }
+    const credit = await issueCreditNote({
+        DL, external, utils, order, user: info._user,
+        refundItems,
+        amount: totalRefund,
+        refundTxnId: completed[0]?.providerTxnId,
+        reason,
+        source: 'payment/refund',
+        actor: adminActor(_admin)
+    }).catch(() => null)
+
+    return {
+        refunded: totalRefund,
+        providerTxnId: completed[0]?.providerTxnId,
+        refundedTotal: newRefunded,
+        ...(multi ? { refunds: completed } : {}),
+        ...(credit?.status === 'issued' ? { creditNumber: credit.docNumber, creditUrl: credit.docUrl } : {})
+    }
 }
 
 refund.config = {

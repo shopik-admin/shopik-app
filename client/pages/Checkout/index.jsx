@@ -76,6 +76,8 @@ export default function Checkout() {
         }
         if (!order?.window || !order.window.id || !order.window.date) missing.push('window')
         else if (order.window.leadTimestamp && new Date(order.window.leadTimestamp).getTime() < Date.now()) missing.push('window')
+        const invoice = order?.invoiceRequest
+        if (invoice?.required && !String(invoice.taxId || '').trim()) missing.push('invoice')
         return missing
     }
     useEffect(() => {
@@ -174,7 +176,7 @@ export default function Checkout() {
         setPaying(true)
         setMissingFields([])
         try {
-            const res = await apiReq('payment/create', { orderId: order.id })
+            const res = await apiReq('payment/create', { orderId: order.id, invoiceRequest: order.invoiceRequest })
             if (res?.paymentUrl) setPaymentUrl(res.paymentUrl)
         } catch (e) {
             console.error('payment create failed:', e)

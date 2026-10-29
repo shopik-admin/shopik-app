@@ -13,6 +13,7 @@ import WindowOptions from 'features/Order/WindowOptions'
 import Addresses, { AddressForm } from 'pages/Account/Addresses'
 import { useText } from 'common/texts/TextProvider'
 import { CouponCollapse } from './CouponSection'
+import InvoiceSection from './InvoiceSection'
 import { calcShipping, extractShippingConfig } from '#common/functions/shipping.js'
 import { fallbackCartTotals } from 'common/functions/cartTotals.js'
 import { extractLimits, getMinSumForMethod, getRemainingToMin } from '#common/functions/limits.js'
@@ -275,6 +276,9 @@ export default function OrderSummary({ onPayment, paying, showPayBtn = true, mis
 
                     {/* 3. Coupon Collapse Item — only shown if user/coupon returns relevant coupons */}
                     <CouponCollapse defaultOpen={!isMobile} />
+
+                    {/* 4. Tax invoice details (optional) */}
+                    <InvoiceSection missing={missingFields.includes('invoice')} />
 
                     {/* Financial Breakdown */}
                     <Flex col gap={8} className={styles.breakdown}>

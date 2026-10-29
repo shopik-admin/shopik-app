@@ -97,9 +97,16 @@ export default function Orders() {
                                 </div>
                             </div>
                             <div className={styles.footer}>
-                                <button type="button" className={styles.viewBtn} onClick={() => setExpanded(isOpen ? null : order.id)}>
-                                    <Text>{isOpen ? 'hide' : 'details_link'}</Text>
-                                </button>
+                                <Flex gap={10} alignItems='center'>
+                                    <button type="button" className={styles.viewBtn} onClick={() => setExpanded(isOpen ? null : order.id)}>
+                                        <Text>{isOpen ? 'hide' : 'details_link'}</Text>
+                                    </button>
+                                    {order.invoice?.url ? (
+                                        <a className={styles.invoiceBtn} href={order.invoice.url} target='_blank' rel='noreferrer'>
+                                            <Text>{'invoice_download'}</Text>
+                                        </a>
+                                    ) : null}
+                                </Flex>
                                 <Text bold className={styles.total}>{render({ type: 'coin', value: total })}</Text>
                             </div>
                             {isOpen && order.cart?.length ? (

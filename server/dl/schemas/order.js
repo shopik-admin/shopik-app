@@ -66,9 +66,34 @@ const constants = {
 }
 
 const invoiceSchema = {
+    docId: String,
     number: String,
     url: String,
-    shortUrl: String
+    shortUrl: String,
+    status: String, // pending | issued | failed
+    issuedAt: Date,
+    error: String,
+    // Set when the last credit-note attempt failed; the invoice itself stays
+    // issued. Cleared by the next successful credit note.
+    creditError: String,
+    // Credit notes issued against this invoice (one per refund/cancel).
+    credits: [{
+        invoiceId: String,
+        docId: String,
+        number: String,
+        url: String,
+        amount: Number,
+        refundTxnId: String,
+        issuedAt: Date
+    }]
+}
+
+const invoiceRequestSchema = {
+    required: Boolean,
+    taxId: String,
+    companyName: String,
+    email: String, // billing-email override (e.g. the company accountant)
+    note: String
 }
 
 const priceDistributionSchema = {
@@ -135,6 +160,9 @@ export const cartSchema = [{
     finalAmount: Number,
     price: Number,
     totalSum: Number,
+    // Per-line VAT class snapshot, copied from the product when the line is
+    // built. true = taxable, false = exempt (Comax-derived, never edited here).
+    vat: Boolean,
     regularSum: Number,
     saleSum: Number,
     saleIds: [String],
@@ -344,6 +372,12 @@ const orderSchema = {
     refundPending: { type: Number, default: 0 },
     refundPendingAttempts: { type: Number, default: 0 },
     invoice: invoiceSchema,
+    invoiceRequest: invoiceRequestSchema,
+    // Copied from the EZcount response, never calculated here.
+    vatBreakdown: Object,
+    // Set when items/money changed after the invoice was issued; decided
+    // manually (supplementary document / credit), never automatic.
+    billingAdjustment: { type: String, filter: true },
     receipt: {
         url: String,
         shortUrl: String,

@@ -110,6 +110,18 @@
     text-decoration: underline;
 }
 
+.invoiceBtn {
+    color: var(--text-brand);
+    font-weight: var(--font-weight-semibold);
+    font-size: var(--text-sm);
+    text-decoration: none;
+    padding: 6px 8px;
+}
+
+.invoiceBtn:hover {
+    text-decoration: underline;
+}
+
 .empty {
     text-align: center;
     padding: 40px 16px;

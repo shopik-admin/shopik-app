@@ -28,7 +28,11 @@ export default function filterClientOrder(order) {
         'finalSumWithShipping', 'finalShipping', 'coupons', 'cart',
         'customerUpdatedAt', 'comment', 'replaceProducts',
         'replaceProductsNoCall', 'leaveOrderAtDoor', 'name', 'phone',
-        'secondPhone', 'email', 'paid', 'paidAt'
+        'secondPhone', 'email', 'paid', 'paidAt',
+        // Billing details typed at checkout. Kept on the order so a cart
+        // refresh / window change / delivery-method switch cannot wipe them
+        // from the client state before `payment/create` persists them.
+        'invoiceRequest'
         // NOTE: no `domainId` — domain pricing is resolved server-side into a
         // flat `price`; the storefront carries no domain logic.
     ]

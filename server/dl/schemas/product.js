@@ -66,9 +66,9 @@ const productSchema = {
     },
     buyingPrice: Number,
     // Derived from the Comax category tree at import time (departments named
-    // ללא מע"מ, plus fresh produce). Not in defaultSelect yet: existing docs
-    // have no value, and `true` is the default only for new documents.
-    vat: { type: Boolean, default: true },
+    // ללא מע"מ, plus fresh produce). Classification is owned by Comax: the
+    // nightly sync rewrites it, so there is deliberately no manual override.
+    vat: { type: Boolean, default: true, filter: true },
     barcode: {
         type: String,
         unique: true,
@@ -256,7 +256,8 @@ const defaultSelect = {
     nutrients: 1,
     unit: 1,
     saleIds: 1,
-    netContentText: 1
+    netContentText: 1,
+    vat: 1
 }
 
 const {
