@@ -10,6 +10,7 @@ import { DietIcons } from 'common/components/Nutrition'
 import { round2, round3 } from 'common/functions/calcOrder/utils.js'
 import { getProductImageUrl } from 'common/functions/productImageUrl.js'
 import { getRowPriceInfo, isBundleReached } from 'common/functions/rowPrice.js'
+import { getUnitPriceText, parseWeightOrVolume } from 'common/functions/unitPrice.js'
 import { useState, useEffect } from 'react'
 import { getSalesCache } from '#common/functions/salesCache.js'
 
@@ -288,7 +289,7 @@ function RowPrice({ product, size, sales, saleTotalAmount }) {
     const unitPrice = row.amount > 0 ? round2(total / row.amount) : row.unitPrice
 
     const CurrencySymbol = <Text size='s' bold>₪</Text>
-    const unitPriceText = getUnitPriceText(product)
+    const unitPriceText = getUnitPriceText(product, unitPrice)
 
     return <Flex
         gap={8}
@@ -307,9 +308,10 @@ export function ProductPrice({ product, size = 'm', sales, priceMode = 'unit', s
     try {
         const price = product.price
         if (price == null) return null
-        const unitPriceText = getUnitPriceText(product)
         const sale = getFirstSale(product, sales)
         const saleInfo = sale ? getSalePriceInfo(product, sale) : null
+        // Show per-100g/ml for the effective price: sale unit price when on sale, regular otherwise.
+        const unitPriceText = getUnitPriceText(product, saleInfo?.saleSingle)
 
         const CurrencySymbol = <Text size='s' bold>₪</Text>
         if (priceMode === 'row') {
@@ -335,7 +337,7 @@ export function ProductPrice({ product, size = 'm', sales, priceMode = 'unit', s
             </Flex>
         }
 
-        return <Flex gap={20} alignItems='center' className={classNames(styles.price, styles[size])}>
+        return <Flex gap={8} alignItems='center' wrap className={classNames(styles.price, styles[size])}>
             <Text size='xxl' bold className={styles.basePrice}>{CurrencySymbol}{formatPrice(price)}</Text>
             {unitPriceText && <Text size='s' mode='sub' className={styles.forgrams}>{unitPriceText}</Text>}
         </Flex>
@@ -345,19 +347,5 @@ export function ProductPrice({ product, size = 'm', sales, priceMode = 'unit', s
     }
 }
 
-export function getUnitPriceText({ unitType, unitBase, unitAmount, unit }) {
-    // support both product.unit and flat unitType/unitBase/unitAmount
-    const type = unitType || unit?.type
-    const base = unitBase || unit?.baseUnit
-    const amount = unitAmount || unit?.amount || unit?.units
-    if (type === 'weight' && base === 'g' && amount) {
-        return `${(amount * 100).toFixed(0)}ג ל-100ג`
-    }
-    if (type === 'weight' && base === 'kg' && amount) {
-        return `${(amount * 100).toFixed(0)}ג ל-100ג`
-    }
-    if (type === 'pack' && amount) {
-        return `x${amount}`
-    }
-    return ''
-}
+
+export { getUnitPriceText, parseWeightOrVolume }
