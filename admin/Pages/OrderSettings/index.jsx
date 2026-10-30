@@ -10,10 +10,16 @@ import Select from 'common/components/Select'
 import Text from 'common/components/Text'
 import { useText } from 'common/texts/TextProvider'
 import apiReq from 'common/functions/apiReq'
-import uid from 'common/functions/uid'
 import styles from './orderSettings.module.css'
 
 const LIMIT_FIELDS = ['minSum', 'minSumPickup', 'productMaxAmount']
+
+// Client-safe rule id (common/functions/uid uses node:crypto and must not be
+// bundled for the browser). Uniqueness within the edited list is all we need —
+// the server keeps the id as the usage key and falls back when it is missing.
+function newRuleId() {
+    return `rule_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
+}
 
 function splitList(text) {
     if (Array.isArray(text)) return [...new Set(text.map(v => String(v).trim()).filter(Boolean))]
@@ -27,7 +33,7 @@ function numberOrZero(value) {
 
 function toFormRule(rule) {
     return {
-        id: rule?.id || uid(8),
+        id: rule?.id || newRuleId(),
         name: rule?.name || '',
         enabled: rule?.enabled !== false,
         categoryIds: Array.isArray(rule?.categoryIds) ? rule.categoryIds : [],
@@ -164,7 +170,7 @@ export default function OrderSettings() {
 
     function addRule() {
         setRules(prev => [...prev, toFormRule({
-            id: uid(8),
+            id: newRuleId(),
             name: t('order_settings_new_rule_name'),
             enabled: true
         })])
