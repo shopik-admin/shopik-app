@@ -24,6 +24,8 @@ export default function ProductInline({
     saleTotalAmount,
     priceMode = 'unit',
     maxAmount = 0,
+    limitReached = false,
+    maxTitle,
     ...props
 }) {
     const [noteOpen, setNoteOpen] = useState()
@@ -106,7 +108,7 @@ export default function ProductInline({
                         onClick={() => setNoteOpen(n => !n)}
                         icon='note' mode='text' stopPropagation preventDefault
                         className={classNames(styles.note, [styles.active, noteOpen])} />}
-                    {(onUpdateAmount != null || amount != null) && <ProductButton product={product} amount={amount} onUpdateAmount={onUpdateAmount} size={size} sales={sales} maxAmount={maxAmount} />}
+                    {(onUpdateAmount != null || amount != null) && <ProductButton product={product} amount={amount} onUpdateAmount={onUpdateAmount} size={size} sales={sales} maxAmount={maxAmount} limitReached={limitReached} maxTitle={maxTitle} />}
                 </Flex>
             </Flex>
         </Flex>

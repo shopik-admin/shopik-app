@@ -5,6 +5,7 @@ import { useUser } from 'features/User'
 import calcOrder from 'common/functions/calcOrder/cart.js'
 import { extractShippingConfig } from '#common/functions/shipping.js'
 import { extractLimits } from '#common/functions/limits.js'
+import { getCartLineLimit } from '#common/functions/productRules.js'
 import { getSalesCache, setSalesCache } from '#common/functions/salesCache.js'
 
 export function useProductCart(product, sales = {}) {
@@ -15,12 +16,28 @@ export function useProductCart(product, sales = {}) {
     const amount = order?.cart?.find(item => item.id === product?.id)?.amount ?? product?.amount ?? 0
     const limits = useMemo(() => extractLimits(settings), [settings])
     const productMaxAmount = Number(limits?.productMaxAmount ?? 0) || 0
+    // Effective max for this line. The server annotates the product and every
+    // cart line with the cap groups they belong to (`ruleGroups`), so the
+    // storefront can add up group usage without ever seeing the rules.
+    const cartLineLimit = useMemo(
+        () => getCartLineLimit(product, order?.cart || [], productMaxAmount),
+        [product, order?.cart, productMaxAmount]
+    )
+    const maxAmount = cartLineLimit.maxAmount
+    // `maxAmount` is 0 both for "no cap" and "group already full"; keep the
+    // two apart so the guard below only blocks when a cap actually exists.
+    const hasCap = !!cartLineLimit.rule || productMaxAmount > 0
+    // A remainder smaller than the minimum add is effectively full: the button
+    // must not look clickable when the only possible step would overflow.
+    const minAdd = Number(product?.unit?.minAmount) || 0
+    const limitReached = cartLineLimit.limitReached
+        || (hasCap && maxAmount > 0 && minAdd > maxAmount)
     // Fresh guests have no order.domainId yet — fall back to the SSR-resolved
     // storefront domain so the optimistic update works on the very first click.
     const effectiveOrder = order?.domainId ? order : { ...order, domainId: order?.domainId || appDomainId }
 
     const updateAmount = (newAmount) => {
-        if (productMaxAmount > 0 && Number(newAmount) > productMaxAmount) return
+        if (hasCap && Number(newAmount) > maxAmount) return
         if (sales && Object.keys(sales).length) setSalesCache(sales)
         const cachedSales = getSalesCache()
         const neededIds = [...new Set([...(order?.cart || []).flatMap(i => i.saleIds || []), ...(product.saleIds || [])])]
@@ -100,5 +117,17 @@ export function useProductCart(product, sales = {}) {
         return undefined
     })()
 
-    return { amount, updateAmount, remove, saleTotalAmount, effectiveSalesForChild, order, productMaxAmount, limits }
+    return {
+        amount,
+        updateAmount,
+        remove,
+        saleTotalAmount,
+        effectiveSalesForChild,
+        order,
+        productMaxAmount,
+        limits,
+        maxAmount,
+        limitReached,
+        limitRuleName: cartLineLimit.rule?.name || ''
+    }
 }

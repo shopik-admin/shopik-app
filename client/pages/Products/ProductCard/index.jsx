@@ -19,7 +19,7 @@ export { ProductImage, ProductInfo, ProductPrice, getUnitPriceText }
 
 export default function ProductCard(props) {
     const { product, sales = {}, size = 'm' } = props
-    const { amount, updateAmount, productMaxAmount } = useProductCart(product, sales)
+    const { amount, updateAmount, maxAmount, limitReached, limitRuleName } = useProductCart(product, sales)
     const { action, price } = getProductState({ amount, sale: getFirstSale(product, sales) })
 
     return <Flex
@@ -40,7 +40,9 @@ export default function ProductCard(props) {
             size={size}
             amount={amount}
             onUpdateAmount={updateAmount}
-            maxAmount={productMaxAmount}
+            maxAmount={maxAmount}
+            limitReached={limitReached}
+            maxTitle={limitReached && limitRuleName ? `הגעת למגבלת הכמות בקבוצה: ${limitRuleName}` : undefined}
         />
     </Flex>
 }
@@ -48,6 +50,14 @@ export default function ProductCard(props) {
 // Standalone cart-wired button for consumers outside the card shell
 // (e.g. the related-products rail on the product page).
 export function ProductButton({ product, sales = {} }) {
-    const { amount, updateAmount, productMaxAmount } = useProductCart(product, sales)
-    return <CommonProductButton product={product} sales={sales} amount={amount} onUpdateAmount={updateAmount} maxAmount={productMaxAmount} />
+    const { amount, updateAmount, maxAmount, limitReached, limitRuleName } = useProductCart(product, sales)
+    return <CommonProductButton
+        product={product}
+        sales={sales}
+        amount={amount}
+        onUpdateAmount={updateAmount}
+        maxAmount={maxAmount}
+        limitReached={limitReached}
+        maxTitle={limitReached && limitRuleName ? `הגעת למגבלת הכמות בקבוצה: ${limitRuleName}` : undefined}
+    />
 }

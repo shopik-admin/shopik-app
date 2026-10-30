@@ -1,3 +1,5 @@
+import { GLOBAL_SETTINGS_DOMAIN } from '#common/constants.js'
+
 export default async function exp(payload, { DL }) {
     const { category, subCategory, domainId } = payload || {}
 
@@ -20,17 +22,21 @@ export default async function exp(payload, { DL }) {
             domainId: filter.domainId || null
         },
         // ponytail: entries carry no domainId — the import target domain comes
-        // from the domain picker, so files move cleanly between domains
-        settings: (docs || []).map((s) => ({
-            key: s.key,
-            value: s.value,
-            category: s.category,
-            subCategory: s.subCategory,
-            formType: s.formType,
-            renderType: s.renderType,
-            public: s.public,
-            hidden: !!s.hidden
-        }))
+        // from the domain picker, so files move cleanly between domains.
+        // The global product-rules row has no domain to land in (it is edited
+        // on the Order Settings page), so keep it out of domain files.
+        settings: (docs || [])
+            .filter((s) => s.domainId !== GLOBAL_SETTINGS_DOMAIN)
+            .map((s) => ({
+                key: s.key,
+                value: s.value,
+                category: s.category,
+                subCategory: s.subCategory,
+                formType: s.formType,
+                renderType: s.renderType,
+                public: s.public,
+                hidden: !!s.hidden
+            }))
     }
 }
 

@@ -21,7 +21,7 @@ import render from '#common/functions/render.js'
 import { isElevatorRequired } from '#common/functions/address.js'
 
 export default function Checkout() {
-    const { order = {}, setOrder, refreshCart } = useOrder()
+    const { order = {}, setOrder, refreshCart, cartError } = useOrder()
     const user = useUser()
     const { TR } = useText() || {}
     const navigate = useNavigate()
@@ -205,6 +205,12 @@ export default function Checkout() {
                 setPayError({ message: TR?.('cart_changed_confirm') })
                 return
             }
+            if (e?.code === 'GROUP_LIMIT_EXCEEDED') {
+                await refreshCart()
+                const details = e?.groupName ? ` (${e.groupName} - ${e.max})` : ''
+                setPayError({ message: `${TR?.('group_limit_exceeded') || ''}${details}` })
+                return
+            }
             setPayError(e)
             const fields = e?.missingFields || e?.data?.missingFields || []
             if (Array.isArray(fields) && fields.length) {
@@ -296,6 +302,12 @@ export default function Checkout() {
                     {payError && !payError?.missingFields && (
                         <Text mode='sub' className={styles.payError}>
                             {(payError?.message || payError || 'payment_failed_generic')}
+                        </Text>
+                    )}
+                    {cartError && !payError && (
+                        <Text mode='sub' className={styles.payError}>
+                            {TR?.('group_limit_exceeded')}
+                            {cartError.groupName ? ` (${cartError.groupName}${cartError.max ? ` - ${cartError.max}` : ''})` : ''}
                         </Text>
                     )}
                 </Flex>

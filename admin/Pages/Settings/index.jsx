@@ -429,6 +429,7 @@ export default function Settings() {
             callReq()
             const lines = [`Domain: ${domainNameOf(res.domainId || targetDomain)}`, `Created: ${res.created}`, `Updated: ${res.updated}`]
             if (res.skippedConfig?.length) lines.push(`Skipped config (superAdmin only): ${res.skippedConfig.join(', ')}`)
+            if (res.skippedReserved?.length) lines.push(`Skipped reserved settings (edit on Order Settings): ${res.skippedReserved.join(', ')}`)
             if (res.errors?.length) lines.push(`Errors: ${res.errors.map((x) => `${x.key}: ${x.message}`).join('; ')}`)
             openModal(<div style={{ whiteSpace: 'pre-wrap' }}>{lines.join('\n')}</div>, { title: `Import complete (${domainNameOf(res.domainId || targetDomain)})` })
         } catch (err) {

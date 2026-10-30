@@ -2,6 +2,8 @@ import { releaseWindowReservation } from '#server/utils/data/windowGroups.js'
 import { findByLocation } from '#server/external/supplyArea.js'
 import { isElevatorRequired } from '#common/functions/address.js'
 import { normalizeInvoiceRequest } from '#common/functions/invoice/request.js'
+import { validateCart } from '#common/functions/productRules.js'
+import getProductRules from '#server/utils/data/getProductRules.js'
 
 export default async function create(payload, info) {
     const { DL, external, utils, _user } = info
@@ -34,7 +36,10 @@ export default async function create(payload, info) {
 
     // Enforce minSum / minSumPickup based on post-sale pre-coupon total (sumBeforeCoupon == order.sum)
     try {
-        const limitsSetting = await DL.Setting.readOne({ key: 'limits' })
+        const limitsSetting = await DL.Setting.readOne(
+            { key: 'limits', domainId: order.domainId },
+            { _id: 0, value: 1 }
+        )
         const raw = limitsSetting?.value
         if (raw && typeof raw === 'object') {
             const threshold = order.deliveryMethod === DL.Order.constants.DELIVERY_METHOD.PICKUP
@@ -49,6 +54,23 @@ export default async function create(payload, info) {
         }
     } catch (e) {
         if (e?.code === 'MIN_SUM_NOT_REACHED') throw e
+    }
+
+    // Final customer-facing cap gate. Only lines the customer added count, so
+    // an ops replacement that pushes a group over the cap cannot block payment.
+    const rules = await getProductRules(DL)
+    const violations = validateCart(order.cart || [], rules.groups, { includeAdminLines: false })
+    if (violations.length) {
+        const violation = violations[0]
+        throw {
+            status: 400,
+            code: 'GROUP_LIMIT_EXCEEDED',
+            message: `Product group limit exceeded (${violation.ruleName} max ${violation.max})`,
+            groupId: violation.ruleId,
+            groupName: violation.ruleName,
+            max: violation.max,
+            usage: violation.usage
+        }
     }
 
     // ---- Validate required order fields & auto-fill from _user ----

@@ -56,6 +56,9 @@ export function buildCartProduct({ product, amount, unitKey, domainId, existingS
             units,
             option
         },
+        // Copied from the annotated product so the optimistic cart already
+        // knows which cap groups the line belongs to.
+        ruleGroups: Array.isArray(product.ruleGroups) ? product.ruleGroups : [],
         images: product.images ? {
             product: (product.images.product || []).map(img => ({
                 main: !!img.main,

@@ -13,7 +13,8 @@ const allowedFields = [
     'replacedBy',
     'label',
     'netContentText',
-    'unit'
+    'unit',
+    'ruleGroups'
 ]
 export default function filterClientOrder(order) {
     if (!order) return null

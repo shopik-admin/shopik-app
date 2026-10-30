@@ -1,5 +1,7 @@
 import { withDomainPrice } from '#server/utils/data/withDomainPrice.js'
 import { ADMIN_TOKEN_COOKIE } from '#common/constants.js'
+import { annotateProduct } from '#common/functions/productRules.js'
+import getProductRules from '#server/utils/data/getProductRules.js'
 
 export default async function search(payload, { DL, req, _user, _admin, utils, platform }) {
     const { value = '', filter = {}, skip = 0, limit = 20, domainId } = payload
@@ -7,6 +9,12 @@ export default async function search(payload, { DL, req, _user, _admin, utils, p
     // storefront gets a resolved flat `price` only (see withDomainPrice).
     const isStorefront = !String(platform || '').includes('admin')
     const priceFor = (products) => (isStorefront && domainId ? withDomainPrice(products, domainId) : products)
+    // Storefront only: stepper overrides + cap groups from the global rules.
+    const rules = isStorefront ? await getProductRules(DL) : null
+    const finalize = (products) => {
+        const priced = priceFor(products)
+        return rules ? priced.map(product => annotateProduct(product, rules.groups)) : priced
+    }
     const safeSkip = Math.max(0, Number(skip) || 0)
     const safeLimit = Math.min(Math.max(1, Number(limit) || 20), 100)
     const { mode, storeId } = await utils.data.withStock.resolveStockContext(req, { DL, utils }, _user)
@@ -37,7 +45,7 @@ export default async function search(payload, { DL, req, _user, _admin, utils, p
         let products = await DL.Product.read(exactFilter, selectForStock, { limit: safeLimit, skip: safeSkip })
         if (wantAnnotate) products = utils.data.withStock.annotateInStock(products, storeId, mode)
         const sales = await collectSales(products)
-        return { products: priceFor(products), sales }
+        return { products: finalize(products), sales }
     }
 
     let products = await DL.Product.search(value, effectiveFilter, { skip: safeSkip, limit: safeLimit, select: selectForStock })
@@ -45,7 +53,7 @@ export default async function search(payload, { DL, req, _user, _admin, utils, p
     if (wantAnnotate) products = utils.data.withStock.annotateInStock(products, storeId, mode)
 
     const sales = await collectSales(products)
-    return { products: priceFor(products), sales }
+    return { products: finalize(products), sales }
 
     async function collectSales(prods) {
         const saleIdSet = new Set()

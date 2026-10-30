@@ -1,0 +1,127 @@
+.page {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1.5rem;
+    min-height: 32rem;
+    border-radius: var(--radius-lg);
+    background: var(--bg-primary);
+}
+
+.header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.header > div:first-child {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.muted {
+    color: var(--text-secondary);
+}
+
+.actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.domainSelect {
+    min-width: 14rem;
+}
+
+.error,
+.message,
+.notice {
+    padding: 0.7rem 0.9rem;
+    border-radius: var(--radius-md);
+    font-size: var(--text-s);
+}
+
+.error {
+    color: var(--text-error-primary);
+    background: color-mix(in srgb, var(--bg-error-primary) 12%, transparent);
+}
+
+.message {
+    color: var(--text-success-primary, var(--text-primary));
+    background: color-mix(in srgb, var(--bg-success-primary, var(--bg-brand-primary)) 12%, transparent);
+}
+
+.notice {
+    color: var(--text-secondary);
+    background: var(--bg-primary-alt);
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+}
+
+.rule {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.9rem;
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    background: var(--bg-primary-alt);
+}
+
+.ruleHeader {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.ruleName {
+    flex: 1;
+    min-width: 12rem;
+}
+
+.ruleTargets {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+    gap: 0.75rem;
+}
+
+.targetField {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    min-width: 0;
+}
+
+.ruleFooter {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    padding-top: 0.5rem;
+    border-top: 1px dashed var(--border-primary);
+}
+
+@media (max-width: 700px) {
+    .page {
+        padding: 1rem;
+    }
+
+    .actions {
+        width: 100%;
+    }
+
+    .domainSelect {
+        flex: 1;
+        min-width: 0;
+    }
+}
