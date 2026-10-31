@@ -7,7 +7,7 @@ import getProductRules from '#server/utils/data/getProductRules.js'
 
 export default async function create(payload, info) {
     const { DL, external, utils, _user } = info
-    const { orderId } = payload
+    const { orderId, domainId } = payload
 
     if (!_user) throw { status: 401, message: 'Unauthorized' }
 
@@ -37,7 +37,7 @@ export default async function create(payload, info) {
     // Enforce minSum / minSumPickup based on post-sale pre-coupon total (sumBeforeCoupon == order.sum)
     try {
         const limitsSetting = await DL.Setting.readOne(
-            { key: 'limits', domainId: order.domainId },
+            { key: 'limits', domainId: order.domainId || domainId },
             { _id: 0, value: 1 }
         )
         const raw = limitsSetting?.value
