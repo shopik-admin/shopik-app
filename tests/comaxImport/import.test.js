@@ -31,6 +31,7 @@ function makeDL({
     const stateUpdates = []
     const pulls = []
     const prunes = []
+    const zeroed = []
     const distinctFilters = []
     const modelBulkWrites = []
     let storeBarcodes = {}
@@ -57,6 +58,11 @@ function makeDL({
                     // store-list prune keeps a filter without a barcode.
                     if (filter?.storeIds?.$exists) {
                         prunes.push({ filter, update })
+                        return { modifiedCount: 1 }
+                    }
+                    // Everything not in the reported set sold nothing.
+                    if (filter?.barcode?.$nin) {
+                        zeroed.push({ filter, update })
                         return { modifiedCount: 1 }
                     }
                     pulls.push({ filter, update })
@@ -92,6 +98,7 @@ function makeDL({
         stateUpdates,
         pulls,
         prunes,
+        zeroed,
         distinctFilters,
         modelBulkWrites,
         setStoreBarcodes: map => { storeBarcodes = map }
@@ -579,8 +586,8 @@ describe('comax sales window', () => {
 
     const daysAgo = days => new Date(Date.now() - days * 24 * 60 * 60 * 1000)
 
-    function row(barcode, departmentCode, lastSaleDate) {
-        return { barcode, departmentCode, lastSaleDate }
+    function row(barcode, departmentCode, lastSaleDate, salesLastDays = 0) {
+        return { barcode, departmentCode, lastSaleDate, salesLastDays }
     }
 
     it('asks every store for the widest configured window', async () => {
@@ -773,5 +780,74 @@ describe('comax sales window', () => {
 
         assert.equal(calls.salesWindow.length, 0)
         assert.equal(pulls.length, 0)
+    })
+
+    it('sums SalesLastDays over the stores into the catalog', async () => {
+        const { DL, modelBulkWrites, setStoreBarcodes } = makeDL({
+            registers: [reg('store-a', '84'), reg('store-b', '52')],
+            settings: SETTINGS
+        })
+        setStoreBarcodes({ 'store-a': [], 'store-b': [] })
+        const { external } = makeExternal({
+            stores: { 84: [makeProduct(0)], 52: [makeProduct(1)] },
+            departments: { 13: [] },
+            salesWindows: {
+                84: [row('1000', '13', daysAgo(1), 10.5), row('1001', '13', daysAgo(2), 2)],
+                52: [row('1000', '13', daysAgo(3), 4.25)]
+            }
+        })
+
+        await importComaxProducts({}, { DL, external })
+
+        const units = modelBulkWrites
+            .filter(w => w.updateOne?.update?.$set?.salesLastDays != null)
+            .map(w => [w.updateOne.filter.barcode, w.updateOne.update.$set.salesLastDays])
+            .sort()
+        assert.deepEqual(units, [['1000', 14.75], ['1001', 2]])
+    })
+
+    it('resets an item that sold nothing in the window to 0 units', async () => {
+        const { DL, zeroed, setStoreBarcodes } = makeDL({
+            registers: [reg('store-a', '84')],
+            settings: SETTINGS
+        })
+        setStoreBarcodes({ 'store-a': [] })
+        const { external } = makeExternal({
+            stores: { 84: [makeProduct(0)] },
+            departments: { 13: [] },
+            salesWindows: { 84: [row('1000', '13', daysAgo(1), 7)] }
+        })
+
+        await importComaxProducts({}, { DL, external })
+
+        assert.equal(zeroed.length, 1)
+        assert.deepEqual(zeroed[0].filter, { barcode: { $nin: ['1000'] } })
+        assert.deepEqual(zeroed[0].update, { $set: { salesLastDays: 0 } })
+    })
+
+    it('stores no units when a store feed was skipped', async () => {
+        const { DL, zeroed, modelBulkWrites, setStoreBarcodes } = makeDL({
+            registers: [reg('store-a', '84'), reg('store-b', '52')],
+            settings: SETTINGS,
+            state: { key: 'products', feeds: { 'salesWindow:store-b': 5000 } }
+        })
+        setStoreBarcodes({ 'store-a': [], 'store-b': [] })
+        const { external } = makeExternal({
+            stores: { 84: [makeProduct(0)], 52: [makeProduct(1)] },
+            departments: { 13: [] },
+            salesWindows: {
+                84: [row('1000', '13', daysAgo(1), 9)],
+                // Collapsed against the stored baseline, so the store is skipped.
+                52: { items: [row('1000', '13', daysAgo(1), 9)], blocks: 10 }
+            }
+        })
+
+        await importComaxProducts({}, { DL, external })
+
+        assert.equal(zeroed.length, 0)
+        assert.equal(
+            modelBulkWrites.filter(w => w.updateOne?.update?.$set?.salesLastDays != null).length,
+            0
+        )
     })
 })

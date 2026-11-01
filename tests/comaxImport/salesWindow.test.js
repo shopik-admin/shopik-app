@@ -9,6 +9,7 @@ import {
     daysForDepartment,
     isWithinWindow,
     buildKeptBarcodes,
+    sumSalesUnits,
     validateSalesWindowInput,
     resolveSalesWindow
 } from '../../server/api/comax_product/salesWindow.js'
@@ -146,6 +147,45 @@ describe('comax sales window decisions', () => {
         ], windows, NOW)
 
         assert.equal(kept.size, 0)
+    })
+})
+
+describe('comax sales units', () => {
+    it('sums one barcode over the stores', () => {
+        const totals = sumSalesUnits([
+            { barcode: 'a', salesLastDays: 10 },
+            { barcode: 'a', salesLastDays: 2.5 }
+        ])
+
+        assert.equal(totals.get('a'), 12.5)
+    })
+
+    it('accumulates store by store', () => {
+        const totals = new Map()
+        sumSalesUnits([{ barcode: 'a', salesLastDays: 3 }], totals)
+        sumSalesUnits([{ barcode: 'a', salesLastDays: 4 }], totals)
+
+        assert.equal(totals.get('a'), 7)
+    })
+
+    it('ignores rows without a barcode or without a positive figure', () => {
+        const totals = sumSalesUnits([
+            { barcode: '', salesLastDays: 5 },
+            { barcode: 'a', salesLastDays: 0 },
+            { barcode: 'b', salesLastDays: null },
+            null
+        ])
+
+        assert.equal(totals.size, 0)
+    })
+
+    it('rounds weighed quantities to grams', () => {
+        const totals = sumSalesUnits([
+            { barcode: 'a', salesLastDays: 0.1 },
+            { barcode: 'a', salesLastDays: 0.2 }
+        ])
+
+        assert.equal(totals.get('a'), 0.3)
     })
 })
 

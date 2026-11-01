@@ -2,7 +2,7 @@ import mem, { collectGarbage } from '#server/utils/mem.js'
 import { round2 } from '#common/functions/calcOrder/utils.js'
 import { PRODUCTS, completeRun } from './watermark.js'
 import { resolveFreshDepartments } from './freshDepartments.js'
-import { resolveSalesWindow, buildDepartmentWindows, buildKeptBarcodes } from './salesWindow.js'
+import { resolveSalesWindow, buildDepartmentWindows, buildKeptBarcodes, sumSalesUnits } from './salesWindow.js'
 
 const REGISTER_FILTER = { active: true, type: 'comax' }
 
@@ -366,10 +366,18 @@ export default async function importComaxProducts(payload, { DL, external }) {
         console.log(`[Comax Import] Sales window: default ${windows.defaultDays}d, ` +
             `${windows.byDepartment.size} department override(s), querying ${windows.maxDays}d`)
         const lastSaleByBarcode = new Map()
+        // Units sold per barcode, summed over the stores. Written only when
+        // every store answered: a skipped store would silently under-count,
+        // and a wrong total is worse than yesterday's.
+        const salesUnitsByBarcode = new Map()
+        let salesUnitsComplete = true
 
         for (const reg of registers) {
             const comaxStoreId = String(reg.data?.StockStoreID ?? '').trim()
-            if (!comaxStoreId) continue
+            if (!comaxStoreId) {
+                salesUnitsComplete = false
+                continue
+            }
 
             const stats = { blocks: 0, kept: 0, unparsed: 0 }
             const rows = []
@@ -418,8 +426,11 @@ export default async function importComaxProducts(payload, { DL, external }) {
                             ? `feed returned ${stats.blocks} items, down from ${previous}`
                             : `${stats.unparsed} unparseable block(s)`
                 console.warn(`[Comax Import] store ${reg.storeId}: sales window skipped, keeping stored stock state — ${reason}`)
+                salesUnitsComplete = false
                 continue
             }
+
+            sumSalesUnits(rows, salesUnitsByBarcode)
 
             if (unknownDates)
                 console.warn(`[Comax Import] store ${reg.storeId}: ${unknownDates} sold row(s) without a usable LastSaleDate — kept`)
@@ -450,6 +461,34 @@ export default async function importComaxProducts(payload, { DL, external }) {
                 for (const part of chunk(ops, BATCH)) await DL.ComaxProduct.Model.bulkWrite(part)
             } catch (e) {
                 console.warn('[Comax Import] Could not store lastSaleDate:', e?.message || e)
+            }
+        }
+
+        // Units sold per barcode over the window, summed across stores. This is
+        // a total, not a running max, so it is replaced every run: an item that
+        // sold nothing in the window goes back to 0 and stops ranking as
+        // popular. Both halves are skipped unless every store answered — a
+        // partial sum would quietly demote products from the missing store.
+        if (!salesUnitsComplete) {
+            console.warn('[Comax Import] Sales units not stored — at least one store feed was skipped')
+        } else if (!salesUnitsByBarcode.size) {
+            console.warn('[Comax Import] Sales units not stored — no store reported a positive SalesLastDays')
+        } else {
+            const ops = [...salesUnitsByBarcode].map(([barcode, salesLastDays]) => ({
+                updateOne: { filter: { barcode }, update: { $set: { salesLastDays } } }
+            }))
+            try {
+                // Values first: a failure there leaves the old numbers in place
+                // instead of zeroing items that did sell.
+                for (const part of chunk(ops, BATCH)) await DL.ComaxProduct.Model.bulkWrite(part)
+                const zeroed = await DL.ComaxProduct.Model.updateMany(
+                    { barcode: { $nin: [...salesUnitsByBarcode.keys()] } },
+                    { $set: { salesLastDays: 0 } }
+                )
+                console.log(`[Comax Import] Sales units: ${salesUnitsByBarcode.size} item(s) sold, ` +
+                    `${zeroed?.modifiedCount || 0} reset to 0`)
+            } catch (e) {
+                console.warn('[Comax Import] Could not store salesLastDays:', e?.message || e)
             }
         }
     }

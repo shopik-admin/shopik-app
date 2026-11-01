@@ -124,6 +124,30 @@ export function buildKeptBarcodes(rows, windows, now = new Date()) {
 }
 
 /**
+ * Units sold per barcode over the query window, summed across stores.
+ *
+ * `SalesLastDays` is Comax's own "units sold in the last NumDaysSold days"
+ * figure, returned per item per store. A store's feed only contains what sold
+ * there, so the company total for an item is the sum over the stores that
+ * carry it. `into` is accumulated, so the caller can feed one store at a time.
+ *
+ * Rows without a barcode are ignored; a row with no usable figure adds nothing
+ * (absence is 0 units for that store, not a reason to drop the others).
+ */
+export function sumSalesUnits(rows, into = new Map()) {
+    for (const row of rows || []) {
+        const barcode = String(row?.barcode ?? '').trim()
+        if (!barcode) continue
+        const units = Number(row?.salesLastDays)
+        if (!(units > 0)) continue
+        // Comax returns long float tails for weighed goods (kg); 3 decimals is
+        // grams and keeps the stored value readable.
+        into.set(barcode, Math.round(((into.get(barcode) || 0) + units) * 1000) / 1000)
+    }
+    return into
+}
+
+/**
  * Strict validation for the admin endpoint (normalize drops bad input; this
  * rejects it). `knownDepartments` is the catalog's department code set.
  */

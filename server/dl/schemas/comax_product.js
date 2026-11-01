@@ -97,7 +97,12 @@ const comaxProductSchema = {
     buyingPriceImportedAt: Date,
     // Latest sale of this barcode in any store, from the sales-window feed.
     // Informational: the per-store decision is storeIds (see salesWindow.js).
-    lastSaleDate: Date
+    lastSaleDate: Date,
+    // Comax's SalesLastDays for this barcode, summed over the stores of the
+    // sales-window feed. Units over the queried window (the widest configured
+    // one), fractional for weighed goods. The sync copies it to
+    // product.totalSalesUnits; missing means "never measured", which is not 0.
+    salesLastDays: Number
 }
 
 export default comaxProductSchema

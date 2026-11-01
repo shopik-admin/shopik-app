@@ -92,6 +92,9 @@ export function buildProduct(comax, DL, defaultDomainId, existing, enforceBuying
         // A never-tracked item keeps its stored value (the key is omitted, so the
         // bulk $set never touches it).
         ...(storeIds ? { storeIds } : {}),
+        // Same rule for the sales total: an item the import never measured keeps
+        // whatever the one-off report backfill wrote.
+        ...(Number.isFinite(comax.salesLastDays) ? { totalSalesUnits: comax.salesLastDays } : {}),
         status,
         nutrients: {
             alcohol: comax.alcohol
@@ -138,6 +141,8 @@ export default async function syncComax(payload, { DL }) {
         archived: 1,
         // Written by the import's per-store feeds; copied onto products below.
         storeIds: 1,
+        // Units over the sales window, summed across stores by the import.
+        salesLastDays: 1,
         Size: 1,
         SwWeighable: 1,
         ContentUnit: 1,
