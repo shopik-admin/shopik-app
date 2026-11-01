@@ -324,6 +324,7 @@ export default function OrderSettings() {
                     value={limits.minSum}
                     onChange={event => setLimits(prev => ({ ...prev, minSum: event.target.value }))}
                     disabled={!canEdit}
+                    className={styles.numberField}
                 />
                 <Input
                     name={t('order_settings_min_sum_pickup')}
@@ -332,6 +333,7 @@ export default function OrderSettings() {
                     value={limits.minSumPickup}
                     onChange={event => setLimits(prev => ({ ...prev, minSumPickup: event.target.value }))}
                     disabled={!canEdit}
+                    className={styles.numberField}
                 />
                 <Input
                     name={t('order_settings_product_max')}
@@ -340,6 +342,7 @@ export default function OrderSettings() {
                     value={limits.productMaxAmount}
                     onChange={event => setLimits(prev => ({ ...prev, productMaxAmount: event.target.value }))}
                     disabled={!canEdit}
+                    className={styles.numberField}
                 />
             </div>
         </Card>
@@ -382,7 +385,7 @@ export default function OrderSettings() {
                         />
                     </div>
 
-                    <div className={styles.ruleNumbers}>
+                    <div className={styles.grid}>
                         <Input
                             name={t('order_settings_rule_max')}
                             type="number"

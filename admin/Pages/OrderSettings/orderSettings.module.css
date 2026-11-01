@@ -60,11 +60,26 @@
     background: var(--bg-primary-alt);
 }
 
+/* Both cards hold short number fields: they keep the width their label or hint
+   needs on one line instead of stretching across the card. */
 .grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+    display: flex;
+    flex-wrap: wrap;
     gap: 0.75rem;
     margin-top: 0.75rem;
+}
+
+.numberField {
+    flex: 0 1 15rem;
+    min-width: 12rem;
+    max-width: 15rem;
+}
+
+/* A line of digits has no strong directional character, so the bidi algorithm
+   falls back to LTR for it and the value sits on the left of an RTL field. Pin
+   the line to the field's own direction so it starts at the inline start. */
+.numberField input {
+    unicode-bidi: isolate;
 }
 
 /* Subtitle row that hosts a card-local save button, shown only when that
@@ -98,28 +113,6 @@
     flex: 1;
     min-width: 12rem;
     max-width: 18rem;
-}
-
-/* The rule numbers are short values — a pack count, a weight step — so they
-   keep their own width in a row instead of stretching across the card. 14rem is
-   what the longest hint (a single line at 12px) needs. */
-.ruleNumbers {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.75rem;
-}
-
-.numberField {
-    flex: 0 1 14rem;
-    min-width: 10rem;
-    max-width: 14rem;
-}
-
-/* A line of digits has no strong directional character, so the bidi algorithm
-   falls back to LTR for it and the value sits on the left of an RTL field. Pin
-   the line to the field's own direction so it starts at the inline start. */
-.numberField input {
-    unicode-bidi: isolate;
 }
 
 /* The switch-mode checkbox draws its 50px control with position:absolute at
