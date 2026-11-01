@@ -115,6 +115,13 @@
     max-width: 14rem;
 }
 
+/* A line of digits has no strong directional character, so the bidi algorithm
+   falls back to LTR for it and the value sits on the left of an RTL field. Pin
+   the line to the field's own direction so it starts at the inline start. */
+.numberField input {
+    unicode-bidi: isolate;
+}
+
 /* The switch-mode checkbox draws its 50px control with position:absolute at
    the label's inline-end. A label sized only by its text lets that control
    spill over the neighbouring input, so reserve room for it here. */
