@@ -481,8 +481,8 @@ export default function OrderSettings() {
                                                 : t('order_settings_preview_matched_category', { name: product.match?.name })}
                                         </Text>
                                         {product.match?.level !== 'barcode' && <CopyValueButton
-                                            text={product.match?.name}
-                                            title={t('order_settings_copy_category')}
+                                            text={product.match?.path}
+                                            title={t('order_settings_copy_category_path')}
                                         />}
                                     </div>
                                 </div>
