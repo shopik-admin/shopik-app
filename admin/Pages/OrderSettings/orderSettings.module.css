@@ -179,6 +179,14 @@
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
+/* Which rule target pulled the product in: the matched category level or the
+   barcode itself. */
+.previewMatch {
+    color: var(--text-tertiary);
+    text-align: center;
+    line-height: 1.2;
+}
+
 .previewMore {
     display: flex;
     justify-content: center;

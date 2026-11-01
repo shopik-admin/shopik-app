@@ -1,4 +1,4 @@
-import { normalizeRule } from '#common/functions/productRules.js'
+import { getRuleMatch, normalizeRule } from '#common/functions/productRules.js'
 
 const DEFAULT_LIMIT = 60
 const MAX_LIMIT = 300
@@ -32,14 +32,15 @@ export default async function preview({ rule, skip = 0, limit = DEFAULT_LIMIT } 
     const safeSkip = Math.max(0, Number(skip) || 0)
     const safeLimit = Math.min(Math.max(1, Number(limit) || DEFAULT_LIMIT), MAX_LIMIT)
 
-    const [count, products] = await Promise.all([
+    const [count, rows] = await Promise.all([
         DL.Product.Model.countDocuments(filter),
         DL.Product.Model.find(filter, {
             _id: 0,
             id: 1,
             name: 1,
             barcode: 1,
-            'category.title': 1
+            // pathIds is what the rule matches on, so the answer needs it too
+            category: 1
         })
             // Unique tiebreaker: name alone repeats, and skip/limit pages of
             // ties would otherwise overlap.
@@ -49,8 +50,36 @@ export default async function preview({ rule, skip = 0, limit = DEFAULT_LIMIT } 
             .lean()
     ])
 
-    return { count, products, hasMore: safeSkip + products.length < count }
+    // Name the category level that actually pulled each product into the rule.
+    // Only the targets present on this page are resolved, and each distinct
+    // target is read once.
+    const matches = rows.map(row => ({
+        id: row.id,
+        name: row.name,
+        barcode: row.barcode,
+        match: getRuleMatch(row, normalized)
+    }))
+    const targets = new Set()
+    for (const item of matches)
+        if (item.match && item.match.level !== 'barcode') targets.add(item.match.target)
+
+    const paths = new Map()
+    for (const target of targets) {
+        const category = await DL.Category.readOne({ id: target }, { _id: 0, name: 1, path: 1 })
+        paths.set(target, category?.path || category?.name || target)
+    }
+
+    const products = matches.map(item => ({
+        ...item,
+        match: item.match
+            ? { level: item.match.level, target: item.match.target, path: paths.get(item.match.target) || item.match.target }
+            : null
+    }))
+
+    return { count, products, hasMore: safeSkip + matches.length < count }
 }
+
+const m_isCategory = target => String(target).includes(':')
 
 preview.config = {
     permissions: ['setting:read']
