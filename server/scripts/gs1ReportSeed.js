@@ -21,6 +21,7 @@
 import fs from 'fs'
 import readline from 'readline'
 import { pruneEmpty } from '#server/external/gs1/prune.js'
+import { aliasCandidates, aliasMinLen } from '#server/services/gs1/alias.js'
 import log from '#server/utils/log.js'
 
 const ACTIVE_STATUS = 'פעיל' // active
@@ -64,10 +65,16 @@ const stripSuffix = s => String(s)
 const collapse = s => String(s).replace(RLM, '').replace(/\s+/g, ' ').trim()
 const nutKey = s => collapse(stripSuffix(s)).replace(/\s+/g, '')
 
+// Scrape columns carry short display names; the GS1 catalog stores the full label
+// ('אנרגיה (קלוריות)'), which prefix/containment matching can't reach from
+// 'קלוריות'. Map the ones that would otherwise be dropped.
+const LABEL_SYNONYMS = { 'קלוריות': 'אנרגיה (קלוריות)' }
+
 // Match one report nutrient header to a catalog entry. English headers join on
 // field_name; Hebrew headers normalize (suffix/parens/RLM) with a prefix fallback.
 function matchNutrient(header, catalog) {
-    const h = stripMarks(header)
+    let h = stripMarks(header)
+    if (LABEL_SYNONYMS[h]) h = LABEL_SYNONYMS[h]
     if (/^[A-Za-z0-9_]+$/.test(h)) {
         const e = catalog.byField.get(h.toLowerCase())
         return e ? { entry: e, serving: /per_serving|_serving/i.test(h) } : null
@@ -113,11 +120,19 @@ async function allBarcodes(Model) {
     return set
 }
 
+// Kashrut catalogs keep three views of the same data: display name → code,
+// normalized name → code, and code → display name. Report cells carry RLM marks
+// and non-breaking spaces, so the plain map alone misses strings that are the
+// same name with different spacing — and a report cell can already BE a code.
+const normName = s => collapse(s).toLowerCase()
+
+const kashrutCatalog = () => ({ name: new Map(), norm: new Map(), codeName: new Map() })
+
 // value→code maps + nutrition catalog, all derived from stored raws.
 async function buildCatalogs(Model) {
-    const rabbinate = new Map()
-    const supervision = new Map()
-    const passover = new Map()
+    const rabbinate = kashrutCatalog()
+    const supervision = kashrutCatalog()
+    const passover = kashrutCatalog()
     const byLabel = new Map()
     const byLabelParen = new Map()
     const byField = new Map()
@@ -130,7 +145,11 @@ async function buildCatalogs(Model) {
             for (const e of (Array.isArray(arr) ? arr : [])) {
                 const v = e?.value != null ? String(e.value).trim() : ''
                 const c = e?.code != null ? String(e.code).trim() : ''
-                if (v && c && !map.has(v)) map.set(v, c)
+                if (!v || !c) continue
+                if (!map.name.has(v)) map.name.set(v, c)
+                const n = normName(v)
+                if (n && !map.norm.has(n)) map.norm.set(n, c)
+                if (!map.codeName.has(c)) map.codeName.set(c, v)
             }
         }
         absorb(rabbinate, k.Rabbinate)
@@ -206,6 +225,10 @@ function buildNutrition(row, headers, catalog, stats) {
 
 function buildRaw(row, headers, ctx, stats) {
     const gtin = canonicalGtin(row)
+    // Same rule as kashrut: a numeric-only brand is a portal/retailer ID, and the
+    // mapper writes it straight to Product.label, so it would show as the brand.
+    const brandIsId = /^\d+$/.test(String(row.brand ?? '').trim())
+    if (brandIsId) stats.brandNumericSkipped++
     const main = {
         GTIN: gtin,
         Trade_Item_Description: row.trade,
@@ -213,7 +236,7 @@ function buildRaw(row, headers, ctx, stats) {
         Net_Content: row.net,
         Supplier_Catalog_Number: row.catalog,
         GLN: row.gln,
-        BrandName: row.brand,
+        BrandName: brandIsId ? undefined : row.brand,
         Sub_Brand_Name: row.subbrand,
         Variant: row.variant,
         Country_of_Origin: row.origin ? [{ value: row.origin }] : undefined,
@@ -236,10 +259,28 @@ function buildRaw(row, headers, ctx, stats) {
     }
     // Report packs several supervision bodies into one cell, '|'-separated
     // (e.g. 'בדצ העדה החרדית|הרבנות הראשית לישראל'). The mapper expects one
-    // entry per body so each resolves to its own stamp code.
-    const splitVals = (text, map = new Map()) => String(text)
-        .split('|').map(s => stripMarks(s)).filter(Boolean)
-        .map(v => ({ value: v, code: map.get(v) || undefined }))
+    // entry per body so each resolves to its own stamp code: code catalog first
+    // (the cell may already hold a code), then exact name, then normalized name,
+    // then the bare string as the display fallback.
+    const splitVals = (text, catalog) => {
+        if (!text) return undefined
+        return String(text).split('|').map(s => stripMarks(s)).filter(Boolean)
+            .map(v => {
+                const code = catalog?.codeName?.get(v) || catalog?.name?.get(v) || catalog?.norm?.get(normName(v))
+                if (code) {
+                    stats.kashrutByCode++
+                    return { value: catalog.codeName.get(code) || v, code }
+                }
+                // A bare number is a retailer/portal ID, not a supervision body —
+                // writing it as a display name would show '16' on the product page.
+                if (/^\d+$/.test(v)) {
+                    stats.kashrutNumericSkipped++
+                    return null
+                }
+                stats.kashrutAsString++
+                return { value: v }
+            }).filter(Boolean)
+    }
     const kashrut = {}
     if (row.rabbinate) kashrut.Rabbinate = splitVals(row.rabbinate, ctx.catalogs.rabbinate)
     if (row.board) kashrut.Board_of_Supervision = splitVals(row.board)
@@ -314,14 +355,22 @@ export default async function gs1ReportSeed(
         if (d?.productCode) gs1Codes.add(String(d.productCode))
     }
 
+    // Short internal codes are covered when an existing GS1 doc aliases to them.
+    // Without this, a report row for an already-covered product seeds a second doc
+    // keyed by the short code, and enrich then rewrites the product from it.
+    const coveredShorts = new Set()
+    for (const g of gs1Barcodes)
+        for (const c of aliasCandidates(g, aliasMinLen())) coveredShorts.add(c)
+
     // normalized barcode → actual stored Product barcode (what enrich exact-matches)
     const actualByNorm = new Map()
     for await (const d of Product.find({}, { _id: 0, barcode: 1 }).lean())
         if (d?.barcode != null && !actualByNorm.has(normDigits(d.barcode))) actualByNorm.set(normDigits(d.barcode), d.barcode)
 
     const stats = {
-        rows: 0, active: 0, relevant: 0, already: 0, seeded: 0,
-        noProductCode: 0, nutMatched: 0, nutUnmatched: new Set()
+        rows: 0, active: 0, relevant: 0, already: 0, alreadyExact: 0, alreadyAlias: 0, seeded: 0,
+        noProductCode: 0, nutMatched: 0, nutUnmatched: new Set(),
+        kashrutByCode: 0, kashrutAsString: 0, kashrutNumericSkipped: 0, brandNumericSkipped: 0
     }
     const docs = []
 
@@ -333,7 +382,8 @@ export default async function gs1ReportSeed(
         const norm = normDigits(cg)
         if (!relevant.has(norm)) return
         stats.relevant++
-        if (gs1Barcodes.has(norm)) { stats.already++; return }
+        if (gs1Barcodes.has(norm)) { stats.alreadyExact++; return }
+        if (coveredShorts.has(norm)) { stats.alreadyAlias++; return }
         if (row.pc && gs1Codes.has(String(row.pc))) { stats.already++; return }
         if (!row.pc) stats.noProductCode++
         if (limit && docs.length >= limit) return
@@ -349,8 +399,11 @@ export default async function gs1ReportSeed(
     })
 
     log.info(`[gs1ReportSeed] rows=${stats.rows} active=${stats.active} relevant=${stats.relevant} `
-        + `already=${stats.already} toSeed=${docs.length} noProductCode=${stats.noProductCode}`)
+        + `already=${stats.alreadyExact + stats.alreadyAlias + stats.already} `
+        + `(exact=${stats.alreadyExact} alias=${stats.alreadyAlias} productCode=${stats.already}) `
+        + `toSeed=${docs.length} noProductCode=${stats.noProductCode}`)
     log.info(`[gs1ReportSeed] nutrition: matchedRows=${stats.nutMatched} unmatchedLabels=${stats.nutUnmatched.size}`)
+    log.info(`[gs1ReportSeed] kashrut: resolvedToCode=${stats.kashrutByCode} storedAsNameOnly=${stats.kashrutAsString}`)
     if (stats.nutUnmatched.size)
         log.warn(`[gs1ReportSeed] unmatched nutrient labels: ${[...stats.nutUnmatched].slice(0, 30).join(' | ')}`)
 

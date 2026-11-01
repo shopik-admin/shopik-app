@@ -6,7 +6,10 @@ import { initBulkFlusher, flush } from '#server/services/gs1/bulk.js'
 // One-off: seed gs1_products from a GS1 portal report export, then run text enrich.
 // Usage:
 //   node server/scripts/runGs1ReportSeed.js --file <rows.jsonl> --headers <headers.json>
-//        [--dry-run] [--limit N] [--no-enrich]
+//        [--dry-run] [--limit N] [--no-enrich] [--allow-blank]
+// Report exports are partial — a missing field maps to '' and a plain $set would
+// blank what the product already has, so empty values are skipped unless
+// --allow-blank is passed.
 const args = process.argv.slice(2)
 const flag = (name, def) => {
     const i = args.findIndex(a => a === `--${name}` || a.startsWith(`--${name}=`))
@@ -22,6 +25,7 @@ const headersFile = flag('headers', '')
 const dryRun = !!flag('dry-run', false)
 const limit = Number(flag('limit', 0)) || 0
 const doEnrich = !flag('no-enrich', false)
+const skipEmptyValues = !flag('allow-blank', false)
 
 if (!file || !headersFile) {
     console.error('Usage: node server/scripts/runGs1ReportSeed.js --file <rows.jsonl> --headers <headers.json> [--dry-run] [--limit N] [--no-enrich]')
@@ -40,7 +44,8 @@ if (!dryRun && doEnrich) {
         DL: bootData.DL,
         external: bootData.external,
         runId,
-        onlyInStock: false
+        onlyInStock: false,
+        skipEmptyValues
     })
     await flush()
     console.log(`[runGs1ReportSeed] Enrich done: ${JSON.stringify(totals)}`)
