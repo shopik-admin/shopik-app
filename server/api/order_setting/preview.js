@@ -63,18 +63,26 @@ export default async function preview({ rule, skip = 0, limit = DEFAULT_LIMIT } 
     for (const item of matches)
         if (item.match && item.match.level !== 'barcode') targets.add(item.match.target)
 
-    const paths = new Map()
+    const categories = new Map()
     for (const target of targets) {
         const category = await DL.Category.readOne({ id: target }, { _id: 0, name: 1, path: 1 })
-        paths.set(target, category?.path || category?.name || target)
+        categories.set(target, { name: category?.name || target, path: category?.path || target })
     }
 
-    const products = matches.map(item => ({
-        ...item,
-        match: item.match
-            ? { level: item.match.level, target: item.match.target, path: paths.get(item.match.target) || item.match.target }
-            : null
-    }))
+    const products = matches.map(item => {
+        const category = item.match ? categories.get(item.match.target) : null
+        return {
+            ...item,
+            match: item.match
+                ? {
+                    level: item.match.level,
+                    target: item.match.target,
+                    name: category?.name || item.match.target,
+                    path: category?.path || item.match.target
+                }
+                : null
+        }
+    })
 
     return { count, products, hasMore: safeSkip + matches.length < count }
 }

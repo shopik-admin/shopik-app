@@ -471,13 +471,15 @@ export default function OrderSettings() {
                                     className={styles.previewImage}
                                     alt={product.name}
                                 />
-                                <Text size="xs" className={styles.previewName} ellipsis={2}>{product.name}</Text>
-                                <Text size="xs" className={styles.previewBarcode}>{product.barcode}</Text>
-                                <Text size="xs" className={styles.previewMatch}>
-                                    {product.match?.level === 'barcode'
-                                        ? t('order_settings_preview_matched_barcode')
-                                        : t('order_settings_preview_matched_category', { path: product.match?.path || product.match?.target })}
-                                </Text>
+                                <div className={styles.previewDetails}>
+                                    <Text size="xs" className={styles.previewName} ellipsis={2}>{product.name}</Text>
+                                    <Text size="xs" className={styles.previewBarcode}>{product.barcode}</Text>
+                                    <Text size="xs" className={styles.previewMatch} ellipsis={1} title={product.match?.path}>
+                                        {product.match?.level === 'barcode'
+                                            ? t('order_settings_preview_matched_barcode')
+                                            : t('order_settings_preview_matched_category', { name: product.match?.name })}
+                                    </Text>
+                                </div>
                             </div>)}
                         </div>
                         {previews[rule.id].hasMore && <div className={styles.previewMore}>

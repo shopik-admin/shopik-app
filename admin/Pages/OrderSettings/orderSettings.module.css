@@ -129,8 +129,9 @@
     border-top: 1px dashed var(--border-primary);
 }
 
-/* Product preview for a rule: small cards with image, name and barcode.
-   Paginated by the server, so the grid scrolls instead of growing forever. */
+/* Product preview for a rule: business-card rows with the image on the inline
+   start (right in RTL) and the details beside it. Paginated by the server, so
+   the grid scrolls instead of growing forever. */
 .previewPanel {
     display: flex;
     flex-direction: column;
@@ -141,7 +142,7 @@
 
 .previewGrid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
     gap: 0.5rem;
     max-height: 26rem;
     overflow-y: auto;
@@ -150,46 +151,54 @@
 
 .previewCard {
     display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
+    align-items: center;
+    gap: 0.6rem;
     min-width: 0;
-    padding: 0.4rem;
+    padding: 0.5rem 0.6rem;
     border: 1px solid var(--border-primary);
     border-radius: var(--radius-md);
     background: var(--bg-primary);
 }
 
 .previewImage {
-    width: 100%;
+    flex: 0 0 3.25rem;
+    width: 3.25rem;
+    height: 3.25rem;
     aspect-ratio: 1;
     object-fit: contain;
-    border-radius: 6px;
+    border-radius: 8px;
     background: var(--bg-primary-alt);
 }
 
+.previewDetails {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    min-width: 0;
+}
+
 .previewName {
-    min-height: 2.4em;
-    line-height: 1.2;
+    line-height: 1.25;
 }
 
 .previewBarcode {
     color: var(--text-secondary);
     direction: ltr;
-    text-align: center;
+    text-align: start;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
-/* Which rule target pulled the product in: the matched category level or the
+/* Which rule target pulled the product in: the matched category or the
    barcode itself. */
 .previewMatch {
     color: var(--text-tertiary);
-    text-align: center;
+    text-align: start;
     line-height: 1.2;
 }
 
 .previewMore {
     display: flex;
-    justify-content: center;
+    justify-content: flex-start;
 }
 
 @media (max-width: 700px) {

@@ -1101,7 +1101,7 @@
         "order_settings_preview_count": "מוצרים פעילים בכלל: [count]",
         "order_settings_preview_showing": "מציג [shown] מתוך [count] מוצרים",
         "order_settings_preview_more": "הצג עוד מוצרים",
-        "order_settings_preview_matched_category": "קטגוריה: [path]",
+        "order_settings_preview_matched_category": "קטגוריה: [name]",
         "order_settings_preview_matched_barcode": "ברקוד",
         "order_settings_save": "שמירת שינויים",
         "order_settings_saved": "ההגדרות נשמרו.",
