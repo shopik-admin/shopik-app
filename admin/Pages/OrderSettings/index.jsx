@@ -467,15 +467,15 @@ export default function OrderSettings() {
                         <div className={styles.previewGrid}>
                             {previews[rule.id].products.map(product => <div key={product.id} className={styles.previewCard}>
                                 <Image
-                                    src={getProductImageUrl(product.id, 's')}
+                                    src={getProductImageUrl(product.id, 'm')}
                                     className={styles.previewImage}
                                     alt={product.name}
                                 />
                                 <div className={styles.previewDetails}>
-                                    <Text size="s" className={styles.previewName} ellipsis={2}>{product.name}</Text>
-                                    <Text size="xs" className={styles.previewBarcode}>{product.barcode}</Text>
+                                    <Text size="xl" bold className={styles.previewName} ellipsis={2}>{product.name}</Text>
+                                    <Text size="m" className={styles.previewBarcode}>{product.barcode}</Text>
                                     <div className={styles.previewMatchRow}>
-                                        <Text size="xs" className={styles.previewMatch} ellipsis={1} title={product.match?.path}>
+                                        <Text size="m" className={styles.previewMatch} ellipsis={1} title={product.match?.path}>
                                             {product.match?.level === 'barcode'
                                                 ? t('order_settings_preview_matched_barcode')
                                                 : t('order_settings_preview_matched_category', { name: product.match?.name })}
