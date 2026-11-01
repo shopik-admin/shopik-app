@@ -232,6 +232,13 @@ export function ProductButton({ product, amount = 0, onUpdateAmount, size = 'm',
     }
     const handleDec = () => {
         const next = round3(amount - step)
+        // The minimum is the smallest orderable amount, so a decrement must
+        // never land between 0 and it (e.g. min 1, step 0.5: 1 → 0.5 is
+        // invalid). From the minimum, "-" removes the line instead.
+        if (minAmount > 0 && next < minAmount) {
+            onUpdateAmount?.(0)
+            return
+        }
         onUpdateAmount?.(next <= 0 ? 0 : next)
     }
 
