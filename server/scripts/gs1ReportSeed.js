@@ -370,7 +370,7 @@ export default async function gs1ReportSeed(
 
     const stats = {
         rows: 0, active: 0, relevant: 0, already: 0, alreadyExact: 0, alreadyAlias: 0, seeded: 0,
-        noProductCode: 0, nutMatched: 0, nutUnmatched: new Set(),
+        noProductCode: 0, keyFallback: 0, nutMatched: 0, nutUnmatched: new Set(),
         kashrutByCode: 0, kashrutAsString: 0, kashrutNumericSkipped: 0, brandNumericSkipped: 0
     }
     const docs = []
@@ -380,17 +380,25 @@ export default async function gs1ReportSeed(
         if (row.status !== ACTIVE_STATUS) return
         stats.active++
         const cg = canonicalGtin(row)
-        const norm = normDigits(cg)
-        if (!relevant.has(norm)) return
+        // product_code can reference a different item than the row. Prefer it (it
+        // keeps the full GTIN), but when its GTIN is not in the catalog and the
+        // row's own GTIN is, key the doc at the row — otherwise the row is gated
+        // out and its product gets no GS1 content.
+        let key = normDigits(cg)
+        if (!relevant.has(key) && row.gtin && relevant.has(normDigits(row.gtin))) {
+            key = normDigits(row.gtin)
+            stats.keyFallback++
+        }
+        if (!relevant.has(key)) return
         stats.relevant++
-        if (gs1Barcodes.has(norm)) { stats.alreadyExact++; return }
-        if (coveredShorts.has(norm)) { stats.alreadyAlias++; return }
+        if (gs1Barcodes.has(key)) { stats.alreadyExact++; return }
+        if (coveredShorts.has(key)) { stats.alreadyAlias++; return }
         if (row.pc && gs1Codes.has(String(row.pc))) { stats.already++; return }
         if (!row.pc) stats.noProductCode++
         if (limit && docs.length >= limit) return
         const { item } = buildRaw(row, headers, { catalogs }, stats)
         docs.push({
-            barcode: actualByNorm.get(norm) || norm,
+            barcode: actualByNorm.get(key) || key,
             productCode: row.pc || '',
             modificationTime: row.mtime ? new Date(normDateTime(row.mtime)) : undefined,
             status: 'fetched',
@@ -402,7 +410,7 @@ export default async function gs1ReportSeed(
     log.info(`[gs1ReportSeed] rows=${stats.rows} active=${stats.active} relevant=${stats.relevant} `
         + `already=${stats.alreadyExact + stats.alreadyAlias + stats.already} `
         + `(exact=${stats.alreadyExact} alias=${stats.alreadyAlias} productCode=${stats.already}) `
-        + `toSeed=${docs.length} noProductCode=${stats.noProductCode}`)
+        + `toSeed=${docs.length} noProductCode=${stats.noProductCode} keyFallback=${stats.keyFallback}`)
     log.info(`[gs1ReportSeed] nutrition: matchedRows=${stats.nutMatched} unmatchedLabels=${stats.nutUnmatched.size}`)
     log.info(`[gs1ReportSeed] kashrut: resolvedToCode=${stats.kashrutByCode} storedAsNameOnly=${stats.kashrutAsString}`)
     if (stats.nutUnmatched.size)
