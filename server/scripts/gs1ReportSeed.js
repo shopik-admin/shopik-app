@@ -93,7 +93,7 @@ function matchNutrient(header, catalog) {
 }
 
 // Food_Symbol_Red report text → GS1 codes mapper.mapNutrients understands
-// (FSR2 sodium, FSR3 sugar, FSR4 fat).
+// (FSR2 sodium, FSR3 sugar, FSR4 fat, FSR5 green symbol).
 function foodSymbolRed(text) {
     if (!text) return undefined
     const t = String(text)
@@ -102,6 +102,7 @@ function foodSymbolRed(text) {
     if (/סוכר/.test(t)) codes.push('FSR3')
     if (/נתרן|מלח/.test(t)) codes.push('FSR2')
     if (/שומן/.test(t)) codes.push('FSR4')
+    if (/סמל ירוק/.test(t)) codes.push('FSR5')
     return codes.length ? codes.map(code => ({ code })) : undefined
 }
 
