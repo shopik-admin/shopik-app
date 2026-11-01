@@ -382,7 +382,7 @@ export default function OrderSettings() {
                         />
                     </div>
 
-                    <div className={styles.grid}>
+                    <div className={styles.ruleNumbers}>
                         <Input
                             name={t('order_settings_rule_max')}
                             type="number"
@@ -391,6 +391,7 @@ export default function OrderSettings() {
                             value={rule.maxAmount}
                             onChange={event => updateRule(rule.id, { maxAmount: event.target.value })}
                             disabled={!canEdit}
+                            className={styles.numberField}
                         />
                         <Input
                             name={t('order_settings_rule_step')}
@@ -401,6 +402,7 @@ export default function OrderSettings() {
                             value={rule.step}
                             onChange={event => updateRule(rule.id, { step: event.target.value })}
                             disabled={!canEdit}
+                            className={styles.numberField}
                         />
                         <Input
                             name={t('order_settings_rule_min')}
@@ -411,6 +413,7 @@ export default function OrderSettings() {
                             value={rule.minAmount}
                             onChange={event => updateRule(rule.id, { minAmount: event.target.value })}
                             disabled={!canEdit}
+                            className={styles.numberField}
                         />
                     </div>
 

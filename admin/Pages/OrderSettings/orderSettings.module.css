@@ -97,6 +97,21 @@
 .ruleName {
     flex: 1;
     min-width: 12rem;
+    max-width: 18rem;
+}
+
+/* The rule numbers are short values — a pack count, a weight step — so they
+   keep their own width in a row instead of stretching across the card. */
+.ruleNumbers {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.numberField {
+    flex: 0 1 8rem;
+    min-width: 6rem;
+    max-width: 8rem;
 }
 
 /* The switch-mode checkbox draws its 50px control with position:absolute at
