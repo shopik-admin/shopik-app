@@ -1,4 +1,12 @@
 import diff from '#common/functions/diff.js'
+import { GLOBAL_SETTINGS_DOMAIN, PRODUCT_RULES_SETTING_KEY } from '#common/constants.js'
+
+// The global product-rules row is owned by the Order Settings page. A generic
+// settings file must never create a per-domain copy of it (the storefront only
+// reads the reserved global row) nor overwrite the global row by mistake.
+function isReservedEntry(entry) {
+    return entry.key === PRODUCT_RULES_SETTING_KEY || entry.domainId === GLOBAL_SETTINGS_DOMAIN
+}
 
 function normalizeEntry(raw, targetDomainId, defaultDomainId) {
     if (!raw || typeof raw !== 'object') return null
@@ -61,13 +69,21 @@ export default async function imp(payload, { DL, _admin }) {
     }
     // Last occurrence of a (domainId + key) pair wins
     const byScopeKey = new Map()
+    const skippedReserved = []
     for (const raw of rawList) {
         const entry = normalizeEntry(raw, targetDomainId, defaultDomainId)
         if (!entry) continue
+        if (isReservedEntry(entry)) {
+            skippedReserved.push(entry.key)
+            continue
+        }
         byScopeKey.set(`${entry.domainId}::${entry.key}`, entry)
     }
-    if (byScopeKey.size === 0)
+    if (byScopeKey.size === 0) {
+        if (skippedReserved.length)
+            return { created: 0, updated: 0, skippedConfig: [], skippedReserved, errors: [], domainId: targetDomainId }
         throw { status: 400, message: 'no valid settings in file' }
+    }
 
     let created = 0
     let updated = 0
@@ -105,7 +121,7 @@ export default async function imp(payload, { DL, _admin }) {
         }
     }
 
-    return { created, updated, skippedConfig, errors, domainId: targetDomainId }
+    return { created, updated, skippedConfig, skippedReserved, errors, domainId: targetDomainId }
 }
 
 imp.config = {

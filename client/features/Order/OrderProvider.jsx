@@ -32,6 +32,10 @@ export default function OrderProvider({ children }) {
     const pendingRef = useRef(new Map())
     const queueRef = useRef(Promise.resolve())
     const unconfirmedRef = useRef(new Map())
+    // Last cart edit the server rejected because a product-group cap was hit.
+    // The optimistic cart is rolled back to the server snapshot right away;
+    // the message stays available for the cart/checkout UI.
+    const [cartError, setCartError] = useState(null)
 
     const sendCartSync = useCallback((product, amount) => {
         const seq = ++seqRef.current
@@ -40,12 +44,34 @@ export default function OrderProvider({ children }) {
                 if (sales) setSalesCache(sales)
                 const cur = unconfirmedRef.current.get(product.id)
                 if (cur === amount) unconfirmedRef.current.delete(product.id)
+                setCartError(null)
                 const hasPending = unconfirmedRef.current.size > 0 || timersRef.current.size > 0
                 if (hasPending) return
                 if (seq === seqRef.current && serverOrder) setOrder(serverOrder)
-            }).catch(() => {
+            }).catch((err) => {
                 const cur = unconfirmedRef.current.get(product.id)
                 if (cur === amount) unconfirmedRef.current.delete(product.id)
+                if (err?.code !== 'GROUP_LIMIT_EXCEEDED') return
+                setCartError({
+                    code: err.code,
+                    message: err.message,
+                    groupId: err.groupId,
+                    groupName: err.groupName,
+                    max: err.max,
+                    productId: product.id
+                })
+                // The optimistic cart sits above the cap, so reload the
+                // authoritative order. Ignore the response if a newer edit
+                // started meanwhile — that request owns the cart state.
+                apiReq('order/cart/get', {}).then(res => {
+                    const freshOrder = res?.order || res
+                    if (!freshOrder?.id) return
+                    if (seq !== seqRef.current) return
+                    setOrder(prev => ({
+                        ...freshOrder,
+                        invoiceRequest: prev?.invoiceRequest !== undefined ? prev.invoiceRequest : freshOrder.invoiceRequest
+                    }))
+                }).catch(() => { })
             })
         queueRef.current = queueRef.current.then(task, task)
         return queueRef.current
@@ -147,7 +173,7 @@ export default function OrderProvider({ children }) {
         }).catch(() => { })
     }, [order?.cart])
 
-    return <OrderContext value={{ order, setOrder, queueCartSync, refreshCart }}>
+    return <OrderContext value={{ order, setOrder, queueCartSync, refreshCart, cartError }}>
         {children}
     </OrderContext>
 }   

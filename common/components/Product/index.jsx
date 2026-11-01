@@ -199,22 +199,27 @@ export function ProductInfo(props) {
     </Flex>
 }
 
-export function ProductButton({ product, amount = 0, onUpdateAmount, size = 'm', sales = {}, maxAmount = 0 }) {
+export function ProductButton({ product, amount = 0, onUpdateAmount, size = 'm', sales = {}, maxAmount = 0, limitReached = false, maxTitle }) {
     // For weight, show amount with unit label (e.g. "1.5 ק\"ג"); for items show "2 יח'"
     // Presentational stepper — caller provides amount and update handler
     // If no handler provided, button is disabled / hidden
     const minAmount = product?.unit?.minAmount || 1
     const step = product?.unit?.step || 1
     const max = Number(maxAmount ?? 0) || 0
-    const atMax = max > 0 && Number(amount ?? 0) >= max
-    const maxTitle = atMax ? `הגעת למגבלת כמות (${max})` : undefined
+    // A group cap can already be full before the first add (`limitReached`),
+    // in which case maxAmount is 0 and the plain comparison would miss it.
+    const atMax = limitReached || (max > 0 && Number(amount ?? 0) >= max)
+    const title = maxTitle || (atMax
+        ? `הגעת למגבלת כמות${max > 0 ? ` (${max})` : ''}`
+        : undefined)
 
     if (!amount) {
         return <Flex className={classNames(styles.productButton, styles[size])} >
             <Button
                 icon='add' preventDefault stopPropagation
                 onClick={() => onUpdateAmount?.(round3(minAmount) || 1)}
-                disabled={!onUpdateAmount}
+                disabled={!onUpdateAmount || limitReached}
+                title={title}
             >add_to_cart</Button>
         </Flex >
     }
@@ -222,11 +227,18 @@ export function ProductButton({ product, amount = 0, onUpdateAmount, size = 'm',
     const displayAmount = formatAmount(product, amount)
     const handleInc = () => {
         const next = round3(amount + step)
-        if (max > 0 && next > max) return
+        if (atMax || (max > 0 && next > max)) return
         onUpdateAmount?.(next)
     }
     const handleDec = () => {
         const next = round3(amount - step)
+        // The minimum is the smallest orderable amount, so a decrement must
+        // never land between 0 and it (e.g. min 1, step 0.5: 1 → 0.5 is
+        // invalid). From the minimum, "-" removes the line instead.
+        if (minAmount > 0 && next < minAmount) {
+            onUpdateAmount?.(0)
+            return
+        }
         onUpdateAmount?.(next <= 0 ? 0 : next)
     }
 
@@ -236,7 +248,7 @@ export function ProductButton({ product, amount = 0, onUpdateAmount, size = 'm',
             e.stopPropagation()
         }}
         className={classNames(styles.productButton, styles[size], styles.stepper)}>
-        <Button icon='add' preventDefault stopPropagation onClick={handleInc} disabled={!onUpdateAmount || atMax} title={maxTitle} />
+        <Button icon='add' preventDefault stopPropagation onClick={handleInc} disabled={!onUpdateAmount || atMax} title={title} />
         <Text size='m' bold className={styles.amount}>{displayAmount}</Text>
         <Button preventDefault stopPropagation onClick={handleDec} disabled={!onUpdateAmount}>-</Button>
     </Flex>

@@ -2,7 +2,10 @@ import CommonProductInline from 'common/components/ProductInline'
 import { useProductCart } from 'common/components/Product/useProductCart.js'
 
 export default function ProductInline({ remove = true, note = true, product, sales, ...props }) {
-    const { amount, updateAmount, remove: handleRemove, saleTotalAmount, effectiveSalesForChild, productMaxAmount } = useProductCart(product, sales)
+    const {
+        amount, updateAmount, remove: handleRemove, saleTotalAmount,
+        effectiveSalesForChild, maxAmount, limitReached, limitRuleName
+    } = useProductCart(product, sales)
 
     return <CommonProductInline
         product={product}
@@ -11,7 +14,9 @@ export default function ProductInline({ remove = true, note = true, product, sal
         note={note}
         amount={amount}
         saleTotalAmount={saleTotalAmount}
-        maxAmount={productMaxAmount}
+        maxAmount={maxAmount}
+        limitReached={limitReached}
+        maxTitle={limitReached && limitRuleName ? `הגעת למגבלת הכמות בקבוצה: ${limitRuleName}` : undefined}
         onRemove={remove ? handleRemove : undefined}
         onUpdateAmount={updateAmount}
         {...props}

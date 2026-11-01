@@ -135,11 +135,18 @@
     padding-inline: 10px;
     padding-inline-start: 35px;
     width: calc(100% - 20px);
+    max-width: 320px;
     border-radius: var(--radius-lg);
     margin: 5px auto;
     display: block;
     height: 40px;
     outline: none;
+
+    /* A line of digits or a barcode has no strong directional character, so the
+       bidi algorithm falls back to LTR for it: the Hebrew placeholder stayed at
+       the inline start (right) while the typed text began on the left. Pinning
+       the line to the element's own direction keeps both on the same side. */
+    unicode-bidi: isolate;
 }
 
 .scroll {

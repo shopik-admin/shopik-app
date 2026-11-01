@@ -210,6 +210,14 @@ export const cartSchema = [{
         units: Number, // count of units ordered (e.g. 2 watermelons)
         option: unitOptionSchema
     },
+    // Server-computed cap groups for this line (see common/functions/productRules.js).
+    // Rebuilt from the saved rules on every cart read; the storefront uses the
+    // ids to sum usage across the cart without receiving the rules themselves.
+    ruleGroups: [{
+        id: String,
+        name: String,
+        maxAmount: Number
+    }],
     // important product snapshot for display in cart / admin pick
     images: {
         product: [{

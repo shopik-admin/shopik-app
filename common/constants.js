@@ -20,6 +20,12 @@ export const CACHE_STRATEGIES = {
 
 export const MENU_CACHE_KEY = 'menu'
 
+// Product rule groups are global (the product catalog is shared by every
+// domain), so they live in one settings row scoped to this reserved domain
+// instead of being duplicated into each store's `limits` setting.
+export const PRODUCT_RULES_SETTING_KEY = 'product_rules'
+export const GLOBAL_SETTINGS_DOMAIN = '__global__'
+
 export const WINDOWS_PAGE = {
     FOCUS_START_HOUR: 6,
     FOCUS_END_HOUR: 22,

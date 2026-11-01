@@ -1,5 +1,7 @@
 import { withDomainPrice } from '#server/utils/data/withDomainPrice.js'
 import { ADMIN_TOKEN_COOKIE } from '#common/constants.js'
+import { annotateProduct } from '#common/functions/productRules.js'
+import getProductRules from '#server/utils/data/getProductRules.js'
 
 export default async function get(payload, { DL, _user, _admin, req, utils, platform }) {
     const { filter = {}, path, id, barcode, select, onSale, domainId } = payload
@@ -106,6 +108,13 @@ export default async function get(payload, { DL, _user, _admin, req, utils, plat
 
     if (isStorefront && domainId) {
         products = withDomainPrice(products, domainId)
+    }
+
+    // Storefront only: apply the global product rules (stepper overrides and
+    // cap-group annotations). Admin/ops traffic keeps the raw catalog values.
+    if (isStorefront) {
+        const rules = await getProductRules(DL)
+        products = products.map(product => annotateProduct(product, rules.groups))
     }
 
     return { products, sales, categoryName, categoryPath }

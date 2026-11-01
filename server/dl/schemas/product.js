@@ -257,7 +257,8 @@ const defaultSelect = {
     unit: 1,
     saleIds: 1,
     netContentText: 1,
-    vat: 1
+    vat: 1,
+    category: 1
 }
 
 const {
