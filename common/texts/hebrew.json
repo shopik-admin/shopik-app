@@ -1103,6 +1103,8 @@
         "order_settings_preview_more": "הצג עוד מוצרים",
         "order_settings_preview_matched_category": "קטגוריה: [name]",
         "order_settings_preview_matched_barcode": "ברקוד",
+        "order_settings_copy_category": "העתק את שם הקטגוריה",
+        "order_settings_copied": "הועתק",
         "order_settings_save": "שמירת שינויים",
         "order_settings_saved": "ההגדרות נשמרו.",
         "order_settings_load_failed": "טעינת ההגדרות נכשלה",

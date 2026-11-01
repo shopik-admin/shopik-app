@@ -472,13 +472,19 @@ export default function OrderSettings() {
                                     alt={product.name}
                                 />
                                 <div className={styles.previewDetails}>
-                                    <Text size="xs" className={styles.previewName} ellipsis={2}>{product.name}</Text>
+                                    <Text size="s" className={styles.previewName} ellipsis={2}>{product.name}</Text>
                                     <Text size="xs" className={styles.previewBarcode}>{product.barcode}</Text>
-                                    <Text size="xs" className={styles.previewMatch} ellipsis={1} title={product.match?.path}>
-                                        {product.match?.level === 'barcode'
-                                            ? t('order_settings_preview_matched_barcode')
-                                            : t('order_settings_preview_matched_category', { name: product.match?.name })}
-                                    </Text>
+                                    <div className={styles.previewMatchRow}>
+                                        <Text size="xs" className={styles.previewMatch} ellipsis={1} title={product.match?.path}>
+                                            {product.match?.level === 'barcode'
+                                                ? t('order_settings_preview_matched_barcode')
+                                                : t('order_settings_preview_matched_category', { name: product.match?.name })}
+                                        </Text>
+                                        {product.match?.level !== 'barcode' && <CopyValueButton
+                                            text={product.match?.name}
+                                            title={t('order_settings_copy_category')}
+                                        />}
+                                    </div>
                                 </div>
                             </div>)}
                         </div>
@@ -500,4 +506,38 @@ export default function OrderSettings() {
             </Flex>
         </Card>
     </div>
+}
+
+function CopyValueButton({ text, title }) {
+    const { TR } = useText() || {}
+    const [copied, setCopied] = useState(false)
+
+    async function copy(e) {
+        e.preventDefault()
+        e.stopPropagation()
+        try {
+            if (navigator.clipboard?.writeText) {
+                await navigator.clipboard.writeText(text)
+            } else {
+                // Plain-http admin has no clipboard API
+                const area = document.createElement('textarea')
+                area.value = text
+                document.body.appendChild(area)
+                area.select()
+                document.execCommand('copy')
+                area.remove()
+            }
+            setCopied(true)
+            setTimeout(() => setCopied(false), 1500)
+        } catch {
+            setCopied(false)
+        }
+    }
+
+    return <Button
+        mode="text"
+        icon={copied ? 'check' : 'copy'}
+        tooltip={copied ? (TR?.('order_settings_copied') || title) : title}
+        onClick={copy}
+    />
 }
