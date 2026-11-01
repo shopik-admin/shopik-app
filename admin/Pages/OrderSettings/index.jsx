@@ -472,7 +472,7 @@ export default function OrderSettings() {
                                     alt={product.name}
                                 />
                                 <div className={styles.previewDetails}>
-                                    <Text size="xl" bold className={styles.previewName} ellipsis={2}>{product.name}</Text>
+                                    <Text size="l" bold className={styles.previewName} ellipsis={2}>{product.name}</Text>
                                     <Text size="m" className={styles.previewBarcode}>{product.barcode}</Text>
                                     <div className={styles.previewMatchRow}>
                                         <Text size="m" className={styles.previewMatch} ellipsis={1} title={product.match?.path}>
