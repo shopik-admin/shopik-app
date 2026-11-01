@@ -140,6 +140,14 @@
     border-top: 1px dashed var(--border-primary);
 }
 
+/* Category picker for the preview results — stays visible while a filter is
+   applied, even when that filter returns nothing. */
+.previewFilter {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
 .previewGrid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(24rem, 1fr));

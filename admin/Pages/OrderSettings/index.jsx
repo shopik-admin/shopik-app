@@ -199,27 +199,31 @@ export default function OrderSettings() {
         setMessage(null)
     }
 
-    async function previewRule(rule, { append = false } = {}) {
-        const skip = append ? (previews[rule.id]?.products?.length || 0) : 0
+    async function previewRule(rule, { append = false, category } = {}) {
+        const current = previews[rule.id] || {}
+        const activeCategory = category !== undefined ? category : (current.category || '')
+        const skip = append ? (current.products?.length || 0) : 0
         setPreviews(prev => ({
             ...prev,
             [rule.id]: append
-                ? { ...prev[rule.id], loadingMore: true, error: null }
-                : { loading: true }
+                ? { ...prev[rule.id], category: activeCategory, loadingMore: true, error: null }
+                : { category: activeCategory, loading: true }
         }))
         try {
-            const res = await apiReq('order_setting/preview', { rule: toPayloadRule(rule), skip })
+            const res = await apiReq('order_setting/preview', { rule: toPayloadRule(rule), skip, category: activeCategory })
             setPreviews(prev => {
-                const current = prev[rule.id] || {}
+                const before = prev[rule.id] || {}
                 const products = append
-                    ? [...(current.products || []), ...(res?.products || [])]
+                    ? [...(before.products || []), ...(res?.products || [])]
                     : (res?.products || [])
                 return {
                     ...prev,
                     [rule.id]: {
+                        category: before.category || '',
                         count: res?.count || 0,
                         products,
-                        hasMore: !!res?.hasMore
+                        hasMore: !!res?.hasMore,
+                        breakdown: res?.breakdown || before.breakdown || []
                     }
                 }
             })
@@ -463,31 +467,48 @@ export default function OrderSettings() {
                         </Text>}
                     </div>
 
-                    {previews[rule.id]?.products?.length > 0 && <div className={styles.previewPanel}>
-                        <div className={styles.previewGrid}>
-                            {previews[rule.id].products.map(product => <div key={product.id} className={styles.previewCard}>
-                                <Image
-                                    src={getProductImageUrl(product.id, 'm')}
-                                    className={styles.previewImage}
-                                    alt={product.name}
-                                />
-                                <div className={styles.previewDetails}>
-                                    <Text size="l" bold className={styles.previewName} ellipsis={2}>{product.name}</Text>
-                                    <Text size="m" className={styles.previewBarcode}>{product.barcode}</Text>
-                                    <div className={styles.previewMatchRow}>
-                                        <Text size="m" className={styles.previewMatch} ellipsis={1} title={product.match?.path}>
-                                            {product.match?.level === 'barcode'
-                                                ? t('order_settings_preview_matched_barcode')
-                                                : t('order_settings_preview_matched_category', { name: product.match?.name })}
-                                        </Text>
-                                        {product.match?.level !== 'barcode' && <CopyValueButton
-                                            text={product.match?.path}
-                                            title={t('order_settings_copy_category_path')}
-                                        />}
+                    {previews[rule.id]?.count != null && <div className={styles.previewPanel}>
+                        {previews[rule.id].breakdown?.length > 0 && <div className={styles.previewFilter}>
+                            <Text size="s" className={styles.muted}>{t('order_settings_preview_filter')}</Text>
+                            <Select
+                                options={[
+                                    { value: '', text: t('order_settings_preview_all_categories') },
+                                    ...previews[rule.id].breakdown.map(row => ({
+                                        value: row.target,
+                                        text: `${row.target === 'barcode' ? t('order_settings_preview_matched_barcode') : row.name} (${row.count})`
+                                    }))
+                                ]}
+                                value={previews[rule.id].category || ''}
+                                noTabs
+                                onChange={event => previewRule(rule, { category: event.target.value })}
+                            />
+                        </div>}
+                        {previews[rule.id].products?.length > 0
+                            ? <div className={styles.previewGrid}>
+                                {previews[rule.id].products.map(product => <div key={product.id} className={styles.previewCard}>
+                                    <Image
+                                        src={getProductImageUrl(product.id, 'm')}
+                                        className={styles.previewImage}
+                                        alt={product.name}
+                                    />
+                                    <div className={styles.previewDetails}>
+                                        <Text size="l" bold className={styles.previewName} ellipsis={2}>{product.name}</Text>
+                                        <Text size="m" className={styles.previewBarcode}>{product.barcode}</Text>
+                                        <div className={styles.previewMatchRow}>
+                                            <Text size="m" className={styles.previewMatch} ellipsis={1} title={product.match?.path}>
+                                                {product.match?.level === 'barcode'
+                                                    ? t('order_settings_preview_matched_barcode')
+                                                    : t('order_settings_preview_matched_category', { name: product.match?.name })}
+                                            </Text>
+                                            {product.match?.level !== 'barcode' && <CopyValueButton
+                                                text={product.match?.path}
+                                                title={t('order_settings_copy_category_path')}
+                                            />}
+                                        </div>
                                     </div>
-                                </div>
-                            </div>)}
-                        </div>
+                                </div>)}
+                            </div>
+                            : <Text size="s" className={styles.muted}>{t('order_settings_preview_none')}</Text>}
                         {previews[rule.id].hasMore && <div className={styles.previewMore}>
                             <Button
                                 size="s"
