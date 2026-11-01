@@ -1,7 +1,11 @@
 import { normalizeRule } from '#common/functions/productRules.js'
 
-// How many active products a rule would touch — lets an admin sanity-check a
-// cap ("5 packs from this group") before saving it. Read-only.
+const DEFAULT_LIMIT = 60
+const MAX_LIMIT = 300
+
+// Which active products a rule would touch — lets an admin sanity-check a cap
+// ("5 packs from this group") before saving it. Read-only, paginated: a rule
+// can target a whole department, so the grid loads a page at a time.
 function buildFilter(rule, status) {
     const or = []
     if (rule.categoryIds.length)
@@ -20,12 +24,15 @@ function buildFilter(rule, status) {
     return filter
 }
 
-export default async function preview({ rule } = {}, { DL }) {
+export default async function preview({ rule, skip = 0, limit = DEFAULT_LIMIT } = {}, { DL }) {
     const normalized = normalizeRule(rule || {}, 0)
     const filter = buildFilter(normalized, DL.Product.constants.STATUS.ACTIVE)
-    if (!filter) return { count: 0, sample: [] }
+    if (!filter) return { count: 0, products: [], hasMore: false }
 
-    const [count, sample] = await Promise.all([
+    const safeSkip = Math.max(0, Number(skip) || 0)
+    const safeLimit = Math.min(Math.max(1, Number(limit) || DEFAULT_LIMIT), MAX_LIMIT)
+
+    const [count, products] = await Promise.all([
         DL.Product.Model.countDocuments(filter),
         DL.Product.Model.find(filter, {
             _id: 0,
@@ -33,10 +40,16 @@ export default async function preview({ rule } = {}, { DL }) {
             name: 1,
             barcode: 1,
             'category.title': 1
-        }).limit(20).lean()
+        })
+            // Unique tiebreaker: name alone repeats, and skip/limit pages of
+            // ties would otherwise overlap.
+            .sort({ name: 1, id: 1 })
+            .skip(safeSkip)
+            .limit(safeLimit)
+            .lean()
     ])
 
-    return { count, sample }
+    return { count, products, hasMore: safeSkip + products.length < count }
 }
 
 preview.config = {

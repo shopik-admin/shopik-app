@@ -5,11 +5,13 @@ import Button from 'common/components/Button'
 import Card from 'common/components/Card'
 import Checkbox from 'common/components/Checkbox'
 import Flex from 'common/components/Flex'
+import Image from 'common/components/Image'
 import Input from 'common/components/Input'
 import Select from 'common/components/Select'
 import Text from 'common/components/Text'
 import { useText } from 'common/texts/TextProvider'
 import apiReq from 'common/functions/apiReq'
+import { getProductImageUrl } from 'common/functions/productImageUrl'
 import styles from './orderSettings.module.css'
 
 const LIMIT_FIELDS = ['minSum', 'minSumPickup', 'productMaxAmount']
@@ -197,13 +199,40 @@ export default function OrderSettings() {
         setMessage(null)
     }
 
-    async function previewRule(rule) {
-        setPreviews(prev => ({ ...prev, [rule.id]: { loading: true } }))
+    async function previewRule(rule, { append = false } = {}) {
+        const skip = append ? (previews[rule.id]?.products?.length || 0) : 0
+        setPreviews(prev => ({
+            ...prev,
+            [rule.id]: append
+                ? { ...prev[rule.id], loadingMore: true, error: null }
+                : { loading: true }
+        }))
         try {
-            const res = await apiReq('order_setting/preview', { rule: toPayloadRule(rule) })
-            setPreviews(prev => ({ ...prev, [rule.id]: { count: res?.count || 0, sample: res?.sample || [] } }))
+            const res = await apiReq('order_setting/preview', { rule: toPayloadRule(rule), skip })
+            setPreviews(prev => {
+                const current = prev[rule.id] || {}
+                const products = append
+                    ? [...(current.products || []), ...(res?.products || [])]
+                    : (res?.products || [])
+                return {
+                    ...prev,
+                    [rule.id]: {
+                        count: res?.count || 0,
+                        products,
+                        hasMore: !!res?.hasMore
+                    }
+                }
+            })
         } catch (err) {
-            setPreviews(prev => ({ ...prev, [rule.id]: { error: err?.message || t('order_settings_preview_failed') } }))
+            setPreviews(prev => ({
+                ...prev,
+                [rule.id]: {
+                    ...prev[rule.id],
+                    loading: false,
+                    loadingMore: false,
+                    error: err?.message || t('order_settings_preview_failed')
+                }
+            }))
         }
     }
 
@@ -425,12 +454,37 @@ export default function OrderSettings() {
                         {previews[rule.id]?.loading && <Text size="s" className={styles.muted}>{t('order_settings_preview_loading')}</Text>}
                         {previews[rule.id]?.error && <Text size="s" mode="error">{previews[rule.id].error}</Text>}
                         {previews[rule.id]?.count != null && <Text size="s" className={styles.muted}>
-                            {t('order_settings_preview_count', { count: previews[rule.id].count })}
-                            {previews[rule.id].sample?.length
-                                ? ` · ${previews[rule.id].sample.slice(0, 4).map(product => product.name).join(', ')}`
-                                : ''}
+                            {previews[rule.id].products?.length
+                                ? t('order_settings_preview_showing', {
+                                    shown: previews[rule.id].products.length,
+                                    count: previews[rule.id].count
+                                })
+                                : t('order_settings_preview_count', { count: previews[rule.id].count })}
                         </Text>}
                     </div>
+
+                    {previews[rule.id]?.products?.length > 0 && <div className={styles.previewPanel}>
+                        <div className={styles.previewGrid}>
+                            {previews[rule.id].products.map(product => <div key={product.id} className={styles.previewCard}>
+                                <Image
+                                    src={getProductImageUrl(product.id, 's')}
+                                    className={styles.previewImage}
+                                    alt={product.name}
+                                />
+                                <Text size="xs" className={styles.previewName} ellipsis={2}>{product.name}</Text>
+                                <Text size="xs" className={styles.previewBarcode}>{product.barcode}</Text>
+                            </div>)}
+                        </div>
+                        {previews[rule.id].hasMore && <div className={styles.previewMore}>
+                            <Button
+                                size="s"
+                                mode="text"
+                                icon="add"
+                                loading={previews[rule.id].loadingMore}
+                                onClick={() => previewRule(rule, { append: true })}
+                            >{t('order_settings_preview_more')}</Button>
+                        </div>}
+                    </div>}
                 </div>)}
 
                 <div>

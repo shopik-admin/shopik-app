@@ -129,6 +129,61 @@
     border-top: 1px dashed var(--border-primary);
 }
 
+/* Product preview for a rule: small cards with image, name and barcode.
+   Paginated by the server, so the grid scrolls instead of growing forever. */
+.previewPanel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px dashed var(--border-primary);
+}
+
+.previewGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+    gap: 0.5rem;
+    max-height: 26rem;
+    overflow-y: auto;
+    padding: 0.25rem;
+}
+
+.previewCard {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    min-width: 0;
+    padding: 0.4rem;
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    background: var(--bg-primary);
+}
+
+.previewImage {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: contain;
+    border-radius: 6px;
+    background: var(--bg-primary-alt);
+}
+
+.previewName {
+    min-height: 2.4em;
+    line-height: 1.2;
+}
+
+.previewBarcode {
+    color: var(--text-secondary);
+    direction: ltr;
+    text-align: center;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.previewMore {
+    display: flex;
+    justify-content: center;
+}
+
 @media (max-width: 700px) {
     .page {
         padding: 1rem;
