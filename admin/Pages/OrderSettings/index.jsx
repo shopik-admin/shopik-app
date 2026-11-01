@@ -73,11 +73,12 @@ function limitsToPayload(limits) {
     return out
 }
 
-function snapshot(rules, limits) {
-    return JSON.stringify({
-        rules: (rules || []).map(toPayloadRule),
-        limits: limitsToPayload(limits)
-    })
+function snapshotRules(rules) {
+    return JSON.stringify((rules || []).map(toPayloadRule))
+}
+
+function snapshotLimits(limits) {
+    return JSON.stringify(limitsToPayload(limits))
 }
 
 export default function OrderSettings() {
@@ -91,22 +92,35 @@ export default function OrderSettings() {
     const [rules, setRules] = useState([])
     const [limits, setLimits] = useState(() => limitsToForm({}))
     const [loading, setLoading] = useState(true)
-    const [saving, setSaving] = useState(false)
+    const [savingLimits, setSavingLimits] = useState(false)
+    const [savingRules, setSavingRules] = useState(false)
     const [error, setError] = useState(null)
     const [message, setMessage] = useState(null)
     const [previews, setPreviews] = useState({})
-    const baselineRef = useRef('')
+    // Independent baselines: each card saves its own section, so a pending
+    // edit in one card must not be wiped (or marked saved) by the other.
+    const rulesBaselineRef = useRef('')
+    const limitsBaselineRef = useRef('')
 
     const canEdit = isSuperAdmin || role?.permissions?.includes('setting:update')
 
-    const applySettings = useCallback(data => {
+    const applyRules = useCallback(data => {
         const nextRules = (data?.rules?.groups || []).map(toFormRule)
-        const nextLimits = limitsToForm(data?.limits || {})
         setRules(nextRules)
-        setLimits(nextLimits)
         setPreviews({})
-        baselineRef.current = snapshot(nextRules, nextLimits)
+        rulesBaselineRef.current = snapshotRules(nextRules)
     }, [])
+
+    const applyLimits = useCallback(data => {
+        const nextLimits = limitsToForm(data?.limits || {})
+        setLimits(nextLimits)
+        limitsBaselineRef.current = snapshotLimits(nextLimits)
+    }, [])
+
+    const applySettings = useCallback(data => {
+        applyRules(data)
+        applyLimits(data)
+    }, [applyRules, applyLimits])
 
     const load = useCallback(async id => {
         setLoading(true)
@@ -155,7 +169,8 @@ export default function OrderSettings() {
         return options
     }, [categories, rules])
 
-    const dirty = snapshot(rules, limits) !== baselineRef.current
+    const rulesDirty = snapshotRules(rules) !== rulesBaselineRef.current
+    const limitsDirty = snapshotLimits(limits) !== limitsBaselineRef.current
 
     function updateRule(id, patch) {
         setRules(prev => prev.map(rule => rule.id === id ? { ...rule, ...patch } : rule))
@@ -192,23 +207,44 @@ export default function OrderSettings() {
         }
     }
 
-    async function handleSave() {
-        if (!canEdit || !dirty || saving) return
-        setSaving(true)
+    async function saveLimits() {
+        if (!canEdit || !limitsDirty || savingLimits) return
+        setSavingLimits(true)
         setError(null)
         setMessage(null)
         try {
+            // Limits only: the server leaves the global rules untouched.
             const saved = await apiReq('order_setting/save', {
                 domainId,
-                rules: { groups: rules.map(toPayloadRule) },
                 limits: limitsToPayload(limits)
             })
-            applySettings(saved)
+            applyLimits(saved)
             setMessage(t('order_settings_saved'))
         } catch (err) {
             setError(err?.message || t('order_settings_save_failed'))
         } finally {
-            setSaving(false)
+            setSavingLimits(false)
+        }
+    }
+
+    async function saveRules() {
+        if (!canEdit || !rulesDirty || savingRules) return
+        setSavingRules(true)
+        setError(null)
+        setMessage(null)
+        try {
+            // Rules only: domain limits (including keys this page does not
+            // edit) stay as they are.
+            const saved = await apiReq('order_setting/save', {
+                domainId,
+                rules: { groups: rules.map(toPayloadRule) }
+            })
+            applyRules(saved)
+            setMessage(t('order_settings_saved'))
+        } catch (err) {
+            setError(err?.message || t('order_settings_save_failed'))
+        } finally {
+            setSavingRules(false)
         }
     }
 
@@ -229,12 +265,6 @@ export default function OrderSettings() {
                     }}
                     className={styles.domainSelect}
                 />
-                <Button
-                    onClick={handleSave}
-                    loading={saving}
-                    disabled={loading || !canEdit || !dirty}
-                    tooltip={!canEdit ? t('order_settings_save_permission') : undefined}
-                >{t('order_settings_save')}</Button>
             </div>
         </div>
 
@@ -243,7 +273,16 @@ export default function OrderSettings() {
         {!canEdit && <div className={styles.notice}>{t('order_settings_view_only')}</div>}
 
         <Card title={t('order_settings_limits_title')}>
-            <Text size="s" className={styles.muted}>{t('order_settings_limits_subtitle')}</Text>
+            <div className={styles.cardBar}>
+                <Text size="s" className={styles.muted}>{t('order_settings_limits_subtitle')}</Text>
+                {limitsDirty && <Button
+                    size="s"
+                    onClick={saveLimits}
+                    loading={savingLimits}
+                    disabled={loading || !canEdit}
+                    tooltip={!canEdit ? t('order_settings_save_permission') : undefined}
+                >{t('order_settings_save')}</Button>}
+            </div>
             <div className={styles.grid}>
                 <Input
                     name={t('order_settings_min_sum')}
@@ -274,7 +313,16 @@ export default function OrderSettings() {
 
         <Card title={t('order_settings_rules_title')}>
             <Flex col gap={8}>
-                <Text size="s" className={styles.muted}>{t('order_settings_rules_subtitle')}</Text>
+                <div className={styles.cardBar}>
+                    <Text size="s" className={styles.muted}>{t('order_settings_rules_subtitle')}</Text>
+                    {rulesDirty && <Button
+                        size="s"
+                        onClick={saveRules}
+                        loading={savingRules}
+                        disabled={loading || !canEdit}
+                        tooltip={!canEdit ? t('order_settings_save_permission') : undefined}
+                    >{t('order_settings_save')}</Button>}
+                </div>
                 {rules.length === 0 && <Text className={styles.muted}>{t('order_settings_no_rules')}</Text>}
                 {rules.map(rule => <div key={rule.id} className={styles.rule}>
                     <div className={styles.ruleHeader}>
@@ -286,6 +334,7 @@ export default function OrderSettings() {
                             className={styles.ruleName}
                         />
                         <Checkbox
+                            className={styles.ruleToggle}
                             label={t('order_settings_rule_enabled')}
                             switchMode
                             checked={rule.enabled}

@@ -67,6 +67,16 @@
     margin-top: 0.75rem;
 }
 
+/* Subtitle row that hosts a card-local save button, shown only when that
+   card has unsaved changes. */
+.cardBar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
 .rule {
     display: flex;
     flex-direction: column;
@@ -87,6 +97,14 @@
 .ruleName {
     flex: 1;
     min-width: 12rem;
+}
+
+/* The switch-mode checkbox draws its 50px control with position:absolute at
+   the label's inline-end. A label sized only by its text lets that control
+   spill over the neighbouring input, so reserve room for it here. */
+.ruleToggle {
+    flex: 0 0 auto;
+    min-width: 8rem;
 }
 
 .ruleTargets {
