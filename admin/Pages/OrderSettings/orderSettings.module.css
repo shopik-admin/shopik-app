@@ -101,7 +101,8 @@
 }
 
 /* The rule numbers are short values — a pack count, a weight step — so they
-   keep their own width in a row instead of stretching across the card. */
+   keep their own width in a row instead of stretching across the card. 14rem is
+   what the longest hint (a single line at 12px) needs. */
 .ruleNumbers {
     display: flex;
     flex-wrap: wrap;
@@ -109,9 +110,9 @@
 }
 
 .numberField {
-    flex: 0 1 8rem;
-    min-width: 6rem;
-    max-width: 8rem;
+    flex: 0 1 14rem;
+    min-width: 10rem;
+    max-width: 14rem;
 }
 
 /* The switch-mode checkbox draws its 50px control with position:absolute at

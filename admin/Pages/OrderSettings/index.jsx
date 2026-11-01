@@ -540,17 +540,7 @@ function CopyValueButton({ text, title }) {
         e.preventDefault()
         e.stopPropagation()
         try {
-            if (navigator.clipboard?.writeText) {
-                await navigator.clipboard.writeText(text)
-            } else {
-                // Plain-http admin has no clipboard API
-                const area = document.createElement('textarea')
-                area.value = text
-                document.body.appendChild(area)
-                area.select()
-                document.execCommand('copy')
-                area.remove()
-            }
+            await navigator.clipboard.writeText(text)
             setCopied(true)
             setTimeout(() => setCopied(false), 1500)
         } catch {
