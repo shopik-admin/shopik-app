@@ -373,12 +373,19 @@ const SlideRow = memo(function SlideRow({ slide, index, count, ratios, domainUrl
         e.target.value = ''
     }
 
-    // New tab only applies to links the app cannot navigate to: a path, or an
-    // absolute URL on the site's own host, is stored as an in-app route.
+    // A new tab is always a full page load, so a same-site link that asks for one
+    // cannot be stored as an in-app path. Only a path cannot open a tab.
     const typed = String(slide.link || '')
     const absolute = /^https?:\/\//i.test(typed)
     const sameSite = isSiteLink(typed, domainUrl)
-    const internal = !absolute || sameSite
+
+    const linkInfo = !absolute
+        ? TR('display_link_hint')
+        : sameSite && slide.newTab
+            ? TR('display_link_same_site_new_tab')
+            : sameSite
+                ? TR('display_link_same_site')
+                : TR('display_link_external')
 
     return <div className={styles.slide}>
         <div className={styles.slideHead}>
@@ -458,7 +465,7 @@ const SlideRow = memo(function SlideRow({ slide, index, count, ratios, domainUrl
                 className={styles.field}
                 defaultValue={slide.link || ''}
                 placeholder="display_link_ph"
-                info={TR(!absolute ? 'display_link_hint' : sameSite ? 'display_link_same_site' : 'display_link_external')}
+                info={linkInfo}
                 onBlur={e => { if (e.target.value !== (slide.link || '')) onPatch({ link: e.target.value }) }}
             />
             <Input
@@ -473,10 +480,10 @@ const SlideRow = memo(function SlideRow({ slide, index, count, ratios, domainUrl
                 name={`slide-newtab-${index}`}
                 label={TR('display_new_tab')}
                 defaultChecked={!!slide.newTab}
-                disabled={internal}
+                disabled={!absolute}
                 onChange={e => onPatch({ newTab: !!e.target.checked })}
             />
-            {internal && <Text size="s" mode="sub">{TR('display_new_tab_external_only')}</Text>}
+            {!absolute && <Text size="s" mode="sub">{TR('display_new_tab_path_only')}</Text>}
         </div>
     </div>
 })

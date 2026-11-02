@@ -18,10 +18,12 @@ export function isSiteLink(link, domainUrl) {
 }
 
 // Same-site links are stored as the in-app path (+ query and hash), so clicking one
-// is a route change instead of a full document load. Anything else is kept as typed.
-export function toInternalLink(link, domainUrl) {
+// is a route change instead of a full document load. Anything else is kept as typed —
+// including a same-site link the user wants in a new tab, since a new tab is a full
+// load by definition and cannot be a route change.
+export function toInternalLink(link, domainUrl, newTab = false) {
     const raw = String(link || '').trim()
     const parsed = linkHost(raw)
-    if (!parsed || !isSiteLink(raw, domainUrl)) return raw
+    if (!parsed || newTab || !isSiteLink(raw, domainUrl)) return raw
     return `${parsed.url.pathname}${parsed.url.search}${parsed.url.hash}` || '/'
 }

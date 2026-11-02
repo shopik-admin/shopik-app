@@ -31,6 +31,12 @@ describe('banner links on the site itself', () => {
         assert.equal(toInternalLink('https://shefa.click/', 'shefa.click'), '/')
     })
 
+    it('a slide that wants a new tab keeps its full url', () => {
+        assert.equal(toInternalLink('https://shefa.click/sales', 'shefa.click', true), 'https://shefa.click/sales')
+        // Another site is never the site itself, tab or not.
+        assert.equal(toInternalLink('https://shopik.co.il/sales', 'shefa.click', true), 'https://shopik.co.il/sales')
+    })
+
     it('without a domain url nothing can be recognised as the site itself', () => {
         assert.equal(toInternalLink('https://shefa.click/sales', ''), 'https://shefa.click/sales')
     })

@@ -33,8 +33,9 @@ export default async function create(payload, { DL, utils }) {
             if (!resolveSlideImage(slide, 'desktop'))
                 throw { status: 400, message: 'each slide needs at least one image' }
             // A link to the site's own host is stored as the in-app path, so clicking
-            // it is a route change instead of a full document load.
-            slide.link = toInternalLink(slide.link, domain?.url)
+            // it is a route change instead of a full document load — unless the slide
+            // asks for a new tab, which needs the full URL.
+            slide.link = toInternalLink(slide.link, domain?.url, slide.newTab)
             if (!/^https?:\/\//i.test(slide.link)) slide.newTab = false
         }
     }
