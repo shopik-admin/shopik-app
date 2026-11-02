@@ -96,6 +96,14 @@
     width: 100%;
 }
 
+/* One column on mobile. Mosaic layouts should eventually come from templates —
+   for now the grid simply stacks. */
+@media (max-width: 700px) {
+    .mosaic {
+        grid-template-columns: 1fr;
+    }
+}
+
 .mosaicItem {
     display: block;
     border-radius: 16px;
