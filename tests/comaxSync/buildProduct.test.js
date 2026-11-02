@@ -56,6 +56,18 @@ describe('comax product build', () => {
         assert.equal('storeIds' in product, false)
     })
 
+    it('copies the summed sales units onto the product', () => {
+        assert.equal(build({ salesLastDays: 14.75 }).totalSalesUnits, 14.75)
+    })
+
+    it('stores 0 units for an item that sold nothing in the window', () => {
+        assert.equal(build({ salesLastDays: 0 }).totalSalesUnits, 0)
+    })
+
+    it('leaves totalSalesUnits untouched when the import never measured it', () => {
+        assert.equal('totalSalesUnits' in build(), false)
+    })
+
     it('keeps an archived item archived even when it is in stock', () => {
         assert.equal(build({ archived: true, storeIds: ['store-a'] }).status, STATUS.ARCHIVED)
     })
