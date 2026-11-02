@@ -31,7 +31,7 @@ export default async function carousel(payload, { DL, _user, req, utils, platfor
         return { block: carouselMeta(block), products: [], sales: {} }
     }
     const { filter, search } = resolved
-    const { mode, storeId } = await utils.data.withStock.resolveStockContext(req, { DL, utils }, _user)
+    const { mode, storeId } = await utils.data.withStock.resolveStockContext(req, { DL, utils, _user })
     const effectiveFilter = (mode === 'filter' && storeId)
         ? utils.data.withStock.applyStockFilter(filter, storeId, mode)
         : filter

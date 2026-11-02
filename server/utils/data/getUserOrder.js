@@ -1,4 +1,5 @@
 import getStoreForAddress from './getStoreForAddress.js'
+import { invalidateUserStore } from './getUserStore.js'
 import handleSelect from '#server/dl/handleSelect.js'
 import { record, userActor } from './timeline.js'
 import enrichCart from './enrichCart.js'
@@ -42,6 +43,9 @@ export default async function getUserOrder({ DL, _user }) {
     try {
         order.number = await DL.Order.getNumber()
         const newOrder = await DL.Order.create(order)
+        // A product request can have cached this user's store as null before the
+        // cart order existed; the store resolved here has to replace it.
+        if (order.storeId) await invalidateUserStore(DL, _user.id)
         await record({
             DL,
             order: newOrder,

@@ -4,7 +4,7 @@ import TR from '#common/texts/TR.js'
 import ProductList, { PRODUCT_LIST_LIMIT } from 'pages/Products/ProductList'
 
 export default function Sales() {
-    const { loading, pageData } = usePage()
+    const { loading, pageData, storeKey } = usePage()
     const data = pageData?.data
 
     return <>
@@ -14,7 +14,7 @@ export default function Sales() {
             notFound={pageData?.notFound}
             title={data?.categoryName || pageData?.title || TR('sales')}
             breadcrumbPath='/sales'
-            resetKey='sales'
+            resetKey={`sales|${storeKey}`}
             emptyText={TR('sales_empty')}
             blocks={data?.blocks}
             fetchPage={({ skip, limit }) => apiReq('product/get', { onSale: true, skip, limit })}
