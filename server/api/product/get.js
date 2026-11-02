@@ -6,7 +6,7 @@ export default async function get(payload, { DL, _user, _admin, req, utils, plat
     // Admin traffic keeps the full multi-domain `prices` array; the
     // storefront gets a resolved flat `price` only (see withDomainPrice).
     const isStorefront = !String(platform || '').includes('admin')
-    const { mode, storeId } = await utils.data.withStock.resolveStockContext(req, { DL, utils }, _user)
+    const { mode, storeId } = await utils.data.withStock.resolveStockContext(req, { DL, utils, _user })
     const wantAnnotate = mode === 'annotate' && !!storeId
     // Storefront scoping: no price entry for the domain = not sold in that domain.
     // Admin callers send no domainId and stay unfiltered.

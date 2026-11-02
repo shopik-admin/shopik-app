@@ -9,7 +9,7 @@ export default async function search(payload, { DL, req, _user, _admin, utils, p
     const priceFor = (products) => (isStorefront && domainId ? withDomainPrice(products, domainId) : products)
     const safeSkip = Math.max(0, Number(skip) || 0)
     const safeLimit = Math.min(Math.max(1, Number(limit) || 20), 100)
-    const { mode, storeId } = await utils.data.withStock.resolveStockContext(req, { DL, utils }, _user)
+    const { mode, storeId } = await utils.data.withStock.resolveStockContext(req, { DL, utils, _user })
     const wantAnnotate = mode === 'annotate' && !!storeId
 
     const effectiveFilter = utils.data.withStock.applyStockFilter(filter, storeId, mode)

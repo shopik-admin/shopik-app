@@ -20,7 +20,7 @@ export default async function get(payload, { DL, _user, req, utils, platform }) 
     const pagePath = path.startsWith('/') ? path : `/${path}`
 
     const display = utils.data.displayBlocks
-    const { mode, storeId } = await utils.data.withStock.resolveStockContext(req, { DL, utils }, _user)
+    const { mode, storeId } = await utils.data.withStock.resolveStockContext(req, { DL, utils, _user })
     const previewLimit = await display.getPreviewLimit(DL, domainId)
 
     // Storefront gets a resolved flat `price` only; admin keeps `prices`.

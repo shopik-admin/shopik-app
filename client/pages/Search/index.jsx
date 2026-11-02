@@ -21,7 +21,7 @@ export default function Search() {
     const { TR } = useText()
     const [searchParams] = useSearchParams()
     const q = (searchParams.get('q') || '').trim()
-    const { pageData } = usePage()
+    const { pageData, storeKey } = usePage()
     const { settings } = useAppData() || {}
     const latestRequest = useRef(0)
     const moreReqId = useRef(0)
@@ -68,7 +68,7 @@ export default function Search() {
             .finally(() => {
                 if (currentRequest === latestRequest.current) setLoading(false)
             })
-    }, [q])
+    }, [q, storeKey])
 
     async function loadMore() {
         if (loadingMore || !hasMore || !results) return
