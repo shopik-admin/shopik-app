@@ -1,4 +1,5 @@
 import { releaseWindowReservation } from '#server/utils/data/windowGroups.js'
+import { invalidateUserStore } from '#server/utils/data/getUserStore.js'
 import getShippingConfig from '#server/utils/data/getShippingConfig.js'
 import { calcShipping } from '#common/functions/shipping.js'
 import { round2 } from '#common/functions/calcOrder/utils.js'
@@ -123,7 +124,7 @@ export default async function deliveryMethod(payload, { DL, utils, _user }) {
     })
 
     await DL.redis?.del(`user_auth:${_user.id}`)
-    await DL.redis?.del(`user_store:${_user.id}`).catch(() => {})
+    await invalidateUserStore(DL, _user.id)
 
     return { user, order: updatedOrder }
 }

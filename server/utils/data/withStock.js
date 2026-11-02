@@ -5,12 +5,14 @@ async function getStockMode(DL) {
     return ['filter', 'annotate', 'off'].includes(mode) ? mode : 'off'
 }
 
-export async function resolveStockContext(req, bootData, injectedUser) {
+// bootData carries the resolved user as well: getUserStore caches per user and
+// must not re-resolve the session on every storefront request.
+export async function resolveStockContext(req, bootData) {
     const mode = await getStockMode(bootData.DL)
     if (mode === 'off') return { mode: 'off', storeId: null }
     const anyRegister = await bootData.DL.CashRegister.readOne({ active: true }).catch(() => null)
     if (!anyRegister) return { mode: 'off', storeId: null }
-    const storeId = await bootData.utils.data.getUserStore(req, bootData, injectedUser)
+    const storeId = await bootData.utils.data.getUserStore(req, bootData)
     return { mode, storeId }
 }
 

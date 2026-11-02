@@ -1,4 +1,5 @@
 import { releaseWindowReservation } from '#server/utils/data/windowGroups.js'
+import { invalidateUserStore } from '#server/utils/data/getUserStore.js'
 
 export async function updateOrderAddress({ DL, utils, address, order, select = DL.Order.defaultSelect, actor }) {
     const { DELIVERY_METHOD } = DL.Order.constants
@@ -20,9 +21,7 @@ export async function updateOrderAddress({ DL, utils, address, order, select = D
 
     const updatedOrder = await DL.Order.updateOne({ id: order.id }, orderUpdate, { select })
 
-    if (order.userId) {
-        await DL.redis?.del(`user_store:${order.userId}`).catch(() => {})
-    }
+    await invalidateUserStore(DL, order.userId)
 
     const oldData = { address: order.address }
     const newData = { address: update.address }
@@ -68,9 +67,7 @@ export async function clearOrderAddress({ DL, utils, order, select = DL.Order.de
 
     const updatedOrder = await DL.Order.updateOne({ id: order.id }, update, { select })
 
-    if (order.userId) {
-        await DL.redis?.del(`user_store:${order.userId}`).catch(() => {})
-    }
+    await invalidateUserStore(DL, order.userId)
 
     utils.data.timeline.record({
         DL,

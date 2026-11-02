@@ -3,7 +3,7 @@ import { usePage } from 'layout/Page'
 import ProductList, { PRODUCT_LIST_LIMIT } from './ProductList'
 
 export default function Products() {
-    const { loading, pageData, path } = usePage()
+    const { loading, pageData, path, storeKey } = usePage()
     const data = pageData?.data
 
     return <ProductList
@@ -12,7 +12,7 @@ export default function Products() {
         notFound={pageData?.notFound}
         title={data?.categoryName || pageData?.title}
         breadcrumbPath={path}
-        resetKey={path}
+        resetKey={`${path}|${storeKey}`}
         blocks={data?.blocks}
         fetchPage={({ skip, limit }) => apiReq('product/get', { path, skip, limit })}
     />

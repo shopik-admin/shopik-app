@@ -1,4 +1,5 @@
 import { releaseWindowReservation } from '#server/utils/data/windowGroups.js'
+import { invalidateUserStore } from '#server/utils/data/getUserStore.js'
 import { findByLocation } from '#server/external/supplyArea.js'
 import { isElevatorRequired } from '#common/functions/address.js'
 import { normalizeInvoiceRequest } from '#common/functions/invoice/request.js'
@@ -172,6 +173,9 @@ export default async function create(payload, info) {
                 await DL.Order.updateOne({ id: order.id }, updates)
                 Object.assign(order, updates)
             } catch { }
+            // Capture can move the order to another store; the storefront's stock
+            // context is cached, so the corrected store must invalidate it.
+            if (updates.storeId) await invalidateUserStore(DL, _user.id)
         }
         throw { status: 400, message: `Missing required fields: ${missingFields.join(', ')}`, missingFields, code: 'MISSING_FIELDS' }
     }
@@ -182,6 +186,7 @@ export default async function create(payload, info) {
             if (updated?.id) Object.assign(order, updated)
             else Object.assign(order, updates)
         } catch { }
+        if (updates.storeId) await invalidateUserStore(DL, _user.id)
     }
 
     const hyp = external.hyp

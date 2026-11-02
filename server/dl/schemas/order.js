@@ -576,7 +576,8 @@ const defaultSelect = {
     address: 1,
     storeId: 1,
     window: 1,
-    domainId: 1
+    domainId: 1,
+    userId: 1
 }
 
 const index = [
