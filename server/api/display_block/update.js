@@ -66,9 +66,11 @@ export default async function update(payload, { DL, utils }) {
         const slides = payload.banner?.slides ?? block.banner?.slides
         if (!slides?.length)
             throw { status: 400, message: 'banner.slides required' }
-        const ratio = payload.banner?.ratio
-        if (ratio && !parseRatio(ratio))
-            throw { status: 400, message: 'banner.ratio must be like 16:10' }
+        const ratios = payload.banner?.ratios || {}
+        for (const [size, ratio] of Object.entries(ratios)) {
+            if (ratio && !parseRatio(ratio))
+                throw { status: 400, message: `banner.ratios.${size} must be like 16:10` }
+        }
     }
 
     const schedule = payload.schedule || block.schedule || {}

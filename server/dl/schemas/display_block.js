@@ -83,9 +83,14 @@ const displayBlockSchema = {
             enum: Object.values(constants.LAYOUT),
             default: constants.LAYOUT.CAROUSEL
         },
-        // One ratio for the whole block, as 'W:H'. Empty on blocks created before
-        // ratios existed — the storefront then renders each image at its natural size.
-        ratio: { type: String, default: '16:10' },
+        // One ratio per size, as 'W:H', set by that size's first image. Comparisons
+        // are always same-size across slides — a mobile composition may well be a
+        // different shape than the desktop one. Empty for a size nothing was uploaded to.
+        ratios: {
+            desktop: String,
+            tablet: String,
+            mobile: String
+        },
         autoplaySec: { type: Number, default: 5, min: 0 },
         slides: [slideSchema]
     },

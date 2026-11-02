@@ -2,7 +2,7 @@ import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import {
     BREAKPOINTS, SIZES, SIZE_FIELD,
-    parseRatio, matchesRatio, resolveSlideImage, slideImageField, targetDimensions
+    parseRatio, matchesRatio, reduceRatio, resolveSlideImage, slideImageField, targetDimensions
 } from '../../common/functions/displayImageBreakpoints.js'
 
 describe('banner size fallback', () => {
@@ -43,20 +43,29 @@ describe('banner size fallback', () => {
 })
 
 describe('banner upload targets', () => {
-    it('derives each size dimensions from the block ratio', () => {
+    it('derives each size dimensions from that size ratio', () => {
         assert.deepEqual(targetDimensions('16:10', 'desktop'), { width: 1600, height: 1000 })
         assert.deepEqual(targetDimensions('16:10', 'tablet'), { width: 1200, height: 750 })
-        assert.deepEqual(targetDimensions('16:10', 'mobile'), { width: 800, height: 500 })
+        assert.deepEqual(targetDimensions('4:5', 'mobile'), { width: 800, height: 1000 })
         assert.deepEqual(targetDimensions('1:1', 'tablet'), { width: 1200, height: 1200 })
     })
 
-    it('accepts a near ratio and rejects a real mismatch', () => {
+    it('compares same-size uploads against each other', () => {
         assert.ok(matchesRatio(1600, 1000, '16:10'))
         assert.ok(matchesRatio(1601, 1000, '16:10'))
         assert.ok(!matchesRatio(1200, 800, '16:10'))
+        // A mobile ratio is its own: 720x900 is fine for a 4:5 mobile band.
+        assert.ok(matchesRatio(720, 900, reduceRatio(720, 900)))
+        assert.ok(!matchesRatio(720, 900, '16:10'))
     })
 
-    it('blocks without a ratio match nothing rather than guessing one', () => {
+    it('the first image of a size sets that size ratio', () => {
+        assert.equal(reduceRatio(720, 300), '12:5')
+        assert.equal(reduceRatio(800, 1000), '4:5')
+        assert.equal(reduceRatio(0, 300), '')
+    })
+
+    it('a size without a ratio yet matches nothing rather than guessing one', () => {
         assert.equal(parseRatio(''), null)
         assert.equal(parseRatio('16:'), null)
         assert.equal(targetDimensions('', 'mobile'), null)

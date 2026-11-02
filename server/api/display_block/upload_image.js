@@ -39,14 +39,12 @@ export default async function upload_image(payload) {
     if (!buffer?.length || buffer.length > MAX_BYTES)
         throw { status: 400, message: 'image too large' }
 
-    // One ratio per block, so the storefront can lay every slide out as one box.
-    // Blocks created before ratios existed send none, and stay at natural size.
+    // sharp decodes once here; the dimensions are both the ratio check and the
+    // first image of a block, which sets the block ratio for the rest of the slides.
+    const metadata = await sharp(buffer).metadata()
     const required = parseRatio(ratio)
-    if (required) {
-        const { width, height } = await sharp(buffer).metadata()
-        if (!matchesRatio(width, height, ratio))
-            throw { status: 400, message: `image ratio must be ${ratio}, got ${width}x${height}` }
-    }
+    if (required && metadata?.width && metadata?.height && !matchesRatio(metadata.width, metadata.height, ratio))
+        throw { status: 400, message: `image ratio must be ${ratio}, got ${metadata.width}x${metadata.height}` }
 
     let sizes
     try {
@@ -69,7 +67,13 @@ export default async function upload_image(payload) {
         )
     )
 
-    return { basePath, sizes: Object.keys(sizes), hash: sha1(buffer) }
+    return {
+        basePath,
+        sizes: Object.keys(sizes),
+        hash: sha1(buffer),
+        width: metadata?.width,
+        height: metadata?.height
+    }
 }
 
 upload_image.config = {

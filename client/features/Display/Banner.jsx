@@ -5,15 +5,17 @@ import Button from '#common/components/Button'
 import Flex from '#common/components/Flex'
 import { useText } from '#common/texts/TextProvider'
 import { getDisplayImageUrl } from '#common/functions/displayImageUrl'
-import { BREAKPOINTS, BANNER_WIDTHS, parseRatio, resolveSlideImage } from '#common/functions/displayImageBreakpoints'
+import { BREAKPOINTS, BANNER_WIDTHS, SIZES, parseRatio, resolveSlideImage } from '#common/functions/displayImageBreakpoints'
 import styles from './display.module.css'
 
 export default function Banner({ block }) {
-    const { layout, autoplaySec, ratio, slides = [] } = block.banner || {}
+    const { layout, autoplaySec, ratios = {}, slides = [] } = block.banner || {}
     if (!slides.length) return null
-    // Blocks created before ratios existed have none: render each image at its
-    // natural size instead of guessing one.
-    const ratioStyle = { '--banner-ratio': parseRatio(ratio)?.join(' / ') || 'auto' }
+    // Ratio per size ('auto' for a size nothing was uploaded to yet), so the box
+    // matches whichever image the breakpoint actually shows.
+    const ratioStyle = Object.fromEntries(SIZES.map(size => [
+        `--ratio-${size}`, parseRatio(ratios[size])?.join(' / ') || 'auto'
+    ]))
     if (layout === 'mosaic') return <Mosaic slides={slides} ratioStyle={ratioStyle} />
     return <SlideCarousel slides={slides} autoplaySec={autoplaySec} ratioStyle={ratioStyle} />
 }

@@ -36,10 +36,7 @@ export function resolveSlideImage(slide, size) {
     return field ? slide[field] : ''
 }
 
-export const DEFAULT_RATIO = '16:10'
-export const RATIO_OPTIONS = [DEFAULT_RATIO, '16:9', '4:3', '1:1', '3:4']
-
-// '16:10' -> [16, 10]; null when unparsable (legacy blocks have no ratio).
+// '16:10' -> [16, 10]; null when unparsable (a size nothing has been uploaded to yet).
 export function parseRatio(ratio) {
     const match = String(ratio || '').match(/^(\d+(?:\.\d+)?):(\d+(?:\.\d+)?)$/)
     if (!match) return null
@@ -48,7 +45,18 @@ export function parseRatio(ratio) {
     return [width, height]
 }
 
-// Upload target for one size: the ladder rung it renders at, at the block ratio.
+const gcd = (a, b) => b ? gcd(b, a % b) : a
+
+// '12:5' from 720x300. A size's ratio comes from the first image uploaded to it, so
+// only the value matters, not which rung of the ladder the file happens to be.
+export function reduceRatio(width, height) {
+    if (!width || !height) return ''
+    const a = Math.round(width), b = Math.round(height)
+    const d = gcd(a, b)
+    return `${a / d}:${b / d}`
+}
+
+// Upload target for one size: the ladder rung it renders at, at that size's ratio.
 const SIZE_WIDTH = { desktop: 'l', tablet: 'm', mobile: 's' }
 
 export function targetDimensions(ratio, size) {

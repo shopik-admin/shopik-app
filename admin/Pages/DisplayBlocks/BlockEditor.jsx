@@ -13,8 +13,7 @@ import DateRangeCalendar from 'common/components/DateRangeCalendar'
 import { useText } from 'common/texts/TextProvider'
 import { getDisplayImageUrl } from 'common/functions/displayImageUrl'
 import {
-    DEFAULT_RATIO, RATIO_OPTIONS, SIZES, SIZE_FIELD,
-    slideImageField, targetDimensions
+    SIZES, SIZE_FIELD, reduceRatio, slideImageField, targetDimensions
 } from 'common/functions/displayImageBreakpoints'
 import styles from './displayBlocks.module.css'
 
@@ -66,7 +65,9 @@ export default function BlockEditor({ block, domainId, domainName, placement, ca
     const kind = vals?.kind ?? block?.kind ?? 'banner'
     const layout = vals?.banner?.layout ?? block?.banner?.layout ?? 'carousel'
     const showAll = vals?.carousel?.showAll ?? block?.carousel?.showAll ?? true
-    const ratio = vals?.banner?.ratio ?? block?.banner?.ratio ?? DEFAULT_RATIO
+    // Ratio per size, set by that size's first image. Same-size uploads are compared
+    // to each other across slides; a size with nothing uploaded to it has no ratio yet.
+    const [ratios, setRatios] = useState(() => block?.banner?.ratios || {})
     const initialStart = splitLocal(block?.schedule?.start)
     const initialEnd = splitLocal(block?.schedule?.end)
     const [range, setRange] = useState({
@@ -97,6 +98,10 @@ export default function BlockEditor({ block, domainId, domainName, placement, ca
     const addSlide = useCallback(() => {
         setSlides(prev => [...prev, { key: newSlideKey() }])
     }, [])
+    // The first upload for a size decides that size's ratio; later ones must match it.
+    const setRatioForSize = useCallback((size, value) => {
+        setRatios(prev => ({ ...prev, [size]: value }))
+    }, [])
 
     async function save(vals) {
         const name = String(vals?.name || '').trim()
@@ -117,9 +122,12 @@ export default function BlockEditor({ block, domainId, domainName, placement, ca
             }
         }
         if (resolvedKind === 'banner') {
+            // Always sent, empties included, so clearing a size ratio here clears it
+            // on the block instead of leaving the stored one behind.
+            const savedRatios = Object.fromEntries(SIZES.map(size => [size, ratios[size] || '']))
             payload.banner = {
                 layout: vals?.banner?.layout || layout,
-                ratio: vals?.banner?.ratio || ratio,
+                ratios: savedRatios,
                 autoplaySec: Number(vals?.banner?.autoplaySec) || 0,
                 slides: slides.map(s => ({
                     ...(s.key ? { key: s.key } : {}),
@@ -250,7 +258,8 @@ export default function BlockEditor({ block, domainId, domainName, placement, ca
             <div hidden={kind !== 'banner'}>
                 <BannerFields
                     layout={layout}
-                    ratio={ratio}
+                    ratios={ratios}
+                    onSetRatio={setRatioForSize}
                     slides={slides}
                     blockId={block?.id}
                     defaultAutoplay={block?.banner?.autoplaySec ?? 5}
@@ -272,7 +281,7 @@ export default function BlockEditor({ block, domainId, domainName, placement, ca
     </Form>
 }
 
-const BannerFields = memo(function BannerFields({ layout, ratio, slides, blockId, defaultAutoplay, onPatchSlide, onMoveSlide, onRemoveSlide, onAddSlide }) {
+const BannerFields = memo(function BannerFields({ layout, ratios, onSetRatio, slides, blockId, defaultAutoplay, onPatchSlide, onMoveSlide, onRemoveSlide, onAddSlide }) {
     return <Flex col gap={8}>
         <Flex gap={8} wrap>
             <Input
@@ -285,16 +294,6 @@ const BannerFields = memo(function BannerFields({ layout, ratio, slides, blockId
                     { value: 'carousel', text: 'display_layout_carousel' },
                     { value: 'mosaic', text: 'display_layout_mosaic' }
                 ]}
-            />
-            {/* One ratio for the whole block: uploads are checked against it so the
-                storefront can lay slides out as a single box. */}
-            <Input
-                type="select"
-                name="banner.ratio"
-                label="display_ratio"
-                className={styles.field}
-                defaultValue={ratio}
-                options={RATIO_OPTIONS.map(value => ({ value, text: value }))}
             />
             <div hidden={layout !== 'carousel'} className={styles.field}>
                 <Input
@@ -313,7 +312,8 @@ const BannerFields = memo(function BannerFields({ layout, ratio, slides, blockId
                 slide={slide}
                 index={i}
                 count={slides.length}
-                ratio={ratio}
+                ratios={ratios}
+                onSetRatio={onSetRatio}
                 blockId={blockId}
                 onPatchSlide={onPatchSlide}
                 onMoveSlide={onMoveSlide}
@@ -326,7 +326,7 @@ const BannerFields = memo(function BannerFields({ layout, ratio, slides, blockId
     </Flex>
 })
 
-const SlideRow = memo(function SlideRow({ slide, index, count, ratio, blockId, onPatchSlide, onMoveSlide, onRemoveSlide }) {
+const SlideRow = memo(function SlideRow({ slide, index, count, ratios, onSetRatio, blockId, onPatchSlide, onMoveSlide, onRemoveSlide }) {
     const { TR } = useText()
     // Per-size state: each size has its own paste box and uploads on its own.
     const [urls, setUrls] = useState({})
@@ -344,10 +344,12 @@ const SlideRow = memo(function SlideRow({ slide, index, count, ratio, blockId, o
             const res = await apiReq('display_block/upload_image', {
                 ...payload,
                 variant: size,
-                ratio,
+                ratio: ratios[size],
                 ...(blockId ? { blockId, slideKey: slide.key || `slide-${index}` } : {})
             })
             onPatch({ [SIZE_FIELD[size]]: res.basePath })
+            // The first image of a size sets that size's ratio for the rest of the slides.
+            if (!ratios[size] && res.width && res.height) onSetRatio(size, reduceRatio(res.width, res.height))
             setUrls(u => ({ ...u, [size]: '' }))
         } catch (e) {
             setErrors(err => ({ ...err, [size]: e?.message || TR('display_upload_failed') }))
@@ -390,17 +392,25 @@ const SlideRow = memo(function SlideRow({ slide, index, count, ratio, blockId, o
                 const field = SIZE_FIELD[size]
                 // A size with no image of its own renders the size it falls back to.
                 const usedField = slideImageField(slide, size)
-                const target = targetDimensions(ratio, size)
+                const sizeRatio = ratios[size]
+                const target = targetDimensions(sizeRatio, size)
                 return <div key={size} className={styles.sizeRow}>
                     <Flex gap={6} className={styles.sizeLabel}>
                         <Icon name={SIZE_ICON[size]} size={16} />
                         <Text size="s">
                             {TR(`display_size_${size}`)}
-                            {target ? ` · ${target.width}×${target.height}` : ''}
+                            {sizeRatio
+                                ? ` · ${sizeRatio} (${target.width}×${target.height})`
+                                : ` · ${TR('display_ratio_pending')}`}
                             {usedField && usedField !== field
                                 ? ` — ${TR('display_fallback_shows')} ${TR(`display_size_${FIELD_SIZE[usedField]}`)}`
                                 : ''}
                         </Text>
+                        {sizeRatio && <Button
+                            type="button" size="s" mode="text" icon="refresh"
+                            tooltip={TR('display_ratio_reset')}
+                            onClick={() => onSetRatio(size, '')}
+                        />}
                     </Flex>
                     <Flex gap={6} className={styles.sizeControls}>
                         <label className={`${styles.iconBtn} ${uploading[size] ? styles.uploading : ''}`} title={TR('display_upload_file')} aria-label={TR('display_upload_file')}>

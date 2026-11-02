@@ -19,12 +19,24 @@
     min-width: 0;
     display: block;
     width: 100%;
-    /* One ratio per block, set inline from block.banner.ratio. 'auto' is the
-       fallback for blocks created before ratios existed. */
-    aspect-ratio: var(--banner-ratio, auto);
+    /* Ratio per size, set inline from block.banner.ratios — the box follows the size
+       the breakpoint actually shows. 'auto' for a size nothing was uploaded to. */
+    aspect-ratio: var(--ratio-desktop, auto);
 }
 
-/* Images are shown whole — no cropping, so the slide is the block ratio box. */
+@media (max-width: 1024px) {
+    .heroSlide {
+        aspect-ratio: var(--ratio-tablet, var(--ratio-desktop, auto));
+    }
+}
+
+@media (max-width: 700px) {
+    .heroSlide {
+        aspect-ratio: var(--ratio-mobile, var(--ratio-tablet, var(--ratio-desktop, auto)));
+    }
+}
+
+/* Images are shown whole — no cropping, so the slide is its size's ratio box. */
 .slideImg {
     width: 100%;
     height: auto;
@@ -88,7 +100,19 @@
     display: block;
     border-radius: 16px;
     overflow: hidden;
-    aspect-ratio: var(--banner-ratio, auto);
+    aspect-ratio: var(--ratio-desktop, auto);
+}
+
+@media (max-width: 1024px) {
+    .mosaicItem {
+        aspect-ratio: var(--ratio-tablet, var(--ratio-desktop, auto));
+    }
+}
+
+@media (max-width: 700px) {
+    .mosaicItem {
+        aspect-ratio: var(--ratio-mobile, var(--ratio-tablet, var(--ratio-desktop, auto)));
+    }
 }
 
 .rail {
