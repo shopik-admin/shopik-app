@@ -13,6 +13,7 @@ import Select from 'common/components/Select'
 import { useModal } from 'common/components/Modal'
 import { useText } from 'common/texts/TextProvider'
 import { getDisplayImageUrl } from 'common/functions/displayImageUrl'
+import { resolveSlideImage } from 'common/functions/displayImageBreakpoints'
 import { getProductImageUrl } from 'common/functions/productImageUrl'
 import BlockEditor from './BlockEditor'
 import styles from './displayBlocks.module.css'
@@ -244,8 +245,8 @@ export default function DisplayBlocks() {
                                 </Flex>
                                 {block.kind === 'banner'
                                     ? <div className={`${styles.thumb} ${styles.thumbFit}`}>
-                                        {block.banner?.slides?.[0]?.image
-                                            ? <Image src={getDisplayImageUrl(block.banner.slides[0].image, 's')} />
+                                        {block.banner?.slides?.[0] && resolveSlideImage(block.banner.slides[0], 'desktop')
+                                            ? <Image src={getDisplayImageUrl(resolveSlideImage(block.banner.slides[0], 'desktop'), 's')} />
                                             : <span className={styles.kindTag}>{TR('display_banner')}</span>}
                                     </div>
                                     : <PreviewStrip products={previews[block.id]} TR={TR} />}

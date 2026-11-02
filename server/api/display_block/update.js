@@ -1,4 +1,5 @@
 import diff from '#common/functions/diff.js'
+import { parseRatio } from '#common/functions/displayImageBreakpoints.js'
 
 export default async function update(payload, { DL, utils }) {
     const { id } = payload
@@ -65,6 +66,9 @@ export default async function update(payload, { DL, utils }) {
         const slides = payload.banner?.slides ?? block.banner?.slides
         if (!slides?.length)
             throw { status: 400, message: 'banner.slides required' }
+        const ratio = payload.banner?.ratio
+        if (ratio && !parseRatio(ratio))
+            throw { status: 400, message: 'banner.ratio must be like 16:10' }
     }
 
     const schedule = payload.schedule || block.schedule || {}

@@ -5,44 +5,53 @@ import Button from '#common/components/Button'
 import Flex from '#common/components/Flex'
 import { useText } from '#common/texts/TextProvider'
 import { getDisplayImageUrl } from '#common/functions/displayImageUrl'
+import { BREAKPOINTS, BANNER_WIDTHS, parseRatio, resolveSlideImage } from '#common/functions/displayImageBreakpoints'
 import styles from './display.module.css'
 
 export default function Banner({ block }) {
-    const { layout, autoplaySec, slides = [] } = block.banner || {}
+    const { layout, autoplaySec, ratio, slides = [] } = block.banner || {}
     if (!slides.length) return null
-    if (layout === 'mosaic') return <Mosaic slides={slides} />
-    return <SlideCarousel slides={slides} autoplaySec={autoplaySec} />
+    // Blocks created before ratios existed have none: render each image at its
+    // natural size instead of guessing one.
+    const ratioStyle = { '--banner-ratio': parseRatio(ratio)?.join(' / ') || 'auto' }
+    if (layout === 'mosaic') return <Mosaic slides={slides} ratioStyle={ratioStyle} />
+    return <SlideCarousel slides={slides} autoplaySec={autoplaySec} ratioStyle={ratioStyle} />
 }
 
 function SlideLink({ slide, children, className }) {
+    const external = /^https?:\/\//.test(slide.link)
     if (!slide.link) return <div className={className}>{children}</div>
-    if (/^https?:\/\//.test(slide.link)) {
-        return <div className={className}><a href={slide.link} target="_blank" rel="noreferrer">{children}</a></div>
+    // New tab only when the slide asks for it. An absolute URL to our own site is a
+    // full page load; an internal path stays an in-app route.
+    if (external) {
+        return <div className={className}>
+            <a href={slide.link} target={slide.newTab ? '_blank' : undefined} rel={slide.newTab ? 'noreferrer' : undefined}>{children}</a>
+        </div>
     }
     return <Link to={slide.link} className={className}>{children}</Link>
 }
 
-// Width-descriptor ladder mirroring BANNER_SIZES (s:800, m:1200, l:1600,
-// xl:1920). The browser picks the smallest file >= viewport x DPR, so large
-// screens get xl/l while phones get s/m — and only one file downloads.
+// Width-descriptor ladder mirroring BANNER_SIZES (s:800, m:1200, l:1600, xl:1920).
+// The browser picks the smallest file >= viewport x DPR, so large screens get xl/l
+// while phones get s/m — and only one file downloads.
 function srcSetFor(basePath) {
     return ['s', 'm', 'l', 'xl']
-        .map(size => `${getDisplayImageUrl(basePath, size)} ${size === 's' ? 800 : size === 'm' ? 1200 : size === 'l' ? 1600 : 1920}w`)
+        .map(size => `${getDisplayImageUrl(basePath, size)} ${BANNER_WIDTHS[size]}w`)
         .join(', ')
 }
 
-// <picture> keeps the art-direction switch (separate mobile composition at
-// <=700px, matching display.module.css), with a full size ladder inside EACH
-// source. Without a mobile upload both ladders use the desktop image.
+// <picture> art-direction switch: mobile, then tablet, then desktop. Sources are
+// tried in order, so each one only needs an upper bound, and every ladder resolves
+// through the same fallback rule as the admin preview (a missing size uses the next).
 function SlideImage({ slide, sizes = '100vw' }) {
-    const desktopBase = slide.image || slide.mobileImage
-    const mobileBase = slide.mobileImage || slide.image
-    if (!desktopBase) return null
+    const desktop = resolveSlideImage(slide, 'desktop')
+    if (!desktop) return null
     return <picture className={styles.slideImg}>
-        <source media="(max-width: 700px)" srcSet={srcSetFor(mobileBase)} sizes={sizes} />
+        <source media={`(max-width: ${BREAKPOINTS.mobile}px)`} srcSet={srcSetFor(resolveSlideImage(slide, 'mobile'))} sizes={sizes} />
+        <source media={`(max-width: ${BREAKPOINTS.tablet}px)`} srcSet={srcSetFor(resolveSlideImage(slide, 'tablet'))} sizes={sizes} />
         <Image
-            src={getDisplayImageUrl(desktopBase, 'xl')}
-            srcSet={srcSetFor(desktopBase)}
+            src={getDisplayImageUrl(desktop, 'xl')}
+            srcSet={srcSetFor(desktop)}
             sizes={sizes}
             alt={slide.alt || ''}
             className={styles.slideImg}
@@ -50,8 +59,8 @@ function SlideImage({ slide, sizes = '100vw' }) {
     </picture>
 }
 
-function Mosaic({ slides }) {
-    return <div className={styles.mosaic}>
+function Mosaic({ slides, ratioStyle }) {
+    return <div className={styles.mosaic} style={ratioStyle}>
         {slides.map((slide, i) => (
             <SlideLink key={i} slide={slide} className={styles.mosaicItem}>
                 <SlideImage slide={slide} sizes="(max-width: 700px) 100vw, 50vw" />
@@ -60,7 +69,7 @@ function Mosaic({ slides }) {
     </div>
 }
 
-function SlideCarousel({ slides, autoplaySec }) {
+function SlideCarousel({ slides, autoplaySec, ratioStyle }) {
     const { TR } = useText()
     // Infinite in BOTH directions via clones on both ends:
     //   [cloneLast, slide0..slideN-1, cloneFirst]
@@ -126,7 +135,7 @@ function SlideCarousel({ slides, autoplaySec }) {
     }, [autoplaySec, count, paused])
 
     if (count === 1) {
-        return <div className={styles.hero}>
+        return <div className={styles.hero} style={ratioStyle}>
             <SlideLink slide={slides[0]} className={styles.heroSlide}>
                 <SlideImage slide={slides[0]} />
             </SlideLink>
@@ -135,6 +144,7 @@ function SlideCarousel({ slides, autoplaySec }) {
 
     return <div
         className={styles.hero}
+        style={ratioStyle}
         onMouseEnter={() => setPaused(true)}
         onMouseLeave={() => setPaused(false)}
     >

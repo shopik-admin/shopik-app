@@ -1,3 +1,5 @@
+import { resolveSlideImage } from '#common/functions/displayImageBreakpoints.js'
+
 export default async function create(payload, { DL, utils }) {
     const { kind, name, title, domainId, placement, order, schedule, banner, carousel } = payload
 
@@ -25,8 +27,11 @@ export default async function create(payload, { DL, utils }) {
     if (kind === DL.DisplayBlock.constants.KIND.BANNER) {
         if (!banner?.slides?.length)
             throw { status: 400, message: 'banner.slides required' }
+        // Any size counts — a missing one falls back to the others, so a slide only
+        // needs at least one image.
         for (const slide of banner.slides) {
-            if (!slide?.image) throw { status: 400, message: 'each slide needs an image' }
+            if (!resolveSlideImage(slide, 'desktop'))
+                throw { status: 400, message: 'each slide needs at least one image' }
         }
     }
 

@@ -4,13 +4,24 @@ import Button from 'common/components/Button'
 import Checkbox from 'common/components/Checkbox'
 import Flex from 'common/components/Flex'
 import Form from 'common/components/Form'
+import Icon from 'common/components/Icon'
+import Loader from 'common/components/Loader'
 import Text from 'common/components/Text'
 import Image from 'common/components/Image'
 import Input from 'common/components/Input'
 import DateRangeCalendar from 'common/components/DateRangeCalendar'
 import { useText } from 'common/texts/TextProvider'
 import { getDisplayImageUrl } from 'common/functions/displayImageUrl'
+import {
+    DEFAULT_RATIO, RATIO_OPTIONS, SIZES, SIZE_FIELD,
+    slideImageField, targetDimensions
+} from 'common/functions/displayImageBreakpoints'
 import styles from './displayBlocks.module.css'
+
+// Slide field per size, and the icon that names it in the row.
+const SIZE_ICON = { desktop: 'desktop', tablet: 'tablet', mobile: 'mobile' }
+// Used to name the size a fallback comes from ("tablet shows the mobile image").
+const FIELD_SIZE = Object.fromEntries(Object.entries(SIZE_FIELD).map(([size, field]) => [field, size]))
 
 const SORT_OPTIONS = [
     { value: 'default', text: 'display_sort_default' },
@@ -55,6 +66,7 @@ export default function BlockEditor({ block, domainId, domainName, placement, ca
     const kind = vals?.kind ?? block?.kind ?? 'banner'
     const layout = vals?.banner?.layout ?? block?.banner?.layout ?? 'carousel'
     const showAll = vals?.carousel?.showAll ?? block?.carousel?.showAll ?? true
+    const ratio = vals?.banner?.ratio ?? block?.banner?.ratio ?? DEFAULT_RATIO
     const initialStart = splitLocal(block?.schedule?.start)
     const initialEnd = splitLocal(block?.schedule?.end)
     const [range, setRange] = useState({
@@ -107,13 +119,18 @@ export default function BlockEditor({ block, domainId, domainName, placement, ca
         if (resolvedKind === 'banner') {
             payload.banner = {
                 layout: vals?.banner?.layout || layout,
+                ratio: vals?.banner?.ratio || ratio,
                 autoplaySec: Number(vals?.banner?.autoplaySec) || 0,
                 slides: slides.map(s => ({
                     ...(s.key ? { key: s.key } : {}),
                     ...(s.image ? { image: s.image } : {}),
+                    ...(s.tabletImage ? { tabletImage: s.tabletImage } : {}),
                     ...(s.mobileImage ? { mobileImage: s.mobileImage } : {}),
                     ...(s.link ? { link: s.link } : {}),
-                    ...(s.alt ? { alt: s.alt } : {})
+                    ...(s.alt ? { alt: s.alt } : {}),
+                    // Always sent: omitting it would leave a stale true from a
+                    // slide the user just unchecked.
+                    newTab: !!s.newTab
                 }))
             }
         } else {
@@ -233,6 +250,7 @@ export default function BlockEditor({ block, domainId, domainName, placement, ca
             <div hidden={kind !== 'banner'}>
                 <BannerFields
                     layout={layout}
+                    ratio={ratio}
                     slides={slides}
                     blockId={block?.id}
                     defaultAutoplay={block?.banner?.autoplaySec ?? 5}
@@ -254,9 +272,9 @@ export default function BlockEditor({ block, domainId, domainName, placement, ca
     </Form>
 }
 
-const BannerFields = memo(function BannerFields({ layout, slides, blockId, defaultAutoplay, onPatchSlide, onMoveSlide, onRemoveSlide, onAddSlide }) {
+const BannerFields = memo(function BannerFields({ layout, ratio, slides, blockId, defaultAutoplay, onPatchSlide, onMoveSlide, onRemoveSlide, onAddSlide }) {
     return <Flex col gap={8}>
-        <Flex gap={8}>
+        <Flex gap={8} wrap>
             <Input
                 type="select"
                 name="banner.layout"
@@ -267,6 +285,16 @@ const BannerFields = memo(function BannerFields({ layout, slides, blockId, defau
                     { value: 'carousel', text: 'display_layout_carousel' },
                     { value: 'mosaic', text: 'display_layout_mosaic' }
                 ]}
+            />
+            {/* One ratio for the whole block: uploads are checked against it so the
+                storefront can lay slides out as a single box. */}
+            <Input
+                type="select"
+                name="banner.ratio"
+                label="display_ratio"
+                className={styles.field}
+                defaultValue={ratio}
+                options={RATIO_OPTIONS.map(value => ({ value, text: value }))}
             />
             <div hidden={layout !== 'carousel'} className={styles.field}>
                 <Input
@@ -284,6 +312,8 @@ const BannerFields = memo(function BannerFields({ layout, slides, blockId, defau
                 key={slide.key || `new-${i}`}
                 slide={slide}
                 index={i}
+                count={slides.length}
+                ratio={ratio}
                 blockId={blockId}
                 onPatchSlide={onPatchSlide}
                 onMoveSlide={onMoveSlide}
@@ -296,95 +326,141 @@ const BannerFields = memo(function BannerFields({ layout, slides, blockId, defau
     </Flex>
 })
 
-const SlideRow = memo(function SlideRow({ slide, index, blockId, onPatchSlide, onMoveSlide, onRemoveSlide }) {
+const SlideRow = memo(function SlideRow({ slide, index, count, ratio, blockId, onPatchSlide, onMoveSlide, onRemoveSlide }) {
     const { TR } = useText()
-    const [url, setUrl] = useState('')
-    const [uploading, setUploading] = useState(false)
-    const [error, setError] = useState()
+    // Per-size state: each size has its own paste box and uploads on its own.
+    const [urls, setUrls] = useState({})
+    const [uploading, setUploading] = useState({})
+    const [errors, setErrors] = useState({})
 
     function onPatch(patch) {
         onPatchSlide(index, patch)
     }
 
-    async function uploadTo(path, payload) {
-        setUploading(true)
-        setError()
+    async function uploadTo(size, payload) {
+        setUploading(u => ({ ...u, [size]: true }))
+        setErrors(e => ({ ...e, [size]: '' }))
         try {
             const res = await apiReq('display_block/upload_image', {
                 ...payload,
-                variant: path === 'mobileImage' ? 'mobile' : 'desktop',
+                variant: size,
+                ratio,
                 ...(blockId ? { blockId, slideKey: slide.key || `slide-${index}` } : {})
             })
-            onPatch({ [path]: res.basePath })
-            setUrl('')
+            onPatch({ [SIZE_FIELD[size]]: res.basePath })
+            setUrls(u => ({ ...u, [size]: '' }))
         } catch (e) {
-            setError(e?.message || TR(path === 'image' && payload.sourceUrl ? 'display_fetch_failed' : 'display_upload_failed'))
+            setErrors(err => ({ ...err, [size]: e?.message || TR('display_upload_failed') }))
         } finally {
-            setUploading(false)
+            setUploading(u => ({ ...u, [size]: false }))
         }
     }
 
-    function handleFile(e, path) {
+    function handleFile(e, size) {
         const file = e.target.files?.[0]
         if (!file) return
         const reader = new FileReader()
         reader.onload = () => {
             const dataUrl = String(reader.result || '')
-            uploadTo(path, { imageBase64: dataUrl.split(',')[1] || '' })
+            uploadTo(size, { imageBase64: dataUrl.split(',')[1] || '' })
         }
         reader.readAsDataURL(file)
         e.target.value = ''
     }
 
+    // New tab only applies to absolute URLs; internal paths navigate in place.
+    const internalLink = String(slide.link || '').startsWith('/')
+
     return <div className={styles.slide}>
-        <Image src={getDisplayImageUrl(slide.image, 's')} className={styles.slidePreview} />
-        <Flex col gap={6} className={styles.slideFields}>
-            <Flex gap={6}>
-                <label className={styles.fileBtn}>
-                    {uploading ? TR('display_uploading') : TR('display_upload_file')}
-                    <input type="file" accept="image/*" hidden
-                        disabled={uploading}
-                        onChange={e => handleFile(e, 'image')} />
-                </label>
-                <Input
-                    name={`slide-url-${index}`}
-                    label=""
-                    value={url}
-                    onChange={e => setUrl(e.target.value)}
-                    placeholder="display_paste_url"
-                />
-                <Button type="button" size="s" onClick={() => url.trim() && uploadTo('image', { sourceUrl: url.trim() })} loading={uploading}>display_fetch</Button>
+        <div className={styles.slideHead}>
+            <span className={styles.slideNumber}>{index + 1}</span>
+            <Flex gap={4} className={styles.slideActions}>
+                <Button type="button" size="s" mode="text" icon="sortUp" onClick={() => onMoveSlide(index, -1)} disabled={index === 0} tooltip={TR('display_move_up')} />
+                <Button type="button" size="s" mode="text" icon="sortDown" onClick={() => onMoveSlide(index, 1)} disabled={index === count - 1} tooltip={TR('display_move_down')} />
+                <Button type="button" size="s" mode="text" icon="trash" onClick={() => onRemoveSlide(index)} tooltip={TR('display_delete_slide')} />
             </Flex>
-            <Flex gap={6}>
-                <label className={styles.fileBtn}>
-                    {TR('display_mobile_file')}
-                    <input type="file" accept="image/*" hidden
-                        disabled={uploading}
-                        onChange={e => handleFile(e, 'mobileImage')} />
-                </label>
-                {slide.mobileImage && <Text size="s" mode="sub">display_mobile_ok</Text>}
-                <Input
-                    name={`slide-link-${index}`}
-                    label=""
-                    defaultValue={slide.link || ''}
-                    onBlur={e => { if (e.target.value !== (slide.link || '')) onPatch({ link: e.target.value }) }}
-                    placeholder="display_link_ph"
-                />
-                <Input
-                    name={`slide-alt-${index}`}
-                    label=""
-                    defaultValue={slide.alt || ''}
-                    onBlur={e => { if (e.target.value !== (slide.alt || '')) onPatch({ alt: e.target.value }) }}
-                    placeholder="display_alt_ph"
-                />
+        </div>
+
+        <div className={styles.slideSection}>
+            <Flex gap={6} className={styles.sectionTitle}>
+                <Icon name="image" size={16} />
+                <Text size="s" bold>{TR('display_section_images')}</Text>
             </Flex>
-            {error && <Text size="s" mode="error">{error}</Text>}
-        </Flex>
-        <Flex col gap={4}>
-            <Button type="button" size="s" mode="text" onClick={() => onMoveSlide(index, -1)}>↑</Button>
-            <Button type="button" size="s" mode="text" onClick={() => onMoveSlide(index, 1)}>↓</Button>
-            <Button type="button" size="s" icon="trash" mode="text" onClick={() => onRemoveSlide(index)} />
-        </Flex>
+            {SIZES.map(size => {
+                const field = SIZE_FIELD[size]
+                // A size with no image of its own renders the size it falls back to.
+                const usedField = slideImageField(slide, size)
+                const target = targetDimensions(ratio, size)
+                return <div key={size} className={styles.sizeRow}>
+                    <Flex gap={6} className={styles.sizeLabel}>
+                        <Icon name={SIZE_ICON[size]} size={16} />
+                        <Text size="s">
+                            {TR(`display_size_${size}`)}
+                            {target ? ` · ${target.width}×${target.height}` : ''}
+                            {usedField && usedField !== field
+                                ? ` — ${TR('display_fallback_shows')} ${TR(`display_size_${FIELD_SIZE[usedField]}`)}`
+                                : ''}
+                        </Text>
+                    </Flex>
+                    <Flex gap={6} className={styles.sizeControls}>
+                        <label className={`${styles.iconBtn} ${uploading[size] ? styles.uploading : ''}`} title={TR('display_upload_file')} aria-label={TR('display_upload_file')}>
+                            {uploading[size] ? <Loader size={16} /> : <Icon name="upload" size={16} />}
+                            <input type="file" accept="image/*" hidden
+                                disabled={uploading[size]}
+                                onChange={e => handleFile(e, size)} />
+                        </label>
+                        <Image src={getDisplayImageUrl(slide[usedField], 's')} className={styles.sizePreview} />
+                        <Input
+                            name={`slide-url-${index}-${size}`}
+                            label=""
+                            className={styles.sizeUrl}
+                            value={urls[size] || ''}
+                            onChange={e => setUrls(u => ({ ...u, [size]: e.target.value }))}
+                            placeholder="display_paste_url"
+                        />
+                        <Button
+                            type="button" size="s" mode="text" icon="download"
+                            tooltip={TR('display_import')}
+                            loading={uploading[size]}
+                            onClick={() => String(urls[size] || '').trim() && uploadTo(size, { sourceUrl: String(urls[size]).trim() })}
+                        />
+                    </Flex>
+                    {errors[size] && <Text size="s" mode="error">{errors[size]}</Text>}
+                </div>
+            })}
+        </div>
+
+        <div className={styles.slideSection}>
+            <Flex gap={6} className={styles.sectionTitle}>
+                <Icon name="link" size={16} />
+                <Text size="s" bold>{TR('display_section_link')}</Text>
+            </Flex>
+            <Input
+                name={`slide-link-${index}`}
+                label="display_link_label"
+                className={styles.field}
+                defaultValue={slide.link || ''}
+                placeholder="display_link_ph"
+                info={TR('display_link_hint')}
+                onBlur={e => { if (e.target.value !== (slide.link || '')) onPatch({ link: e.target.value }) }}
+            />
+            <Input
+                name={`slide-alt-${index}`}
+                label="display_alt_label"
+                className={styles.field}
+                defaultValue={slide.alt || ''}
+                placeholder="display_alt_ph"
+                onBlur={e => { if (e.target.value !== (slide.alt || '')) onPatch({ alt: e.target.value }) }}
+            />
+            <Checkbox
+                name={`slide-newtab-${index}`}
+                label={TR('display_new_tab')}
+                defaultChecked={!!slide.newTab}
+                disabled={internalLink}
+                onChange={e => onPatch({ newTab: !!e.target.checked })}
+            />
+            {internalLink && <Text size="s" mode="sub">{TR('display_new_tab_internal')}</Text>}
+        </div>
     </div>
 })
 
