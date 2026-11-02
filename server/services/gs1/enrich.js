@@ -67,7 +67,7 @@ async function fetchStagedSource(external, barcode, wantedMain) {
 // qualifies), so without a cursor the same first page is returned forever and
 // runEnrich loops indefinitely. barcode is unique + filterable, so the range +
 // sort is index-backed and each batch advances strictly forward.
-export async function enrichBatch({ DL, external, runId, onlyInStock = true, barcode = '', force = false, afterBarcode = '' }) {
+export async function enrichBatch({ DL, external, runId, onlyInStock = true, barcode = '', force = false, afterBarcode = '', skipEmptyValues = false }) {
     const filter = {}
     if (barcode) filter.barcode = barcode
     else if (afterBarcode) filter.barcode = { $gt: afterBarcode }
@@ -181,6 +181,19 @@ export async function enrichBatch({ DL, external, runId, onlyInStock = true, bar
             // doc, so a GTIN left in mapped.doc would rewrite Product.barcode
             // (or upsert a duplicate product under the GTIN).
             const doc = { ...mapped.doc, barcode: short }
+            // Report-seeded raws are partial: an absent report field maps to '' in the
+            // mapper, and a plain $set would blank whatever the product already has.
+            // With skipEmptyValues only fields carrying actual content are written.
+            if (skipEmptyValues) {
+                for (const key of Object.keys(doc)) {
+                    if (key === 'barcode' || doc[key] instanceof Date) continue
+                    const v = doc[key]
+                    const empty = v == null || v === ''
+                        || (Array.isArray(v) && !v.length)
+                        || (typeof v === 'object' && !Array.isArray(v) && !Object.keys(v).length)
+                    if (empty) delete doc[key]
+                }
+            }
             // Supplier removed/unchecked images → clear local images (status untouched).
             if (mapped.removal.deleted || mapped.removal.unchecked) {
                 bufferProduct(short, { ...doc, 'images.product': [] })
