@@ -1,5 +1,6 @@
 import diff from '#common/functions/diff.js'
 import { parseRatio } from '#common/functions/displayImageBreakpoints.js'
+import { toInternalLink } from '#common/functions/internalLink.js'
 
 export default async function update(payload, { DL, utils }) {
     const { id } = payload
@@ -70,6 +71,13 @@ export default async function update(payload, { DL, utils }) {
         for (const [size, ratio] of Object.entries(ratios)) {
             if (ratio && !parseRatio(ratio))
                 throw { status: 400, message: `banner.ratios.${size} must be like 16:10` }
+        }
+        // Same-site links are stored as the in-app path; clicking one then navigates
+        // instead of loading a full page.
+        const domain = await DL.Domain.readOne({ id: block.domainId }, { _id: 0, id: 1, url: 1 })
+        for (const slide of slides) {
+            slide.link = toInternalLink(slide.link, domain?.url)
+            if (!/^https?:\/\//i.test(slide.link)) slide.newTab = false
         }
     }
 

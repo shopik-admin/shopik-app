@@ -15,6 +15,7 @@ import { getDisplayImageUrl } from 'common/functions/displayImageUrl'
 import {
     SIZES, SIZE_FIELD, reduceRatio, slideImageField, targetDimensions
 } from 'common/functions/displayImageBreakpoints'
+import { isSiteLink } from 'common/functions/internalLink'
 import styles from './displayBlocks.module.css'
 
 // Slide field per size, and the icon that names it in the row.
@@ -55,7 +56,7 @@ function parseBarcodes(text) {
     return list.length ? { barcodes: list } : {}
 }
 
-export default function BlockEditor({ block, domainId, domainName, placement, categories = [], allCategories = [], onClose, onSaved }) {
+export default function BlockEditor({ block, domainId, domainName, domainUrl, placement, categories = [], allCategories = [], onClose, onSaved }) {
     const { TR } = useText()
     // Live form values from Form onChange. Conditional UI (kind/layout/showAll)
     // derives from here, so no per-field state. Everything else is read from
@@ -259,6 +260,7 @@ export default function BlockEditor({ block, domainId, domainName, placement, ca
                 <BannerFields
                     layout={layout}
                     ratios={ratios}
+                    domainUrl={domainUrl}
                     onSetRatio={setRatioForSize}
                     slides={slides}
                     blockId={block?.id}
@@ -281,7 +283,7 @@ export default function BlockEditor({ block, domainId, domainName, placement, ca
     </Form>
 }
 
-const BannerFields = memo(function BannerFields({ layout, ratios, onSetRatio, slides, blockId, defaultAutoplay, onPatchSlide, onMoveSlide, onRemoveSlide, onAddSlide }) {
+const BannerFields = memo(function BannerFields({ layout, ratios, domainUrl, onSetRatio, slides, blockId, defaultAutoplay, onPatchSlide, onMoveSlide, onRemoveSlide, onAddSlide }) {
     return <Flex col gap={8}>
         <Flex gap={8} wrap>
             <Input
@@ -313,6 +315,7 @@ const BannerFields = memo(function BannerFields({ layout, ratios, onSetRatio, sl
                 index={i}
                 count={slides.length}
                 ratios={ratios}
+                domainUrl={domainUrl}
                 onSetRatio={onSetRatio}
                 blockId={blockId}
                 onPatchSlide={onPatchSlide}
@@ -326,7 +329,7 @@ const BannerFields = memo(function BannerFields({ layout, ratios, onSetRatio, sl
     </Flex>
 })
 
-const SlideRow = memo(function SlideRow({ slide, index, count, ratios, onSetRatio, blockId, onPatchSlide, onMoveSlide, onRemoveSlide }) {
+const SlideRow = memo(function SlideRow({ slide, index, count, ratios, domainUrl, onSetRatio, blockId, onPatchSlide, onMoveSlide, onRemoveSlide }) {
     const { TR } = useText()
     // Per-size state: each size has its own paste box and uploads on its own.
     const [urls, setUrls] = useState({})
@@ -370,8 +373,12 @@ const SlideRow = memo(function SlideRow({ slide, index, count, ratios, onSetRati
         e.target.value = ''
     }
 
-    // New tab only applies to absolute URLs; internal paths navigate in place.
-    const internalLink = String(slide.link || '').startsWith('/')
+    // New tab only applies to links the app cannot navigate to: a path, or an
+    // absolute URL on the site's own host, is stored as an in-app route.
+    const typed = String(slide.link || '')
+    const absolute = /^https?:\/\//i.test(typed)
+    const sameSite = isSiteLink(typed, domainUrl)
+    const internal = !absolute || sameSite
 
     return <div className={styles.slide}>
         <div className={styles.slideHead}>
@@ -451,7 +458,7 @@ const SlideRow = memo(function SlideRow({ slide, index, count, ratios, onSetRati
                 className={styles.field}
                 defaultValue={slide.link || ''}
                 placeholder="display_link_ph"
-                info={TR('display_link_hint')}
+                info={TR(!absolute ? 'display_link_hint' : sameSite ? 'display_link_same_site' : 'display_link_external')}
                 onBlur={e => { if (e.target.value !== (slide.link || '')) onPatch({ link: e.target.value }) }}
             />
             <Input
@@ -466,10 +473,10 @@ const SlideRow = memo(function SlideRow({ slide, index, count, ratios, onSetRati
                 name={`slide-newtab-${index}`}
                 label={TR('display_new_tab')}
                 defaultChecked={!!slide.newTab}
-                disabled={internalLink}
+                disabled={internal}
                 onChange={e => onPatch({ newTab: !!e.target.checked })}
             />
-            {internalLink && <Text size="s" mode="sub">{TR('display_new_tab_internal')}</Text>}
+            {internal && <Text size="s" mode="sub">{TR('display_new_tab_external_only')}</Text>}
         </div>
     </div>
 })

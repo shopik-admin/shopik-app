@@ -106,6 +106,7 @@ export default function DisplayBlocks() {
                 block={block}
                 domainId={domainId}
                 domainName={domains.find(d => d.id === domainId)?.name || ''}
+                domainUrl={domains.find(d => d.id === domainId)?.url || ''}
                 placement={placement}
                 categories={pickerCategories}
                 allCategories={categories}
