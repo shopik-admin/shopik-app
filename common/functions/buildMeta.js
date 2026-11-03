@@ -15,8 +15,11 @@ export function buildMeta({ settings, initData, page, notFound, url, host } = {}
             || getSettingFileUrl(seo.ogImage, 'full')
             || getPwaIconUrl(appearance.appIcon, PWA_ICON_FILES.icon512)
             || getSettingFileUrl(appearance.logo))
+    // Cards show "siteName | page name" (mirrors the document <title>).
+    const pageTitle = notFound ? '' : (initData?.title || page?.title || '')
+    const title = notFound ? '' : [appearance.siteName, pageTitle].filter(Boolean).join(' | ')
     return {
-        title: notFound ? '' : (initData?.title || seo.seoTitle || page?.title || appearance.siteName || ''),
+        title,
         description: notFound ? '' : (initData?.description || seo.seoDescription || page?.description || ''),
         image,
         url: host ? `https://${host}${pathname.startsWith('/') ? pathname : `/${pathname}`}` : '',

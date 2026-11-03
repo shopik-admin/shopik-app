@@ -41,7 +41,7 @@ export async function render({ url, data, ctx }) {
   const meta = buildMeta({ settings: data.settings, initData: data.initData, page, notFound, url, host: ctx?.host })
 
   let head = renderToString(<Head
-    title={`${siteName} | ${notFound ? TR('page_not_found') : meta.title || ''}`}
+    title={meta.title || (notFound ? `${siteName} | ${TR('page_not_found')}` : siteName)}
     description={meta.description}
     noindex={notFound}
     favicon={faviconUrl}

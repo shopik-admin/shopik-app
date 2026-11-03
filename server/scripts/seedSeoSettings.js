@@ -21,7 +21,6 @@ export default async function seedSeoSettings({ DL }) {
     let created = 0
     for (const domain of domains) {
         const rows = [
-            { key: 'seoTitle', value: domain.name, formType: 'text', renderType: 'string' },
             { key: 'seoDescription', value: '', formType: 'textarea', renderType: 'string' },
             { key: 'ogImage', value: '', formType: 'image', renderType: 'image', sizes: { full: null } },
             { key: 'ogType', value: 'website', formType: 'text', renderType: 'string' },
@@ -39,6 +38,13 @@ export default async function seedSeoSettings({ DL }) {
             })
             created++
             console.log(`[seo] ${row.key} created for domain ${domain.id}`)
+        }
+
+        // Cleanup: seoTitle duplicated appearance.siteName (used for the card title).
+        const staleTitle = await DL.Setting.readOne({ domainId: domain.id, key: 'seoTitle' })
+        if (staleTitle) {
+            await DL.Setting.deleteOne({ id: staleTitle.id })
+            console.log(`[seo] removed duplicate seoTitle for domain ${domain.id} (siteName is the single name setting)`)
         }
     }
     console.log(`[seo] Done - ${created} created, rest already existed`)
