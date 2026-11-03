@@ -122,7 +122,10 @@ export default async function (app, bootData) {
             // they hit the internal API without the browser's cookie jar.
             const ctx = {
                 cookie: req.headers.cookie,
-                platform: utils.getPlatform(req)
+                platform: utils.getPlatform(req),
+                // Canonical host for og:url (redirectWww already guarantees
+                // the request host is the configured root domain).
+                host: req.headers.host
             }
             const { template, renderFn } = await getClientContext(req)
             const { html = '', head = '', status = 200 } = await renderFn({ url: req.originalUrl, data, ctx })

@@ -3,8 +3,7 @@ import Button from 'common/components/Button'
 import ConfirmButton from 'common/components/ConfirmButton'
 import render from 'common/functions/render'
 import apiReq from 'common/functions/apiReq'
-import { getSettingFileUrl } from 'common/functions/settingFileUrl'
-import { getPwaIconUrl, PWA_ICON_FILES } from 'common/functions/pwaIconUrl'
+import { getSettingFileUrl, getSettingFileSize } from 'common/functions/settingFileUrl'
 import { useState, useEffect, useRef } from 'react'
 import { useUser } from 'features/User'
 import styles from './settings.module.css'
@@ -12,6 +11,9 @@ import ConfigEditor from './ConfigEditor.jsx'
 
 const MAX_UPLOAD_BYTES = 8 * 1024 * 1024
 const IMAGE_ACCEPT = 'image/png,image/jpeg,image/webp,.svg,.ico'
+// Settings declaring custom `sizes` render every variant through sharp,
+// so they only accept raster uploads (svg/ico cannot be resized to variants).
+const RASTER_ACCEPT = 'image/png,image/jpeg,image/webp'
 
 export default function Setting({ setting, onUpdate, onEditFull, onDelete }) {
     const { id, key, value: initialValue, renderType, formType, category, public: isPublic } = setting
@@ -192,7 +194,7 @@ export default function Setting({ setting, onUpdate, onEditFull, onDelete }) {
                         {error && <span className={styles.settingError}>{error}</span>}
                         {!expanded && (
                             <div className={styles.configPreview} onClick={(e) => e.stopPropagation()}>
-                                <span className={styles.settingValue}>{renderValueContent(value, renderType, formType, false)}</span>
+                                <span className={styles.settingValue}>{renderValueContent(value, renderType, formType, false, setting)}</span>
                             </div>
                         )}
                     </div>
@@ -344,19 +346,19 @@ export default function Setting({ setting, onUpdate, onEditFull, onDelete }) {
 
     const isFileType = formType === 'file' || formType === 'image' || renderType === 'image'
     const isImageType = formType === 'image' || renderType === 'image'
-    const isAppIcon = key === 'appIcon'
-    const imageAccept = isAppIcon ? 'image/png,image/jpeg,image/webp' : IMAGE_ACCEPT
+    const hasSizes = !!setting.sizes
+    const imageAccept = hasSizes ? RASTER_ACCEPT : IMAGE_ACCEPT
 
     async function handleFileSelect(e) {
         const file = e.target.files?.[0]
         e.target.value = ''
         if (!file) return
         setError(null)
-        if (isImageType && isAppIcon && !/^image\/(png|jpe?g|webp)$/i.test(file.type || '')) {
-            setError('App icon must be a PNG, JPG or WebP image')
+        if (isImageType && hasSizes && !/^image\/(png|jpe?g|webp)$/i.test(file.type || '')) {
+            setError('Size-variant image settings need a raster image (png/jpg/webp)')
             return
         }
-        if (isImageType && !isAppIcon && !/^(image\/|.*\.(svg|ico)$)/i.test(`${file.type} ${file.name}`)) {
+        if (isImageType && !hasSizes && !/^(image\/|.*\.(svg|ico)$)/i.test(`${file.type} ${file.name}`)) {
             setError('Only image files (png/jpg/webp/svg/ico)')
             return
         }
@@ -389,9 +391,7 @@ export default function Setting({ setting, onUpdate, onEditFull, onDelete }) {
 
     // File / image settings — upload to storage, value is the relative path
     if (isFileType) {
-        const fileUrl = isAppIcon
-            ? getPwaIconUrl(value, PWA_ICON_FILES.icon192)
-            : getSettingFileUrl(value)
+        const fileUrl = getSettingFileUrl(value, getSettingFileSize(setting))
         return (
             <div className={styles.settingItem}>
                 <div className={styles.settingMain}>
@@ -482,7 +482,7 @@ export default function Setting({ setting, onUpdate, onEditFull, onDelete }) {
                                 title={formType !== 'info' ? 'Click to edit' : undefined}
                                 style={{ flex: 1, minWidth: 0 }}
                             >
-                                <span className={styles.settingValue} style={{ flex: 1, minWidth: 0 }}>{renderValueContent(value, renderType, formType)}</span>
+                                <span className={styles.settingValue} style={{ flex: 1, minWidth: 0 }}>{renderValueContent(value, renderType, formType, false, setting)}</span>
                             </div>
                             {formType !== 'info' && <Button icon='edit' mode='text' onClick={() => setIsEditing(true)} />}
                         </>
@@ -493,7 +493,7 @@ export default function Setting({ setting, onUpdate, onEditFull, onDelete }) {
     )
 }
 
-function renderValueContent(val, renderType, formType, isEditing) {
+function renderValueContent(val, renderType, formType, isEditing, setting) {
     if (val === undefined || val === null || val === '') {
         return <em className={styles.emptyValue}>Not set</em>
     }
@@ -533,12 +533,12 @@ function renderValueContent(val, renderType, formType, isEditing) {
     }
     const isImage = formType === 'image' || renderType === 'image'
     if (isImage) {
-        const url = getSettingFileUrl(val)
+        const url = getSettingFileUrl(val, getSettingFileSize(setting))
         if (!url) return <em className={styles.emptyValue}>Not set</em>
         return <img src={url} alt="" className={styles.settingThumb} />
     }
     if (formType === 'file') {
-        const url = getSettingFileUrl(val)
+        const url = getSettingFileUrl(val, getSettingFileSize(setting))
         if (!url) return <em className={styles.emptyValue}>Not set</em>
         return <a href={url} target="_blank" rel="noreferrer" className={styles.linkValue} onClick={(e) => e.stopPropagation()}>PDF</a>
     }
