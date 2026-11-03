@@ -4,6 +4,16 @@ import { findByLocation } from '#server/external/supplyArea.js'
 import { isElevatorRequired } from '#common/functions/address.js'
 import { normalizeInvoiceRequest } from '#common/functions/invoice/request.js'
 
+const MAX_PAYMENTS_LIMIT = 36
+const DEFAULT_MAX_PAYMENTS = 6
+
+function normalizeMaxPayments(value) {
+    if (value === undefined || value === null || value === '') return DEFAULT_MAX_PAYMENTS
+    const n = Number(value)
+    if (!Number.isFinite(n)) return DEFAULT_MAX_PAYMENTS
+    return Math.min(MAX_PAYMENTS_LIMIT, Math.max(1, Math.trunc(n)))
+}
+
 export default async function create(payload, info) {
     const { DL, external, utils, _user } = info
     const { orderId } = payload
@@ -191,11 +201,20 @@ export default async function create(payload, info) {
 
     const hyp = external.hyp
 
+    // How many payments the customer may pick on Hyp's payment page. Stored
+    // per domain in Admin → Settings; missing/invalid falls back to 6.
+    let maxPayments = DEFAULT_MAX_PAYMENTS
+    try {
+        const setting = await DL.Setting.readOne({ key: 'payment', domainId: order.domainId })
+        maxPayments = normalizeMaxPayments(setting?.value?.maxPayments)
+    } catch { }
+
     let paymentUrl
     try {
         paymentUrl = await hyp.createPaymentUrl({
             order,
             amount: Number(amount),
+            maxPayments,
             customer: {
                 name: _user.name,
                 phone: _user.phone,

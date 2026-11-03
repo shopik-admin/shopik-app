@@ -43,7 +43,7 @@ export default function filterClientOrder(order) {
     // Client-safe payment subset only (no cardToken/terminalId/authCode).
     if (order.payment && typeof order.payment === 'object') {
         const safePayment = {}
-        for (const k of ['last4digits', 'cardCompany', 'authorizedAmount', 'capturedAt']) {
+        for (const k of ['last4digits', 'cardCompany', 'authorizedAmount', 'capturedAt', 'payments']) {
             if (order.payment[k] !== undefined) safePayment[k] = order.payment[k]
         }
         if (Object.keys(safePayment).length) filtered.payment = safePayment
