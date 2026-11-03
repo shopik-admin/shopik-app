@@ -6,7 +6,6 @@ process.env.FILES_BASE_URL = 'https://files.shopik.co.il'
 
 const settings = {
     seo: {
-        seoTitle: 'My Store',
         seoDescription: 'Store-wide description',
         ogImage: 'images/settings/d1/ogImage/v1',
         ogType: 'website',
@@ -28,7 +27,7 @@ describe('buildMeta', () => {
             url: '/product/123',
             host: 'store-b.com'
         })
-        assert.equal(meta.title, 'Product name')
+        assert.equal(meta.title, 'Shopik | Product name')
         assert.equal(meta.description, 'Product desc')
         assert.equal(meta.image, 'https://files/x.webp')
         assert.equal(meta.type, 'product')
@@ -38,7 +37,7 @@ describe('buildMeta', () => {
 
     it('static pages fall back to the seo settings then the route table', () => {
         const meta = buildMeta({ settings, initData: {}, page: { title: 'Home', description: 'route desc' }, url: '/', host: 'store-b.com' })
-        assert.equal(meta.title, 'My Store')
+        assert.equal(meta.title, 'Shopik | Home')
         assert.equal(meta.description, 'Store-wide description')
         assert.equal(meta.image, 'https://files.shopik.co.il/images/settings/d1/ogImage/v1/full.webp')
         assert.equal(meta.type, 'website')
