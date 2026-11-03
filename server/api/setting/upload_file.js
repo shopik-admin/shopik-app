@@ -3,6 +3,7 @@ import sharp from 'sharp'
 import storage from '#server/external/storage.js'
 import resize from '#server/services/image/resize.js'
 import uid from '#common/functions/uid.js'
+import { APP_ICON_VARIANTS } from '#common/functions/pwaIconUrl.js'
 
 const MAX_BYTES = 8 * 1024 * 1024
 const CACHE_CONTROL = 'public, max-age=31536000, immutable'
@@ -16,16 +17,6 @@ const FILE_TYPES = ['application/pdf']
 const SETTING_IMAGE_SIZES = { l: 600, m: 300, s: 120 }
 
 const DEFAULT_APP_ICON_BG = '#195855'
-
-// PNG variants generated for the `appIcon` setting. `padding` is the fraction
-// of the canvas kept empty on each side; maskable icons need a safe zone so
-// Android's circle/squircle mask never clips the logo.
-const APP_ICON_VARIANTS = [
-    { file: '192.png', size: 192 },
-    { file: '512.png', size: 512 },
-    { file: 'maskable-512.png', size: 512, padding: 0.1 },
-    { file: 'apple-180.png', size: 180, padding: 0.06 }
-]
 
 function sanitizeName(name = 'file') {
     return String(name).split(/[?#]/)[0].split('/').pop().replace(/[^\w.\-]+/g, '-').slice(0, 80) || 'file'
@@ -123,17 +114,11 @@ export default async function upload_file(payload, { DL, external }) {
             const background = await resolveAppIconBackground(DL, setting.domainId)
             let variants
             try {
-                // Named PNG variants, overridable via setting.sizes
-                // (key = file name, value = square width).
-                const sizes = setting.sizes || Object.fromEntries(APP_ICON_VARIANTS.map(v => [v.file, v.size]))
+                // Fixed OS-standard PNG variants (see pwaIconUrl.js).
                 variants = await Promise.all(
-                    Object.entries(sizes).map(async ([file, size]) => [
+                    APP_ICON_VARIANTS.map(async ({ file, size, padding = 0 }) => [
                         file,
-                        await renderAppIcon(buffer, {
-                            size,
-                            padding: APP_ICON_VARIANTS.find(v => v.file === file)?.padding ?? 0,
-                            background
-                        })
+                        await renderAppIcon(buffer, { size, padding, background })
                     ])
                 )
             } catch {

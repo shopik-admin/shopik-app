@@ -11,7 +11,10 @@ export function buildMeta({ settings, initData, page, notFound, url, host } = {}
     const pathname = String(url || '').split('?')[0]
     const image = notFound
         ? ''
-        : (initData?.image || getPwaIconUrl(appearance.appIcon, PWA_ICON_FILES.icon512) || getSettingFileUrl(appearance.logo))
+        : (initData?.image
+            || getSettingFileUrl(seo.ogImage, 'full')
+            || getPwaIconUrl(appearance.appIcon, PWA_ICON_FILES.icon512)
+            || getSettingFileUrl(appearance.logo))
     return {
         title: notFound ? '' : (initData?.title || seo.seoTitle || page?.title || appearance.siteName || ''),
         description: notFound ? '' : (initData?.description || seo.seoDescription || page?.description || ''),

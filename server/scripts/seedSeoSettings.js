@@ -7,9 +7,9 @@
  * Open Graph / Twitter cards) and editable in Admin -> Settings.
  * Existing values are never overwritten.
  *
- * The image for og:image comes from the single `appearance.appIcon` setting
- * (seeded by seedPwaSettings) — a separate seo.ogImage setting used to exist
- * and is cleaned up below.
+ * ogImage is the social-card image — recommend ~1200x630 uploads. It stores a
+ * single full-res variant (`sizes: { full: null }` = convert to webp only),
+ * unlike the standard l/m/s thumbnails, so Facebook/Twitter get a large card.
  */
 export default async function seedSeoSettings({ DL }) {
     const domains = await DL.Domain.read({}, { _id: 0, id: 1, name: 1 }, { limit: 0 })
@@ -23,6 +23,7 @@ export default async function seedSeoSettings({ DL }) {
         const rows = [
             { key: 'seoTitle', value: domain.name, formType: 'text', renderType: 'string' },
             { key: 'seoDescription', value: '', formType: 'textarea', renderType: 'string' },
+            { key: 'ogImage', value: '', formType: 'image', renderType: 'image', sizes: { full: null } },
             { key: 'ogType', value: 'website', formType: 'text', renderType: 'string' },
             { key: 'twitterCard', value: 'summary_large_image', formType: 'text', renderType: 'string' }
         ]
@@ -38,13 +39,6 @@ export default async function seedSeoSettings({ DL }) {
             })
             created++
             console.log(`[seo] ${row.key} created for domain ${domain.id}`)
-        }
-
-        // Cleanup: the duplicate seo.ogImage setting (appIcon serves both now).
-        const staleOgImage = await DL.Setting.readOne({ domainId: domain.id, key: 'ogImage' })
-        if (staleOgImage) {
-            await DL.Setting.deleteOne({ id: staleOgImage.id })
-            console.log(`[seo] removed duplicate ogImage for domain ${domain.id} (appIcon is the single image setting)`)
         }
     }
     console.log(`[seo] Done - ${created} created, rest already existed`)

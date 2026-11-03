@@ -3,13 +3,16 @@
 // raw files (svg/ico/pdf) store the full object path. Absolute URLs
 // (legacy) pass through untouched. Mirrors displayImageUrl/productImageUrl.
 import { runtimeEnv } from './runtimeEnv.js'
+import { PWA_ICON_FILES } from './pwaIconUrl.js'
 
 const RAW_EXT = /\.(webp|png|jpe?g|svg|ico|pdf)$/i
 
 // Preview size for a setting's image variants: settings can declare their
-// own `sizes` (e.g. appIcon stores named PNG variants), so callers must not
-// assume the standard 'l' variant exists.
+// own `sizes` (e.g. seo.ogImage stores a single `full` variant), so callers
+// must not assume the standard 'l' variant exists. appIcon uses the fixed
+// OS-standard PNG variants, so it gets the 192 preview.
 export function getSettingFileSize(setting, fallback = 'l') {
+    if (setting?.key === 'appIcon') return PWA_ICON_FILES.icon192
     return Object.keys(setting?.sizes || {})[0] || fallback
 }
 

@@ -12,6 +12,18 @@
 // this dedicated PNG resolver.
 import { runtimeEnv } from './runtimeEnv.js'
 
+// Fixed OS-standard variants generated on every appIcon upload — always the
+// same for every domain, so appIcon does not use the per-setting `sizes`
+// mechanism. `padding` is the fraction of the canvas kept empty on each
+// side; maskable icons need a safe zone so Android's circle/squircle mask
+// never clips the logo. (Rendered by server/api/setting/upload_file.js.)
+export const APP_ICON_VARIANTS = [
+    { file: '192.png', size: 192 },
+    { file: '512.png', size: 512 },
+    { file: 'maskable-512.png', size: 512, padding: 0.1 },
+    { file: 'apple-180.png', size: 180, padding: 0.06 }
+]
+
 export const PWA_ICON_FILES = {
     icon192: '192.png',
     icon512: '512.png',
