@@ -5,7 +5,9 @@ export default async function buildOpsFilter({ _admin, extraFilter = {}, statusF
     const me = _admin.id
 
     const isSuper = _admin.isSuperAdmin
-    const canRead = _admin.hasPermission('order:read') || isSuper
+    // Managers (order:pick:manage) need the whole queue to find and release
+    // orders, so they get the same read-level scope as order:read.
+    const canRead = _admin.hasPermission('order:read') || _admin.hasPermission('order:pick:manage') || isSuper
     const canPick = _admin.hasPermission('order:pick') || isSuper
     const canShip = _admin.hasPermission('order:ship') || isSuper
 

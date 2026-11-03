@@ -9,5 +9,5 @@ export default async function filters(payload, { DL }) {
 }
 
 filters.config = {
-    permissions: ['order:read', 'order:pick', 'order:ship']
+    permissions: ['order:read', 'order:pick', 'order:ship', 'order:pick:manage']
 }

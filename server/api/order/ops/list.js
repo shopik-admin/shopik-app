@@ -151,5 +151,5 @@ export default async function list(payload, { DL, _admin }) {
 }
 
 list.config = {
-    permissions: ['order:read', 'order:pick', 'order:ship']
+    permissions: ['order:read', 'order:pick', 'order:ship', 'order:pick:manage']
 }

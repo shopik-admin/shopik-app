@@ -21,5 +21,5 @@ export default async function current_store({ storeId }, { DL, _admin }) {
 }
 
 current_store.config = {
-    permissions: ['order:pick', 'order:ship', 'order:read']
+    permissions: ['order:pick', 'order:ship', 'order:read', 'order:pick:manage']
 }

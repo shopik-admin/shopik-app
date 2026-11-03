@@ -12,6 +12,7 @@ import Icon from 'common/components/Icon'
 import Flex from 'common/components/Flex'
 import { useNavigate, useParams } from 'react-router'
 import { useUser } from 'features/User'
+import usePermission from 'common/permissions/usePermision'
 import { useState, useEffect } from 'react'
 import Tabs from '#common/components/Tabs/index.jsx'
 import ProductInline from 'common/components/ProductInline'
@@ -19,6 +20,7 @@ import Stepper from 'common/components/Stepper'
 import { useModal } from 'common/components/Modal'
 import ProductPickModal from './ProductPickModal'
 import DeliverPhoto from './DeliverPhoto'
+import ReleaseOrderButton from './ReleaseOrderButton'
 import { formatAmount } from 'common/components/Product'
 
 const STEPS = {
@@ -46,6 +48,7 @@ export default function OpsOrder({ }) {
     const { error, loading, data = [], setData } = useApi(`order/ops/read`, { filter: { id: orderId } })
     const order = data[0] || {}
     const { id, isSuperAdmin } = useUser()
+    const canManagePick = usePermission('order:pick:manage')
     const isMine = id == order.picker?.adminId,
         cantPick = !isMine && order.picker?.adminId,
         isShipMine = id == order.shipper?.adminId,
@@ -83,6 +86,11 @@ export default function OpsOrder({ }) {
         }
     }
 
+    function handleReleased(updatedOrder) {
+        handlePicked(updatedOrder)
+        setStep(STEPS.PREVIEW)
+    }
+
     return <div className={styles.opsOrder}>
         <Flex gap={15} alignItems='center' className={styles.orderTitle}>
             <Button icon='back' mode='text' onClick={() => navigate('/ops')} />
@@ -96,14 +104,16 @@ export default function OpsOrder({ }) {
             isShipMine={isShipMine}
             cantShip={cantShip}
             isSuperAdmin={isSuperAdmin}
+            canManagePick={canManagePick}
             setStep={setStep}
             goPreview={() => setStep(STEPS.PREVIEW)}
             onPicked={handlePicked}
+            onReleased={handleReleased}
         /> : null}
     </div>
 }
 
-function OrderPreview({ order = {}, claimOrder, isMine, cantPick, isShipMine, cantShip, isSuperAdmin, setStep }) {
+function OrderPreview({ order = {}, claimOrder, isMine, cantPick, isShipMine, cantShip, isSuperAdmin, canManagePick, onReleased, setStep }) {
     const windowTime = formatWindow(order.window)
     const notes = customerNotes(order)
 
@@ -217,6 +227,16 @@ function OrderPreview({ order = {}, claimOrder, isMine, cantPick, isShipMine, ca
             primaryKey='start picking'
             primaryDisabled={cantPick}
             onPrimary={isMine ? () => setStep(STEPS.PICK) : claimOrder}
+            extra={canManagePick && order.status === 'picking' && order.picker?.adminId && !isMine
+                ? <ReleaseOrderButton
+                    orderId={order.id}
+                    label='ops_release_picker'
+                    q={order.picker?.name
+                        ? TR('ops_release_confirm', { name: order.picker.name })
+                        : TR('ops_release_own_confirm')}
+                    onReleased={onReleased}
+                />
+                : null}
             linkKey='view order'
             onLink={() => setStep(STEPS.VIEW)}
         />}
@@ -258,9 +278,10 @@ function PreviewShell({ order = {}, windowTime = {}, bannerTitleKey, bannerTime,
     </Flex>
 }
 
-function PreviewFooter({ primaryKey, primaryDisabled, onPrimary, linkKey, onLink }) {
+function PreviewFooter({ primaryKey, primaryDisabled, onPrimary, linkKey, onLink, extra }) {
     return <Flex center gap={20} col className={styles.footer}>
         <Button className={styles.startPickingBtn} disabled={primaryDisabled} onClick={onPrimary}>{primaryKey}</Button>
+        {extra}
         <Button mode='text-brand' onClick={onLink}>{linkKey}</Button>
     </Flex>
 }
@@ -331,7 +352,7 @@ function PriviewRow({ icon, label, value, actionIcon, actionTooltip, onAction })
     </Flex>
 }
 
-function OrderPick({ order = {}, setStep, onPicked }) {
+function OrderPick({ order = {}, setStep, onPicked, isMine, onReleased }) {
     const [tab, setTab] = useState()
     const [completing, setCompleting] = useState(false)
     const { openModal, closeModal } = useModal()
@@ -427,6 +448,13 @@ function OrderPick({ order = {}, setStep, onPicked }) {
                 icon='phoneOutgoing'
                 onClick={() => { window.location.href = `tel:${String(order.phone).replace(/[^+\d]/g, '')}` }}
             >ops_call_customer</Button>}
+            {isMine && order.status === 'picking' && <ReleaseOrderButton
+                orderId={order.id}
+                label='ops_release_order'
+                q={TR('ops_release_own_confirm')}
+                onReleased={onReleased}
+                mode='text-brand'
+            />}
         </Flex>
     </Flex>
 }

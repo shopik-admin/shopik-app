@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useUser } from 'features/User'
+import usePermission from 'common/permissions/usePermision'
 import Flex from 'common/components/Flex'
 import Text from 'common/components/Text'
 import Button from 'common/components/Button'
+import Input from 'common/components/Input'
 import Loader from 'common/components/Loader'
+import { useModal } from 'common/components/Modal'
 import apiReq from 'common/functions/apiReq'
 import getPosition from 'common/functions/getPosition'
 import styles from './deliverPhoto.module.css'
@@ -27,7 +30,10 @@ export default function DeliverPhoto({ order = {}, goPreview }) {
     const streamRef = useRef(null)
     const lastPayloadRef = useRef({})
     const coordsRef = useRef(null)
+    const reasonRef = useRef('')
     const { isSuperAdmin } = useUser() || {}
+    const canOverride = usePermission('order:ship:manage')
+    const { openModal, closeModal } = useModal()
     const navigate = useNavigate()
     const [starting, setStarting] = useState(true)
     const [cameraFailed, setCameraFailed] = useState(false)
@@ -61,7 +67,7 @@ export default function DeliverPhoto({ order = {}, goPreview }) {
         }
     }, [])
 
-    async function sendDelivery({ imageBase64, force } = {}) {
+    async function sendDelivery({ imageBase64, override, overrideReason } = {}) {
         if (sending) return
         if (imageBase64 !== undefined) lastPayloadRef.current.imageBase64 = imageBase64
         setSending(true)
@@ -73,7 +79,10 @@ export default function DeliverPhoto({ order = {}, goPreview }) {
             const payload = { orderId: order.id }
             if (lastPayloadRef.current.imageBase64) payload.imageBase64 = lastPayloadRef.current.imageBase64
             if (coordinates) payload.coordinates = coordinates
-            if (force) payload.force = true
+            if (override) {
+                payload.override = true
+                if (overrideReason?.trim()) payload.overrideReason = overrideReason.trim()
+            }
             const res = await apiReq('shipment/deliver', payload)
             if (res?.error) throw new Error(res.error)
             navigate('/ops?asShipper=1')
@@ -95,6 +104,31 @@ export default function DeliverPhoto({ order = {}, goPreview }) {
         await sendDelivery({ imageBase64 })
     }
 
+    // Managers may close an order from a distance, but only through this
+    // explicit confirmation — the reason is stored on the delivery audit trail.
+    function openOverrideDialog() {
+        reasonRef.current = ''
+        openModal(
+            <Flex col gap={18}>
+                <Text center>{'ops_override_confirm'}</Text>
+                <Input
+                    name='overrideReason'
+                    label='ops_override_reason'
+                    type='textarea'
+                    onChange={e => { reasonRef.current = e?.target?.value ?? '' }}
+                />
+                <Flex center gap={12}>
+                    <Button
+                        loading={sending}
+                        onClick={() => { closeModal(); sendDelivery({ override: true, overrideReason: reasonRef.current }) }}
+                    >ops_override_action</Button>
+                    <Button mode='outline' disabled={sending} onClick={closeModal}>cancel</Button>
+                </Flex>
+            </Flex>,
+            { title: 'ops_override_title' }
+        )
+    }
+
     return <Flex grow col className={styles.deliverPhoto}>
         <Flex alignItems='center' justifyContent='center' style={{ padding: 16 }}>
             <Text size='l' bold>ops_photograph_order</Text>
@@ -112,9 +146,9 @@ export default function DeliverPhoto({ order = {}, goPreview }) {
         </Flex>
         {sendError && <Flex center style={{ padding: '0 16px' }}><Text size='s' mode='error' center>{sendError}</Text></Flex>}
         <Flex center gap={10} col className={opsStyles.footer}>
-            {isSuperAdmin && <Flex center gap={16} style={{ marginBottom: 12 }}>
-                <Button mode='text-brand' disabled={sending} onClick={() => sendDelivery({ imageBase64: null })}>ops_skip_photo</Button>
-                {tooFar && <Button mode='text-brand' disabled={sending} onClick={() => sendDelivery({ force: true })}>ops_deliver_anyway</Button>}
+            {(isSuperAdmin || (tooFar && canOverride)) && <Flex center gap={16} style={{ marginBottom: 12 }}>
+                {isSuperAdmin && <Button mode='text-brand' disabled={sending} onClick={() => sendDelivery({ imageBase64: null })}>ops_skip_photo</Button>}
+                {tooFar && canOverride && <Button mode='text-brand' disabled={sending} onClick={openOverrideDialog}>ops_deliver_override</Button>}
             </Flex>}
             <Button loading={sending} onClick={handleCapture} className={opsStyles.transferBtn}>ops_capture_close</Button>
             <Button mode='text-brand' onClick={goPreview}>back</Button>
