@@ -8,13 +8,12 @@ import { IMAGE_SIZES } from './constants.js'
 // (e.g. a 500px-wide supplier shot producing a 500x1770 'm').
 export default async function resize(buffer, sizes = IMAGE_SIZES, { serial = false } = {}) {
     const basePipeline = sharp(buffer)
-    // A null/0 width means "convert to webp only" (full resolution variant).
     const runOne = async ([name, width]) => {
-        let pipeline = basePipeline.clone()
-        if (width) {
-            pipeline = pipeline.resize({ width, height: width, fit: 'inside', withoutEnlargement: true })
-        }
-        const data = await pipeline.webp({ quality: 70 }).toBuffer()
+        const data = await basePipeline
+            .clone()
+            .resize({ width, height: width, fit: 'inside', withoutEnlargement: true })
+            .webp({ quality: 70 })
+            .toBuffer()
         return [name, data]
     }
     const list = Object.entries(sizes)

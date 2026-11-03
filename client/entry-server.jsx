@@ -4,8 +4,17 @@ import Head from 'layout/Head'
 import TR from '#common/texts/TR.js'
 import { getSettingFileUrl } from '#common/functions/settingFileUrl.js'
 import { buildMeta } from '#common/functions/buildMeta.js'
+import { getPwaIconUrl, PWA_ICON_FILES } from '#common/functions/pwaIconUrl.js'
 import pages from './pages'
 import App from './App'
+
+const DEFAULT_THEME_COLOR = '#195855'
+
+// Theme values are either plain strings (seedMenuColors) or { light, dark }.
+function colorOf(value, fallback) {
+  const color = typeof value === 'string' ? value : value?.light
+  return typeof color === 'string' && color.trim() ? color.trim() : fallback
+}
 
 export async function render({ url, data, ctx }) {
   const pathname = url.split('?')[0]
@@ -21,14 +30,25 @@ export async function render({ url, data, ctx }) {
     </StaticRouter>
   )
 
+  const appearance = data?.settings?.appearance || {}
+  const theme = data?.settings?.theme || {}
+  const siteName = String(appearance.siteName || '').trim() || 'Shopik'
+  // Browser tab keeps the favicon; installed apps use the dedicated appIcon.
+  const faviconUrl = getSettingFileUrl(appearance.favicon) || '/icons/icon-192.png'
+  const faviconDarkUrl = getSettingFileUrl(appearance.faviconDark) || undefined
+  const appleTouchUrl = getPwaIconUrl(appearance.appIcon, PWA_ICON_FILES.apple180) || '/icons/apple-180.png'
+  const themeColor = colorOf(theme['header-bg'], colorOf(theme['product-button-bg'], DEFAULT_THEME_COLOR))
   const meta = buildMeta({ settings: data.settings, initData: data.initData, page, notFound, url, host: ctx?.host })
 
   let head = renderToString(<Head
-    title={`${data.settings?.appearance?.siteName?.trim() || 'Shopik'} | ${notFound ? TR('page_not_found') : meta.title || ''}`}
+    title={`${siteName} | ${notFound ? TR('page_not_found') : meta.title || ''}`}
     description={meta.description}
     noindex={notFound}
-    favicon={getSettingFileUrl(data?.settings?.appearance?.favicon) || undefined}
-    faviconDark={getSettingFileUrl(data?.settings?.appearance?.faviconDark) || undefined}
+    favicon={faviconUrl}
+    faviconDark={faviconDarkUrl}
+    appleTouchIcon={appleTouchUrl}
+    themeColor={themeColor}
+    appTitle={siteName}
     meta={meta}
   />)
 

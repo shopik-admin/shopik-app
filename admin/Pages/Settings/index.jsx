@@ -48,13 +48,20 @@ function SettingModalContent({ setting, defaultCategory, defaultSubCategory, def
 
     const isModalFileType = formData.formType === 'file' || formData.formType === 'image' || formData.renderType === 'image'
     const isModalImage = formData.formType === 'image' || formData.renderType === 'image'
+    // Settings with custom `sizes` render variants through sharp → raster only.
+    const hasModalSizes = !!setting?.sizes
+    const modalImageAccept = hasModalSizes ? 'image/png,image/jpeg,image/webp' : 'image/png,image/jpeg,image/webp,.svg,.ico'
 
     function handleModalFile(e) {
         const file = e.target.files?.[0]
         e.target.value = ''
         if (!file) return
         setError(null)
-        if (isModalImage && !/^(image\/|.*\.(svg|ico)$)/i.test(`${file.type} ${file.name}`)) {
+        if (isModalImage && hasModalSizes && !/^image\/(png|jpe?g|webp)$/i.test(file.type || '')) {
+            setError('Size-variant image settings need a raster image (png/jpg/webp)')
+            return
+        }
+        if (isModalImage && !hasModalSizes && !/^(image\/|.*\.(svg|ico)$)/i.test(`${file.type} ${file.name}`)) {
             setError('Only image files (png/jpg/webp/svg/ico)')
             return
         }
@@ -225,7 +232,7 @@ function SettingModalContent({ setting, defaultCategory, defaultSubCategory, def
                         <input
                             ref={modalFileRef}
                             type="file"
-                            accept={isModalImage ? 'image/png,image/jpeg,image/webp,.svg,.ico' : 'application/pdf,.pdf'}
+                            accept={isModalImage ? modalImageAccept : 'application/pdf,.pdf'}
                             onChange={handleModalFile}
                             disabled={loading || modalUploading}
                             style={{ display: 'none' }}

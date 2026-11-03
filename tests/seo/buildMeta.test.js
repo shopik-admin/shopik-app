@@ -8,11 +8,14 @@ const settings = {
     seo: {
         seoTitle: 'My Store',
         seoDescription: 'Store-wide description',
-        ogImage: 'images/settings/d1/ogImage/v1',
         ogType: 'website',
         twitterCard: 'summary'
     },
-    appearance: { siteName: 'Shopik', logo: 'images/settings/d1/logo/v1' }
+    appearance: {
+        siteName: 'Shopik',
+        logo: 'images/settings/d1/logo/v1',
+        appIcon: 'images/settings/d1/appIcon/v1'
+    }
 }
 
 describe('buildMeta', () => {
@@ -36,12 +39,12 @@ describe('buildMeta', () => {
         const meta = buildMeta({ settings, initData: {}, page: { title: 'Home', description: 'route desc' }, url: '/', host: 'store-b.com' })
         assert.equal(meta.title, 'My Store')
         assert.equal(meta.description, 'Store-wide description')
-        assert.equal(meta.image, 'https://files.shopik.co.il/images/settings/d1/ogImage/v1/full.webp')
+        assert.equal(meta.image, 'https://files.shopik.co.il/images/settings/d1/appIcon/v1/512.png')
         assert.equal(meta.type, 'website')
     })
 
-    it('image falls back to appearance.logo when ogImage is unset', () => {
-        const meta = buildMeta({ settings: { appearance: settings.appearance }, initData: {}, page: {}, url: '/', host: 'x.com' })
+    it('image falls back to appearance.logo when appIcon is unset', () => {
+        const meta = buildMeta({ settings: { appearance: { logo: settings.appearance.logo } }, initData: {}, page: {}, url: '/', host: 'x.com' })
         assert.equal(meta.image, 'https://files.shopik.co.il/images/settings/d1/logo/v1/l.webp')
         assert.equal(meta.twitterCard, 'summary_large_image')
     })

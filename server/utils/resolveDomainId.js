@@ -2,8 +2,8 @@ import { normalizeHostname, rootHostname } from './normalizeDomain.js'
 
 // Resolves the domain id for storefront traffic:
 // 1. Origin/Referer hostname (same normalize logic as the CORS allowlist) → Domain.url
-// 2. The request Host header — bot traffic (social crawlers, curl) sends no
-//    Origin/Referer, so the host is the only tenant signal it provides.
+// 2. The request Host header — bot traffic (social crawlers, curl) and
+//    server-to-server requests such as /manifest.json carry no Origin/Referer.
 // 3. The single isDefault domain
 // Throws when none resolves — there is no magic 'default' id anymore.
 const TTL_MS = 60_000

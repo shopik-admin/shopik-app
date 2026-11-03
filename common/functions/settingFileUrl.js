@@ -7,8 +7,8 @@ import { runtimeEnv } from './runtimeEnv.js'
 const RAW_EXT = /\.(webp|png|jpe?g|svg|ico|pdf)$/i
 
 // Preview size for a setting's image variants: settings can declare their
-// own `sizes` (e.g. seo.ogImage stores only a full-res variant), so callers
-// must not assume the standard 'l' variant exists.
+// own `sizes` (e.g. appIcon stores named PNG variants), so callers must not
+// assume the standard 'l' variant exists.
 export function getSettingFileSize(setting, fallback = 'l') {
     return Object.keys(setting?.sizes || {})[0] || fallback
 }
@@ -22,5 +22,7 @@ export function getSettingFileUrl(value, size = 'l') {
     const base = (runtimeEnv('FILES_BASE_URL', baked) || 'https://files.shopik.co.il').replace(/\/+$/, '')
     const clean = str.replace(/^\/+/, '').replace(/\/+$/, '')
     if (RAW_EXT.test(clean)) return `${base}/${clean}`
-    return `${base}/${clean}/${size}.webp`
+    // A size that is already a file name (declared in setting.sizes) is
+    // used as-is; plain size names get the webp convention.
+    return `${base}/${clean}/${size.includes('.') ? size : `${size}.webp`}`
 }

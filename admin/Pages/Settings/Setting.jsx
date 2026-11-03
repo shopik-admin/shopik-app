@@ -11,6 +11,9 @@ import ConfigEditor from './ConfigEditor.jsx'
 
 const MAX_UPLOAD_BYTES = 8 * 1024 * 1024
 const IMAGE_ACCEPT = 'image/png,image/jpeg,image/webp,.svg,.ico'
+// Settings declaring custom `sizes` render every variant through sharp,
+// so they only accept raster uploads (svg/ico cannot be resized to variants).
+const RASTER_ACCEPT = 'image/png,image/jpeg,image/webp'
 
 export default function Setting({ setting, onUpdate, onEditFull, onDelete }) {
     const { id, key, value: initialValue, renderType, formType, category, public: isPublic } = setting
@@ -343,13 +346,19 @@ export default function Setting({ setting, onUpdate, onEditFull, onDelete }) {
 
     const isFileType = formType === 'file' || formType === 'image' || renderType === 'image'
     const isImageType = formType === 'image' || renderType === 'image'
+    const hasSizes = !!setting.sizes
+    const imageAccept = hasSizes ? RASTER_ACCEPT : IMAGE_ACCEPT
 
     async function handleFileSelect(e) {
         const file = e.target.files?.[0]
         e.target.value = ''
         if (!file) return
         setError(null)
-        if (isImageType && !/^(image\/|.*\.(svg|ico)$)/i.test(`${file.type} ${file.name}`)) {
+        if (isImageType && hasSizes && !/^image\/(png|jpe?g|webp)$/i.test(file.type || '')) {
+            setError('Size-variant image settings need a raster image (png/jpg/webp)')
+            return
+        }
+        if (isImageType && !hasSizes && !/^(image\/|.*\.(svg|ico)$)/i.test(`${file.type} ${file.name}`)) {
             setError('Only image files (png/jpg/webp/svg/ico)')
             return
         }
@@ -423,7 +432,7 @@ export default function Setting({ setting, onUpdate, onEditFull, onDelete }) {
                                 <input
                                     ref={fileInputRef}
                                     type="file"
-                                    accept={isImageType ? IMAGE_ACCEPT : 'application/pdf,.pdf'}
+                                    accept={isImageType ? imageAccept : 'application/pdf,.pdf'}
                                     onChange={handleFileSelect}
                                     disabled={uploading || saving}
                                     style={{ display: 'none' }}

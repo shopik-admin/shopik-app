@@ -1,4 +1,15 @@
-export default function Head({ title = '', description = '', noindex = false, favicon, faviconDark, meta }) {
+export default function Head({
+    title = '',
+    description = '',
+    noindex = false,
+    favicon,
+    faviconDark,
+    appleTouchIcon,
+    themeColor,
+    appTitle,
+    meta
+}) {
+    const appleIcon = appleTouchIcon || favicon
     return <>
         <title>{title}</title>
         <meta name='description' content={description} />
@@ -15,7 +26,10 @@ export default function Head({ title = '', description = '', noindex = false, fa
             {meta.image && <meta name="twitter:image" content={meta.image} />}
         </>}
         {noindex && <meta name='robots' content='noindex' />}
+        {themeColor && <meta name='theme-color' content={themeColor} />}
+        {appTitle && <meta name='apple-mobile-web-app-title' content={appTitle} />}
         {favicon && <link rel="icon" href={favicon} />}
         {faviconDark && <link rel="icon" href={faviconDark} media="(prefers-color-scheme: dark)" />}
+        {appleIcon && <link rel="apple-touch-icon" href={appleIcon} />}
     </>
 }
