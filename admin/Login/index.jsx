@@ -17,6 +17,9 @@ import Card from 'common/components/Card'
 import Flex from 'common/components/Flex'
 import { useState } from 'react'
 import Logo from '#common/components/Logo/index.jsx'
+import { registerServiceWorker } from 'common/functions/registerSW.js'
+
+registerServiceWorker()
 
 try {
     window.__ENV__ = (typeof __SD__ !== 'undefined' && __SD__?.env) || {}
