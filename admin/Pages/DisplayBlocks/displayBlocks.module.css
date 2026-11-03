@@ -115,31 +115,89 @@
     padding-inline: 16px;
 }
 
+/* One card per slide: header (number + reorder/delete), then its sections. */
 .slide {
     display: flex;
+    flex-direction: column;
     gap: 10px;
-    align-items: flex-start;
     border: 1px solid #e0e0e0;
     border-radius: 8px;
-    padding: 8px;
+    padding: 10px;
 }
 
-.slidePreview {
-    width: 96px;
-    height: 64px;
+.slideHead {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.slideNumber {
+    font-size: 13px;
+    font-weight: 600;
+    opacity: 0.6;
+}
+
+.slideActions {
+    margin-inline-start: auto;
+}
+
+.slideSection {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.sectionTitle {
+    align-items: center;
+    opacity: 0.75;
+}
+
+/* One row per size: which size this is and what it must be, then its controls. */
+.sizeRow {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.sizeLabel {
+    align-items: center;
+}
+
+.sizeControls {
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.sizeUrl {
+    flex: 1;
+    min-width: 140px;
+}
+
+/* Raw preview — the whole file, no simulated crop. */
+.sizePreview {
+    width: 72px;
+    height: 45px;
+    object-fit: contain;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    background: var(--bg-disabled);
     flex-shrink: 0;
 }
 
-.slideFields {
-    flex: 1;
-    min-width: 0;
+/* Icon-only upload button (a label wrapping the hidden file input). */
+.iconBtn {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    background: var(--bg-disabled);
+    flex-shrink: 0;
 }
 
-.fileBtn {
-    cursor: pointer;
-    padding: 6px 10px;
-    border: 1px solid #ccc;
-    border-radius: 6px;
-    font-size: 13px;
-    white-space: nowrap;
+.iconBtn.uploading {
+    opacity: 0.6;
+    cursor: progress;
 }

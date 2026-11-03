@@ -16,6 +16,11 @@ label.cb {
         pointer-events: none;
     }
 
+    &.disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
     &.checkbox {
         .checkboxCircle {
             border: 2px solid var(--text-primary);
