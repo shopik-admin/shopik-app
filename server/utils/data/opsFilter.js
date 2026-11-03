@@ -32,11 +32,11 @@ export default async function buildOpsFilter({ _admin, extraFilter = {}, statusF
     if (!canRead) {
         const or = []
         if (canPick) {
+            // A picked order is open to any picker only when nobody picked it —
+            // pack keeps the picker as history, so an empty adminId is the marker.
             or.push({ status: 'paid' })
             or.push({ 'picker.adminId': me })
-            or.push({ status: 'picked', 'picker.adminId': { $exists: false } })
-            or.push({ status: 'picked', picker: null })
-            or.push({ status: 'picked', 'picker.adminId': null })
+            or.push({ status: 'picked', 'picker.adminId': { $in: [null, ''] } })
         }
         if (canShip) {
             or.push({ status: 'packed' })

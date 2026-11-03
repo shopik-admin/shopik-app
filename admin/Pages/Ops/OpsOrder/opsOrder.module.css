@@ -82,6 +82,12 @@
         padding: 0 32px;
     }
 
+    .divider {
+        height: 1px;
+        margin: 0 32px;
+        background-color: var(--border-secondary);
+    }
+
     .pills {
         padding: 0 25px;
     }

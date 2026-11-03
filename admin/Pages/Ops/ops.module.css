@@ -92,4 +92,24 @@
             color: var(--status-color);
         }
     }
+
+    /* Orders belonging to the current picker: bottom bar in the full tone colour, white text.
+       No tone (window without times) keeps the plain card look. */
+    &.mine {
+        &.success .row:last-child { background-color: var(--bg-success-primary); }
+        &.warning .row:last-child { background-color: var(--bg-warning-primary); }
+        &.danger .row:last-child { background-color: var(--bg-error-primary); }
+
+        &.success,
+        &.warning,
+        &.danger {
+            .row:last-child {
+                color: var(--text-primary-on-brand);
+
+                small {
+                    color: var(--text-primary-on-brand);
+                }
+            }
+        }
+    }
 }

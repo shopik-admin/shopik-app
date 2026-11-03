@@ -53,7 +53,7 @@ export function formatWindow(w) {
     if (!w.endTimestamp) return { text: '--:--', dayText, textLong, minutes: 0 }
 
     const diffMs = new Date(w.endTimestamp).getTime() - Date.now()
-    if (diffMs < 0) return { text: '00:00', dayText, textLong, minutes: 0, isLate: true }
+    if (diffMs < 0) return { text: '00:00', dayText, textLong, minutes: 0, isLate: true, endMinutes: 0 }
 
     const totalMinutes = Math.floor(diffMs / (1000 * 60))
     const totalHours = Math.floor(totalMinutes / 60)
@@ -71,20 +71,41 @@ export function formatWindow(w) {
         dayText,
         textLong,
         minutes: totalMinutes,
+        endMinutes: totalMinutes,
         isLate: totalMinutes <= 0,
         isAlmostLate: totalMinutes <= 15
     }
 }
 
+// Minutes left to the window START (how soon picking must begin). Null when the
+// window has no start time. Past start → negative, so late orders read danger.
+export function minutesToStart(w) {
+    if (!w?.startTimestamp) return null
+    return Math.floor((new Date(w.startTimestamp).getTime() - Date.now()) / 60000)
+}
+
 // Card tone shared by the Ops list and the User order history.
-// A finished order is always green; otherwise the tone follows
-// window urgency (danger ≤10 min left, warning <60 min).
+// done → green; packed/shipped judge the window END; picking-side statuses (paid,
+// picking, picked) judge the window START — danger ≤10 min, warning <60, else green.
 export function orderCardTone(order) {
     if (order?.status == 'done') return 'success'
-    const { minutes } = formatWindow(order?.window)
+
+    const w = order?.window
+    if (!w) return null
+
+    const minutes = isShippingStatus(order.status)
+        ? formatWindow(w).endMinutes
+        : minutesToStart(w)
+
+    if (minutes == null) return null
     if (minutes <= 10) return 'danger'
     if (minutes < 60) return 'warning'
-    return null
+    return 'success'
+}
+
+// Last 4 digits of an order number, for the compact Ops screens.
+export function shortNumber(n) {
+    return String(n ?? '').slice(-4)
 }
 
 // Live countdown of the time remaining in the window.

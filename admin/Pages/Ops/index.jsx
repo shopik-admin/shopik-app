@@ -12,6 +12,7 @@ import OrderCard from './OrderCard'
 import StoreGate from './StoreGate'
 import StorePill from './StorePill'
 import { todayStr } from '../Windows/dates.js'
+import { shortNumber } from './orderUtils'
 
 const TABS = {
     WAITING: 'waiting',
@@ -20,7 +21,7 @@ const TABS = {
 }
 
 const opsCols = [
-    { key: 'number' },
+    { key: 'number', render: row => shortNumber(row.number) },
     { key: 'status', type: 'tr' },
     { key: 'storeId' },
     { key: 'deliveryMethod', type: 'tr' },

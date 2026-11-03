@@ -1,5 +1,6 @@
 import { enrichOrders } from '#server/utils/data/enrichCart.js'
 import buildOpsFilter from '#server/utils/data/opsFilter.js'
+import { withTiebreaker } from '#server/dl/defaults/read.js'
 import { deadlineFirstSort, balancedRoute } from '#common/functions/routeSort.js'
 
 export default async function list(payload, { DL, _admin }) {
@@ -19,7 +20,11 @@ export default async function list(payload, { DL, _admin }) {
         statusFilter: { $in: ['paid', 'picking', 'picked', 'packed', 'shipped'] }
     })
 
-    const finalSort = sort || { 'window.endTimestamp': 1, 'window.startTimestamp': 1 }
+    // Own orders first (mine, then unclaimed), then by window deadline.
+    // mineFirst has to be computed before the sort stage, so the read is an
+    // aggregation instead of find().sort() (which rejects projection fields).
+    const baseSort = withTiebreaker(DL.Order.Model, sort) || { 'window.endTimestamp': 1, 'window.startTimestamp': 1 }
+    const mineSort = { mineFirst: -1, ...baseSort }
 
     const select = {
         _id: 0,
@@ -51,13 +56,32 @@ export default async function list(payload, { DL, _admin }) {
     }
 
     // search via DL layer if provided
-    const options = { sort: finalSort, skip, limit }
+    const options = { sort: baseSort, skip, limit }
     if (search) options.search = search
 
     // Use raw Model for complex $or/$and that processFilter might strip — bypass read helper and use Model directly
     // But DL.Order.read will call processFilter which strips $or if not in filterFields. So we query Model directly.
     const Model = DL.Order.Model
     let query = finalFilter
+
+    // mineFirst is computed before the sort stage, so the read goes through an aggregation
+    const pipelineBase = [
+        { $match: query },
+        {
+            $project: {
+                ...select,
+                mineFirst: {
+                    $cond: [
+                        {
+                            $or: [{ $eq: ['$picker.adminId', me] }, { $eq: ['$shipper.adminId', me] }]
+                        },
+                        1,
+                        0
+                    ]
+                }
+            }
+        }
+    ]
 
     // Route-aware ordering for the shipper screens (store origin, static after leave-store).
     // WAITING (packed): deadline strictly wins; MINE (shipped): persisted balanced routeOrder.
@@ -69,10 +93,7 @@ export default async function list(payload, { DL, _admin }) {
 
     let docs
     if (isWaiting || isMine) {
-        const fetched = await Model.find(query, { _id: 0, ...select })
-            .sort(finalSort)
-            .limit(100)
-            .lean()
+        const fetched = await Model.aggregate([...pipelineBase, { $sort: mineSort }, { $limit: 100 }])
         let route = []
         try {
             const storeId = fetched[0]?.storeId
@@ -114,11 +135,7 @@ export default async function list(payload, { DL, _admin }) {
         })
     } else {
         // Handle $and case from above
-        docs = await Model.find(query, { _id: 0, ...select })
-            .sort(finalSort)
-            .skip(skipN)
-            .limit(limitN)
-            .lean()
+        docs = await Model.aggregate([...pipelineBase, { $sort: mineSort }, { $skip: skipN }, { $limit: limitN }])
     }
 
     // enrich cart items with product snapshot for old orders
@@ -126,8 +143,8 @@ export default async function list(payload, { DL, _admin }) {
         await enrichOrders(docs, DL)
     } catch { }
 
-    // Annotate isMine
-    return docs.map(d => ({
+    // Annotate isMine (mineFirst is only used for ordering)
+    return docs.map(({ mineFirst, ...d }) => ({
         ...d,
         isMine: (d.picker?.adminId === me) || (d.shipper?.adminId === me)
     }))

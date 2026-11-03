@@ -1,4 +1,4 @@
-import { buildWazeUrl, customerNotes, DeliveryMethodTag, formatDepartureTime, formatFullAddress, formatWindow, isShippingStatus, RemainingTime } from '../orderUtils'
+import { buildWazeUrl, customerNotes, DeliveryMethodTag, formatDepartureTime, formatFullAddress, formatWindow, isShippingStatus, RemainingTime, shortNumber } from '../orderUtils'
 import classNames from 'common/functions/classNames'
 import TR from 'common/texts/TR.js'
 import Button from 'common/components/Button'
@@ -86,7 +86,7 @@ export default function OpsOrder({ }) {
     return <div className={styles.opsOrder}>
         <Flex gap={15} alignItems='center' className={styles.orderTitle}>
             <Button icon='back' mode='text' onClick={() => navigate('/ops')} />
-            <Text size='h3' bold >{TR('ops_order_with_number', { number: order.number })}</Text>
+            <Text size='h3' bold >{TR('ops_order_with_number', { number: shortNumber(order.number) })}</Text>
         </Flex>
         {StepComponent ? <StepComponent
             order={order}
@@ -116,6 +116,14 @@ function OrderPreview({ order = {}, claimOrder, isMine, cantPick, isShipMine, ca
             bannerSubtitleKey='ops_departure_remaining'
             rows={<>
                 <PriviewRow icon='user' label='customer_name' value={render({ type: 'name', value: order.name })} />
+                {order.phone && <PriviewRow
+                    icon='phone'
+                    label='ops_customer_phone'
+                    value={order.phone}
+                    actionIcon='phoneOutgoing'
+                    actionTooltip='ops_call'
+                    onAction={() => { window.location.href = `tel:${String(order.phone).replace(/[^+\d]/g, '')}` }}
+                />}
                 <PriviewRow
                     icon='location'
                     label='customer_address'
@@ -128,14 +136,7 @@ function OrderPreview({ order = {}, claimOrder, isMine, cantPick, isShipMine, ca
                 <PriviewRow icon='time' label='order_window' value={windowTime.textLong} />
                 {notes && <PriviewRow icon='note' label='ops_customer_notes' value={notes} />}
                 {order.shipperComment && <PriviewRow icon='note' label='ops_shipper_notes' value={order.shipperComment} />}
-                {order.phone && <PriviewRow
-                    icon='phone'
-                    label='ops_customer_phone'
-                    value={order.phone}
-                    actionIcon='phoneOutgoing'
-                    actionTooltip='ops_call'
-                    onAction={() => { window.location.href = `tel:${String(order.phone).replace(/[^+\d]/g, '')}` }}
-                />}
+                <HandlerBlock picker={order.picker} shipper={order.shipper} />
             </>}
             footer={<PreviewFooter
                 primaryKey='ops_order_delivered'
@@ -156,6 +157,14 @@ function OrderPreview({ order = {}, claimOrder, isMine, cantPick, isShipMine, ca
             bannerSubtitleKey='ops_departure_remaining'
             rows={<>
                 <PriviewRow icon='user' label='customer_name' value={render({ type: 'name', value: order.name })} />
+                {order.phone && <PriviewRow
+                    icon='phone'
+                    label='ops_customer_phone'
+                    value={order.phone}
+                    actionIcon='phoneOutgoing'
+                    actionTooltip='ops_call'
+                    onAction={() => { window.location.href = `tel:${String(order.phone).replace(/[^+\d]/g, '')}` }}
+                />}
                 <PriviewRow
                     icon='location'
                     label='customer_address'
@@ -168,14 +177,8 @@ function OrderPreview({ order = {}, claimOrder, isMine, cantPick, isShipMine, ca
                 <PriviewRow icon='time' label='order_window' value={windowTime.textLong} />
                 {notes && <PriviewRow icon='note' label='ops_customer_notes' value={notes} />}
                 {order.shipperComment && <PriviewRow icon='note' label='ops_shipper_notes' value={order.shipperComment} />}
-                {order.phone && <PriviewRow
-                    icon='phone'
-                    label='ops_customer_phone'
-                    value={order.phone}
-                    actionIcon='phoneOutgoing'
-                    actionTooltip='ops_call'
-                    onAction={() => { window.location.href = `tel:${String(order.phone).replace(/[^+\d]/g, '')}` }}
-                />}
+                <HandlerBlock picker={order.picker} shipper={order.shipper} />
+
             </>}
             footer={<PreviewFooter
                 primaryKey='ops_take_order'
@@ -194,10 +197,19 @@ function OrderPreview({ order = {}, claimOrder, isMine, cantPick, isShipMine, ca
         bannerTime={`${order.window?.end}:00`}
         bannerSubtitleKey='time_to_pick_subtitle'
         rows={<>
-            <PriviewRow icon='user' label='customer_name' value={order.phone || '0500000000'} />
+            <PriviewRow icon='user' label='customer_name' value={order.name?.first || '0500000000'} />
+            {order.phone && <PriviewRow
+                icon='phone'
+                label='ops_customer_phone'
+                value={order.phone}
+                actionIcon='phoneOutgoing'
+                actionTooltip='ops_call'
+                onAction={() => { window.location.href = `tel:${String(order.phone).replace(/[^+\d]/g, '')}` }}
+            />}
             <PriviewRow icon='location' label='customer_address' value={render({ type: 'address', value: order.address })} />
             <ElevatorRow order={order} />
             <PriviewRow icon='time' label='order_window' value={windowTime.textLong} />
+            <HandlerBlock picker={order.picker} shipper={order.shipper} />
             {/* <PriviewRow icon='replace' label='replace_and_missing' value={order.window?.replace} />
             <PriviewRow icon='note' label='pick_notes' value={order.comments} /> */}
         </>}
@@ -220,7 +232,7 @@ function PreviewShell({ order = {}, windowTime = {}, bannerTitleKey, bannerTime,
         <Flex grow col gap={30}>
             <Flex alignItems='center' justifyContent='space-between' style={{ padding: 25, paddingBottom: 0, fontSize: 20 }}>
                 <DeliveryMethodTag deliveryMethod={order.deliveryMethod} />
-                <Text bold size='l'>{order.number}</Text>
+                <Text bold size='l'>{shortNumber(order.number)}</Text>
             </Flex>
             {pills.length > 0 && <Flex gap={10} className={styles.pills}>
                 {pills.map(key => <Flex key={key} center className={styles.pill}><Text size='s'>{key}</Text></Flex>)}
@@ -277,6 +289,20 @@ function OrderView({ order = {}, setStep }) {
     </Flex>
 }
 
+// Worker block: one divider, then whoever handled the order.
+function HandlerBlock({ picker, shipper }) {
+    const people = [picker, shipper].filter(p => p?.name)
+    if (!people.length) return null
+    return <>
+        <Divider />
+        {people.map(({ name }, i) => <PriviewRow
+            key={i}
+            icon={i == 0 ? 'basket' : 'truck'}
+            label={i == 0 ? 'picker_name' : 'shipper_name'}
+            value={name}
+        />)}
+    </>
+}
 function ElevatorRow({ order }) {
     if (order?.deliveryMethod === 'pickup') return null
     const hasElevator = order?.address?.hasElevator !== false
@@ -285,6 +311,11 @@ function ElevatorRow({ order }) {
         label='address.hasElevator'
         value={TR(hasElevator ? 'elevator_yes' : 'elevator_no')}
     />
+}
+
+// Divider between the customer block and the handler blocks.
+function Divider() {
+    return <div className={styles.divider} />
 }
 
 function PriviewRow({ icon, label, value, actionIcon, actionTooltip, onAction }) {
