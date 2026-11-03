@@ -14,15 +14,20 @@ export const constants = {
 }
 
 // One image, stored as a relative object base path (no size suffix, no host):
-//   images/display-blocks/<blockId>/<slideKey>/<desktop|mobile>/<size>.webp
-// Resolved client-side via common/functions/displayImageUrl.js + VITE_FILES_BASE_URL.
+//   images/display-blocks/<blockId>/<slideKey>/<desktop|tablet|mobile>/<size>.webp
+// Resolved client-side via common/functions/displayImageUrl.js + VITE_FILES_BASE_URL,
+// and the breakpoint fallback rule lives in common/functions/displayImageBreakpoints.js.
 const slideSchema = {
     // Stable client-generated id: row keys + GCS slideKey across reorders.
     key: String,
+    // Desktop slot. Kept as `image` so existing blocks need no migration.
     image: String,
+    tabletImage: String,
     mobileImage: String,
     link: String,
     alt: String,
+    // External links only — internal paths navigate in place.
+    newTab: { type: Boolean, default: false },
     _id: false
 }
 
@@ -77,6 +82,14 @@ const displayBlockSchema = {
             type: String,
             enum: Object.values(constants.LAYOUT),
             default: constants.LAYOUT.CAROUSEL
+        },
+        // One ratio per size, as 'W:H', set by that size's first image. Comparisons
+        // are always same-size across slides — a mobile composition may well be a
+        // different shape than the desktop one. Empty for a size nothing was uploaded to.
+        ratios: {
+            desktop: String,
+            tablet: String,
+            mobile: String
         },
         autoplaySec: { type: Number, default: 5, min: 0 },
         slides: [slideSchema]

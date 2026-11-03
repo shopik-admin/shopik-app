@@ -1,3 +1,5 @@
+import { BANNER_WIDTHS } from '#common/functions/displayImageBreakpoints.js'
+
 export const IMAGE_SIZES = {
     xl: 1000,
     l: 600,
@@ -6,12 +8,9 @@ export const IMAGE_SIZES = {
 }
 
 // Banners are full-bleed hero images — much larger than product thumbnails.
-export const BANNER_SIZES = {
-    xl: 1920,
-    l: 1600,
-    m: 1200,
-    s: 800
-}
+// Shared with common/functions/displayImageBreakpoints.js, which is where the
+// admin helper text derives its target dimensions from.
+export const BANNER_SIZES = BANNER_WIDTHS
 
 // Complete = same source + hash written + every expected size URL present.
 // Catches previously-failed / partial uploads (hash but missing sizes).

@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import styles from './checkbox.module.css'
 import Text from '../Text'
 
-export default function Checkbox({ className = '', name, label, switchMode, tagMode, children, defaultValue, defaultChecked = defaultValue, checked, onChange, }) {
+export default function Checkbox({ className = '', name, label, switchMode, tagMode, children, defaultValue, defaultChecked = defaultValue, checked, disabled = false, onChange, }) {
     const
         isControlled = checked !== undefined,
         [innerChecked, setInnerChecked] = useState(defaultChecked)
@@ -28,12 +28,14 @@ export default function Checkbox({ className = '', name, label, switchMode, tagM
             className,
             styles.cb,
             styles[mode],
-            [styles.checked, innerChecked]
+            [styles.checked, innerChecked],
+            [styles.disabled, disabled]
         )}
     >
         <input
             type="checkbox"
             name={name}
+            disabled={disabled || undefined}
             checked={isControlled ? checked : undefined}
             defaultChecked={!isControlled ? defaultChecked : undefined}
             onChange={toggleChecked}

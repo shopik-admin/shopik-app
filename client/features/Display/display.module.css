@@ -7,7 +7,6 @@
     overflow: hidden;
     width: 100%;
     border-radius: var(--radius-3xl);
-    min-height: 300px;
 }
 
 .heroTrack {
@@ -20,25 +19,28 @@
     min-width: 0;
     display: block;
     width: 100%;
+    /* Ratio per size, set inline from block.banner.ratios — the box follows the size
+       the breakpoint actually shows. 'auto' for a size nothing was uploaded to. */
+    aspect-ratio: var(--ratio-desktop, auto);
 }
 
-/* .hero .slideImg {
-    height: 100%;
-    object-fit: cover;
-} */
-
-@media (max-width: 700px) {
+@media (max-width: 1024px) {
     .heroSlide {
-        aspect-ratio: 16 / 10;
+        aspect-ratio: var(--ratio-tablet, var(--ratio-desktop, auto));
     }
 }
 
+@media (max-width: 700px) {
+    .heroSlide {
+        aspect-ratio: var(--ratio-mobile, var(--ratio-tablet, var(--ratio-desktop, auto)));
+    }
+}
+
+/* Images are shown whole — no cropping, so the slide is its size's ratio box. */
 .slideImg {
     width: 100%;
-    height: 100%;
+    height: auto;
     display: block;
-    object-fit: cover;
-    min-height: 300px;
 }
 
 .desktopOnly {
@@ -92,18 +94,37 @@
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 24px;
     width: 100%;
-    min-height: 300px;
+}
+
+/* One column on mobile. Mosaic layouts should eventually come from templates —
+   for now the grid simply stacks. */
+@media (max-width: 700px) {
+    .mosaic {
+        grid-template-columns: 1fr;
+    }
 }
 
 .mosaicItem {
     display: block;
     border-radius: 16px;
     overflow: hidden;
+    aspect-ratio: var(--ratio-desktop, auto);
+}
+
+@media (max-width: 1024px) {
+    .mosaicItem {
+        aspect-ratio: var(--ratio-tablet, var(--ratio-desktop, auto));
+    }
+}
+
+@media (max-width: 700px) {
+    .mosaicItem {
+        aspect-ratio: var(--ratio-mobile, var(--ratio-tablet, var(--ratio-desktop, auto)));
+    }
 }
 
 .rail {
     width: 100%;
-    container-type: inline-size;
     background-color: var(--carousel-bg, var(--bg-secondary));
     padding-block: 12px;
     /* Full-bleed background with zero layout effect: layout stays 100% so
@@ -159,34 +180,9 @@
     }
 }
 
-/* Same card size as the products grid (products.module.css breakpoints):
-   2/3/4/5/6 columns at 700/1000/1300/1600px with a 12px gap. The rail itself
-   lays out with a 10px gap, so the trailing card peeks slightly — a natural
-   scroll affordance. */
+/* Constant card size, whatever the rail width is — a fixed 260px means the cards
+   look the same on a phone and on a wide screen, and the last visible one peeks
+   past the edge as a natural scroll affordance. */
 .railCard {
-    width: calc((100cqw - 12px) / 2);
-}
-
-@container (min-width: 700px) {
-    .railCard {
-        width: calc((100cqw - 24px) / 3);
-    }
-}
-
-@container (min-width: 1000px) {
-    .railCard {
-        width: calc((100cqw - 36px) / 4);
-    }
-}
-
-@container (min-width: 1300px) {
-    .railCard {
-        width: calc((100cqw - 48px) / 5);
-    }
-}
-
-@container (min-width: 1600px) {
-    .railCard {
-        width: calc((100cqw - 60px) / 6);
-    }
+    width: 260px;
 }
