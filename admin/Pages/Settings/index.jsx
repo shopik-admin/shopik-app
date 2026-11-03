@@ -14,6 +14,7 @@ import Flex from 'common/components/Flex'
 import Setting from './Setting.jsx'
 import ConfigEditor from './ConfigEditor.jsx'
 import { getSettingFileUrl } from 'common/functions/settingFileUrl'
+import { getPwaIconUrl, PWA_ICON_FILES } from 'common/functions/pwaIconUrl'
 
 const FORM_TYPES = [
     'text', 'checkbox', 'switch', 'color', 'select',
@@ -48,13 +49,19 @@ function SettingModalContent({ setting, defaultCategory, defaultSubCategory, def
 
     const isModalFileType = formData.formType === 'file' || formData.formType === 'image' || formData.renderType === 'image'
     const isModalImage = formData.formType === 'image' || formData.renderType === 'image'
+    const isModalAppIcon = formData.key === 'appIcon'
+    const modalImageAccept = isModalAppIcon ? 'image/png,image/jpeg,image/webp' : 'image/png,image/jpeg,image/webp,.svg,.ico'
 
     function handleModalFile(e) {
         const file = e.target.files?.[0]
         e.target.value = ''
         if (!file) return
         setError(null)
-        if (isModalImage && !/^(image\/|.*\.(svg|ico)$)/i.test(`${file.type} ${file.name}`)) {
+        if (isModalImage && isModalAppIcon && !/^image\/(png|jpe?g|webp)$/i.test(file.type || '')) {
+            setError('App icon must be a PNG, JPG or WebP image')
+            return
+        }
+        if (isModalImage && !isModalAppIcon && !/^(image\/|.*\.(svg|ico)$)/i.test(`${file.type} ${file.name}`)) {
             setError('Only image files (png/jpg/webp/svg/ico)')
             return
         }
@@ -213,7 +220,7 @@ function SettingModalContent({ setting, defaultCategory, defaultSubCategory, def
                     {typeof formData.value === 'string' && formData.value && !pendingFile && (
                         <div style={{ margin: '0.35rem 0' }}>
                             {isModalImage
-                                ? <img src={getSettingFileUrl(formData.value)} alt="" className={styles.settingThumb} style={{ maxHeight: '4rem', maxWidth: '10rem' }} />
+                                ? <img src={isModalAppIcon ? getPwaIconUrl(formData.value, PWA_ICON_FILES.icon192) : getSettingFileUrl(formData.value)} alt="" className={styles.settingThumb} style={{ maxHeight: '4rem', maxWidth: '10rem' }} />
                                 : <a href={getSettingFileUrl(formData.value)} target="_blank" rel="noreferrer" className={styles.linkValue}>Open current file</a>}
                         </div>
                     )}
@@ -225,7 +232,7 @@ function SettingModalContent({ setting, defaultCategory, defaultSubCategory, def
                         <input
                             ref={modalFileRef}
                             type="file"
-                            accept={isModalImage ? 'image/png,image/jpeg,image/webp,.svg,.ico' : 'application/pdf,.pdf'}
+                            accept={isModalImage ? modalImageAccept : 'application/pdf,.pdf'}
                             onChange={handleModalFile}
                             disabled={loading || modalUploading}
                             style={{ display: 'none' }}

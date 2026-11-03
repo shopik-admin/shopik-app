@@ -4,6 +4,7 @@ import ConfirmButton from 'common/components/ConfirmButton'
 import render from 'common/functions/render'
 import apiReq from 'common/functions/apiReq'
 import { getSettingFileUrl } from 'common/functions/settingFileUrl'
+import { getPwaIconUrl, PWA_ICON_FILES } from 'common/functions/pwaIconUrl'
 import { useState, useEffect, useRef } from 'react'
 import { useUser } from 'features/User'
 import styles from './settings.module.css'
@@ -343,13 +344,19 @@ export default function Setting({ setting, onUpdate, onEditFull, onDelete }) {
 
     const isFileType = formType === 'file' || formType === 'image' || renderType === 'image'
     const isImageType = formType === 'image' || renderType === 'image'
+    const isAppIcon = key === 'appIcon'
+    const imageAccept = isAppIcon ? 'image/png,image/jpeg,image/webp' : IMAGE_ACCEPT
 
     async function handleFileSelect(e) {
         const file = e.target.files?.[0]
         e.target.value = ''
         if (!file) return
         setError(null)
-        if (isImageType && !/^(image\/|.*\.(svg|ico)$)/i.test(`${file.type} ${file.name}`)) {
+        if (isImageType && isAppIcon && !/^image\/(png|jpe?g|webp)$/i.test(file.type || '')) {
+            setError('App icon must be a PNG, JPG or WebP image')
+            return
+        }
+        if (isImageType && !isAppIcon && !/^(image\/|.*\.(svg|ico)$)/i.test(`${file.type} ${file.name}`)) {
             setError('Only image files (png/jpg/webp/svg/ico)')
             return
         }
@@ -382,7 +389,9 @@ export default function Setting({ setting, onUpdate, onEditFull, onDelete }) {
 
     // File / image settings — upload to storage, value is the relative path
     if (isFileType) {
-        const fileUrl = getSettingFileUrl(value)
+        const fileUrl = isAppIcon
+            ? getPwaIconUrl(value, PWA_ICON_FILES.icon192)
+            : getSettingFileUrl(value)
         return (
             <div className={styles.settingItem}>
                 <div className={styles.settingMain}>
@@ -423,7 +432,7 @@ export default function Setting({ setting, onUpdate, onEditFull, onDelete }) {
                                 <input
                                     ref={fileInputRef}
                                     type="file"
-                                    accept={isImageType ? IMAGE_ACCEPT : 'application/pdf,.pdf'}
+                                    accept={isImageType ? imageAccept : 'application/pdf,.pdf'}
                                     onChange={handleFileSelect}
                                     disabled={uploading || saving}
                                     style={{ display: 'none' }}

@@ -2,6 +2,9 @@ import { hydrateRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router'
 import ErrorBoundary from 'common/components/ErrorBoundary'
 import App from './App'
+import { registerServiceWorker } from 'common/functions/registerSW.js'
+
+registerServiceWorker()
 
 const sd = __SD__ || {}
 window.__ENV__ = sd.env || {}

@@ -2,6 +2,7 @@ import express, { json, urlencoded, static as serveStatic } from 'express'
 import cookieParser from 'cookie-parser'
 import path from 'path'
 import router from './router.js'
+import registerManifestRoute from './routes/manifest.js'
 import boot from './boot.js'
 import ssr from './ssr.js'
 import startImageWorker from '#server/workers/imageWorker.js'
@@ -83,6 +84,7 @@ app.use(urlencoded({ extended: true, limit: '15mb' }))
 
 app.use(compression())
 
+registerManifestRoute(app, bootData)
 router(app, bootData)
 
 try {

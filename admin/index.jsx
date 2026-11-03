@@ -6,6 +6,9 @@ import Lists from 'common/features/Lists'
 import ReactDOM from 'react-dom/client'
 import User from 'features/User'
 import App from './App'
+import { registerServiceWorker } from 'common/functions/registerSW.js'
+
+registerServiceWorker()
 
 const sd = __SD__ || {}
 window.__ENV__ = sd.env || {}
