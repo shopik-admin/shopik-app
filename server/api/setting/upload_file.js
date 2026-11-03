@@ -185,7 +185,11 @@ export default async function upload_file(payload, { DL, external }) {
     }
 
     const updated = await DL.Setting.updateOne({ id }, { value: basePath })
-    return { basePath, setting: updated || { ...setting, value: basePath } }
+    // A null here means the setting is only in the settings cache (not in the
+    // database) — report it instead of returning a value that was never stored.
+    if (!updated)
+        throw { status: 404, message: 'setting could not be updated — the row is not in the database (the settings cache is stale, reset it)' }
+    return { basePath, setting: updated }
 }
 
 upload_file.config = {
