@@ -3,7 +3,7 @@ import Button from 'common/components/Button'
 import ConfirmButton from 'common/components/ConfirmButton'
 import render from 'common/functions/render'
 import apiReq from 'common/functions/apiReq'
-import { getSettingFileUrl } from 'common/functions/settingFileUrl'
+import { getSettingFileUrl, getSettingFileSize } from 'common/functions/settingFileUrl'
 import { useState, useEffect, useRef } from 'react'
 import { useUser } from 'features/User'
 import styles from './settings.module.css'
@@ -191,7 +191,7 @@ export default function Setting({ setting, onUpdate, onEditFull, onDelete }) {
                         {error && <span className={styles.settingError}>{error}</span>}
                         {!expanded && (
                             <div className={styles.configPreview} onClick={(e) => e.stopPropagation()}>
-                                <span className={styles.settingValue}>{renderValueContent(value, renderType, formType, false)}</span>
+                                <span className={styles.settingValue}>{renderValueContent(value, renderType, formType, false, setting)}</span>
                             </div>
                         )}
                     </div>
@@ -382,7 +382,7 @@ export default function Setting({ setting, onUpdate, onEditFull, onDelete }) {
 
     // File / image settings — upload to storage, value is the relative path
     if (isFileType) {
-        const fileUrl = getSettingFileUrl(value)
+        const fileUrl = getSettingFileUrl(value, getSettingFileSize(setting))
         return (
             <div className={styles.settingItem}>
                 <div className={styles.settingMain}>
@@ -473,7 +473,7 @@ export default function Setting({ setting, onUpdate, onEditFull, onDelete }) {
                                 title={formType !== 'info' ? 'Click to edit' : undefined}
                                 style={{ flex: 1, minWidth: 0 }}
                             >
-                                <span className={styles.settingValue} style={{ flex: 1, minWidth: 0 }}>{renderValueContent(value, renderType, formType)}</span>
+                                <span className={styles.settingValue} style={{ flex: 1, minWidth: 0 }}>{renderValueContent(value, renderType, formType, false, setting)}</span>
                             </div>
                             {formType !== 'info' && <Button icon='edit' mode='text' onClick={() => setIsEditing(true)} />}
                         </>
@@ -484,7 +484,7 @@ export default function Setting({ setting, onUpdate, onEditFull, onDelete }) {
     )
 }
 
-function renderValueContent(val, renderType, formType, isEditing) {
+function renderValueContent(val, renderType, formType, isEditing, setting) {
     if (val === undefined || val === null || val === '') {
         return <em className={styles.emptyValue}>Not set</em>
     }
@@ -524,12 +524,12 @@ function renderValueContent(val, renderType, formType, isEditing) {
     }
     const isImage = formType === 'image' || renderType === 'image'
     if (isImage) {
-        const url = getSettingFileUrl(val)
+        const url = getSettingFileUrl(val, getSettingFileSize(setting))
         if (!url) return <em className={styles.emptyValue}>Not set</em>
         return <img src={url} alt="" className={styles.settingThumb} />
     }
     if (formType === 'file') {
-        const url = getSettingFileUrl(val)
+        const url = getSettingFileUrl(val, getSettingFileSize(setting))
         if (!url) return <em className={styles.emptyValue}>Not set</em>
         return <a href={url} target="_blank" rel="noreferrer" className={styles.linkValue} onClick={(e) => e.stopPropagation()}>PDF</a>
     }

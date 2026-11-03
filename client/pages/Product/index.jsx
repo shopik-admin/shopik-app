@@ -459,6 +459,8 @@ Product.init = async function (path, ctx) {
     return {
         title: product.name,
         description: product.description || product.name,
+        image: getProductImageUrls(product.id, product.images?.product, 'xl')[0] || '',
+        metaType: 'product',
         data: { product, sales: res.sales, categoryPath: res.categoryPath, related, relatedSales }
     }
 }

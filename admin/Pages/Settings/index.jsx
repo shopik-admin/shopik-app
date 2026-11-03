@@ -13,7 +13,7 @@ import Card from 'common/components/Card'
 import Flex from 'common/components/Flex'
 import Setting from './Setting.jsx'
 import ConfigEditor from './ConfigEditor.jsx'
-import { getSettingFileUrl } from 'common/functions/settingFileUrl'
+import { getSettingFileUrl, getSettingFileSize } from 'common/functions/settingFileUrl'
 
 const FORM_TYPES = [
     'text', 'checkbox', 'switch', 'color', 'select',
@@ -213,8 +213,8 @@ function SettingModalContent({ setting, defaultCategory, defaultSubCategory, def
                     {typeof formData.value === 'string' && formData.value && !pendingFile && (
                         <div style={{ margin: '0.35rem 0' }}>
                             {isModalImage
-                                ? <img src={getSettingFileUrl(formData.value)} alt="" className={styles.settingThumb} style={{ maxHeight: '4rem', maxWidth: '10rem' }} />
-                                : <a href={getSettingFileUrl(formData.value)} target="_blank" rel="noreferrer" className={styles.linkValue}>Open current file</a>}
+                                ? <img src={getSettingFileUrl(formData.value, getSettingFileSize(setting))} alt="" className={styles.settingThumb} style={{ maxHeight: '4rem', maxWidth: '10rem' }} />
+                                : <a href={getSettingFileUrl(formData.value, getSettingFileSize(setting))} target="_blank" rel="noreferrer" className={styles.linkValue}>Open current file</a>}
                         </div>
                     )}
                     {pendingFile && <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '0.25rem 0' }}>Selected: {pendingFile.filename} (uploads on Add)</div>}

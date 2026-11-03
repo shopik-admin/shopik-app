@@ -2,8 +2,10 @@ import { normalizeHostname, rootHostname } from './normalizeDomain.js'
 
 // Resolves the domain id for storefront traffic:
 // 1. Origin/Referer hostname (same normalize logic as the CORS allowlist) → Domain.url
-// 2. The single isDefault domain
-// Throws when neither resolves — there is no magic 'default' id anymore.
+// 2. The request Host header — bot traffic (social crawlers, curl) sends no
+//    Origin/Referer, so the host is the only tenant signal it provides.
+// 3. The single isDefault domain
+// Throws when none resolves — there is no magic 'default' id anymore.
 const TTL_MS = 60_000
 let cachedDefaultId = null
 let defaultExpiresAt = 0
@@ -15,8 +17,8 @@ export function clearDomainCache() {
     urlCache.clear()
 }
 
-function rootFromOrigin(origin) {
-    let host = String(origin).trim().toLowerCase()
+function rootFromSource(source) {
+    let host = String(source).trim().toLowerCase()
     host = host.replace(/^[a-z][a-z0-9+.-]*:\/\//, '')
     host = host.split(/[/?#]/)[0]
     host = host.split('@').pop()
@@ -24,21 +26,23 @@ function rootFromOrigin(origin) {
     return rootHostname(normalizeHostname(host))
 }
 
+async function cachedRootId(root, DL) {
+    const cached = urlCache.get(root)
+    if (cached && cached.expiresAt > Date.now()) return cached.id || null
+    const found = await DL.Domain.readOne({ url: root, active: true }, { _id: 0, id: 1 })
+    const id = found?.id || null
+    urlCache.set(root, { id, expiresAt: Date.now() + TTL_MS })
+    return id
+}
+
 export default async function resolveDomainId(req, DL) {
-    const origin = req?.headers?.origin || req?.headers?.referer
-    if (origin) {
+    for (const source of [req?.headers?.origin, req?.headers?.referer, req?.headers?.host]) {
+        if (!source) continue
         try {
-            const root = rootFromOrigin(origin)
-            const cached = urlCache.get(root)
-            if (cached && cached.expiresAt > Date.now()) {
-                if (cached.id) return cached.id
-            } else {
-                const found = await DL.Domain.readOne({ url: root, active: true }, { _id: 0, id: 1 })
-                urlCache.set(root, { id: found?.id || null, expiresAt: Date.now() + TTL_MS })
-                if (found?.id) return found.id
-            }
+            const id = await cachedRootId(rootFromSource(source), DL)
+            if (id) return id
         } catch {
-            // invalid/unresolvable origin — fall through to default
+            // invalid/unresolvable source — fall through to the next one
         }
     }
 

@@ -3,6 +3,7 @@ import { renderToString } from 'react-dom/server'
 import Head from 'layout/Head'
 import TR from '#common/texts/TR.js'
 import { getSettingFileUrl } from '#common/functions/settingFileUrl.js'
+import { buildMeta } from '#common/functions/buildMeta.js'
 import pages from './pages'
 import App from './App'
 
@@ -20,12 +21,15 @@ export async function render({ url, data, ctx }) {
     </StaticRouter>
   )
 
+  const meta = buildMeta({ settings: data.settings, initData: data.initData, page, notFound, url, host: ctx?.host })
+
   let head = renderToString(<Head
-    title={`${data.settings?.appearance?.siteName?.trim() || 'Shopik'} | ${notFound ? TR('page_not_found') : data.initData?.title || page?.title || ''}`}
-    description={notFound ? '' : data.initData?.description || page?.description || ''}
+    title={`${data.settings?.appearance?.siteName?.trim() || 'Shopik'} | ${notFound ? TR('page_not_found') : meta.title || ''}`}
+    description={meta.description}
     noindex={notFound}
     favicon={getSettingFileUrl(data?.settings?.appearance?.favicon) || undefined}
     faviconDark={getSettingFileUrl(data?.settings?.appearance?.faviconDark) || undefined}
+    meta={meta}
   />)
 
   const themeEntries = Object.entries(data?.settings?.theme || {})

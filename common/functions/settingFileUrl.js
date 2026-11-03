@@ -6,6 +6,13 @@ import { runtimeEnv } from './runtimeEnv.js'
 
 const RAW_EXT = /\.(webp|png|jpe?g|svg|ico|pdf)$/i
 
+// Preview size for a setting's image variants: settings can declare their
+// own `sizes` (e.g. seo.ogImage stores only a full-res variant), so callers
+// must not assume the standard 'l' variant exists.
+export function getSettingFileSize(setting, fallback = 'l') {
+    return Object.keys(setting?.sizes || {})[0] || fallback
+}
+
 export function getSettingFileUrl(value, size = 'l') {
     if (!value) return ''
     const str = String(value).trim()

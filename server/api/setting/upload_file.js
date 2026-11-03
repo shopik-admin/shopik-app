@@ -58,7 +58,7 @@ export default async function upload_file(payload, { DL, external }) {
         if (isRaster) {
             let sizes
             try {
-                sizes = await resize(buffer, SETTING_IMAGE_SIZES)
+                sizes = await resize(buffer, setting.sizes || SETTING_IMAGE_SIZES)
             } catch {
                 throw { status: 400, message: 'invalid image' }
             }
