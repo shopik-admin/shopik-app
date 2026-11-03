@@ -23,6 +23,7 @@ export default async function status({ orderNumber }, { DL, _user }) {
             'payment.cardCompany': 1,
             'payment.authorizedAmount': 1,
             'payment.capturedAt': 1,
+            'payment.payments': 1,
         }
     )
     if (!order) throw { status: 404, message: 'Order not found' }

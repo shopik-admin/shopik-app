@@ -25,6 +25,11 @@ export default async function callback(payload, info) {
     const ccodeRaw = q.CCode ?? q.Ccode ?? q.ccode
     const providerCode = ccodeRaw !== undefined ? Number(ccodeRaw) : undefined
     const amountRaw = q.Amount
+    // Number of payments the customer picked on Hyp's payment page.
+    // Returned as `Payments` because the sign request asks for MoreData.
+    const paymentsRaw = q.Payments ?? q.payments
+    const paymentsNum = Number(paymentsRaw)
+    const payments = Number.isFinite(paymentsNum) && paymentsNum > 0 ? Math.trunc(paymentsNum) : undefined
 
     // Helper to send minimal loader HTML (no bundle) + postMessage to parent
     function sendHtml({ ok, order, errorMessage }) {
@@ -181,7 +186,7 @@ export default async function callback(payload, info) {
             amount: Number(authorizedAmount),
             terminalId: process.env.HYP_MASOF || undefined,
             providerTxnId: String(providerTxnId), providerCode, authCode: q.ACode, providerUid: q.UID, providerPayerId: q.UserId, signature: q.Sign,
-            cardToken, cardExpiry, last4digits, cardCompany, providerData: { ...q, tokenResponse: tokenData }
+            cardToken, cardExpiry, last4digits, cardCompany, payments, providerData: { ...q, tokenResponse: tokenData }
         })
     } catch { }
 
@@ -196,6 +201,7 @@ export default async function callback(payload, info) {
                 providerPayerId: q.UserId ? String(q.UserId) : undefined,
                 cardToken, cardExpiry,
                 last4digits, cardCompany,
+                payments,
                 terminalId: process.env.HYP_MASOF || undefined,
                 authorizedAmount: Number(authorizedAmount)
             },
@@ -224,7 +230,7 @@ export default async function callback(payload, info) {
             DL, order,
             eventType: DL.Timeline.constants.EVENT_TYPES.PAYMENT,
             actor: null,
-            context: { step: 'payment_authorized', provider: 'hyp', providerTxnId: String(providerTxnId), authCode: q.ACode, providerUid: q.UID, amount: Number(authorizedAmount), last4digits, cardCompany, orderNumber },
+            context: { step: 'payment_authorized', provider: 'hyp', providerTxnId: String(providerTxnId), authCode: q.ACode, providerUid: q.UID, amount: Number(authorizedAmount), last4digits, cardCompany, payments, orderNumber },
             outcome: { success: true },
             metadata: { source: 'payment/hyp/callback', referenceOrderNumber: order.number }
         })

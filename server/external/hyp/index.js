@@ -88,7 +88,17 @@ async function hypFetch(url, { timeoutMs = 15000 } = {}) {
     }
 }
 
-function buildSignQuery({ masof, key, passp, amount, orderNumber, orderId, customer, tmp }) {
+const DEFAULT_MAX_PAYMENTS = 6
+
+function normalizeMaxPayments(value) {
+    if (value === undefined || value === null || value === '') return DEFAULT_MAX_PAYMENTS
+    const n = Number(value)
+    if (!Number.isFinite(n)) return DEFAULT_MAX_PAYMENTS
+    return Math.min(36, Math.max(1, Math.trunc(n)))
+}
+
+export function buildSignQuery({ masof, key, passp, amount, orderNumber, orderId, customer, tmp, maxPayments = DEFAULT_MAX_PAYMENTS }) {
+    const payments = normalizeMaxPayments(maxPayments)
     const params = new URLSearchParams()
     params.set('action', 'APISign')
     params.set('What', 'SIGN')
@@ -104,7 +114,12 @@ function buildSignQuery({ masof, key, passp, amount, orderNumber, orderId, custo
     params.set('MoreData', 'True')
     params.set('Coin', '1')
     params.set('tmp', tmp)
-    params.set('Tash', 1)
+    // Tash is the maximum the customer may pick on Hyp's payment page;
+    // FixTash=False keeps the payment selector editable.
+    params.set('Tash', String(payments))
+    params.set('FixTash', payments > 1 ? 'False' : 'True')
+    params.set('tashType', '1')
+
     if (orderId) params.set('Info', String(orderId))
     if (customer?.name?.first) params.set('ClientName', decodeEntities(customer.name.first))
     if (customer?.name?.last) params.set('ClientLName', decodeEntities(customer.name.last))
@@ -160,8 +175,8 @@ export default function hypFactory({ DL }) {
         }
     }
 
-    async function createPaymentUrl({ order, amount, customer }) {
-        return logged('sign', { amount, orderNumber: order.number, orderId: order.id }, async () => {
+    async function createPaymentUrl({ order, amount, customer, maxPayments = DEFAULT_MAX_PAYMENTS }) {
+        return logged('sign', { amount, orderNumber: order.number, orderId: order.id, maxPayments }, async () => {
             const { masof, key, passp, baseUrl } = getConfig()
             const query = buildSignQuery({
                 masof, key, passp,
@@ -169,7 +184,8 @@ export default function hypFactory({ DL }) {
                 orderNumber: order.number,
                 orderId: order.id,
                 customer: customer || { name: order.name, phone: order.phone, email: order.email },
-                tmp: 6
+                tmp: 6,
+                maxPayments
             })
             const text = await hypFetch(`${baseUrl}?${query}`)
             if (!text || text.includes('CCode') && text.includes('CCode=')) {
