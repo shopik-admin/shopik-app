@@ -28,7 +28,13 @@ export default Model => async function updateOne(filter = {}, update, options = 
 
         if (cacheStrategy) {
             try {
-                if (cacheStrategy === CACHE_STRATEGIES.HASHSET)
+                if (!doc) {
+                    // Nothing matched in Mongo, but the cache can still hold this id
+                    // (a doc removed outside the app, or created against another DB).
+                    // Reads keep serving that phantom doc while every update returns
+                    // null — drop the stale entry so reads reflect reality.
+                    if (filter?.id) await Model.cache.del(filter.id)
+                } else if (cacheStrategy === CACHE_STRATEGIES.HASHSET)
                     await Model.cache.add(doc)
                 else
                     await Model.cache.del(doc.id)

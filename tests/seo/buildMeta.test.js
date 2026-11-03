@@ -19,7 +19,7 @@ const settings = {
 }
 
 describe('buildMeta', () => {
-    it('per-page content wins over the seo settings', () => {
+    it('per-page title/image/type win over the seo settings, description never varies', () => {
         const meta = buildMeta({
             settings,
             initData: { title: 'Product name', description: 'Product desc', image: 'https://files/x.webp', metaType: 'product' },
@@ -28,7 +28,7 @@ describe('buildMeta', () => {
             host: 'store-b.com'
         })
         assert.equal(meta.title, 'Shopik | Product name')
-        assert.equal(meta.description, 'Product desc')
+        assert.equal(meta.description, 'Store-wide description')
         assert.equal(meta.image, 'https://files/x.webp')
         assert.equal(meta.type, 'product')
         assert.equal(meta.url, 'https://store-b.com/product/123')
@@ -41,6 +41,11 @@ describe('buildMeta', () => {
         assert.equal(meta.description, 'Store-wide description')
         assert.equal(meta.image, 'https://files.shopik.co.il/images/settings/d1/ogImage/v1/full.webp')
         assert.equal(meta.type, 'website')
+    })
+
+    it('an unset seoDescription emits nothing, not the page description', () => {
+        const meta = buildMeta({ settings: { appearance: {} }, initData: { description: 'Product desc' }, page: { description: 'route desc' }, url: '/product/1', host: 'x.com' })
+        assert.equal(meta.description, '')
     })
 
     it('image falls back to appIcon (512) when ogImage is unset', () => {

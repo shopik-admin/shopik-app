@@ -18,6 +18,8 @@ export default async function update(payload, { DL, _admin }) {
         return setting
 
     const updated = await DL.Setting.updateOne({ id }, update)
+    if (!updated)
+        throw { status: 404, message: 'setting could not be updated — the row is not in the database (the settings cache is stale, reset it)' }
     return updated
 }
 
