@@ -1,16 +1,20 @@
 import getUserFavorites, { MAX_FAVORITES } from '#server/utils/data/getUserFavorites.js'
 
-// Toggle one product in the user's favourites. Returns the full updated list
-// so the client never needs a follow-up read.
-export default async function favorite({ productId }, { DL, _user }) {
+// Set one product's favourite state explicitly (client sends the desired state,
+// not "toggle"). That makes retries and double-clicks idempotent. Returns the
+// full updated list so the client never needs a follow-up read.
+export default async function favorite({ productId, favorite }, { DL, _user }) {
+    if (typeof favorite !== 'boolean')
+        throw { status: 400, message: 'favorite must be a boolean' }
+
     const userId = String(_user.id)
     const id = String(productId || '').trim()
 
     const existing = await DL.UserFavorite.readOne({ userId, productId: id })
 
-    if (existing) {
-        await DL.UserFavorite.deleteOne({ _id: existing._id })
-    } else {
+    if (!favorite) {
+        if (existing) await DL.UserFavorite.deleteOne({ _id: existing._id })
+    } else if (!existing) {
         const product = await DL.Product.readOne(
             { id, status: DL.Product.constants.STATUS.ACTIVE },
             { _id: 0, id: 1 }
@@ -33,4 +37,4 @@ export default async function favorite({ productId }, { DL, _user }) {
     return { favoriteIds }
 }
 
-favorite.config = { auth: 'required', required: ['productId'] }
+favorite.config = { auth: 'required', required: ['productId', 'favorite'] }

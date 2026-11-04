@@ -94,7 +94,7 @@ export default function User({ children, sdUser = {} }) {
             : [id, ...favorites])
 
         try {
-            const res = await apiReq('user/favorite', { productId: id })
+            const res = await apiReq('user/favorite', { productId: id, favorite: !wasFavorite })
             if (Array.isArray(res?.favoriteIds)) setFavorites(res.favoriteIds)
             return !wasFavorite
         } catch (e) {
