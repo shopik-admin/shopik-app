@@ -2,6 +2,7 @@ import Flex from "#common/components/Flex/index.jsx"
 import Icon from "#common/components/Icon/index.jsx"
 import Text from "#common/components/Text/index.jsx"
 import TR from 'common/texts/TR.js'
+import { CLOSED_STATUSES } from 'common/functions/opsView.js'
 import { formatHour, formatHourRange } from '../Windows/dates.js'
 import { useState, useEffect } from 'react'
 
@@ -9,6 +10,34 @@ export const SHIPPING_STATUSES = ['packed', 'shipped']
 
 export function isShippingStatus(status) {
     return SHIPPING_STATUSES.includes(status)
+}
+
+// Statuses that are no longer in process. A closed order has nothing left to work —
+// no claim, no picking, no delivery — so on the ops screens it can only be viewed.
+export function isClosedOrder(status) {
+    return CLOSED_STATUSES.includes(status)
+}
+
+// The shipper's queue runs from packed to the end of the order, so delivered and
+// canceled rows belong in it. A card lays those out as a delivery card (bags);
+// the detail page keeps its shipping shell only for the orders still open, since
+// a closed order has no time left to count.
+export function isDeliveryCard(status) {
+    return isShippingStatus(status) || isClosedOrder(status)
+}
+
+// Ops status words. The shared status labels are the customer-facing ones
+// ("paid", "picked"), the queue needs the operational ones — what the order is
+// waiting for, not what was done to it.
+const OPS_STATUS_KEYS = {
+    paid: 'ops_status_waiting_pick',
+    packed: 'ops_waiting_shipment',
+    shipped: 'ops_in_shipment',
+    done: 'ops_status_finished',
+}
+
+export function opsStatusKey(status) {
+    return OPS_STATUS_KEYS[status] || status
 }
 
 // Departure time for the shipping layout (ops_departure_time key).
@@ -37,8 +66,10 @@ export function formatWindow(w) {
         const d = new Date(w.date), today = new Date()
         today.setHours(0, 0, 0, 0); d.setHours(0, 0, 0, 0)
         const diff = Math.round((d - today) / 86400000)
-        if (diff === 0 || diff === 1) {
-            const day = diff === 0 ? TR('ops_today') : TR('ops_tomorrow')
+        // The shipper's queue reaches back to yesterday, so a closed order from
+        // yesterday still reads as yesterday rather than a weekday.
+        if (diff === -1 || diff === 0 || diff === 1) {
+            const day = diff === -1 ? TR('ops_yesterday') : diff === 0 ? TR('ops_today') : TR('ops_tomorrow')
             dayText = withTime(day)
             textLong = withTime(day)
         } else {
@@ -53,7 +84,7 @@ export function formatWindow(w) {
     if (!w.endTimestamp) return { text: '--:--', dayText, textLong, minutes: 0 }
 
     const diffMs = new Date(w.endTimestamp).getTime() - Date.now()
-    if (diffMs < 0) return { text: '00:00', dayText, textLong, minutes: 0, isLate: true }
+    if (diffMs < 0) return { text: '00:00', dayText, textLong, minutes: 0, isLate: true, endMinutes: 0 }
 
     const totalMinutes = Math.floor(diffMs / (1000 * 60))
     const totalHours = Math.floor(totalMinutes / 60)
@@ -71,20 +102,43 @@ export function formatWindow(w) {
         dayText,
         textLong,
         minutes: totalMinutes,
+        endMinutes: totalMinutes,
         isLate: totalMinutes <= 0,
         isAlmostLate: totalMinutes <= 15
     }
 }
 
+// Minutes left to the window START (how soon picking must begin). Null when the
+// window has no start time. Past start → negative, so late orders read danger.
+export function minutesToStart(w) {
+    if (!w?.startTimestamp) return null
+    return Math.floor((new Date(w.startTimestamp).getTime() - Date.now()) / 60000)
+}
+
 // Card tone shared by the Ops list and the User order history.
-// A finished order is always green; otherwise the tone follows
-// window urgency (danger ≤10 min left, warning <60 min).
+// done → green; packed/shipped judge the window END; picking-side statuses (paid,
+// picking, picked) judge the window START — danger ≤10 min, warning <60, else green.
+// A closed order has nothing left to run out of, so it gets no tone.
 export function orderCardTone(order) {
     if (order?.status == 'done') return 'success'
-    const { minutes } = formatWindow(order?.window)
+    if (order?.status == 'canceled' || order?.status == 'failed') return null
+
+    const w = order?.window
+    if (!w) return null
+
+    const minutes = isShippingStatus(order.status)
+        ? formatWindow(w).endMinutes
+        : minutesToStart(w)
+
+    if (minutes == null) return null
     if (minutes <= 10) return 'danger'
     if (minutes < 60) return 'warning'
-    return null
+    return 'success'
+}
+
+// Last 4 digits of an order number, for the compact Ops screens.
+export function shortNumber(n) {
+    return String(n ?? '').slice(-4)
 }
 
 // Live countdown of the time remaining in the window.

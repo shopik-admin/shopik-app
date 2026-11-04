@@ -194,7 +194,7 @@ export function ProductInfo(props) {
     const infoText = getUnitInfoText(product)
     return <Flex gap={4} col className={classNames(styles.info, styles[size])}>
         <ProductPrice {...props} />
-        {infoText && <Text size='xs' mode='sub'><ProductUnitInfo product={product} /></Text>}
+        {infoText && <Text size='s' mode='sub'><ProductUnitInfo product={product} /></Text>}
         <Text
             bold
             ellipsis={nameLines}

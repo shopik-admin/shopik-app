@@ -82,6 +82,12 @@
         padding: 0 32px;
     }
 
+    .divider {
+        height: 1px;
+        margin: 0 32px;
+        background-color: var(--border-secondary);
+    }
+
     .pills {
         padding: 0 25px;
     }
@@ -227,10 +233,44 @@
 }
 
 .replacedCard {
-    border: 1.5px solid var(--warning-color, #e6a600);
+    --replaced-line: var(--warning-color, #e6a600);
+    border: 1.5px solid var(--replaced-line);
     border-radius: 16px;
     background: #fff;
+}
+
+/* The border, and the divider between the two blocks, follow the pick state —
+   green once the supplied amount matches what was ordered. */
+.replacedCard.green {
+    --replaced-line: var(--success-color);
+}
+
+.replacedCard.yellow {
+    --replaced-line: var(--warning-color);
+}
+
+.replacedCard.red {
+    --replaced-line: var(--danger-color);
+}
+
+/* The two blocks carry the card padding so the divider runs edge to edge. */
+.replacedOriginal {
     padding: 10px 12px;
+    border-bottom: 1px solid var(--replaced-line);
+}
+
+.replacedReplacement {
+    padding: 10px 12px;
+}
+
+/* A little extra room around the replaced product name. */
+.replacedName {
+    padding-block: 6px;
+}
+
+/* ...and the same room under the barcode, before the pill. */
+.replacedBarcode {
+    padding-block-end: 8px;
 }
 
 .pickModal {

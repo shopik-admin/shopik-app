@@ -5,5 +5,5 @@ import { useData } from '../DataProvider'
 
 export default function DataLoader({ }) {
     const { loading, error } = useData()
-    return loading ? <Loader /> : error ? <Text mode='error'>{error}</Text> : null
+    return loading ? <Loader /> : error ? <Text mode='error'>{typeof error == 'string' ? error : error?.message || String(error)}</Text> : null
 }

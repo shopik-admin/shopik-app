@@ -16,14 +16,16 @@ import StorePicker from './StorePicker'
 // current store; if not, the existing currentStoreId is kept (a wrong one can
 // be switched via the store pill). With no current store at all, the admin must
 // pick from their allowed stores (no dismiss).
-export default function StoreGate({ children }) {
+// The contractor queue is not a single store — it covers every store he owns at
+// once — so the gate does not apply to him, only the check that he owns any.
+export default function StoreGate({ children, multiStore }) {
     const { currentStoreId, setCurrentStore } = useUser()
     const [phase, setPhase] = useState('locating')
     const started = useRef(false)
     const stores = useLists()?.stores || []
 
     useEffect(() => {
-        if (started.current) return
+        if (started.current || multiStore) return
         started.current = true
         const existing = currentStoreId
         ;(async () => {
@@ -45,6 +47,7 @@ export default function StoreGate({ children }) {
         })()
     }, [])
 
+    if (multiStore) return stores.length ? children : <NoStores />
     if (phase === 'ready' || currentStoreId) return children
 
     return <Flex grow center col gap={16} style={{ padding: 24 }}>
@@ -56,6 +59,12 @@ export default function StoreGate({ children }) {
             <Text size="l" bold center>ops_select_store</Text>
             <StorePicker />
         </>}
-        {phase === 'noStores' && <Text center mode="error">ops_no_stores</Text>}
+        {phase === 'noStores' && <NoStores />}
+    </Flex>
+}
+
+function NoStores() {
+    return <Flex grow center col gap={16} style={{ padding: 24 }}>
+        <Text center mode="error">ops_no_stores</Text>
     </Flex>
 }

@@ -2,11 +2,31 @@ import { opsProximityRadiusM } from '#common/functions/opsConfig.js'
 import distanceMeters from '#common/functions/distance.js'
 import sharp from 'sharp'
 
+// A delivery proof photo is mandatory for a regular shipper. Only a manager may close
+// an order without one, and a super admin keeps the skip as an audit escape.
+export function maySkipPhoto(admin) {
+    return admin?.isSuperAdmin === true || admin?.hasPermission?.('order:ship:manage') === true
+}
+
+// Delivery must happen near the customer address. A caller who is farther away
+// (or whose GPS is unavailable) may only continue through an explicit override,
+// which is gated on order:ship:manage and recorded on the order timeline and in
+// ship_history. There is no anonymous `force` bypass.
+export function evaluateProximity({ order, coordinates, override = false, canOverride = false }) {
+    if (!coordinates || !order?.address?.location?.coordinates?.length) return null
+    const distanceM = distanceMeters(coordinates, order.address.location.coordinates)
+    const radiusM = opsProximityRadiusM()
+    if (distanceM <= radiusM) return { distanceM, radiusM, overridden: false }
+    if (!override) throw { status: 400, message: `too far: ${Math.round(distanceM)}m > ${radiusM}m (manager override required)` }
+    if (!canOverride) throw { status: 403, message: 'proximity override not allowed' }
+    return { distanceM, radiusM, overridden: true }
+}
+
 export default async function deliver(payload, { DL, _admin, external, utils }) {
-    const { orderId, imageBase64, coordinates, force } = payload
+    const { orderId, imageBase64, coordinates, override, force, overrideReason } = payload
     if (!orderId) throw { status: 400, message: 'orderId required' }
-    // Super admins may skip the photo (DeliverPhoto "skip" button); everyone else must send an image
-    const skipPhoto = !imageBase64 && _admin.isSuperAdmin
+    // Delivery proof is mandatory for a regular shipper; skipping it is a manager call.
+    const skipPhoto = !imageBase64 && maySkipPhoto(_admin)
     if (!imageBase64 && !skipPhoto) throw { status: 400, message: 'orderId and imageBase64 required' }
     if (imageBase64 && Buffer.byteLength(imageBase64, 'utf8') > 8 * 1024 * 1024) throw { status: 400, message: 'image too large' }
 
@@ -17,11 +37,22 @@ export default async function deliver(payload, { DL, _admin, external, utils }) 
     const shipment = order.shipmentId ? await DL.Shipment.readById(order.shipmentId) : null
     if (shipment && shipment.shipper?.adminId !== _admin.id && !_admin.isSuperAdmin) throw { status: 403, message: 'not your shipment' }
 
-    if (!force && coordinates && order.address?.location?.coordinates?.length) {
-        const d = distanceMeters(coordinates, order.address.location.coordinates)
-        const radiusM = opsProximityRadiusM()
-        if (d > radiusM) throw { status: 400, message: `too far: ${Math.round(d)}m > ${radiusM}m (use force if GPS drift)` }
-    }
+    // `force` is the legacy name for the same override; both still require the
+    // manage permission, so old clients cannot bypass the check anonymously.
+    const requestedOverride = override === true || force === true
+    const canOverride = _admin.hasPermission('order:ship:manage')
+    if (requestedOverride && !canOverride) throw { status: 403, message: 'proximity override not allowed' }
+
+    const proximity = evaluateProximity({ order, coordinates, override: requestedOverride, canOverride })
+    // Record every explicit override, including GPS-unavailable deliveries where
+    // there was no distance to compare.
+    const overridden = requestedOverride && (proximity ? proximity.overridden : true)
+    const overrideMeta = overridden ? {
+        override: true,
+        reason: typeof overrideReason === 'string' && overrideReason.trim() ? overrideReason.trim().slice(0, 500) : undefined,
+        distanceM: proximity ? Math.round(proximity.distanceM) : undefined,
+        radiusM: proximity?.radiusM
+    } : undefined
 
     let url = null
     if (!skipPhoto) {
@@ -57,9 +88,9 @@ export default async function deliver(payload, { DL, _admin, external, utils }) 
         try {
             await DL.ShipHistory.create({
                 shipmentId: shipment.id, orderId, storeId: shipment.storeId, shipperAdminId: _admin.id,
-                type: force ? 'force' : 'deliver',
+                type: overridden ? 'force' : 'deliver',
                 location: coordinates ? { type: 'Point', coordinates } : undefined,
-                at, proofUrl: url
+                at, proofUrl: url, metadata: overrideMeta
             })
         } catch {}
 
@@ -72,7 +103,12 @@ export default async function deliver(payload, { DL, _admin, external, utils }) 
 
     try {
         const { record, adminActor } = utils.data.timeline
-        await record({ DL, order, eventType: DL.Timeline.constants.EVENT_TYPES.ORDER_STATUS_UPDATE, actor: adminActor(_admin), changes: { oldData: { status: 'shipped' }, newData: { status: 'done', deliveryProof: { url } } }, context: { step: 'deliver', force: !!force, proofUrl: url }, metadata: { source: 'shipment/deliver' } })
+        await record({
+            DL, order, eventType: DL.Timeline.constants.EVENT_TYPES.ORDER_STATUS_UPDATE, actor: adminActor(_admin),
+            changes: { oldData: { status: 'shipped' }, newData: { status: 'done', deliveryProof: { url } } },
+            context: { step: 'deliver', override: overridden, overrideReason: overrideMeta?.reason, distanceM: overrideMeta?.distanceM, radiusM: overrideMeta?.radiusM, proofUrl: url },
+            metadata: { source: 'shipment/deliver' }
+        })
     } catch {}
 
     return { orderId, url }

@@ -4,8 +4,9 @@ import { useNavigate } from 'react-router'
 import Flex from 'common/components/Flex'
 import Icon from 'common/components/Icon'
 import Text from 'common/components/Text'
+import { useUser } from 'features/User'
 import styles from './ops.module.css'
-import { DeliveryMethodTag, formatDepartureTime, formatWindow, isShippingStatus, RemainingTime, orderCardTone } from './orderUtils'
+import { DeliveryMethodTag, formatDepartureTime, formatWindow, isClosedOrder, isDeliveryCard, opsStatusKey, RemainingTime, orderCardTone, shortNumber } from './orderUtils'
 import render from '#common/functions/render.js'
 import ProgressGauge from '#common/components/ProgressGauge/index.jsx'
 
@@ -14,7 +15,8 @@ export default function OrderCard({ order = {} }) {
         { deliveryMethod, status, storeId, cart = [], bags = {} } = order,
         windowTime = formatWindow(order.window),
         tone = orderCardTone(order),
-        isShipping = isShippingStatus(status),
+        isDelivery = isDeliveryCard(status),
+        isClosed = isClosedOrder(status),
         { stores } = useLists(),
         store = stores.find(s => s.value == storeId),
         address = deliveryMethod == 'pickup' ? store?.address : order.address,
@@ -25,9 +27,17 @@ export default function OrderCard({ order = {} }) {
         coldCount = bags.cold ?? 0,
         otherCount = bags.freeze ?? bags.extra ?? 0,
         departureTime = formatDepartureTime(order.window),
-        shippingStatusKey = status === 'shipped' ? 'ops_in_shipment' : 'ops_waiting_shipment',
-        bottomName = isShipping ? (order.shipper?.name || order.picker?.name) : order.picker?.name,
-        routeSeq = order._route?.seq
+        bottomName = order.shipper?.name || order.picker?.name,
+        routeSeq = order._route?.seq,
+        me = useUser()?.id,
+        // Prefer the server's isMine; fall back to a client check so a stale list
+        // (claim happened after the page loaded) still marks the card as ours.
+        isMine = order.isMine ?? (order.picker?.adminId == me),
+        // Own while it is still open reads as "mine"; a closed order is just what
+        // it ended as.
+        statusKey = isMine && !isClosed
+            ? (isDelivery ? 'ops_shipped_mine' : 'ops_pick_mine')
+            : opsStatusKey(status)
 
     function onOrderCardClick() {
         navigate(`/ops-order/${order.id}`)
@@ -37,13 +47,14 @@ export default function OrderCard({ order = {} }) {
         styles.orderCard,
         [styles.danger, tone == 'danger'],
         [styles.warning, tone == 'warning'],
-        [styles.success, tone == 'success']
+        [styles.success, tone == 'success'],
+        [styles.mine, isMine]
     )}>
         <Flex className={styles.row} alignItems='center' justifyContent='space-between'>
             <Flex gap={5} alignItems='center' >
                 <DeliveryMethodTag deliveryMethod={order.deliveryMethod} />
                 <Text bold>|</Text>
-                <Text bold>{order.number}</Text>
+                <Text bold>{shortNumber(order.number)}</Text>
                 {routeSeq != null && <Text bold size='s'>#{routeSeq + 1}</Text>}
             </Flex>
             <Text size='s'>{render({ type: 'name', value: order.name })}</Text>
@@ -62,7 +73,7 @@ export default function OrderCard({ order = {} }) {
                 <Text size='s'>{windowTime.dayText}</Text>
             </Flex>
         </Flex>
-        {isShipping ? <Flex className={styles.row} justifyContent='space-between'>
+        {isDelivery ? <Flex className={styles.row} justifyContent='space-between'>
             <Flex gap={15} center>
                 <Flex gap={5} alignItems='center'>
                     <Text bold size='xl'>{regularCount}</Text>
@@ -97,7 +108,7 @@ export default function OrderCard({ order = {} }) {
         <Flex className={styles.row} alignItems='center' justifyContent='space-between'>
             <Flex gap={5} alignItems='center' >
                 <Icon name='checkEmpty' />
-                <Text bold>{isShipping ? shippingStatusKey : status}</Text>
+                <Text bold>{statusKey}</Text>
             </Flex>
             {bottomName && <Text size='s'>{bottomName}</Text>}
         </Flex>

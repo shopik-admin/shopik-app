@@ -1,12 +1,16 @@
 .ops {
-    padding-top: 16px;
+    /* padding-top: 16px; */
     padding-bottom: 80px;
     flex: 1;
     min-height: 0;
     overflow: auto;
 }
 
-.shipTabs {
+/* Sticky tab bar. Its background is on the wrapper, not on .tabs: line tabs are
+   transparent by design, and a background set from another module is a specificity
+   tie with .tabs.line — which one wins depends on the bundle order, which is how the
+   bar ended up with no background at all. */
+.tabsBar {
     position: sticky;
     top: 0;
     z-index: 2;
@@ -90,6 +94,34 @@
         .row:last-child {
             background-color: var(--status-bg);
             color: var(--status-color);
+        }
+    }
+
+    /* Orders belonging to the current picker: bottom bar in the full tone colour, white text.
+       No tone (window without times) keeps the plain card look. */
+    &.mine {
+        &.success .row:last-child {
+            background-color: var(--bg-success-primary);
+        }
+
+        &.warning .row:last-child {
+            background-color: var(--bg-warning-primary);
+        }
+
+        &.danger .row:last-child {
+            background-color: var(--bg-error-primary);
+        }
+
+        &.success,
+        &.warning,
+        &.danger {
+            .row:last-child {
+                color: var(--text-primary-on-brand);
+
+                small {
+                    color: var(--text-primary-on-brand);
+                }
+            }
         }
     }
 }

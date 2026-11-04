@@ -262,5 +262,5 @@ export default async function sync(payload, { DL }) {
 }
 
 sync.config = {
-    permissions: 'order_window:sync'
+    permissions: 'order_window_template:sync'
 }

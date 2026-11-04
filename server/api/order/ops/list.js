@@ -1,5 +1,7 @@
 import { enrichOrders } from '#server/utils/data/enrichCart.js'
-import buildOpsFilter from '#server/utils/data/opsFilter.js'
+import buildOpsFilter, { opsSearchMatch } from '#server/utils/data/opsFilter.js'
+import { withTiebreaker } from '#server/dl/defaults/read.js'
+import { CLOSED_STATUSES } from '#common/functions/opsView.js'
 import { deadlineFirstSort, balancedRoute } from '#common/functions/routeSort.js'
 
 export default async function list(payload, { DL, _admin }) {
@@ -11,15 +13,21 @@ export default async function list(payload, { DL, _admin }) {
         search
     } = payload || {}
 
-    // Shared queue scoping (current store, window limits, permission union) — see opsFilter.js,
-    // which also strips any client-passed storeId from extraFilter.
-    const { filter: finalFilter, perms: { me } } = await buildOpsFilter({
+    // Shared queue scoping (role window, store scope, permission union) — see
+    // common/functions/opsView.js and opsFilter.js.
+    const { filter: finalFilter, multiStore, me } = await buildOpsFilter({
         _admin,
-        extraFilter,
-        statusFilter: { $in: ['paid', 'picking', 'picked', 'packed', 'shipped'] }
+        extraFilter
     })
 
-    const finalSort = sort || { 'window.endTimestamp': 1, 'window.startTimestamp': 1 }
+    // Own orders first (mine, then unclaimed), then by window deadline.
+    // mineFirst has to be computed before the sort stage, so the read is an
+    // aggregation instead of find().sort() (which rejects projection fields).
+    // Closed orders sit at the bottom of the queue: the work an order still needs is
+    // what the roles act on, so history goes last. Both flags are computed in the
+    // project stage, which is also why they can be sort keys.
+    const baseSort = withTiebreaker(DL.Order.Model, sort) || { 'window.endTimestamp': 1, 'window.startTimestamp': 1 }
+    const mineSort = { closedFirst: 1, mineFirst: -1, ...baseSort }
 
     const select = {
         _id: 0,
@@ -50,29 +58,45 @@ export default async function list(payload, { DL, _admin }) {
         orderRestoredFrom: 1,
     }
 
-    // search via DL layer if provided
-    const options = { sort: finalSort, skip, limit }
-    if (search) options.search = search
-
     // Use raw Model for complex $or/$and that processFilter might strip — bypass read helper and use Model directly
     // But DL.Order.read will call processFilter which strips $or if not in filterFields. So we query Model directly.
     const Model = DL.Order.Model
-    let query = finalFilter
+    const query = opsSearchMatch(Model, finalFilter, search)
+
+    // mineFirst is computed before the sort stage, so the read goes through an aggregation
+    const pipelineBase = [
+        { $match: query },
+        {
+            $project: {
+                ...select,
+                mineFirst: {
+                    $cond: [
+                        {
+                            $or: [{ $eq: ['$picker.adminId', me] }, { $eq: ['$shipper.adminId', me] }]
+                        },
+                        1,
+                        0
+                    ]
+                },
+                // 0 for an order that still has work to do, 1 for a closed one, so
+                // ascending puts the live queue first and the history last.
+                closedFirst: { $cond: [{ $in: ['$status', CLOSED_STATUSES] }, 1, 0] }
+            }
+        }
+    ]
 
     // Route-aware ordering for the shipper screens (store origin, static after leave-store).
     // WAITING (packed): deadline strictly wins; MINE (shipped): persisted balanced routeOrder.
     // In-memory resort over a capped fetch, then slice — keeps order correct for <30-row queues.
-    const isWaiting = extraFilter?.status === 'packed' && !search
-    const isMine = extraFilter?.status === 'shipped' && extraFilter?.['shipper.adminId'] && !search
+    // A contractor's queue spans several stores, so a single origin cannot order it: sort by window.
+    const isWaiting = extraFilter?.status === 'packed' && !search && !multiStore
+    const isMine = extraFilter?.['shipper.adminId'] && !search && !multiStore
     const skipN = Number(skip) || 0
     const limitN = Math.min(Number(limit) || 25, 100)
 
     let docs
     if (isWaiting || isMine) {
-        const fetched = await Model.find(query, { _id: 0, ...select })
-            .sort(finalSort)
-            .limit(100)
-            .lean()
+        const fetched = await Model.aggregate([...pipelineBase, { $sort: mineSort }, { $limit: 100 }])
         let route = []
         try {
             const storeId = fetched[0]?.storeId
@@ -104,6 +128,9 @@ export default async function list(payload, { DL, _admin }) {
         } catch { route = [] }
         const routeById = new Map((route || []).map(r => [r.orderId, r]))
         const ordered = [...fetched].sort((a, b) => {
+            // Closed orders stay last even inside a route-ordered queue.
+            const ca = a.closedFirst || 0, cb = b.closedFirst || 0
+            if (ca !== cb) return ca - cb
             const ra = routeById.get(a.id), rb = routeById.get(b.id)
             const sa = ra?.seq ?? 1e9, sb = rb?.seq ?? 1e9
             return sa - sb
@@ -114,11 +141,7 @@ export default async function list(payload, { DL, _admin }) {
         })
     } else {
         // Handle $and case from above
-        docs = await Model.find(query, { _id: 0, ...select })
-            .sort(finalSort)
-            .skip(skipN)
-            .limit(limitN)
-            .lean()
+        docs = await Model.aggregate([...pipelineBase, { $sort: mineSort }, { $skip: skipN }, { $limit: limitN }])
     }
 
     // enrich cart items with product snapshot for old orders
@@ -126,13 +149,13 @@ export default async function list(payload, { DL, _admin }) {
         await enrichOrders(docs, DL)
     } catch { }
 
-    // Annotate isMine
-    return docs.map(d => ({
+    // Annotate isMine (mineFirst and closedFirst are only used for ordering)
+    return docs.map(({ mineFirst, closedFirst, ...d }) => ({
         ...d,
         isMine: (d.picker?.adminId === me) || (d.shipper?.adminId === me)
     }))
 }
 
 list.config = {
-    permissions: ['order:read', 'order:pick', 'order:ship']
+    permissions: ['order:read', 'order:pick', 'order:ship', 'order:pick:manage', 'order:ship:manage']
 }
