@@ -86,6 +86,11 @@ export function buildDocPayload({
     if (docType === DOC_TYPE.INVOICE) {
         if (items.length)
             payload.price_total = round2(items.reduce((sum, item) => sum + round2(Number(item.amount || 1) * Number(item.price || 0)), 0))
+        // EZcount recalculates `amount * price` per line with its own rounding,
+        // so a line landing on an exact half-cent can disagree with ours by one
+        // agora. auto_balance lets the provider absorb that cent as a discount
+        // instead of rejecting the document.
+        payload.auto_balance = 'true'
         if (Array.isArray(payment) && payment.length) payload.payment = payment
     }
 

@@ -77,6 +77,14 @@ describe('buildDocPayload', () => {
         assert.equal('price_total' in payload, false)
     })
 
+    it('asks EZcount to auto-balance cent rounding differences on a 320 only', () => {
+        const invoice = buildDocPayload({ order, lines, customer })
+        assert.equal(invoice.auto_balance, 'true')
+
+        const credit = buildDocPayload({ order, lines, customer, docType: DOC_TYPE.CREDIT })
+        assert.equal('auto_balance' in credit, false)
+    })
+
     it('carries the payment row on a 320 and never on a credit note', () => {
         const payment = [buildPaymentRow({ amount: 155, settings: { paymentType: 9, paymentName: 'כרטיס אשראי' } })]
         const invoice = buildDocPayload({ order, lines, customer, payment })
