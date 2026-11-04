@@ -13,6 +13,7 @@ import apiReq from 'common/functions/apiReq'
 import useApi from 'common/functions/useApi'
 import { useUser } from 'features/User'
 import apiKeyPermissions from 'common/constants/apiKeyPermissions.js'
+import { getPermissionGroupName, getPermissionMeta } from 'common/constants/permissionMeta'
 import { useLists } from 'common/features/Lists'
 import styles from './apiKeys.module.css'
 
@@ -267,17 +268,28 @@ export default function ApiKeys() {
                                     return (
                                         <div key={category} className={styles.categoryGroup}>
                                             <div className={styles.categoryHeader}>
-                                                <Checkbox checked={checked} onChange={e => toggleCategory(actions, e.target.checked)} />
-                                                <Text bold>{category}</Text>
+                                                <span className={styles.categoryCheckbox}>
+                                                    <Checkbox checked={checked} onChange={e => toggleCategory(actions, e.target.checked)} />
+                                                </span>
+                                                <Text bold className={styles.categoryName}>
+                                                    {getPermissionGroupName(category)}
+                                                </Text>
                                             </div>
                                             <ul className={styles.actionList}>
-                                                {actions.map(({ action, fullValue }) => {
+                                                {actions.map(({ fullValue }) => {
                                                     const isActive = selectedPermissions.includes(fullValue)
+                                                    const { name, description } = getPermissionMeta(fullValue)
                                                     return (
                                                         <li key={fullValue} className={isActive ? styles.active : ''}>
                                                             <label className={styles.checkboxLabel}>
                                                                 <Checkbox checked={isActive} onChange={e => togglePermission(fullValue, e.target.checked)} />
-                                                                <Text>{action}</Text>
+                                                                <span className={styles.permissionText}>
+                                                                    <Text className={styles.actionName}>{name}</Text>
+                                                                    {description && (
+                                                                        <Text size='s' className={styles.actionDescription}>{description}</Text>
+                                                                    )}
+                                                                </span>
+                                                                <span className={styles.permissionCode} dir='ltr'>{fullValue}</span>
                                                             </label>
                                                         </li>
                                                     )

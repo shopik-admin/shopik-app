@@ -181,8 +181,14 @@
     font-size: 0.95rem;
 }
 
-.folderIcon {
-    font-size: 1rem;
+.categoryCheckbox {
+    display: inline-flex;
+    flex-shrink: 0;
+}
+
+.categoryName {
+    flex: 1;
+    min-width: 0;
 }
 
 .actionList {
@@ -225,10 +231,53 @@
 
 .checkboxLabel {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 0.75rem;
     width: 100%;
     cursor: pointer;
+}
+
+.permissionText {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    flex: 1;
+    min-width: 0;
+}
+
+.actionName {
+    color: inherit;
+    font-size: 0.875rem;
+}
+
+.actionList li.active .actionName {
+    font-weight: 600;
+}
+
+.actionDescription {
+    color: var(--text-tertiary);
+    font-size: 0.75rem;
+    font-weight: 400;
+    line-height: 1.35;
+}
+
+/* The actual permission key, kept readable in LTR. */
+.permissionCode {
+    flex-shrink: 0;
+    align-self: flex-start;
+    margin-top: 1px;
+    padding: 0.05rem 0.45rem;
+    border: 1px solid var(--border-primary);
+    border-radius: 999px;
+    background: var(--bg-primary);
+    color: var(--text-tertiary);
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-size: 0.7rem;
+    font-weight: 400;
+    line-height: 1.5;
+    white-space: nowrap;
+    direction: ltr;
+    unicode-bidi: isolate;
 }
 
 .form {

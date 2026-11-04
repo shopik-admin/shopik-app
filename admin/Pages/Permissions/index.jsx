@@ -10,7 +10,10 @@ import Form from 'common/components/Form'
 import Card from 'common/components/Card'
 import Flex from 'common/components/Flex'
 import Text from 'common/components/Text'
+import Icon from 'common/components/Icon'
+import classNames from 'common/functions/classNames'
 import Tree from 'components/Tree'
+import { getPermissionGroupName, getPermissionMeta } from 'common/constants/permissionMeta'
 import { useText } from 'common/texts/TextProvider'
 import { useUser } from 'features/User'
 
@@ -24,7 +27,7 @@ function findFirst(nodes) {
 function groupPermissions(permissionsList) {
     const groups = {}
 
-    permissionsList.sort().forEach((permission) => {
+    permissionsList.slice().sort().forEach((permission) => {
         const [category, action] = permission.split(':')
 
         if (!category) return
@@ -50,6 +53,8 @@ export default function Permissions() {
     const [selectedPermissions, setSelectedPermissions] = useState([])
     const [changes, setChanges] = useState(false)
     const [formState, setFormState] = useState()
+    // Sections start collapsed; openSections only tracks the ones the user opened.
+    const [openSections, setOpenSections] = useState({})
     const { openModal, closeModal } = useModal()
     const { TR } = useText()
     const { roleId, isSuperAdmin, role: adminRole } = useUser()
@@ -96,6 +101,10 @@ export default function Permissions() {
                 ? [...new Set([...selectedPermissions, permission])]
                 : selectedPermissions.filter((p) => p !== permission)
         )
+    }
+
+    function toggleSection(category) {
+        setOpenSections((prev) => ({ ...prev, [category]: !prev[category] }))
     }
 
     function toggleCategory(actions, checked) {
@@ -212,50 +221,84 @@ export default function Permissions() {
                             {Object.entries(groupedPermissions).map(([category, actions]) => {
                                 const values = actions.map(({ fullValue }) => fullValue)
                                 const checked = values.every((permission) => selectedPermissions.includes(permission))
+                                const isOpen = Boolean(openSections[category])
 
                                 return (
                                     <div key={category} className={styles.categoryGroup}>
-                                        {/* Group Header */}
-                                        <div className={styles.categoryHeader}>
-                                            <span className={styles.folderIcon}>
+                                        {/* Group Header — click to collapse/expand */}
+                                        <div
+                                            className={styles.categoryHeader}
+                                            role='button'
+                                            tabIndex={0}
+                                            aria-expanded={isOpen}
+                                            onClick={() => toggleSection(category)}
+                                            onKeyDown={(e) => {
+                                                if (e.target !== e.currentTarget) return
+                                                if (e.key === 'Enter' || e.key === ' ') {
+                                                    e.preventDefault()
+                                                    toggleSection(category)
+                                                }
+                                            }}
+                                        >
+                                            <span
+                                                className={styles.categoryCheckbox}
+                                                onClick={(e) => e.stopPropagation()}
+                                            >
                                                 <Checkbox
                                                     checked={checked}
                                                     onChange={(e) => toggleCategory(actions, e.target.checked)}
                                                 />
                                             </span>
                                             <Text bold className={styles.categoryName}>
-                                                {category}
+                                                {getPermissionGroupName(category)}
                                             </Text>
+                                            <Icon
+                                                name='left'
+                                                className={classNames(styles.categoryChevron, [styles.expanded, isOpen])}
+                                            />
                                         </div>
 
                                         {/* Actions List */}
-                                        <ul className={styles.actionList}>
-                                            {actions.map(({ action, fullValue }) => {
-                                                const isActive = selectedPermissions.includes(fullValue)
+                                        {isOpen && (
+                                            <ul className={styles.actionList}>
+                                                {actions.map(({ fullValue }) => {
+                                                    const isActive = selectedPermissions.includes(fullValue)
+                                                    const { name, description } = getPermissionMeta(fullValue)
 
-                                                return (
-                                                    <li
-                                                        key={fullValue}
-                                                        className={isActive ? styles.active : ''}
-                                                    >
-                                                        <label className={styles.checkboxLabel}>
-                                                            <Checkbox
-                                                                name={fullValue}
-                                                                checked={isActive}
-                                                                onChange={(e) =>
-                                                                    togglePermission(
-                                                                        fullValue,
-                                                                        e.target.checked
-                                                                    )
-                                                                }
-                                                            />
-                                                            <Text className={styles.actionName}>
-                                                                {action}
-                                                            </Text>
-                                                        </label>
-                                                    </li>)
-                                            })}
-                                        </ul>
+                                                    return (
+                                                        <li
+                                                            key={fullValue}
+                                                            className={isActive ? styles.active : ''}
+                                                        >
+                                                            <label className={styles.checkboxLabel}>
+                                                                <Checkbox
+                                                                    name={fullValue}
+                                                                    checked={isActive}
+                                                                    onChange={(e) =>
+                                                                        togglePermission(
+                                                                            fullValue,
+                                                                            e.target.checked
+                                                                        )
+                                                                    }
+                                                                />
+                                                                <span className={styles.permissionText}>
+                                                                    <Text className={styles.actionName}>
+                                                                        {name}
+                                                                    </Text>
+                                                                    {description && (
+                                                                        <Text size='s' className={styles.actionDescription}>
+                                                                            {description}
+                                                                        </Text>
+                                                                    )}
+                                                                </span>
+                                                                <span className={styles.permissionCode} dir='ltr'>
+                                                                    {fullValue}
+                                                                </span>
+                                                            </label>
+                                                        </li>)
+                                                })}
+                                            </ul>
+                                        )}
                                     </div>)
                             })}
                         </div>
