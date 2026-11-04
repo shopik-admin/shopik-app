@@ -260,7 +260,7 @@ export default function ApiKeys() {
 
 
 
-                        <Form noSubmit={!changes} action={onSubmit} submitText="save changes" {...formState}>
+                        <Form noSubmit={!changes} action={onSubmit} submitText="save_changes" {...formState}>
                             <div className={styles.categoriesContainer}>
                                 {Object.entries(groupedAllowed).map(([category, actions]) => {
                                     const values = actions.map(a => a.fullValue)
