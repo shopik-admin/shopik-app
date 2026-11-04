@@ -43,8 +43,10 @@ export default async function buildOpsFilter({ _admin, extraFilter = {} }) {
 
     const filter = { active: true, ...rest }
 
-    // Store: the current store for the queue roles. For the contractor it is every
-    // store he owns, and a requested store narrows inside that scope, never outside it.
+    // Store, through the canonical scope rule. For the multi-store views nothing is
+    // requested by default, so the whole scope applies; a requested store narrows inside
+    // it, never outside it. For the single-store views the store is pinned — a view
+    // working one store names it in its filter, and there is no store to choose.
     if (scope.stores === 'scope') {
         const scopeStores = storeScope({ _admin })
         const requested = typeof clientStoreId === 'string' ? [clientStoreId]

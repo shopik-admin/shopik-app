@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import buildOpsFilter, { todayStr, opsSearchMatch } from '#server/utils/data/opsFilter.js'
 import count from '#server/api/order/ops/count.js'
 import list from '#server/api/order/ops/list.js'
-import { addDays, opsScope, viewScope, opsStatusWindow } from '#common/functions/opsView.js'
+import { addDays, CLOSED_STATUSES, opsScope, viewScope, opsStatusWindow } from '#common/functions/opsView.js'
 
 function makeAdmin({ id = 'a1', permissions = [], storeIds = [], currentStoreId = 's1', isSuperAdmin = false } = {}) {
     return {
@@ -89,6 +89,17 @@ describe('ops queue roles', () => {
         assert.deepEqual(filter.storeId, { $in: ['s1', 's2'] })
         assert.equal(filter.$and, undefined)
         assert.equal(filter.$or.length, 2)
+    })
+
+    it('keeps the contractor multi-store when the admin also holds a single-store permission', async () => {
+        const admin = makeAdmin({ id: 'c1', permissions: ['order:pick:manage', 'order:ship:manage'], storeIds: ['s1', 's2'] })
+
+        // The store rule is the ceiling: he may see all his stores, and the view that
+        // works one store asks for it instead of being pinned.
+        assert.deepEqual((await queueFor(admin)).storeId, { $in: ['s1', 's2'] })
+        assert.deepEqual((await queueFor(admin, { storeId: 's2' })).storeId, { $in: ['s2'] })
+        assert.equal(viewScope('order:pick:manage').stores, 'current')
+        assert.equal(viewScope('order:ship:manage').stores, 'scope')
     })
 
     it('narrows a contractor store request inside his scope, never outside it', async () => {
@@ -186,6 +197,56 @@ describe('ops queue roles', () => {
         assert.equal(match.$and[1].$or.length, 2)
     })
 
+    it('orders the queue by what still needs work, whatever the client sorted by', async () => {
+        const pipeline = {}
+        const DL = {
+            Order: {
+                Model: {
+                    filterFields: new Set(['id']),
+                    schema: { path: () => ({ instance: 'String' }) },
+                    aggregate: stages => { pipeline.stages = stages; return [] }
+                }
+            },
+            Store: { readById: async () => null }
+        }
+        const admin = makeAdmin({ id: 'd1', permissions: ['order:ship'] })
+
+        await list({ filter: {}, sort: { 'window.endTimestamp': 1 } }, { DL, _admin: admin })
+
+        // Nothing on an order says "closed", so the flag has to be computed in the
+        // project stage — which is also why it can be a sort key at all.
+        assert.ok(pipeline.stages.find(s => s.$project).$project.closedFirst)
+        // closed last, then own, then the window order the client asked for
+        assert.deepEqual(Object.keys(pipeline.stages.find(s => s.$sort).$sort),
+            ['closedFirst', 'mineFirst', 'window.endTimestamp', 'id'])
+    })
+
+    it('keeps closed orders last in the route-ordered tabs too', async () => {
+        // The fake aggregate answers with what the project stage would have produced,
+        // so the flag is derived the same way the pipeline derives it.
+        const closed = status => CLOSED_STATUSES.includes(status) ? 1 : 0
+        const docs = [
+            { id: 'closed1', storeId: 's1', status: 'done', closedFirst: closed('done'), shipper: { adminId: 'd1' }, window: { endTimestamp: 1000 } },
+            { id: 'open1', storeId: 's1', status: 'shipped', closedFirst: closed('shipped'), shipper: { adminId: 'd1' }, window: { endTimestamp: 2000 } },
+            { id: 'open2', storeId: 's1', status: 'shipped', closedFirst: closed('shipped'), shipper: { adminId: 'd1' }, window: { endTimestamp: 3000 } }
+        ]
+        const DL = {
+            Order: { Model: { filterFields: new Set(['id']), schema: { path: () => ({ instance: 'String' }) }, aggregate: async () => docs } },
+            Store: { readById: async () => null }
+        }
+        const admin = makeAdmin({ id: 'd1', permissions: ['order:ship'], currentStoreId: 's1' })
+
+        const rows = await list({ filter: { 'shipper.adminId': 'd1' }, sort: { 'window.endTimestamp': 1 } }, { DL, _admin: admin })
+
+        // No origin in the harness, so the route falls back to deadline order — the
+        // closed order still has to come last, after the two still to deliver.
+        assert.deepEqual(rows.map(r => r.id), ['open1', 'open2', 'closed1'])
+        // The flags order the rows, they are not part of what the page gets
+        assert.equal(rows[0].closedFirst, undefined)
+        assert.equal(rows[0].mineFirst, undefined)
+        assert.ok(rows[0].isMine)
+    })
+
     it('applies the role window on the queue read itself, not only on the count', async () => {
         const pipeline = {}
         const DL = {
@@ -213,11 +274,22 @@ describe('ops queue roles', () => {
         const waiting = opsStatusWindow({ scope: view, status: 'packed', today })
         const mine = { ...opsStatusWindow({ scope: view, today }), 'shipper.adminId': 'd1' }
 
+        // A view pinned to one store names it in its filter; the contractor's view asks
+        // for no store, which is what keeps his queue across all his stores.
+        assert.equal(view.stores, 'current')
+        assert.equal(viewScope('order:ship:manage').stores, 'scope')
+
         assert.deepEqual(waiting, { status: 'packed', 'window.date': { $lte: day(1) } })
         assert.equal(mine['shipper.adminId'], 'd1')
         // The client's own look is never wider than its permission.
         const scope = opsScope({ hasPermission: p => p === 'order:ship' })
         const clause = opsStatusWindow({ scope, status: 'done', today })
         assert.deepEqual(clause['window.date'], { $gte: day(-1), $lte: day(1) })
+
+        // The same table also decides what the view may show in the filter row, so a
+        // control the role could not use is never rendered.
+        assert.equal(view.controls, 'none')
+        assert.equal(viewScope('order:pick').controls, 'search')
+        assert.equal(viewScope('order:ship:manage').controls, 'filter')
     })
 })

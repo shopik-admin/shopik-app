@@ -1,4 +1,4 @@
-import { buildWazeUrl, customerNotes, DeliveryMethodTag, formatDepartureTime, formatFullAddress, formatWindow, isShippingStatus, RemainingTime, shortNumber } from '../orderUtils'
+import { buildWazeUrl, customerNotes, DeliveryMethodTag, formatDepartureTime, formatFullAddress, formatWindow, isClosedOrder, isShippingStatus, RemainingTime, shortNumber } from '../orderUtils'
 import classNames from 'common/functions/classNames'
 import TR from 'common/texts/TR.js'
 import Button from 'common/components/Button'
@@ -147,6 +147,9 @@ function OrderPreview({ order = {}, claimOrder, isMine, cantPick, isShipMine, ca
     const canRelease = isPicking || isPicked
     const canReleaseOwn = canRelease && isMine
     const canReleaseOther = canRelease && !isMine && order.picker?.adminId && canManagePick
+    // A closed order has nothing left to work: nothing to claim, pick or deliver, so
+    // the only thing the screen can offer is viewing it.
+    const isClosed = isClosedOrder(order.status)
 
     if (order.status === 'shipped') {
         return <PreviewShell
@@ -255,9 +258,9 @@ function OrderPreview({ order = {}, claimOrder, isMine, cantPick, isShipMine, ca
             <PriviewRow icon='note' label='pick_notes' value={order.comments} /> */}
         </>}
         footer={<PreviewFooter
-            primaryKey={isPicked ? 'ops_continue_pack' : canReleaseOwn ? 'ops_continue_picking' : 'start picking'}
+            primaryKey={isClosed ? null : isPicked ? 'ops_continue_pack' : canReleaseOwn ? 'ops_continue_picking' : 'start picking'}
             primaryDisabled={cantPick}
-            onPrimary={isPicked ? () => setStep(STEPS.PACK) : isMine ? () => setStep(STEPS.PICK) : claimOrder}
+            onPrimary={isClosed ? null : isPicked ? () => setStep(STEPS.PACK) : isMine ? () => setStep(STEPS.PICK) : claimOrder}
             extra={canReleaseOwn
                 ? <ReleaseOrderButton
                     orderId={order.id}
@@ -304,7 +307,9 @@ function PreviewShell({ order = {}, windowTime = {}, bannerTitleKey, bannerTime,
                     </Flex>
                     <Flex gap={5}>
                         <Text size='m' className={styles.subtitle}>{bannerSubtitleKey}</Text>
-                        <RemainingTime size='m' className={styles.subtitle} window={order.window} />
+                        {/* A closed order has no time left to run out of, so the countdown
+                            does not belong on it. */}
+                        {!isClosedOrder(order.status) && <RemainingTime size='m' className={styles.subtitle} window={order.window} />}
                     </Flex>
                 </Flex>
             </Flex>
@@ -318,7 +323,8 @@ function PreviewShell({ order = {}, windowTime = {}, bannerTitleKey, bannerTime,
 
 function PreviewFooter({ primaryKey, primaryDisabled, onPrimary, linkKey, onLink, extra }) {
     return <Flex center gap={20} col className={styles.footer}>
-        <Button className={styles.startPickingBtn} disabled={primaryDisabled} onClick={onPrimary}>{primaryKey}</Button>
+        {/* A closed order has no action to offer, so it renders only the link. */}
+        {onPrimary && <Button className={styles.startPickingBtn} disabled={primaryDisabled} onClick={onPrimary}>{primaryKey}</Button>}
         {extra}
         {linkKey && <Button mode='text-brand' onClick={onLink}>{linkKey}</Button>}
     </Flex>
@@ -611,7 +617,7 @@ function OrderConfirmBags({ order = {}, setStep }) {
                 setStep(STEPS.PREVIEW)
                 return
             }
-            navigate('/ops?asShipper=1', { replace: true })
+            navigate('/ops', { replace: true })
         } catch (e) {
             alert(e.message || 'shipment/start failed')
             setStep(STEPS.PREVIEW)

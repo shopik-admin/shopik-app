@@ -1,5 +1,5 @@
 .ops {
-    padding-top: 16px;
+    /* padding-top: 16px; */
     padding-bottom: 80px;
     flex: 1;
     min-height: 0;
@@ -100,9 +100,17 @@
     /* Orders belonging to the current picker: bottom bar in the full tone colour, white text.
        No tone (window without times) keeps the plain card look. */
     &.mine {
-        &.success .row:last-child { background-color: var(--bg-success-primary); }
-        &.warning .row:last-child { background-color: var(--bg-warning-primary); }
-        &.danger .row:last-child { background-color: var(--bg-error-primary); }
+        &.success .row:last-child {
+            background-color: var(--bg-success-primary);
+        }
+
+        &.warning .row:last-child {
+            background-color: var(--bg-warning-primary);
+        }
+
+        &.danger .row:last-child {
+            background-color: var(--bg-error-primary);
+        }
 
         &.success,
         &.warning,

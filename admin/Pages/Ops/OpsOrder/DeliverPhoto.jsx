@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router'
 import { useUser } from 'features/User'
 import usePermission from 'common/permissions/usePermision'
 import Flex from 'common/components/Flex'
+import Icon from 'common/components/Icon'
 import Text from 'common/components/Text'
 import Button from 'common/components/Button'
 import Input from 'common/components/Input'
@@ -10,8 +11,36 @@ import Loader from 'common/components/Loader'
 import { useModal } from 'common/components/Modal'
 import apiReq from 'common/functions/apiReq'
 import getPosition from 'common/functions/getPosition'
+import TR from 'common/texts/TR.js'
 import styles from './deliverPhoto.module.css'
 import opsStyles from './opsOrder.module.css'
+
+// The server answers with fixed phrases. The ones this screen can receive are mapped to
+// text keys so the message reads in the admin's language; anything unmapped shows as the
+// server wrote it.
+const SERVER_ERRORS = {
+    'not your shipment': 'ops_not_your_shipment',
+    'order not in shipped': 'ops_order_not_shipped',
+    'proximity override not allowed': 'ops_override_not_allowed',
+    'image too large': 'ops_image_too_large',
+}
+
+// "too far: 48911m > 300m (manager override required)" is the only message carrying
+// numbers, so it is read apart from the fixed phrases — the phrase continues past the
+// numbers, so the match is not anchored at the end.
+function errorText(message) {
+    const key = SERVER_ERRORS[message]
+    if (key) return TR(key)
+    const far = /^too far: (\d+)m > (\d+)m/.exec(message)
+    if (far) return TR('ops_too_far', { distance: far[1], radius: far[2] })
+    return TR(message)
+}
+
+// The notice is copy, so it lives in hebrew.json and the screen renders its keys.
+const PRIVACY = {
+    title: 'ops_privacy_notice',
+    lines: ['ops_privacy_only_order', 'ops_privacy_no_people', 'ops_privacy_no_interior']
+}
 
 function captureFrame(video, maxSide = 1600) {
     const vw = video.videoWidth, vh = video.videoHeight
@@ -33,6 +62,9 @@ export default function DeliverPhoto({ order = {}, goPreview }) {
     const reasonRef = useRef('')
     const { isSuperAdmin } = useUser() || {}
     const canOverride = usePermission('order:ship:manage')
+    // A regular shipper has to photograph the delivery; skipping the proof is the same
+    // manager permission that lets him deliver from a distance.
+    const canSkipPhoto = canOverride || isSuperAdmin
     const { openModal, closeModal } = useModal()
     const navigate = useNavigate()
     const [starting, setStarting] = useState(true)
@@ -86,8 +118,9 @@ export default function DeliverPhoto({ order = {}, goPreview }) {
             const res = await apiReq('shipment/deliver', payload)
             if (res?.error) throw new Error(res.error)
             // Replace the camera screen so back from the queue returns to the
-            // order details, not to a screen that is already done.
-            navigate('/ops?asShipper=1', { replace: true })
+            // order details, not to a screen that is already done. The view is not
+            // part of this: the queue page remembers which view was chosen.
+            navigate('/ops', { replace: true })
         } catch (e) {
             const msg = e.message || 'shipment/deliver failed'
             setSendError(msg)
@@ -146,10 +179,20 @@ export default function DeliverPhoto({ order = {}, goPreview }) {
             {starting && !cameraFailed && <Flex center className={styles.startingWrap}><Loader /></Flex>}
             {cameraFailed && <Flex center className={styles.errorOverlay}><Text size='s' mode='error'>ops_camera_error</Text></Flex>}
         </Flex>
-        {sendError && <Flex center style={{ padding: '0 16px' }}><Text size='s' mode='error' center>{sendError}</Text></Flex>}
+        <Flex col gap={6} className={styles.privacy}>
+            <Flex gap={8} alignItems='center'>
+                <Icon name='shield' />
+                <Text bold size='l'>{PRIVACY.title}</Text>
+            </Flex>
+            {PRIVACY.lines.map(key => <Flex key={key} gap={8} alignItems='center'>
+                <Text size='m'>•</Text>
+                <Text size='m'>{key}</Text>
+            </Flex>)}
+        </Flex>
+        {sendError && <Flex center className={styles.sendError}><Text size='l' mode='error' center>{errorText(sendError)}</Text></Flex>}
         <Flex center gap={10} col className={opsStyles.footer}>
-            {(isSuperAdmin || (tooFar && canOverride)) && <Flex center gap={16} style={{ marginBottom: 12 }}>
-                {isSuperAdmin && <Button mode='text-brand' disabled={sending} onClick={() => sendDelivery({ imageBase64: null })}>ops_skip_photo</Button>}
+            {(canSkipPhoto || (tooFar && canOverride)) && <Flex center gap={16} style={{ marginBottom: 12 }}>
+                {canSkipPhoto && <Button mode='text-brand' disabled={sending} onClick={() => sendDelivery({ imageBase64: null })}>ops_skip_photo</Button>}
                 {tooFar && canOverride && <Button mode='text-brand' disabled={sending} onClick={openOverrideDialog}>ops_deliver_override</Button>}
             </Flex>}
             <Button loading={sending} onClick={handleCapture} className={opsStyles.transferBtn}>ops_capture_close</Button>

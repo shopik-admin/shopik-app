@@ -2,6 +2,7 @@ import Flex from "#common/components/Flex/index.jsx"
 import Icon from "#common/components/Icon/index.jsx"
 import Text from "#common/components/Text/index.jsx"
 import TR from 'common/texts/TR.js'
+import { CLOSED_STATUSES } from 'common/functions/opsView.js'
 import { formatHour, formatHourRange } from '../Windows/dates.js'
 import { useState, useEffect } from 'react'
 
@@ -11,12 +12,18 @@ export function isShippingStatus(status) {
     return SHIPPING_STATUSES.includes(status)
 }
 
+// Statuses that are no longer in process. A closed order has nothing left to work —
+// no claim, no picking, no delivery — so on the ops screens it can only be viewed.
+export function isClosedOrder(status) {
+    return CLOSED_STATUSES.includes(status)
+}
+
 // The shipper's queue runs from packed to the end of the order, so delivered and
 // canceled rows belong in it. A card lays those out as a delivery card (bags);
 // the detail page keeps its shipping shell only for the orders still open, since
 // a closed order has no time left to count.
 export function isDeliveryCard(status) {
-    return isShippingStatus(status) || status == 'done' || status == 'canceled'
+    return isShippingStatus(status) || isClosedOrder(status)
 }
 
 // Ops status words. The shared status labels are the customer-facing ones

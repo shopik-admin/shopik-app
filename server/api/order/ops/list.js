@@ -1,6 +1,7 @@
 import { enrichOrders } from '#server/utils/data/enrichCart.js'
 import buildOpsFilter, { opsSearchMatch } from '#server/utils/data/opsFilter.js'
 import { withTiebreaker } from '#server/dl/defaults/read.js'
+import { CLOSED_STATUSES } from '#common/functions/opsView.js'
 import { deadlineFirstSort, balancedRoute } from '#common/functions/routeSort.js'
 
 export default async function list(payload, { DL, _admin }) {
@@ -22,8 +23,11 @@ export default async function list(payload, { DL, _admin }) {
     // Own orders first (mine, then unclaimed), then by window deadline.
     // mineFirst has to be computed before the sort stage, so the read is an
     // aggregation instead of find().sort() (which rejects projection fields).
+    // Closed orders sit at the bottom of the queue: the work an order still needs is
+    // what the roles act on, so history goes last. Both flags are computed in the
+    // project stage, which is also why they can be sort keys.
     const baseSort = withTiebreaker(DL.Order.Model, sort) || { 'window.endTimestamp': 1, 'window.startTimestamp': 1 }
-    const mineSort = { mineFirst: -1, ...baseSort }
+    const mineSort = { closedFirst: 1, mineFirst: -1, ...baseSort }
 
     const select = {
         _id: 0,
@@ -73,7 +77,10 @@ export default async function list(payload, { DL, _admin }) {
                         1,
                         0
                     ]
-                }
+                },
+                // 0 for an order that still has work to do, 1 for a closed one, so
+                // ascending puts the live queue first and the history last.
+                closedFirst: { $cond: [{ $in: ['$status', CLOSED_STATUSES] }, 1, 0] }
             }
         }
     ]
@@ -121,6 +128,9 @@ export default async function list(payload, { DL, _admin }) {
         } catch { route = [] }
         const routeById = new Map((route || []).map(r => [r.orderId, r]))
         const ordered = [...fetched].sort((a, b) => {
+            // Closed orders stay last even inside a route-ordered queue.
+            const ca = a.closedFirst || 0, cb = b.closedFirst || 0
+            if (ca !== cb) return ca - cb
             const ra = routeById.get(a.id), rb = routeById.get(b.id)
             const sa = ra?.seq ?? 1e9, sb = rb?.seq ?? 1e9
             return sa - sb
@@ -139,8 +149,8 @@ export default async function list(payload, { DL, _admin }) {
         await enrichOrders(docs, DL)
     } catch { }
 
-    // Annotate isMine (mineFirst is only used for ordering)
-    return docs.map(({ mineFirst, ...d }) => ({
+    // Annotate isMine (mineFirst and closedFirst are only used for ordering)
+    return docs.map(({ mineFirst, closedFirst, ...d }) => ({
         ...d,
         isMine: (d.picker?.adminId === me) || (d.shipper?.adminId === me)
     }))

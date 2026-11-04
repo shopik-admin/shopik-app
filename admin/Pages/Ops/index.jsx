@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import DataManager from 'features/DataManager'
 import { useData } from 'features/DataManager/DataProvider'
-import useApi from 'common/functions/useApi'
+import apiReq from 'common/functions/apiReq'
 import { useUser } from 'features/User'
 import Tabs from 'common/components/Tabs'
 import Button from 'common/components/Button'
@@ -39,13 +39,17 @@ const TABS = {
 // The window is per status — a closed order is bounded backwards, an order still in
 // process is not — so a tab sends the whole clause opsStatusWindow builds rather than
 // a status plus one date range, which would drop the late orders.
-function tabFilter(tab, permission, today, me) {
-    const scope = viewScope(permission)
-    if (tab == 'waiting') return opsStatusWindow({ scope, status: 'packed', today })
+function tabFilter(tab, permission, today, me, storeId) {
+    const view = viewScope(permission)
+    // A view that works a single store names it in its filter. The contractor's view is
+    // his whole scope, so it asks for no store and the server keeps every store he owns.
+    const store = view.stores == 'current' && storeId ? { storeId } : {}
 
-    const base = opsStatusWindow({ scope, today })
-    if (tab == 'mine') return { ...base, 'shipper.adminId': me }
-    return base
+    if (tab == 'waiting') return { ...store, ...opsStatusWindow({ scope: view, status: 'packed', today }) }
+
+    const filter = { ...store, ...opsStatusWindow({ scope: view, today }) }
+    if (tab == 'mine') return { ...filter, 'shipper.adminId': me }
+    return filter
 }
 
 const VIEWS = {
@@ -56,9 +60,15 @@ const VIEWS = {
     'order:pick': { text: 'ops_view_as_picker', icon: 'bag' },
 }
 
+// The chosen view is remembered between pages. Back from an order lands on /ops with
+// no query, so without a stored choice the page resolves to the most capable permission
+// and a shipper who opened his order comes back in the manager view. The URL param
+// still wins when it is present, so a link can ask for a view.
+const VIEW_STORAGE_KEY = 'ops-view'
+
 function readView() {
     if (typeof window === 'undefined') return ''
-    return new URLSearchParams(window.location.search).get('v') || ''
+    return new URLSearchParams(window.location.search).get('v') || localStorage.getItem(VIEW_STORAGE_KEY) || ''
 }
 
 // Switching view clears the filter: the new role's shape replaces it, and a filter
@@ -67,8 +77,10 @@ function writeView(permission) {
     if (typeof window === 'undefined') return
     const sp = new URLSearchParams(window.location.search)
     sp.delete('f')
-    if (permission) sp.set('v', permission)
-    else sp.delete('v')
+    if (permission) {
+        sp.set('v', permission)
+        localStorage.setItem(VIEW_STORAGE_KEY, permission)
+    } else sp.delete('v')
     const qs = sp.toString()
     window.history.replaceState(null, '', `${window.location.pathname}${qs ? `?${qs}` : ''}${window.location.hash}`)
 }
@@ -80,47 +92,78 @@ export default function Ops({ }) {
         isSuperAdmin: user?.isSuperAdmin
     })
     const [view, setView] = useState(readView)
-    // A view in the URL has to be one of the permissions actually held — otherwise
-    // the page falls back to the role, and a link cannot ask for a view it has no
-    // permission for.
+    // A view from the URL or from storage has to be one of the permissions actually
+    // held — otherwise the page falls back to the role, and neither a link nor a
+    // remembered choice can ask for a view it has no permission for.
     const current = view && scope.held.includes(view) ? view : scope.held[0]
-    const tabs = TABS[ROLE_SCOPES[current].role]
+    const shape = viewScope(current)
+    const tabs = TABS[shape.role]
 
-    // Only a read-level view has filter controls. A queue role is fixed by its tabs:
-    // its statuses and its window are the permission, so a filter he can set would be
-    // one he cannot use — and there would be nothing to remove.
-    const canFilter = ROLE_SCOPES[current].statuses === null
+    // What the view may show in the filter row comes from the same table as its queue:
+    // a manage view filters, a picker only searches, the shipper gets neither — he works
+    // a handful of orders at a time and a store-wide search is not worth the row.
+    const controls = shape.controls
 
     // The first load has to carry the active tab's filter, not an empty one.
     const today = todayStr()
-    const initialFilter = tabFilter(tabs[0].key, current, today, user?.id)
+    const initialFilter = tabFilter(tabs[0].key, current, today, user?.id, user?.currentStoreId)
 
-    return <StoreGate multiStore={scope.stores == 'scope'}>
+    return <StoreGate multiStore={shape.stores == 'scope'}>
         <Flex col>
             <DataManager
                 apiRoute='order/ops'
                 actions={['refresh']}
                 defaultSort={{ 'window.endTimestamp': 1 }}
                 initialFilter={initialFilter}
-                filters={canFilter}
+                filters={controls == 'filter'}
+                search={controls != 'none'}
                 cols={opsCols}
             >
-                <OpsQueue scope={scope} current={current} tabs={tabs} onChangeView={setView} />
+                <OpsQueue scope={scope} shape={shape} tabs={tabs} current={current} onChangeView={setView} />
             </DataManager>
         </Flex>
     </StoreGate>
 }
 
-function OpsQueue({ scope, current, tabs, onChangeView }) {
+function OpsQueue({ scope, shape, tabs, current, onChangeView }) {
     const { data: orders = [], setFilter, setData } = useData()
-    const { id } = useUser()
+    const { id, currentStoreId } = useUser()
     const today = todayStr()
     const [tab, setTab] = useState(tabs[0].key)
+    const [counts, setCounts] = useState({})
 
     const filters = useMemo(
-        () => Object.fromEntries(tabs.map(t => [t.key, tabFilter(t.key, current, today, id)])),
-        [tabs, current, today, id]
+        () => Object.fromEntries(tabs.map(t => [t.key, tabFilter(t.key, current, today, id, currentStoreId)])),
+        [tabs, current, today, id, currentStoreId]
     )
+
+    // One count per tab is the source for both the badges and which tab opens: the same
+    // route and filter as the tab's own list, so a badge can never count rows the tab
+    // would not show.
+    useEffect(() => {
+        let cancelled = false
+        Promise.all(tabs.map(t => apiReq('order/ops/count', { filter: filters[t.key] }).then(n => [t.key, n])))
+            .then(entries => { if (!cancelled) setCounts(Object.fromEntries(entries)) })
+            .catch(() => { })
+        return () => { cancelled = true }
+    }, [tabs, filters])
+
+    // The first tab is the default, but a role with nothing in it should land on the tab
+    // where the work is — an empty shipper screen when he has orders out is not a queue.
+    // Every tab empty, or a tab he picked himself, leaves the choice as it is. Once per
+    // view: after the first counts the selection is his.
+    const pickedFor = useRef('')
+    useEffect(() => {
+        // The decision has to be made on the counts of this view's tabs. Switching view
+        // selects its first tab at once and its counts arrive later, so a check that ran
+        // on the previous view's numbers would keep an empty tab selected.
+        if (!tabs.every(t => counts[t.key] != null)) return
+        if (pickedFor.current == current) return
+        pickedFor.current = current
+        if (tab != tabs[0].key) return
+        const target = tabs.find(t => counts[t.key] > 0)
+        if (target) setTab(target.key)
+    }, [counts, tabs, current, tab])
 
     const firstRun = useRef(true)
     useEffect(() => {
@@ -148,7 +191,7 @@ function OpsQueue({ scope, current, tabs, onChangeView }) {
                 current={current}
                 onPick={switchView}
             />
-            <StorePill multiStore={scope.stores == 'scope'} />
+            <StorePill multiStore={shape.stores == 'scope'} />
         </Flex>
         {/* A single tab is not a choice — it is the whole view — so nothing is rendered
             for it, not even its title or its count. */}
@@ -157,20 +200,11 @@ function OpsQueue({ scope, current, tabs, onChangeView }) {
                 mode='line'
                 active={tab}
                 onChange={setTab}
-                options={tabs.map(t => ({ value: t.key, text: t.text, badge: <TabCount filter={filters[t.key]} /> }))}
+                options={tabs.map(t => ({ value: t.key, text: t.text, badge: counts[t.key] }))}
             />
         </Flex>}
         {orders.map(order => <OrderCard key={order.number} order={order} />)}
     </Flex>
-}
-
-// A hook per tab is not possible in a loop, so the count is its own component and
-// the badge is what it returns. Same route and filter as the tab's own list, so a
-// badge can never count rows the tab would not show.
-function TabCount({ filter }) {
-    const { data, callReq } = useApi('order/ops/count', { filter }, { hold: true })
-    useEffect(() => { callReq({ filter }) }, [filter])
-    return data
 }
 
 // One pill for the view: it names the view you are in and opens the list of the

@@ -20,21 +20,25 @@ export const CLOSED_STATUSES = ['done', 'canceled', 'failed']
 // an admin holding several permissions reads the same in the filter and in the UI.
 export const STATUS_ORDER = ['cart', 'paid-edit', 'paid', 'picking', 'picked', 'packed', 'shipped', 'done', 'canceled', 'failed']
 
-// A permission's ceiling. `pastDays` bounds only the statuses in CLOSED_STATUSES;
-// `futureDays` bounds everything. `null` on either = unbounded.
+// A permission's ceiling. `statuses: null` = every status except an unopened cart.
+// `pastDays` bounds only the statuses in CLOSED_STATUSES, `futureDays` bounds
+// everything, and `null` on either means unbounded.
 // `stores: 'scope'` = every store the admin owns, instead of the current store.
+// `controls` = what its view may show in the filter row: 'filter' (search + filter
+// controls), 'search' (search only), 'none' (neither). A queue role works a handful of
+// orders at a time, so a store-wide search is not worth the row it takes.
 const PERMISSION_SCOPE = {
     // The manage views: every status, no forward limit — a manager has to be able to
     // reach an order that is still open whatever day it was made.
-    'order:pick:manage': { role: 'manager', statuses: null, pastDays: 7, futureDays: null },
-    'order:ship:manage': { role: 'contractor', statuses: null, pastDays: 7, futureDays: null, stores: 'scope' },
+    'order:pick:manage': { role: 'manager', statuses: null, pastDays: 7, futureDays: null, controls: 'filter' },
+    'order:ship:manage': { role: 'contractor', statuses: null, pastDays: 7, futureDays: null, stores: 'scope', controls: 'filter' },
     // order:read is the read-only manager view: same scope, no queue actions.
-    'order:read': { role: 'manager', statuses: null, pastDays: 7, futureDays: null },
-    'order:ship': { role: 'shipper', statuses: ['packed', 'shipped', 'done', 'canceled'], pastDays: 1, futureDays: 1 },
+    'order:read': { role: 'manager', statuses: null, pastDays: 7, futureDays: null, controls: 'filter' },
+    'order:ship': { role: 'shipper', statuses: ['packed', 'shipped', 'done', 'canceled'], pastDays: 1, futureDays: 1, controls: 'none' },
     // paid-edit is not part of the picking queue: claim requires a status of exactly
     // paid, so a picker's set starts at paid. No past bound — he is graded on what he
     // still has to pick, not on what the date happened to be.
-    'order:pick': { role: 'picker', statuses: ['paid', 'picking', 'picked', 'packed'], pastDays: null, futureDays: 1 },
+    'order:pick': { role: 'picker', statuses: ['paid', 'picking', 'picked', 'packed'], pastDays: null, futureDays: 1, controls: 'search' },
 }
 
 // Checked most capable first. The role only decides which tabs the page renders:
@@ -44,13 +48,17 @@ const PERMISSION_SCOPE = {
 export const PERMISSION_ORDER = ['order:pick:manage', 'order:ship:manage', 'order:read', 'order:ship', 'order:pick']
 export const ROLE_SCOPES = PERMISSION_SCOPE
 
-// What one permission grants: its statuses and the window each of them gets.
+// What one permission grants: its statuses, the window each of them gets, whether it
+// works one store or every store it owns, and what it may show in the filter row.
 export function viewScope(permission) {
     const scope = PERMISSION_SCOPE[permission]
     const statuses = [...(scope.statuses || STATUS_ORDER.filter(s => s !== CART))]
         .sort((a, b) => STATUS_ORDER.indexOf(a) - STATUS_ORDER.indexOf(b))
     return {
+        role: scope.role,
         statuses,
+        stores: scope.stores || 'current',
+        controls: scope.controls,
         bounds: Object.fromEntries(statuses.map(status => [status, {
             past: CLOSED_STATUSES.includes(status) ? scope.pastDays : null,
             future: scope.futureDays
@@ -83,10 +91,11 @@ export function opsScope({ hasPermission, isSuperAdmin }) {
         // Only the statuses some held permission actually grants.
         statuses: STATUS_ORDER.filter(s => bounds[s]),
         bounds,
-        // The contractor owns several stores; everyone else — super included —
-        // works the current store. A manager holding both manage permissions is a
-        // manager, not a contractor: his queue is the store he is standing in.
-        stores: PERMISSION_SCOPE[held[0]].stores || 'current',
+        // The store rule is a ceiling: anyone who owns stores may see all of them, so
+        // the contractor view stays multi-store even when the admin also holds a
+        // single-store permission — and a view pinned to one store says so in its own
+        // filter, which the server then narrows inside that ceiling.
+        stores: held.some(p => (PERMISSION_SCOPE[p].stores || 'current') == 'scope') ? 'scope' : 'current',
         canPick: isSuperAdmin || held.includes('order:pick'),
         canShip: isSuperAdmin || held.includes('order:ship'),
         // A read-level scope sees the whole queue; the others see only their own

@@ -80,7 +80,7 @@ function isActive(filter, key) {
     return true
 }
 
-export default function FilterBar({ actions, cols, filters = true }) {
+export default function FilterBar({ actions, cols, filters = true, search = true }) {
     const { apiRoute, filter, setFilter } = useData()
     const { TR } = useText()
     const [descriptors, setDescriptors] = useState([])
@@ -109,16 +109,20 @@ export default function FilterBar({ actions, cols, filters = true }) {
     const visible = mainDescriptors.slice(0, visibleCount)
     const overflow = [...mainDescriptors.slice(visibleCount), ...otherDescriptors]
 
-    // ponytail: keep hooks before early return
-    const isFiltered = Object.keys(filter).length > 0
+    // ponytail: every hook is above this line, so the early returns below are safe.
+    // A view with no controls of its own renders nothing at all — not even the actions
+    // card. The shipper works his tabs and does not search the store, so the whole top
+    // section is his queue.
+    if (!filters && !search) return null
+
     if (!filters || !descriptors.length) {
-        // still show search + actions card when no descriptors (e.g. other collections)
-        // or when the page has no filter controls (a queue role fixed by its tabs)
+        // search + actions card when there are no filter controls or no descriptors
+        // (e.g. other collections)
         return <div className={styles.wrapper}>
             <div className={styles.topRow}>
                 <Flex gap={10} alignItems='center' className={styles.leftGroup}>
                     {actions?.length ? <DataActions actions={actions} cols={cols} /> : null}
-                    <div className={styles.searchWrap}><DataSearch /></div>
+                    {search && <div className={styles.searchWrap}><DataSearch /></div>}
                     <DataLoader />
                 </Flex>
             </div>
@@ -128,7 +132,7 @@ export default function FilterBar({ actions, cols, filters = true }) {
         <div className={styles.topRow}>
             <Flex gap={10} alignItems='center' className={styles.leftGroup}>
                 {actions?.length ? <DataActions actions={actions} cols={cols} /> : null}
-                <div className={styles.searchWrap}><DataSearch /></div>
+                {search && <div className={styles.searchWrap}><DataSearch /></div>}
                 <DataLoader />
             </Flex>
             <div ref={barRef} className={styles.bar}>
@@ -140,7 +144,6 @@ export default function FilterBar({ actions, cols, filters = true }) {
                 </Flex>
             </div>
         </div>
-        {isFiltered && <div className={styles.separator} />}
         <FilterChips filter={filter} setFilter={setFilter} TR={TR} labelMaps={labelMaps} />
     </div>
 }
@@ -360,22 +363,29 @@ function FilterControl({ descriptor, filter, setFilter, TR, lists, close }) {
     return <div style={{ fontSize: 13, opacity: .6 }}>{TR('search')} — {key}</div>
 }
 
+// A filter value is a name when its field is list-backed (a store, a role, a domain),
+// whatever shape the filter carries it in — the ops tabs pass a plain id.
+function displayValue(TR, key, value, labelMaps) {
+    const listName = listNameForKey(key)
+    const name = listName ? labelMaps?.[listName]?.[value] : undefined
+    if (name) return name
+    const translated = TR(value)
+    return translated !== value ? translated : value
+}
+
 function FilterChips({ filter, setFilter, TR, labelMaps }) {
     const chips = []
     for (const [key, val] of Object.entries(filter)) {
         if (val == null) continue
         if (typeof val === 'string') {
             // string prefix search chip — val is raw prefix (server adds ^ + 'i'), plain string only
-            const label = `${getLabel(TR, key)}: ${val}`
+            const label = `${getLabel(TR, key)}: ${displayValue(TR, key, val, labelMaps)}`
             chips.push({ key, label, onRemove: () => { const n = { ...filter }; delete n[key]; setFilter(n) } })
         } else if (val === true || val === false) {
             chips.push({ key, label: `${getLabel(TR, key)}`, onRemove: () => { const n = { ...filter }; delete n[key]; setFilter(n) } })
         } else if (typeof val === 'object' && Array.isArray(val.$in)) {
             for (const v of val.$in) {
-                // list-backed reference values resolve to names; enums fall back to TR
-                const listName = listNameForKey(key)
-                let label = (listName && labelMaps?.[listName]?.[v]) || v
-                if (label === v) label = TR(v) !== v ? TR(v) : v
+                const label = displayValue(TR, key, v, labelMaps)
                 chips.push({
                     key: `${key}:${v}`, label,
                     onRemove: () => setFilter(prev => {
@@ -402,15 +412,21 @@ function FilterChips({ filter, setFilter, TR, labelMaps }) {
         }
     }
 
+    // The divider belongs to the chips: a queue view's filter is the rule its tab
+    // carries (status + window branches), which is not something the admin picked, so
+    // it has no chip — and a divider with nothing under it read as an empty filter row.
     if (!chips.length) return null
 
-    return <Flex gap={8} alignItems='center' wrap className={styles.chips}>
-        {chips.map(c => (
-            <span key={c.key} className={styles.chip}>
-                {c.label}
-                <button className={styles.chipX} onClick={c.onRemove} aria-label='remove'><Icon name='x' /></button>
-            </span>
-        ))}
-        <button className={styles.clearAll} onClick={() => setFilter({})}>{TR('clearAll')}</button>
-    </Flex>
+    return <>
+        <div className={styles.separator} />
+        <Flex gap={8} alignItems='center' wrap className={styles.chips}>
+            {chips.map(c => (
+                <span key={c.key} className={styles.chip}>
+                    {c.label}
+                    <button className={styles.chipX} onClick={c.onRemove} aria-label='remove'><Icon name='x' /></button>
+                </span>
+            ))}
+            <button className={styles.clearAll} onClick={() => setFilter({})}>{TR('clearAll')}</button>
+        </Flex>
+    </>
 }

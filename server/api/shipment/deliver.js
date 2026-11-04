@@ -2,6 +2,12 @@ import { opsProximityRadiusM } from '#common/functions/opsConfig.js'
 import distanceMeters from '#common/functions/distance.js'
 import sharp from 'sharp'
 
+// A delivery proof photo is mandatory for a regular shipper. Only a manager may close
+// an order without one, and a super admin keeps the skip as an audit escape.
+export function maySkipPhoto(admin) {
+    return admin?.isSuperAdmin === true || admin?.hasPermission?.('order:ship:manage') === true
+}
+
 // Delivery must happen near the customer address. A caller who is farther away
 // (or whose GPS is unavailable) may only continue through an explicit override,
 // which is gated on order:ship:manage and recorded on the order timeline and in
@@ -19,8 +25,8 @@ export function evaluateProximity({ order, coordinates, override = false, canOve
 export default async function deliver(payload, { DL, _admin, external, utils }) {
     const { orderId, imageBase64, coordinates, override, force, overrideReason } = payload
     if (!orderId) throw { status: 400, message: 'orderId required' }
-    // Super admins may skip the photo (DeliverPhoto "skip" button); everyone else must send an image
-    const skipPhoto = !imageBase64 && _admin.isSuperAdmin
+    // Delivery proof is mandatory for a regular shipper; skipping it is a manager call.
+    const skipPhoto = !imageBase64 && maySkipPhoto(_admin)
     if (!imageBase64 && !skipPhoto) throw { status: 400, message: 'orderId and imageBase64 required' }
     if (imageBase64 && Buffer.byteLength(imageBase64, 'utf8') > 8 * 1024 * 1024) throw { status: 400, message: 'image too large' }
 

@@ -6,7 +6,7 @@ import Icon from 'common/components/Icon'
 import Text from 'common/components/Text'
 import { useUser } from 'features/User'
 import styles from './ops.module.css'
-import { DeliveryMethodTag, formatDepartureTime, formatWindow, isDeliveryCard, opsStatusKey, RemainingTime, orderCardTone, shortNumber } from './orderUtils'
+import { DeliveryMethodTag, formatDepartureTime, formatWindow, isClosedOrder, isDeliveryCard, opsStatusKey, RemainingTime, orderCardTone, shortNumber } from './orderUtils'
 import render from '#common/functions/render.js'
 import ProgressGauge from '#common/components/ProgressGauge/index.jsx'
 
@@ -16,7 +16,7 @@ export default function OrderCard({ order = {} }) {
         windowTime = formatWindow(order.window),
         tone = orderCardTone(order),
         isDelivery = isDeliveryCard(status),
-        isClosed = status == 'done' || status == 'canceled',
+        isClosed = isClosedOrder(status),
         { stores } = useLists(),
         store = stores.find(s => s.value == storeId),
         address = deliveryMethod == 'pickup' ? store?.address : order.address,

@@ -5,14 +5,14 @@ import DataLoader from './DataLoader'
 import DataTable from './DataTable'
 import FilterBar from './FilterBar'
 
-// `filters` off: a page that has no filter controls of its own (the ops queue roles
-// are fixed by their tabs). Search and the actions still render, only the filter bar
-// and its chips are skipped.
-export default function DataManager({ children, actions, rowActions, cols = [], onRowClick, filters = true, ...props }) {
+// `filters` / `search` off: a page that shows no controls of its own — the ops queue
+// roles work a handful of orders at a time. The actions and the loading row still
+// render, and when there is nothing at all left to show the bar returns nothing.
+export default function DataManager({ children, actions, rowActions, cols = [], onRowClick, filters = true, search = true, ...props }) {
 
     return <DataProvider {...props}>
         <div className={styles.dataManager}>
-            <FilterBar actions={actions} cols={cols} filters={filters} />
+            <FilterBar actions={actions} cols={cols} filters={filters} search={search} />
             {children || <>
                 <DataTable cols={cols} rowActions={rowActions} onRowClick={onRowClick} />
                 <DataCount />
