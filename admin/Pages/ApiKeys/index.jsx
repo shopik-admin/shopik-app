@@ -13,6 +13,7 @@ import apiReq from 'common/functions/apiReq'
 import useApi from 'common/functions/useApi'
 import { useUser } from 'features/User'
 import apiKeyPermissions from 'common/constants/apiKeyPermissions.js'
+import { getPermissionGroupName, getPermissionMeta } from 'common/constants/permissionMeta'
 import { useLists } from 'common/features/Lists'
 import styles from './apiKeys.module.css'
 
@@ -263,21 +264,38 @@ export default function ApiKeys() {
                             <div className={styles.categoriesContainer}>
                                 {Object.entries(groupedAllowed).map(([category, actions]) => {
                                     const values = actions.map(a => a.fullValue)
-                                    const checked = values.every(p => selectedPermissions.includes(p))
+                                    const selectedCount = values.filter(p => selectedPermissions.includes(p)).length
+                                    const checked = values.length > 0 && selectedCount === values.length
+                                    const indeterminate = selectedCount > 0 && selectedCount < values.length
                                     return (
                                         <div key={category} className={styles.categoryGroup}>
                                             <div className={styles.categoryHeader}>
-                                                <Checkbox checked={checked} onChange={e => toggleCategory(actions, e.target.checked)} />
-                                                <Text bold>{category}</Text>
+                                                <span className={styles.categoryCheckbox}>
+                                                    <Checkbox
+                                                        checked={checked}
+                                                        indeterminate={indeterminate}
+                                                        onChange={e => toggleCategory(actions, e.target.checked)}
+                                                    />
+                                                </span>
+                                                <Text bold className={styles.categoryName}>
+                                                    {getPermissionGroupName(category)}
+                                                </Text>
                                             </div>
                                             <ul className={styles.actionList}>
-                                                {actions.map(({ action, fullValue }) => {
+                                                {actions.map(({ fullValue }) => {
                                                     const isActive = selectedPermissions.includes(fullValue)
+                                                    const { name, description } = getPermissionMeta(fullValue)
                                                     return (
                                                         <li key={fullValue} className={isActive ? styles.active : ''}>
                                                             <label className={styles.checkboxLabel}>
                                                                 <Checkbox checked={isActive} onChange={e => togglePermission(fullValue, e.target.checked)} />
-                                                                <Text>{action}</Text>
+                                                                <span className={styles.permissionText}>
+                                                                    <Text className={styles.actionName}>{name}</Text>
+                                                                    {description && (
+                                                                        <Text size='s' className={styles.actionDescription}>{description}</Text>
+                                                                    )}
+                                                                </span>
+                                                                <span className={styles.permissionCode} dir='ltr'>{fullValue}</span>
                                                             </label>
                                                         </li>
                                                     )

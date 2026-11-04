@@ -41,7 +41,8 @@ label.cb {
             }
         }
 
-        &.checked {
+        &.checked,
+        &.indeterminate {
             .checkboxCircle {
                 border-color: var(--text-primary);
                 background-color: var(--text-primary);
