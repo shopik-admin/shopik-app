@@ -15,8 +15,7 @@ import { useUser } from 'features/User'
 import usePermission from 'common/permissions/usePermision'
 import { useState, useEffect } from 'react'
 import Tabs from '#common/components/Tabs/index.jsx'
-import ProductInline from 'common/components/ProductInline'
-import ReplacementCard from 'common/components/ReplacementCard'
+import CartList from 'common/components/CartList'
 import { groupCart } from 'common/functions/cartReplacements'
 import Stepper from 'common/components/Stepper'
 import { useModal } from 'common/components/Modal'
@@ -338,12 +337,7 @@ function OrderView({ order = {}, setStep }) {
         <Flex alignItems='center' justifyContent='center' style={{ padding: 16 }}>
             <Text size='l' bold>ops_view_title</Text>
         </Flex>
-        <Flex grow col gap={10} className={styles.cartList}>
-            {entries.map(entry => entry.type === 'pair'
-                ? <ReplacementCard key={entry.key} original={entry.original} replacer={entry.replacer} />
-                : <ProductInline key={entry.key} product={entry.product} remove={false} note={false} admin />
-            )}
-        </Flex>
+        <CartList entries={entries} admin className={styles.cartList} />
         <Flex center gap={20} className={styles.footer}>
             <Button mode='text-brand' onClick={() => setStep(STEPS.PREVIEW)}>back</Button>
         </Flex>
@@ -405,14 +399,15 @@ function OrderPick({ order = {}, setStep, onPicked }) {
     const donePickItems = singleItems.filter(e => isScanned(e.product))
     const isDoneTab = tab === 'done_pick'
     const isWaitTab = tab === 'wait_pick'
-    const displayed = isDoneTab ? donePickItems : isWaitTab ? [] : toPickItems
-    const displayedPairs = isDoneTab ? pairs : []
+    // Pairs lead the done tab: a pair is by definition something already handled.
+    const displayedEntries = isDoneTab ? [...pairs, ...donePickItems] : isWaitTab ? [] : toPickItems
     const allHandled = toPickItems.length === 0 && entries.length > 0
 
-
     useEffect(() => {
-        if (toPickItems.length === 0 && donePickItems.length > 0 && !isDoneTab) setTab('done_pick')
-    }, [toPickItems.length, donePickItems.length])
+        // A cart handled entirely through replacements has no single done items —
+        // only pairs — so the jump has to count them, or it lands on an empty tab.
+        if (toPickItems.length === 0 && donePickItems.length + pairs.length > 0 && !isDoneTab) setTab('done_pick')
+    }, [toPickItems.length, donePickItems.length, pairs.length])
 
     function handleProductClick(product) {
         openModal(
@@ -451,27 +446,7 @@ function OrderPick({ order = {}, setStep, onPicked }) {
                 { text: 'wait_pick', badge: 0 },
                 { text: 'done_pick', badge: donePickItems.length + pairs.length },
             ]} />
-        <Flex grow col gap={10} className={styles.cartList}>
-            {displayedPairs.map(({ original, replacer, key }) => (
-                <ReplacementCard
-                    key={key}
-                    original={original}
-                    replacer={replacer}
-                    onClick={() => handleProductClick(replacer)}
-                />
-            ))}
-            {displayed.map(({ product, key }) => (
-                <ProductInline
-                    key={key}
-                    product={product}
-                    remove={false}
-                    note={false}
-                    admin
-                    onClick={() => handleProductClick(product)}
-                    style={{ cursor: 'pointer' }}
-                />
-            ))}
-        </Flex>
+        <CartList entries={displayedEntries} admin onItemClick={handleProductClick} className={styles.cartList} />
         <Flex center gap={10} col className={styles.footer}>
             <Button disabled={!allHandled} loading={completing} onClick={handleFinishPick} className={styles.finishBtn}>finish_pick</Button>
             {toPickItems.length === 0 && order.phone && <Button

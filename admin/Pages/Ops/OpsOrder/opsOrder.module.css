@@ -133,6 +133,7 @@
     }
 
     .cartList {
+        flex-grow: 1;
         margin-block: 20px;
         padding: 16px;
         padding-bottom: calc(100px + var(--safeBottom, 0px));

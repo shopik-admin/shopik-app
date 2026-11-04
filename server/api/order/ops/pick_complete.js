@@ -1,5 +1,6 @@
 import { calcOrderSum } from '#common/functions/calcOrder/index.js'
 import { applyCalcToCart } from '#common/functions/calcOrder/cart.js'
+import { findReplacement, isReplacedLine } from '#common/functions/cartReplacements.js'
 import { round2, round3 } from '#common/functions/calcOrder/utils.js'
 
 export default async function pick_complete(payload, { DL, _admin, utils }) {
@@ -18,12 +19,13 @@ export default async function pick_complete(payload, { DL, _admin, utils }) {
     // pricing recalc — reuse engine so missing/replaced originals get finalAmount 0
     const cartClone = JSON.parse(JSON.stringify(order.cart))
     for (const item of cartClone) {
-        if (item.missing) {
-            item.replacedBy = item.replacement?.replacementBarcode || item.missingReason === 'replaced' ? item.replacement?.replacementBarcode : undefined
-        }
-        if (item.replacement?.replacementBarcode && item.missing) {
-            item.replacedBy = item.replacement.replacementBarcode
-        }
+        // `replacedBy` only stands when the pair is whole. A replaced original with no
+        // replacement line in this cart was never supplied — it is a stock-out, and
+        // writing `replacedBy` for it would leave the order holding half a pair.
+        if (!item.missing || !isReplacedLine(item)) continue
+        const replacer = findReplacement(cartClone, item)
+        if (!replacer) { delete item.replacedBy; continue }
+        item.replacedBy = replacer.barcode
     }
 
     // Snapshot checkout distributions BEFORE the recalc overwrites them.

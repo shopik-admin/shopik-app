@@ -1,9 +1,13 @@
 // What a replacement pair is — one rule for every screen that renders a cart
-// (picking, the ops view, the order products list) and for the invoice note, so
-// they can never disagree about the same cart.
+// (picking, the ops view, the order products list) and for the server that writes
+// the pair, so no side can hold a half pair.
 
-// A line is a replaced original when the picker swapped it: the reason says so,
-// or the pricing view (`replacedBy`) or the cart link points at the product that
+// Matches CART_PRODUCT_STATUS.ADMIN_ADD in server/dl/schemas/order.js. It lives
+// here as a literal because the schema pulls mongoose into a shared module.
+const ADMIN_ADD = 'admin_add'
+
+// A line is a replaced product when the picker swapped it: the reason says so, or
+// the pricing view (`replacedBy`) or the cart link points at the product that
 // supplied the order. Any of the three is enough — an older order can have one
 // without the others.
 export function isReplacedLine(line) {
@@ -14,29 +18,53 @@ export function isReplacedLine(line) {
     )
 }
 
-// The line that supplied a replaced product's order. The replacer's own back-link
-// is the reliable side of the pair, so it is looked at first; `taken` keeps a line
-// from being claimed by two originals that share a barcode.
+// The other half of a pair, from either side: the product that supplied the order
+// when looked at from the replaced side, the product it stands for when looked at
+// from the replacement side. `taken` keeps one line from being claimed by two
+// originals that share a barcode.
 export function findReplacement(cart, line, taken = null) {
-    const barcode = line?.barcode
-    const free = l => l && !l.missing && (taken === null || !taken.has(l))
+    if (!line) return null
+    const lines = cart || []
+    const free = l => l && l !== line && (taken === null || !taken.has(l))
 
-    const byLink = (cart || []).find(l => free(l) && l.replacement?.originalBarcode && l.replacement.originalBarcode === barcode)
-    if (byLink) return byLink
+    if (isReplacedLine(line)) {
+        // Looking for what supplied the order: a line that was itself not supplied
+        // did not fill anything. The back-link is the reliable side of the pair;
+        // `replacedBy` only names a barcode, which two lines can share.
+        const supplied = l => free(l) && !l.missing
+        const byLink = lines.find(l => supplied(l) && l.replacement?.originalBarcode === line.barcode)
+        if (byLink) return byLink
+        const fallbackBarcode = line.replacedBy || line.replacement?.replacementBarcode
+        return fallbackBarcode ? lines.find(l => supplied(l) && l.barcode === fallbackBarcode) || null : null
+    }
 
-    const fallbackBarcode = line?.replacedBy || line?.replacement?.replacementBarcode
-    if (!fallbackBarcode) return null
-    return (cart || []).find(l => free(l) && l.barcode === fallbackBarcode) || null
+    // Looking from the replacement side: its pair is the product it stands for,
+    // and that line is by definition the one that was not supplied.
+    const originalBarcode = line.replacement?.originalBarcode
+    return originalBarcode ? lines.find(l => free(l) && l.barcode === originalBarcode) || null : null
+}
+
+// Which side of a pair exists only because of the replacement: the line the picker
+// added, never ordered by the customer. It goes away when the replacement is
+// undone; a line the customer ordered keeps only its link cleared.
+export function dissolvePair(cart, line) {
+    const partner = findReplacement(cart, line)
+    if (!partner) return { partner: null, removeLine: null }
+
+    const addedByPicker = (a, other) => a.status === ADMIN_ADD && a.replacement?.originalBarcode === other.barcode
+    const removeLine = addedByPicker(line, partner) ? line : addedByPicker(partner, line) ? partner : null
+
+    return { partner, removeLine }
 }
 
 /**
- * The cart as a screen renders it: a replaced product and the product that
- * supplied its order are one entry, and the replacer's own line is not shown
- * again as a product the customer ordered.
+ * The cart as a screen renders it: a replaced product and the product that supplied
+ * its order are one entry, and the replacer's own line is not shown again as a
+ * product the customer ordered.
  *
- * Entries keep the cart order, each pair sitting at the position of the product
- * that was ordered. A replaced original whose replacement line is gone is not a
- * pair any more — it is simply an item that was not supplied.
+ * Entries keep the cart order, each pair sitting at the position of the product that
+ * was ordered. A replaced original whose replacement line is gone is not a pair any
+ * more — it is simply an item that was not supplied.
  *
  * @returns {Array<{ type: 'pair', original: object, replacer: object, key: string }
  *              | { type: 'product', product: object, key: string }>}

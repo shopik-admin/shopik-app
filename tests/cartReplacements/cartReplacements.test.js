@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { findReplacement, groupCart, isReplacedLine } from '../../common/functions/cartReplacements.js'
+import { dissolvePair, findReplacement, groupCart, isReplacedLine } from '../../common/functions/cartReplacements.js'
 
 describe('groupCart', () => {
     it('shows a replaced product together with the product that supplied its order', () => {
@@ -55,22 +55,50 @@ describe('groupCart', () => {
     })
 })
 
-describe('findReplacement', () => {
-    it('prefers the replacer back-link over the barcode match', () => {
+describe('dissolvePair', () => {
+    it('removes the line that exists only because of the replacement', () => {
         const cart = [
-            { id: 'p1', barcode: 'A', missing: true, replacedBy: 'B' },
-            { id: 'p2', barcode: 'B' },
-            { id: 'p3', barcode: 'B', replacement: { originalBarcode: 'A' } }
+            { id: 'p1', barcode: 'A', status: 'client_add', missing: true, replacement: { replacementBarcode: 'B' } },
+            { id: 'p2', barcode: 'B', status: 'admin_add', replacement: { originalBarcode: 'A' } }
         ]
-        assert.equal(findReplacement(cart, cart[0]).id, 'p3')
+        const { partner, removeLine } = dissolvePair(cart, cart[0])
+        assert.equal(partner.id, 'p2')
+        assert.equal(removeLine.id, 'p2')
     })
 
-    it('never pairs a line with itself', () => {
+    it('keeps a partner the customer ordered and clears only its link', () => {
+        const cart = [
+            { id: 'p1', barcode: 'A', status: 'client_add', missing: true, replacement: { replacementBarcode: 'B' } },
+            { id: 'p2', barcode: 'B', status: 'client_add', replacement: { originalBarcode: 'A' } }
+        ]
+        const { partner, removeLine } = dissolvePair(cart, cart[0])
+        assert.equal(partner.id, 'p2')
+        assert.equal(removeLine, null)
+    })
+
+    it('works from the replacement side too', () => {
+        const cart = [
+            { id: 'p1', barcode: 'A', status: 'client_add', missing: true, replacedBy: 'B' },
+            { id: 'p2', barcode: 'B', status: 'admin_add', replacement: { originalBarcode: 'A' } }
+        ]
+        const { partner, removeLine } = dissolvePair(cart, cart[1])
+        assert.equal(partner.id, 'p1')
+        assert.equal(removeLine.id, 'p2')
+    })
+
+    it('has nothing to dissolve when the line is not part of a pair', () => {
+        const cart = [{ id: 'p1', barcode: 'A', status: 'client_add', missing: true, missingReason: 'missing' }]
+        assert.deepEqual(dissolvePair(cart, cart[0]), { partner: null, removeLine: null })
+    })
+
+    it('the line that only a pair can be seen from is never its own partner', () => {
         const cart = [{ id: 'p1', barcode: 'A', missing: true, replacedBy: 'A', replacement: { originalBarcode: 'A' } }]
         assert.equal(findReplacement(cart, cart[0]), null)
     })
+})
 
-    it('reports a replaced line whatever side of the link is recorded', () => {
+describe('isReplacedLine', () => {
+    it('recognises a replaced line from whichever side of the link is recorded', () => {
         assert.equal(isReplacedLine({ missingReason: 'replaced' }), true)
         assert.equal(isReplacedLine({ replacedBy: 'B' }), true)
         assert.equal(isReplacedLine({ replacement: { replacementBarcode: 'B' } }), true)
