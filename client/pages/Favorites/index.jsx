@@ -15,11 +15,20 @@ import styles from './favorites.module.css'
 export default function Favorites() {
     const { loading, pageData } = usePage()
     const navigate = useNavigate()
-    const { id, favorites = [] } = useUser()
+    const { id, favorites = [], isFavorite } = useUser()
     // First page fetched after login (init only runs on path changes) or when
     // a favourite was added elsewhere while this page is mounted.
     const [data, setData] = useState(null)
     const [fetching, setFetching] = useState(false)
+    // A card stays on screen until a refresh even when its heart is toggled off,
+    // so the tap does not make it vanish. Every id favourited while this page is
+    // open is collected as the list renders, so the render right after a toggle
+    // still shows it. Only the live favourites count toward the scroll offset
+    // (offsetFilter), because that has to match what the server query can return —
+    // otherwise skip slides and repeats cards already shown.
+    const heldRef = useRef(new Set())
+    for (const productId of favorites) heldRef.current.add(String(productId))
+    const held = heldRef.current
     const fetchedForRef = useRef('')
     const prevFavoritesRef = useRef([])
     const favoriteKey = favorites.join(',')
@@ -30,14 +39,17 @@ export default function Favorites() {
         const prev = prevFavoritesRef.current
         prevFavoritesRef.current = favorites
 
-        if (!id || !favorites.length) {
+        // Nothing favourited while the page was open, or the session ended:
+        // start clean. Cards held from a tap the shopper just made stay.
+        if (!id || (!favorites.length && !held.size)) {
             fetchedForRef.current = ''
+            heldRef.current.clear()
             setData(null)
             return
         }
 
-        // Removals are handled locally by productFilter. Refetching here would
-        // reset the infinite-scroll pages (and could lose already-loaded ones).
+        // Removals are handled locally: the card is held until a refresh. Refetching
+        // here would reset the infinite-scroll pages (and could lose loaded ones).
         const added = favorites.some(productId => !prev.includes(productId))
         if (prev.length && !added) return
 
@@ -74,7 +86,7 @@ export default function Favorites() {
         </Flex>
     }
 
-    if (!favorites.length && !loading && !fetching) {
+    if (!held.size && !loading && !fetching) {
         return <Flex col className={styles.favorites} direction='column' gap={10}>
             <Text size='h1' bold>{TR('favorites')}</Text>
             <Flex col center gap={12} className={styles.empty}>
@@ -97,7 +109,10 @@ export default function Favorites() {
             skip,
             limit
         })}
-        productFilter={product => favorites.includes(product.id)}
+        // held covers every card the page has shown, live or just toggled off;
+        // the heart on a held one is already back to outline, so the tap reads as "off".
+        productFilter={product => held.has(String(product.id))}
+        offsetFilter={isFavorite}
     />
 }
 

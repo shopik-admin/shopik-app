@@ -11,7 +11,7 @@ import { setSalesCache } from '#common/functions/salesCache.js'
 
 export const PRODUCT_LIST_LIMIT = 30
 
-export default function ProductList({ data, loading, notFound, title, breadcrumbPath, resetKey, fetchPage, emptyText, hideBreadcrumbs, blocks, productFilter }) {
+export default function ProductList({ data, loading, notFound, title, breadcrumbPath, resetKey, fetchPage, emptyText, hideBreadcrumbs, blocks, productFilter, offsetFilter }) {
     const [extra, setExtra] = useState([])
     const [hasMore, setHasMore] = useState(false)
     const [loadingMore, setLoadingMore] = useState(false)
@@ -21,7 +21,12 @@ export default function ProductList({ data, loading, notFound, title, breadcrumb
     const allProducts = [...(data?.products || []), ...extra.flatMap(e => e.products)]
     // Optional client-side filter (e.g. favourites): the visible count is also
     // the correct server offset, because fetchPage queries the same filtered set.
+    // That holds only while every visible product is in the server's set. When the
+    // caller keeps a product on screen that the server no longer returns (a card
+    // held until refresh after being unfavorited), offsetFilter is the server-side
+    // truth for the offset — otherwise skip slides and repeats rows already shown.
     const products = productFilter ? allProducts.filter(productFilter) : allProducts
+    const offset = offsetFilter ? products.filter(offsetFilter).length : products.length
     const sales = extra.reduce((acc, e) => ({ ...acc, ...e.sales }), data?.sales || {})
     useEffect(() => { if (sales && Object.keys(sales).length) setSalesCache(sales) }, [sales])
 
@@ -43,7 +48,7 @@ export default function ProductList({ data, loading, notFound, title, breadcrumb
         const reqId = ++latestRequest.current
         setLoadingMore(true)
         try {
-            const res = await fetchPage({ skip: products.length, limit: PRODUCT_LIST_LIMIT })
+            const res = await fetchPage({ skip: offset, limit: PRODUCT_LIST_LIMIT })
             if (reqId !== latestRequest.current) return
             setExtra(prev => [...prev, res])
             setHasMore(res.products.length === PRODUCT_LIST_LIMIT)
@@ -62,7 +67,7 @@ export default function ProductList({ data, loading, notFound, title, breadcrumb
         }, { rootMargin: '400px' })
         io.observe(el)
         return () => io.disconnect()
-    }, [hasMore, loadingMore, loading, resetKey, products.length])
+    }, [hasMore, loadingMore, loading, resetKey, offset])
 
     if (notFound) return <NotFound />
 

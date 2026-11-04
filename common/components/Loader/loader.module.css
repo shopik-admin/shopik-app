@@ -1,7 +1,9 @@
  .loader {
      position: relative;
      border: 2px solid var(--border-primary);
-     border-top-color: var(--text-primary);
+     /* Arc follows the colour of whatever is spinning it — here the favourite
+        heart — while the ring stays the neutral border token. */
+     border-top-color: currentColor;
      border-radius: 50%;
      width: 20px;
      height: 20px;
