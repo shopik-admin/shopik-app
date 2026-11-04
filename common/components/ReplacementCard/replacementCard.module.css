@@ -1,0 +1,45 @@
+/* The pair card: a replaced product above, the product that supplied its order
+   below. It carries the same radius, background and border weight as the admin
+   rows around it — the divider between the two blocks is the only thing that
+   marks it as a pair. */
+.replacedCard {
+    --replaced-line: var(--warning-color, #e6a600);
+    border: 1px solid var(--replaced-line);
+    border-radius: var(--radius-3xl);
+    background: var(--bg-primary);
+}
+
+/* The border, and the divider between the two blocks, follow the pick state —
+   green once the supplied amount matches what was ordered. */
+.replacedCard.green {
+    --replaced-line: var(--success-color);
+}
+
+.replacedCard.yellow {
+    --replaced-line: var(--warning-color);
+}
+
+.replacedCard.red {
+    --replaced-line: var(--danger-color);
+}
+
+/* The two blocks carry the card padding so the divider runs edge to edge, at the
+   same 10px a row is padded. */
+.replacedOriginal {
+    padding: 10px;
+    border-bottom: 1px solid var(--replaced-line);
+}
+
+.replacedReplacement {
+    padding: 10px;
+}
+
+/* A little extra room around the replaced product name. */
+.replacedName {
+    padding-block: 6px;
+}
+
+/* ...and the same room under the barcode, before the pill. */
+.replacedBarcode {
+    padding-block-end: 8px;
+}

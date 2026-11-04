@@ -1,5 +1,6 @@
 import { constants as productConstants } from '#server/dl/schemas/product.js'
 import { buildCartProduct, CART_PRODUCT_STATUS } from '#common/functions/calcOrder/cart.js'
+import { dissolvePair, isReplacedLine } from '#common/functions/cartReplacements.js'
 import enrichCart from '#server/utils/data/enrichCart.js'
 import getPickLimits from '#server/utils/data/getPickLimits.js'
 import { getPickRange, isPickInRange } from '#common/functions/pickLimits.js'
@@ -39,6 +40,33 @@ export default async function pick_item(payload, { DL, _admin, utils }) {
 
     const item = order.cart[idx]
     const isWeighted = item.unit?.type === productConstants.UNIT.WEIGHT || item.unit?.type === 'weight'
+    // The replaced side of a pair — the product the customer ordered and the picker
+    // swapped. Scanning the replacement line itself is not this: that line was
+    // supplied, so its pair stands.
+    const wasReplaced = isReplacedLine(item)
+
+    // `$pull` compares a document value exactly, so the pair link has to be matched as
+    // a field. A stored `replacement` carries its suggestion list too, so a value with
+    // only the barcode it links to never equals the line, and nothing is pulled.
+    async function removePairLine(removeLine) {
+        await DL.Order.Model.updateOne({ id }, {
+            $pull: { cart: { barcode: removeLine.barcode, 'replacement.originalBarcode': removeLine.replacement?.originalBarcode } }
+        })
+    }
+
+    // A pair only stands while its original is recorded as replaced, so an action
+    // that ends that state has to clear the other side as well: the line the picker
+    // added is removed, and a line the customer ordered keeps only its link cleared.
+    async function dissolvePartner() {
+        const { partner, removeLine } = dissolvePair(order.cart, item)
+        if (removeLine) return removePairLine(removeLine)
+        if (partner) {
+            const partnerIdx = order.cart.indexOf(partner)
+            await DL.Order.Model.updateOne({ id }, {
+                $unset: { [`cart.${partnerIdx}.replacement`]: '', [`cart.${partnerIdx}.replacedBy`]: '' }
+            })
+        }
+    }
 
     // Pick deviation limits (per-domain setting, hardcoded fallback) — the
     // client validates for UX, this is the enforced source of truth.
@@ -54,7 +82,6 @@ export default async function pick_item(payload, { DL, _admin, utils }) {
         }
     }
 
-    const fullAdmin = await DL.Admin.readById(_admin.id)
     const adminName = `${_admin.name?.first ?? ''} ${_admin.name?.last ?? ''}`.trim()
 
     let update = {}
@@ -65,11 +92,14 @@ export default async function pick_item(payload, { DL, _admin, utils }) {
         const amt = Number(finalAmount ?? item.amount)
         if (isNaN(amt) || amt <= 0) throw { status: 400, message: 'valid finalAmount required' }
         assertInRange(amt, false, 'picked quantity')
+        // A product that was found after all stops being a replaced one, so its
+        // pair is cleared here and dissolved on the other side below.
         update = {
             $set: {
                 'cart.$[elem].finalAmount': amt,
                 'cart.$[elem].missing': false
             },
+            ...(wasReplaced ? { $unset: { 'cart.$[elem].replacement': '', 'cart.$[elem].replacedBy': '' } } : {}),
             $push: {
                 'cart.$[elem].admins': { adminId: _admin.id, date: new Date(), amount: amt, status: 'scanned' }
             }
@@ -84,17 +114,21 @@ export default async function pick_item(payload, { DL, _admin, utils }) {
                 'cart.$[elem].finalAmount': amt,
                 'cart.$[elem].missing': false
             },
+            ...(wasReplaced ? { $unset: { 'cart.$[elem].replacement': '', 'cart.$[elem].replacedBy': '' } } : {}),
             $push: {
                 'cart.$[elem].admins': { adminId: _admin.id, date: new Date(), amount: amt, status: 'weighted' }
             }
         }
     } else if (action === 'missing') {
+        // 'missing' is the plain stock-out: a line that was replaced and is now
+        // recorded as missing has no replacement any more, so the pair goes with it.
         update = {
             $set: {
                 'cart.$[elem].missing': true,
                 'cart.$[elem].missingReason': missingReason || 'missing',
                 'cart.$[elem].finalAmount': 0
             },
+            ...(wasReplaced ? { $unset: { 'cart.$[elem].replacement': '', 'cart.$[elem].replacedBy': '' } } : {}),
             $push: {
                 'cart.$[elem].admins': { adminId: _admin.id, date: new Date(), missing: true, status: 'missing' }
             }
@@ -183,12 +217,11 @@ export default async function pick_item(payload, { DL, _admin, utils }) {
             }
         }
     } else if (action === 'reset') {
-        // Return an item to the "to pick" state — undoes scan / missing /
-        // replacement. A replacement pair dissolves: the original goes back to
-        // picking, and a replacement-only cart line (admin_add) is removed.
-        const repBarcode = item.replacement?.replacementBarcode || null      // clicked item is the replaced original
-        const originalBarcode = item.replacement?.originalBarcode || null    // clicked item is the replacement
-
+        // Return an item to the "to pick" state — undoes scan / missing / replacement.
+        // A pair dissolves whole whichever side it is returned from: the line that
+        // exists only because of the replacement is removed, and the product the
+        // customer ordered goes back to picking. A line the customer ordered is not
+        // that line, so it keeps itself and loses only the link.
         const resetItem = async resetBarcode => {
             await DL.Order.Model.updateOne(
                 { id },
@@ -197,7 +230,8 @@ export default async function pick_item(payload, { DL, _admin, utils }) {
                     $unset: {
                         'cart.$[elem].finalAmount': '',
                         'cart.$[elem].missingReason': '',
-                        'cart.$[elem].replacement': ''
+                        'cart.$[elem].replacement': '',
+                        'cart.$[elem].replacedBy': ''
                     },
                     $push: { 'cart.$[elem].admins': { adminId: _admin.id, date: new Date(), status: 'reset' } }
                 },
@@ -205,36 +239,29 @@ export default async function pick_item(payload, { DL, _admin, utils }) {
             )
         }
 
-        if (repBarcode) {
-            // clicked item is the replaced original — undo the replacement
-            const repLine = order.cart.find(c => c.barcode === repBarcode)
-            if (repLine && repLine.status === CART_PRODUCT_STATUS.ADMIN_ADD && repLine.replacement?.originalBarcode === barcode) {
-                // line exists only because of the replacement — remove it
-                await DL.Order.Model.updateOne({ id }, { $pull: { cart: { barcode: repBarcode, replacement: { originalBarcode: barcode } } } })
-            } else if (repLine) {
-                await resetItem(repBarcode)
-            }
-        } else if (originalBarcode) {
-            // clicked item is the replacement — dissolve the pair and reset the original
-            if (item.status === CART_PRODUCT_STATUS.ADMIN_ADD && item.replacement?.originalBarcode === originalBarcode) {
-                await DL.Order.Model.updateOne({ id }, { $pull: { cart: { barcode: barcode, replacement: { originalBarcode } } } })
-            }
-            await resetItem(originalBarcode)
-        }
-            // otherwise the shared update below resets the clicked item itself
+        const { partner, removeLine } = dissolvePair(order.cart, item)
+        if (removeLine) await removePairLine(removeLine)
+        if (partner && partner !== removeLine) await resetItem(partner.barcode)
 
+        // The shared update below resets the clicked line: that is all there is for a
+        // line with no pair, and it does nothing when that line is the one being removed.
         update = {
             $set: { 'cart.$[elem].missing': false },
             $unset: {
                 'cart.$[elem].finalAmount': '',
                 'cart.$[elem].missingReason': '',
-                'cart.$[elem].replacement': ''
+                'cart.$[elem].replacement': '',
+                'cart.$[elem].replacedBy': ''
             },
             $push: { 'cart.$[elem].admins': { adminId: _admin.id, date: new Date(), status: 'reset' } }
         }
     } else {
         throw { status: 400, message: 'unknown action' }
     }
+
+    // The reset branch dissolves its pair above; here it is a product that was
+    // supplied after all, or a replacement that turned out to be a plain stock-out.
+    if (wasReplaced && action !== 'reset') await dissolvePartner()
 
     const updated = await DL.Order.Model.findOneAndUpdate(
         { id },

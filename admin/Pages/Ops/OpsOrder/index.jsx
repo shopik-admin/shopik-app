@@ -15,13 +15,13 @@ import { useUser } from 'features/User'
 import usePermission from 'common/permissions/usePermision'
 import { useState, useEffect } from 'react'
 import Tabs from '#common/components/Tabs/index.jsx'
-import ProductInline, { PickPill, pickStatus } from 'common/components/ProductInline'
+import CartList from 'common/components/CartList'
+import { groupCart } from 'common/functions/cartReplacements'
 import Stepper from 'common/components/Stepper'
 import { useModal } from 'common/components/Modal'
 import ProductPickModal from './ProductPickModal'
 import DeliverPhoto from './DeliverPhoto'
 import ReleaseOrderButton from './ReleaseOrderButton'
-import { formatPrice, ProductImage, ProductPrice, ProductUnitInfo } from 'common/components/Product'
 
 const STEPS = {
     PREVIEW: 0,
@@ -331,23 +331,13 @@ function PreviewFooter({ primaryKey, primaryDisabled, onPrimary, linkKey, onLink
 }
 
 function OrderView({ order = {}, setStep }) {
-    const cart = order.cart || []
+    const entries = groupCart(order.cart || [])
 
     return <Flex grow col className={styles.orderPick}>
         <Flex alignItems='center' justifyContent='center' style={{ padding: 16 }}>
             <Text size='l' bold>ops_view_title</Text>
         </Flex>
-        <Flex grow col gap={10} className={styles.cartList}>
-            {cart.map(product => (
-                <ProductInline
-                    key={product.id || product.barcode}
-                    product={product}
-                    remove={false}
-                    note={false}
-                    admin
-                />
-            ))}
-        </Flex>
+        <CartList entries={entries} admin className={styles.cartList} />
         <Flex center gap={20} className={styles.footer}>
             <Button mode='text-brand' onClick={() => setStep(STEPS.PREVIEW)}>back</Button>
         </Flex>
@@ -400,32 +390,24 @@ function OrderPick({ order = {}, setStep, onPicked }) {
     const [tab, setTab] = useState()
     const [completing, setCompleting] = useState(false)
     const { openModal, closeModal } = useModal()
-    const cart = order.cart || []
     const isScanned = p => p.finalAmount != null || !!p.missing
     // group replaced originals with their replacer into one yellow linked card (image-3 style)
-    const byBarcode = new Map(cart.map(p => [p.barcode, p]))
-    const replacedPairs = []
-    const pairedBarcodes = new Set()
-    for (const p of cart) {
-        const repBarcode = p.replacement?.replacementBarcode
-        if (p.missing && repBarcode && byBarcode.has(repBarcode)) {
-            replacedPairs.push({ original: p, replacer: byBarcode.get(repBarcode) })
-            pairedBarcodes.add(p.barcode)
-            pairedBarcodes.add(repBarcode)
-        }
-    }
-    const toPickItems = cart.filter(p => !isScanned(p) && !pairedBarcodes.has(p.barcode))
-    const donePickItems = cart.filter(p => isScanned(p) && !pairedBarcodes.has(p.barcode))
+    const entries = groupCart(order.cart || [])
+    const pairs = entries.filter(e => e.type === 'pair')
+    const singleItems = entries.filter(e => e.type === 'product')
+    const toPickItems = singleItems.filter(e => !isScanned(e.product))
+    const donePickItems = singleItems.filter(e => isScanned(e.product))
     const isDoneTab = tab === 'done_pick'
     const isWaitTab = tab === 'wait_pick'
-    const displayed = isDoneTab ? donePickItems : isWaitTab ? [] : toPickItems
-    const displayedPairs = isDoneTab ? replacedPairs : []
-    const allHandled = toPickItems.length === 0 && cart.length > 0
-
+    // Pairs lead the done tab: a pair is by definition something already handled.
+    const displayedEntries = isDoneTab ? [...pairs, ...donePickItems] : isWaitTab ? [] : toPickItems
+    const allHandled = toPickItems.length === 0 && entries.length > 0
 
     useEffect(() => {
-        if (toPickItems.length === 0 && donePickItems.length > 0 && !isDoneTab) setTab('done_pick')
-    }, [toPickItems.length, donePickItems.length])
+        // A cart handled entirely through replacements has no single done items —
+        // only pairs — so the jump has to count them, or it lands on an empty tab.
+        if (toPickItems.length === 0 && donePickItems.length + pairs.length > 0 && !isDoneTab) setTab('done_pick')
+    }, [toPickItems.length, donePickItems.length, pairs.length])
 
     function handleProductClick(product) {
         openModal(
@@ -462,29 +444,9 @@ function OrderPick({ order = {}, setStep, onPicked }) {
             options={[
                 { text: 'to_pick', badge: toPickItems.length },
                 { text: 'wait_pick', badge: 0 },
-                { text: 'done_pick', badge: donePickItems.length + replacedPairs.length },
+                { text: 'done_pick', badge: donePickItems.length + pairs.length },
             ]} />
-        <Flex grow col gap={10} className={styles.cartList}>
-            {displayedPairs.map(({ original, replacer }) => (
-                <ReplacementCard
-                    key={(original.id || original.barcode) + '->' + (replacer.id || replacer.barcode)}
-                    original={original}
-                    replacer={replacer}
-                    onClick={() => handleProductClick(replacer)}
-                />
-            ))}
-            {displayed.map(product => (
-                <ProductInline
-                    key={product.id || product.barcode}
-                    product={product}
-                    remove={false}
-                    note={false}
-                    admin
-                    onClick={() => handleProductClick(product)}
-                    style={{ cursor: 'pointer' }}
-                />
-            ))}
-        </Flex>
+        <CartList entries={displayedEntries} admin onItemClick={handleProductClick} className={styles.cartList} />
         <Flex center gap={10} col className={styles.footer}>
             <Button disabled={!allHandled} loading={completing} onClick={handleFinishPick} className={styles.finishBtn}>finish_pick</Button>
             {toPickItems.length === 0 && order.phone && <Button
@@ -492,38 +454,6 @@ function OrderPick({ order = {}, setStep, onPicked }) {
                 icon='phoneOutgoing'
                 onClick={() => { window.location.href = `tel:${String(order.phone).replace(/[^+\d]/g, '')}` }}
             >ops_call_customer</Button>}
-        </Flex>
-    </Flex>
-}
-
-function ReplacementCard({ original = {}, replacer = {}, onClick }) {
-    const status = pickStatus(replacer)
-
-    // Original on top, then the divider that runs across the whole card in the
-    // state colour, then the product that replaced it. Same sizes as a regular pick
-    // row (name 14px, unit info and barcode 12px), same ordered/supplied pill.
-    return <Flex col onClick={onClick} style={{ cursor: 'pointer' }} className={classNames(styles.replacedCard, styles[status])}>
-        <Flex col gap={6} className={styles.replacedOriginal}>
-            <Text size="m" bold>
-                {original.name || TR('ops_product_name_fallback')}{original.price != null ? ` - ₪${formatPrice(original.price)}` : ''}
-            </Text>
-            {original.barcode && <Flex alignItems="center" gap={4} justifyContent="end">
-                <Text size="s" mode="sub">{original.barcode}</Text>
-                <Icon name="barcode" size={12} />
-            </Flex>}
-        </Flex>
-        <Flex gap={10} className={styles.replacedReplacement}>
-            <ProductImage product={replacer} size="s" hideSaleBadge />
-            <Flex col gap={5} grow={1} justifyContent='space-around'>
-                <ProductPrice product={replacer} size="s" />
-                <Text size="s" mode="sub"><ProductUnitInfo product={replacer} /></Text>
-                <Text size="m" bold className={styles.replacedName}>{replacer.name || TR('ops_product_name_fallback')}</Text>
-                {replacer.barcode && <Flex alignItems="center" gap={4} justifyContent="end" className={styles.replacedBarcode}>
-                    <Text size="s" mode="sub">{replacer.barcode}</Text>
-                    <Icon name="barcode" size={12} />
-                </Flex>}
-                <PickPill product={replacer} status={status} />
-            </Flex>
         </Flex>
     </Flex>
 }

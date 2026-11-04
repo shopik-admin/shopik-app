@@ -1,5 +1,6 @@
 import { round2 } from '../calcOrder/utils.js'
 import { cleanText, formatQuantity } from './format.js'
+import { findReplacement, isReplacedLine } from '../cartReplacements.js'
 import hebrewTexts from '../../texts/hebrew.json' with { type: 'json' }
 
 export const DEFAULT_NOTE_LIMIT = 5
@@ -16,23 +17,6 @@ function text(key, fallback, params) {
     if (!params) return template
     return String(template).replace(/\[(\w+)\]/g, (_, name) =>
         params[name] !== undefined && params[name] !== null ? String(params[name]) : `[${name}]`
-    )
-}
-
-function findReplacement(cart, line) {
-    const barcode = line?.barcode
-    const byLink = (cart || []).find(l => l && !l.missing && l.replacement?.originalBarcode && l.replacement.originalBarcode === barcode)
-    if (byLink) return byLink
-    const fallbackBarcode = line?.replacedBy || line?.replacement?.replacementBarcode
-    if (!fallbackBarcode) return null
-    return (cart || []).find(l => l && !l.missing && l.barcode === fallbackBarcode) || null
-}
-
-function isReplacedLine(line) {
-    return Boolean(line) && (
-        line.missingReason === 'replaced'
-        || Boolean(line.replacedBy)
-        || Boolean(line.replacement?.replacementBarcode)
     )
 }
 
