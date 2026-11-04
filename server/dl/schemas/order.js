@@ -378,7 +378,7 @@ const orderSchema = {
     vatBreakdown: Object,
     // Set when items/money changed after the invoice was issued; decided
     // manually (supplementary document / credit), never automatic.
-    billingAdjustment: { type: String, filter: true },
+    billingAdjustment: String,
     receipt: {
         url: String,
         shortUrl: String,
@@ -392,7 +392,7 @@ const orderSchema = {
     supplierMissingCount: { type: Number, default: 0 },
     supplierCapturedAt: Date,
     comaxDoc: {
-        docNumber: { type: String, filter: true },
+        docNumber: String,
         totalSum: Number,
         capturedAt: Date,
         error: String

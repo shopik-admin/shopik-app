@@ -1,9 +1,10 @@
 /**
  * Build filter descriptors from a Mongoose Model.
  * Reads Model.filterFields (populated via filter:true) and introspects Model.schema paths
- * to infer UI type. MAIN_FIELDS controls `main` + `order`.
+ * to infer UI type. MAIN_FIELDS controls `main` + `order`. hiddenFields are fields that
+ * must stay filter:true for the read whitelist but are not offered as UI filters.
  */
-export default function buildFilterDescriptors(ModelOrDL, mainFields = []) {
+export default function buildFilterDescriptors(ModelOrDL, mainFields = [], hiddenFields = []) {
     // ponytail: accept both DL.Order (wrapper) and DL.Order.Model (mongoose model)
     const Model = ModelOrDL?.Model && !ModelOrDL?.filterFields ? ModelOrDL.Model : ModelOrDL
     if (!Model?.filterFields) return []
@@ -13,6 +14,7 @@ export default function buildFilterDescriptors(ModelOrDL, mainFields = []) {
     for (const key of Model.filterFields) {
         // skip auto id/active unless explicitly requested as main
         if ((key === 'id' || key === 'active') && !mainFields.includes(key)) continue
+        if (hiddenFields.includes(key)) continue
 
         const schematype = Model.schema.path(key)
         let type = 'string'
