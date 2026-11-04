@@ -32,7 +32,7 @@ export default function ProductCard(props) {
         className={styles.productCard}>
         <ProductFavorite />
         <ProductImage {...props} />
-        <ProductInfo {...props} />
+        <ProductInfo {...props} nameLines={2} />
         <ProductStamps product={product} className={styles.stamps} />
         <CommonProductButton
             product={product}

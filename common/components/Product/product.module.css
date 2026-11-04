@@ -135,6 +135,14 @@
     margin-top: 10px;
 }
 
+/* Product-card names reserve two lines so every card in a row has the same
+   height, even for one-line names. The clamp itself comes from Text's
+   ellipsis prop (-webkit-line-clamp). */
+.productName {
+    line-height: 1.4;
+    min-height: 2.8em;
+}
+
 .price {
     margin-bottom: 10px;
     align-items: baseline !important;

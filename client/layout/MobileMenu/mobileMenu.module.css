@@ -266,6 +266,17 @@
         border-bottom: 1px solid #e5eceb;
     }
 
+    .groupTitleLink {
+        display: block;
+        color: inherit;
+        text-decoration: none;
+
+        &:hover .groupTitle,
+        &:focus-visible .groupTitle {
+            text-decoration: underline;
+        }
+    }
+
     .groupTitle {
         display: block;
         margin-bottom: 10px;

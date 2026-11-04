@@ -190,12 +190,18 @@ export function ProductUnitInfo({ product }) {
 }
 
 export function ProductInfo(props) {
-    const { product, sales, size = 'm' } = props
+    const { product, sales, size = 'm', nameLines } = props
     const infoText = getUnitInfoText(product)
     return <Flex gap={4} col className={classNames(styles.info, styles[size])}>
         <ProductPrice {...props} />
         {infoText && <Text size='xs' mode='sub'><ProductUnitInfo product={product} /></Text>}
-        <Text bold>{product.name}</Text>
+        <Text
+            bold
+            ellipsis={nameLines}
+            className={nameLines ? styles.productName : undefined}
+        >
+            {product.name}
+        </Text>
     </Flex>
 }
 

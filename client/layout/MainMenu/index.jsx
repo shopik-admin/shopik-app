@@ -251,13 +251,19 @@ function Level3Menu({ items, visible, parentName, basePath, onClose, onBack }) {
                         key={itemPath}
                         className={styles.level3Group}
                     >
-                        <Text
-                            bold
-                            size='l'
-                            className={styles.level3Title}
+                        <NavLink
+                            to={itemPath}
+                            onClick={onClose}
+                            className={styles.level3Link}
                         >
-                            {item.name}
-                        </Text>
+                            <Text
+                                bold
+                                size='l'
+                                className={styles.level3Title}
+                            >
+                                {item.name}
+                            </Text>
+                        </NavLink>
 
                         {item.children?.length > 0 && (
                             <Flex
