@@ -2,7 +2,7 @@ import getUserFavorites, { MAX_FAVORITES } from '#server/utils/data/getUserFavor
 
 // Toggle one product in the user's favourites. Returns the full updated list
 // so the client never needs a follow-up read.
-export default async function favorite({ productId }, { DL, _user, domainId }) {
+export default async function favorite({ productId }, { DL, _user }) {
     const userId = String(_user.id)
     const id = String(productId || '').trim()
 
@@ -22,7 +22,7 @@ export default async function favorite({ productId }, { DL, _user, domainId }) {
             throw { status: 400, message: `favorites limit reached (${MAX_FAVORITES})` }
 
         try {
-            await DL.UserFavorite.create({ userId, productId: id, domainId })
+            await DL.UserFavorite.create({ userId, productId: id })
         } catch (e) {
             // Concurrent double-tap: the unique index already stored it.
             if (e?.status !== 409) throw e
