@@ -190,12 +190,18 @@ export function ProductUnitInfo({ product }) {
 }
 
 export function ProductInfo(props) {
-    const { product, sales, size = 'm' } = props
+    const { product, sales, size = 'm', nameLines } = props
     const infoText = getUnitInfoText(product)
     return <Flex gap={4} col className={classNames(styles.info, styles[size])}>
         <ProductPrice {...props} />
         {infoText && <Text size='s' mode='sub'><ProductUnitInfo product={product} /></Text>}
-        <Text size='m' bold>{product.name}</Text>
+        <Text
+            bold
+            ellipsis={nameLines}
+            className={nameLines ? styles.productName : undefined}
+        >
+            {product.name}
+        </Text>
     </Flex>
 }
 
@@ -242,15 +248,14 @@ export function ProductButton({ product, amount = 0, onUpdateAmount, size = 'm',
     </Flex>
 }
 
-// Visual-only favourite toggle. No persistence / API yet — state is local so
-// the heart is wired into the card layout and can be lifted later without a
-// redesign. Colours come from --product-favorite-color.
-export function ProductFavorite({ className }) {
-    const [on, setOn] = useState(false)
+// Favourite heart. State lives in the User context (persisted per logged-in
+// user); this component stays presentational so it can render anywhere.
+// Off = outline, on = the same heart filled (see .on in product.module.css).
+export function ProductFavorite({ on = false, onToggle, className }) {
     return <Button
         mode='text'
-        icon={on ? 'heartPlus' : 'heart'}
-        onClick={() => setOn(o => !o)}
+        icon='heart'
+        onClick={onToggle}
         stopPropagation
         preventDefault
         aria-label='favorite'

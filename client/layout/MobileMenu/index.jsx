@@ -7,7 +7,7 @@ import { getUserTitle, getUserSubtitle } from 'common/functions/userLabel'
 import { INFO_LINKS } from 'layout/infoLinks'
 import { useState, useEffect } from 'react'
 import events from 'common/features/events'
-import { useNavigate } from 'react-router'
+import { NavLink, useNavigate } from 'react-router'
 import { useAppData } from 'App'
 import styles from './mobileMenu.module.css'
 import classNames from 'common/functions/classNames'
@@ -65,6 +65,7 @@ export default function MobileMenu({ onClose }) {
     const midRows = [
         { key: 'sales', icon: 'salePercent', text: 'Sales', bold: true, accent: true, onClick: () => go('/sales') },
         { key: 'departments', icon: 'grid', text: 'all_departments', bold: true, onClick: () => toggle('departments') },
+        { key: 'favorites', icon: 'heart', text: 'favorites', bold: true, onClick: () => go('/favorites') },
         { key: 'home', icon: 'home', text: 'Home', bold: true, onClick: () => go('/') },
     ]
 
@@ -98,7 +99,7 @@ export default function MobileMenu({ onClose }) {
                     {selected === 'login' && <AuthPanel onClose={onClose} />}
                     {selected === 'departments' && (
                         products?.children?.length
-                            ? <DeptBrowser items={products.children} basePath={products.path} go={go} />
+                            ? <DeptBrowser items={products.children} basePath={products.path} go={go} onClose={onClose} />
                             : null
                     )}
                 </div>
@@ -147,7 +148,7 @@ function RailBtn({ entryKey, icon, active, onClick }) {
     </button>
 }
 
-function DeptBrowser({ items, basePath, go }) {
+function DeptBrowser({ items, basePath, go, onClose }) {
     const [activePath, setActivePath] = useState(null)
 
     const active = activePath
@@ -170,7 +171,9 @@ function DeptBrowser({ items, basePath, go }) {
             {(active.children || []).map((group, i) => {
                 const groupPath = resolvePath(group, activePath)
                 return <li key={`${groupPath}-${i}`} className={styles.group}>
-                    <Text bold size='l' className={styles.groupTitle}>{group.name}</Text>
+                    <NavLink to={groupPath} onClick={onClose} className={styles.groupTitleLink}>
+                        <Text bold size='l' className={styles.groupTitle}>{group.name}</Text>
+                    </NavLink>
                     {group.children?.length > 0 && (
                         <Flex tag='ul' col direction='column' gap={4}>
                             {group.children.map((child, j) => {

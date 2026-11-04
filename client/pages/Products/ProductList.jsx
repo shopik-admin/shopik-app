@@ -11,14 +11,17 @@ import { setSalesCache } from '#common/functions/salesCache.js'
 
 export const PRODUCT_LIST_LIMIT = 30
 
-export default function ProductList({ data, loading, notFound, title, breadcrumbPath, resetKey, fetchPage, emptyText, hideBreadcrumbs, blocks }) {
+export default function ProductList({ data, loading, notFound, title, breadcrumbPath, resetKey, fetchPage, emptyText, hideBreadcrumbs, blocks, productFilter }) {
     const [extra, setExtra] = useState([])
     const [hasMore, setHasMore] = useState(false)
     const [loadingMore, setLoadingMore] = useState(false)
     const latestRequest = useRef(0)
     const sentinelRef = useRef(null)
 
-    const products = [...(data?.products || []), ...extra.flatMap(e => e.products)]
+    const allProducts = [...(data?.products || []), ...extra.flatMap(e => e.products)]
+    // Optional client-side filter (e.g. favourites): the visible count is also
+    // the correct server offset, because fetchPage queries the same filtered set.
+    const products = productFilter ? allProducts.filter(productFilter) : allProducts
     const sales = extra.reduce((acc, e) => ({ ...acc, ...e.sales }), data?.sales || {})
     useEffect(() => { if (sales && Object.keys(sales).length) setSalesCache(sales) }, [sales])
 
@@ -59,7 +62,7 @@ export default function ProductList({ data, loading, notFound, title, breadcrumb
         }, { rootMargin: '400px' })
         io.observe(el)
         return () => io.disconnect()
-    }, [hasMore, loadingMore, loading, resetKey])
+    }, [hasMore, loadingMore, loading, resetKey, products.length])
 
     if (notFound) return <NotFound />
 
@@ -79,7 +82,7 @@ export default function ProductList({ data, loading, notFound, title, breadcrumb
                     sales={(p.saleIds || []).reduce((acc, sId) => sales[sId] ? { ...acc, [sId]: sales[sId] } : acc, {})}
                 />)}
         </div>
-        {!loading && products.length === 0 && emptyText && <Text>{emptyText}</Text>}
+        {!loading && !hasMore && products.length === 0 && emptyText && <Text>{emptyText}</Text>}
         {!loading && hasMore && <div ref={sentinelRef} className={styles.sentinel} />}
         {loadingMore && <Loader />}
     </Flex>

@@ -1,0 +1,17 @@
+.favorites {
+    container-type: inline-size;
+    width: 100%;
+}
+
+.empty {
+    width: 100%;
+    min-height: 280px;
+    padding: 32px 16px;
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+.emptyIcon {
+    font-size: 48px;
+    color: var(--product-favorite-color, #F6C9D1);
+}

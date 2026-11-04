@@ -135,6 +135,14 @@
     margin-top: 10px;
 }
 
+/* Product-card names reserve two lines so every card in a row has the same
+   height, even for one-line names. The clamp itself comes from Text's
+   ellipsis prop (-webkit-line-clamp). */
+.productName {
+    line-height: 1.4;
+    min-height: 2.8em;
+}
+
 .price {
     margin-bottom: 10px;
     align-items: baseline !important;
@@ -251,22 +259,34 @@
     }
 }
 
-/* Favourite heart — visual only, no persistence. Positioned against the card
-   root (which sets position: relative), not the image. */
+/* Favourite heart — outline when off, filled when on. Positioned against the
+   card root (which sets position: relative), not the image. */
 .favorite {
     position: absolute;
     inset-inline-end: 10px;
     top: 10px;
     padding: 0;
-    color: var(--product-favorite-color, var(--text-error-primary));
+    width: 20px;
+    height: 20px;
+    color: var(--product-favorite-color, #F6C9D1);
     z-index: 1;
 
+    svg {
+        width: 20px;
+        height: 20px;
+        font-size: 20px;
+    }
+
     &:hover {
-        color: var(--product-favorite-color, var(--text-error-primary));
+        color: var(--product-favorite-color, #F6C9D1);
     }
 
     &.on {
-        color: var(--product-favorite-color, var(--text-error-primary));
+        color: var(--product-favorite-color, #F6C9D1);
+
+        svg {
+            fill: currentColor;
+        }
     }
 }
 

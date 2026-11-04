@@ -247,6 +247,18 @@
         min-width: 0;
     }
 
+    .level3Link {
+        display: block;
+
+        color: inherit;
+        text-decoration: none;
+
+        &:hover .level3Title,
+        &:focus-visible .level3Title {
+            text-decoration: underline;
+        }
+    }
+
     .level3Title {
         display: block;
 

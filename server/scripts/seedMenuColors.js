@@ -20,6 +20,10 @@ const MENU_COLOR_DEFAULTS = [
     { key: 'menu-home-bg', value: '#ffffff' },
     { key: 'menu-home-border', value: '#dde4e2' },
     { key: 'menu-home-text', value: '#242a28' },
+    // Favourites pill — soft pink outline
+    { key: 'menu-favorites-bg', value: '#fdf0f3' },
+    { key: 'menu-favorites-border', value: '#f3c9d8' },
+    { key: 'menu-favorites-text', value: '#c2185b' },
     // Full-screen tint behind the open menu (closes menu on click)
     { key: 'menu-overlay', value: '#00332499' },
     // Dividers inside the mobile menu drawer

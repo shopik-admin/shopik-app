@@ -63,6 +63,18 @@ export default function MainMenu({ openMenu: controlledOpen, onOpenMenu }) {
                     />
                 )
             })}
+            {/* Static storefront entry — not part of the CMS menu. Visible to
+                guests too; the page itself asks them to log in. */}
+            <MenuItem
+                key='favorites'
+                name='favorites'
+                path='/favorites'
+                icon='heart'
+                main
+                open={openMenu === 'favorites'}
+                onOpen={() => setOpenMenu(openMenu === 'favorites' ? null : 'favorites')}
+                onClose={close}
+            />
         </Flex>
     </nav>
 }
@@ -251,13 +263,19 @@ function Level3Menu({ items, visible, parentName, basePath, onClose, onBack }) {
                         key={itemPath}
                         className={styles.level3Group}
                     >
-                        <Text
-                            bold
-                            size='l'
-                            className={styles.level3Title}
+                        <NavLink
+                            to={itemPath}
+                            onClick={onClose}
+                            className={styles.level3Link}
                         >
-                            {item.name}
-                        </Text>
+                            <Text
+                                bold
+                                size='l'
+                                className={styles.level3Title}
+                            >
+                                {item.name}
+                            </Text>
+                        </NavLink>
 
                         {item.children?.length > 0 && (
                             <Flex
@@ -299,15 +317,23 @@ function Level3Menu({ items, visible, parentName, basePath, onClose, onBack }) {
 const MENU_THEME_KEYS = {
     '/products': 'departments',
     '/sales': 'sales',
+    '/favorites': 'favorites',
     '/': 'home',
+}
+
+// Used until the theme settings are seeded (existing databases). Admin →
+// Settings can override these via menu-favorites-bg/border/text.
+const MENU_THEME_FALLBACKS = {
+    favorites: { bg: '#fdf0f3', border: '#f3c9d8', text: '#c2185b' },
 }
 
 function menuThemeVars(path) {
     const key = MENU_THEME_KEYS[path]
     if (!key) return undefined
+    const fallback = MENU_THEME_FALLBACKS[key] || {}
     return {
-        '--main-bg': `var(--menu-${key}-bg, var(--bg-primary, #ffffff))`,
-        '--main-border': `var(--menu-${key}-border, var(--border-secondary, #dde4e2))`,
-        '--main-text': `var(--menu-${key}-text, var(--text-primary, #242a28))`,
+        '--main-bg': `var(--menu-${key}-bg, ${fallback.bg || 'var(--bg-primary, #ffffff)'})`,
+        '--main-border': `var(--menu-${key}-border, ${fallback.border || 'var(--border-secondary, #dde4e2)'})`,
+        '--main-text': `var(--menu-${key}-text, ${fallback.text || 'var(--text-primary, #242a28)'})`,
     }
 }
