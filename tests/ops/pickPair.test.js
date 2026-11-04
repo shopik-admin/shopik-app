@@ -12,7 +12,7 @@ function line({ id, barcode, status = 'client_add', unit = { type: 'unit' }, ...
 }
 
 function harness(order, { product = null } = {}) {
-    const calls = {}
+    const calls = { pairUpdates: [] }
     const DL = {
         Order: {
             readById: async () => order,
@@ -23,9 +23,10 @@ function harness(order, { product = null } = {}) {
             Model: {
                 // The pair side: pull (a line that exists only because of the
                 // replacement) or unset (a line the customer ordered).
-                updateOne: async (filter, update) => {
+                updateOne: async (filter, update, opts) => {
                     if (update.$pull) calls.pull = update.$pull
                     else calls.partnerUnset = update.$unset
+                    calls.pairUpdates.push({ update, arrayFilters: opts?.arrayFilters })
                     return order
                 },
                 // Not async: the route calls it as mongoose does, `.lean()` on the
@@ -62,7 +63,7 @@ describe('pick_item keeps a replacement pair whole', () => {
         assert.equal(calls.itemUpdate.$set['cart.$[elem].missingReason'], 'missing')
         assert.equal(calls.itemUpdate.$unset['cart.$[elem].replacement'], '')
         assert.equal(calls.itemUpdate.$unset['cart.$[elem].replacedBy'], '')
-        assert.deepEqual(calls.pull.cart, { barcode: 'B', replacement: { originalBarcode: 'A' } })
+        assert.deepEqual(calls.pull.cart, { barcode: 'B', 'replacement.originalBarcode': 'A' })
     })
 
     it('a partner the customer ordered keeps its own line, only its link is cleared', async () => {
@@ -93,7 +94,7 @@ describe('pick_item keeps a replacement pair whole', () => {
 
         assert.equal(calls.itemUpdate.$set['cart.$[elem].missing'], false)
         assert.equal(calls.itemUpdate.$unset['cart.$[elem].replacement'], '')
-        assert.deepEqual(calls.pull.cart, { barcode: 'B', replacement: { originalBarcode: 'A' } })
+        assert.deepEqual(calls.pull.cart, { barcode: 'B', 'replacement.originalBarcode': 'A' })
     })
 
     it('scanning the replacement line itself leaves the pair standing', async () => {
@@ -123,9 +124,50 @@ describe('pick_item keeps a replacement pair whole', () => {
         const { DL, calls } = harness(order)
         await pick({ id: 'o1', barcode: 'A', action: 'reset' }, DL)
 
-        assert.deepEqual(calls.pull.cart, { barcode: 'B', replacement: { originalBarcode: 'A' } })
+        assert.deepEqual(calls.pull.cart, { barcode: 'B', 'replacement.originalBarcode': 'A' })
         assert.equal(calls.itemUpdate.$unset['cart.$[elem].replacedBy'], '')
         assert.equal(calls.itemUpdate.$unset['cart.$[elem].missingReason'], '')
+    })
+
+    it('returning a replacement to pick removes the line the picker added', async () => {
+        // The link is matched as a field, not as a whole document: a stored
+        // replacement also carries its suggestion list, so a value holding only the
+        // barcode it points at never equals the line and nothing is pulled.
+        const order = {
+            id: 'o1', status: 'picking', picker: { adminId: ADMIN.id },
+            cart: [
+                line({ id: 'p1', barcode: 'A', amount: 2, missing: true, missingReason: 'replaced', replacement: { replacementBarcode: 'B' } }),
+                line({ id: 'p2', barcode: 'B', status: 'admin_add', amount: 2, finalAmount: 2, replacement: { originalBarcode: 'A' } })
+            ]
+        }
+        const { DL, calls } = harness(order)
+        await pick({ id: 'o1', barcode: 'B', action: 'reset' }, DL)
+
+        assert.deepEqual(calls.pull.cart, { barcode: 'B', 'replacement.originalBarcode': 'A' })
+
+        // The clicked line is the one removed, so the only line left to put back to
+        // picking is the product the customer ordered.
+        const resetLine = calls.pairUpdates.find(u => u.update.$set)
+        assert.deepEqual(resetLine.arrayFilters, [{ 'elem.barcode': 'A' }])
+        assert.equal(resetLine.update.$set['cart.$[elem].missing'], false)
+        assert.equal(resetLine.update.$unset['cart.$[elem].finalAmount'], '')
+    })
+
+    it('returning to pick on a replacement the customer ordered keeps that line', async () => {
+        const order = {
+            id: 'o1', status: 'picking', picker: { adminId: ADMIN.id },
+            cart: [
+                line({ id: 'p1', barcode: 'A', amount: 2, missing: true, missingReason: 'replaced', replacement: { replacementBarcode: 'B' } }),
+                line({ id: 'p2', barcode: 'B', amount: 2, finalAmount: 2, replacement: { originalBarcode: 'A' } })
+            ]
+        }
+        const { DL, calls } = harness(order)
+        await pick({ id: 'o1', barcode: 'B', action: 'reset' }, DL)
+
+        assert.equal(calls.pull, undefined)
+        // Both sides go back to picking; what the pair loses is the link, not the line.
+        assert.deepEqual(calls.pairUpdates[0].arrayFilters, [{ 'elem.barcode': 'A' }])
+        assert.equal(calls.itemUpdate.$unset['cart.$[elem].replacement'], '')
     })
 })
 
