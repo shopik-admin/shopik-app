@@ -306,6 +306,7 @@
         "products": "מוצרים",
         "favorites": "המועדפים שלי",
         "favorites_empty": "עוד לא סימנת מוצרים כמועדפים",
+        "favorites_unavailable": "המוצרים שסימנת כמועדפים אינם זמינים כרגע",
         "favorites_login_prompt": "התחברו כדי לראות את המועדפים שלכם",
         "promotionType": "סוג מבצע",
         "quantity": "כמות",

@@ -65,18 +65,16 @@ export default function MainMenu({ openMenu: controlledOpen, onOpenMenu }) {
             })}
             {/* Static storefront entry — not part of the CMS menu. Visible to
                 guests too; the page itself asks them to log in. */}
-            {!menu?.some(item => item.path === '/favorites') && (
-                <MenuItem
-                    key='favorites'
-                    name='favorites'
-                    path='/favorites'
-                    icon='heart'
-                    main
-                    open={openMenu === 'favorites'}
-                    onOpen={() => setOpenMenu(openMenu === 'favorites' ? null : 'favorites')}
-                    onClose={close}
-                />
-            )}
+            <MenuItem
+                key='favorites'
+                name='favorites'
+                path='/favorites'
+                icon='heart'
+                main
+                open={openMenu === 'favorites'}
+                onOpen={() => setOpenMenu(openMenu === 'favorites' ? null : 'favorites')}
+                onClose={close}
+            />
         </Flex>
     </nav>
 }
