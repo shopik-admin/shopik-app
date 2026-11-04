@@ -378,7 +378,7 @@ const orderSchema = {
     vatBreakdown: Object,
     // Set when items/money changed after the invoice was issued; decided
     // manually (supplementary document / credit), never automatic.
-    billingAdjustment: { type: String, filter: true },
+    billingAdjustment: String,
     receipt: {
         url: String,
         shortUrl: String,
