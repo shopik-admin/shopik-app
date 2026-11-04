@@ -5,7 +5,7 @@ const USER_DETAILS_FIELDS = ['name', 'phone', 'secondPhone', 'email', 'comment']
 // NOTE: order/update never changes status. Status transitions are side effects
 // of the order lifecycle endpoints only:
 //   payment/hyp/callback (cart -> paid) | order/ops/claim (paid -> picking)
-//   order/ops/release (picking -> paid) | order/ops/pick_complete (picking -> picked)
+//   order/ops/release (picking/picked -> paid) | order/ops/pick_complete (picking -> picked)
 //   order/ops/pack (picked -> packed, incl. the sole Hyp capture)
 //   shipment/start (packed -> shipped) | shipment/cancel (shipped -> packed)
 //   shipment/deliver (shipped -> done) | payment/cancel (-> canceled)

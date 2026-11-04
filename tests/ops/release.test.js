@@ -93,8 +93,22 @@ describe('order/ops/release', () => {
         )
     })
 
-    it('rejects orders that are not picking', async () => {
-        const order = pickingOrder({ status: 'picked' })
+    it('releases a picked order back to the picking queue', async () => {
+        const order = pickingOrder({ status: 'picked', pickEnd: new Date() })
+        const admin = makeAdmin({ id: 'm1', permissions: ['order:pick:manage'] })
+        const { DL, utils, calls } = makeHarness({ order, admin })
+
+        const updated = await release({ id: 'o1' }, { DL, _admin: admin, utils })
+
+        assert.equal(updated.status, 'paid')
+        // guard on the status that was checked, so a concurrent pack cannot be
+        // overwritten
+        assert.equal(calls.orderUpdate.filter.status, 'picked')
+        assert.equal(calls.orderUpdate.update.$unset.pickEnd, 1)
+    })
+
+    it('rejects orders that are further along than picked', async () => {
+        const order = pickingOrder({ status: 'packed' })
         const admin = makeAdmin({ id: 'm1', permissions: ['order:pick:manage'] })
         const { DL, utils } = makeHarness({ order, admin })
 

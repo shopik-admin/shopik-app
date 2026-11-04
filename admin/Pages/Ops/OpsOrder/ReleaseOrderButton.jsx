@@ -43,5 +43,5 @@ export default function ReleaseOrderButton({ orderId, q, label = 'ops_release_pi
         )
     }
 
-    return <Button mode={mode} icon='x' onClick={open}>{label}</Button>
+    return <Button mode={mode} onClick={open}>{label}</Button>
 }

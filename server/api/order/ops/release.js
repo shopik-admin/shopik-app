@@ -1,12 +1,17 @@
 import storeScope, { assertStoreVisible } from '#server/utils/data/storeScope.js'
 
+// A release puts the order back into the picking queue with its scan progress
+// kept, so picking (still open) and picked (finished but not packed) can both be
+// released by the owner or by a manager.
+const RELEASABLE_STATUSES = ['picking', 'picked']
+
 export default async function release(payload, { DL, _admin, utils }) {
     const { id } = payload
     if (!id) throw { status: 400, message: 'id required' }
 
     const order = await DL.Order.readById(id)
     if (!order) throw { status: 404, message: 'order not found' }
-    if (order.status !== 'picking') throw { status: 400, message: 'order not releasable' }
+    if (!RELEASABLE_STATUSES.includes(order.status)) throw { status: 400, message: 'order not releasable' }
 
     // Managers may release any picking order; a picker may only release their own.
     const isManager = _admin.hasPermission('order:pick:manage')
@@ -16,8 +21,10 @@ export default async function release(payload, { DL, _admin, utils }) {
     // Never let an admin act on a store outside their assigned scope.
     assertStoreVisible(order.storeId, storeScope({ _admin }))
 
+    // Guard on the status we checked, so a concurrent pick_complete or pack wins
+    // instead of being overwritten.
     const updated = await DL.Order.updateOne(
-        { id, status: 'picking' },
+        { id, status: order.status },
         {
             $set: {
                 picker: null,

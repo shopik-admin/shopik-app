@@ -85,7 +85,9 @@ export default function DeliverPhoto({ order = {}, goPreview }) {
             }
             const res = await apiReq('shipment/deliver', payload)
             if (res?.error) throw new Error(res.error)
-            navigate('/ops?asShipper=1')
+            // Replace the camera screen so back from the queue returns to the
+            // order details, not to a screen that is already done.
+            navigate('/ops?asShipper=1', { replace: true })
         } catch (e) {
             const msg = e.message || 'shipment/deliver failed'
             setSendError(msg)
