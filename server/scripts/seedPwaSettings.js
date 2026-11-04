@@ -5,11 +5,15 @@
  *   node server/scripts/runSeed.js seedPwaSettings <domainId>
  *
  * Stored under category 'appearance' / subCategory 'general' so it renders in
- * Admin → Settings next to the logo and favicon, and is available to the
+ * Admin -> Settings next to the logo and favicon, and is available to the
  * client as settings.appearance.appIcon.
  *
  * The value stays empty until an admin uploads an icon; the manifest falls
- * back to the default icons in /icons in the meantime.
+ * back to the default icons in /icons in the meantime. appIcon serves the
+ * PWA manifest icons, the apple-touch-icon and og:image/twitter:image
+ * (buildMeta uses its 512 variant when seo.ogImage is not set). Its variants
+ * are the fixed OS-standard PNGs (common/functions/pwaIconUrl.js), so no
+ * per-setting `sizes` is seeded.
  */
 export default async function seedPwaSettings({ DL }) {
     const domainFilter = process.argv[3]

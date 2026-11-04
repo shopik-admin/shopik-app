@@ -30,7 +30,7 @@ const cartOrder = (over = {}) => ({
     ...over
 })
 
-function info(order, calls = {}) {
+function info(order, calls = {}, options = {}) {
     return {
         DL: {
             Order: {
@@ -38,7 +38,7 @@ function info(order, calls = {}) {
                 readOne: async () => order,
                 updateOne: async (filter, update) => ({ ...order, ...(update?.$set || {}), ...(update || {}) })
             },
-            Setting: { readOne: async () => null },
+            Setting: { readOne: async () => options.paymentSetting ?? null },
             SupplyArea: { readOne: async () => ({ id: 'area1' }) },
             PaymentTransaction: {
                 constants: {
@@ -58,8 +58,9 @@ function info(order, calls = {}) {
         },
         external: {
             hyp: {
-                createPaymentUrl: async ({ amount }) => {
+                createPaymentUrl: async ({ amount, maxPayments }) => {
                     calls.amount = amount
+                    calls.maxPayments = maxPayments
                     return 'https://pay.example/1'
                 }
             }
@@ -100,6 +101,28 @@ describe('payment/create total guard', () => {
         const res = await createPayment({ orderId: 'o1' }, info(order, calls))
         assert.equal(res.paymentUrl, 'https://pay.example/1')
         assert.equal(calls.amount, 386.64)
+    })
+
+    it('passes maxPayments from the per-domain payment setting to Hyp', async () => {
+        const order = cartOrder({ sum: 351.74, sumWithShipping: 386.64, finalSum: 351.74, finalSumWithShipping: 386.64 })
+        const calls = {}
+        await createPayment({ orderId: 'o1' }, info(order, calls, {
+            paymentSetting: { value: { maxPayments: '6' } }
+        }))
+        assert.equal(calls.maxPayments, 6)
+    })
+
+    it('defaults to 6 payments when the setting is missing or invalid', async () => {
+        const order = cartOrder({ sum: 351.74, sumWithShipping: 386.64, finalSum: 351.74, finalSumWithShipping: 386.64 })
+        const missing = {}
+        await createPayment({ orderId: 'o1' }, info(order, missing))
+        assert.equal(missing.maxPayments, 6)
+
+        const invalid = {}
+        await createPayment({ orderId: 'o1' }, info(order, invalid, {
+            paymentSetting: { value: { maxPayments: 'not-a-number' } }
+        }))
+        assert.equal(invalid.maxPayments, 6)
     })
 })
 

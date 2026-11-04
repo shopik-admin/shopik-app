@@ -52,6 +52,7 @@ const paymentTransactionSchema = {
         filter: true
     },
     cardCompany: String,
+    payments: Number,
     items: [{
         _id: false,
         productId: String,

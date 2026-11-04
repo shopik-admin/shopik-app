@@ -358,6 +358,7 @@ const orderSchema = {
         cardExpiry: String,
         last4digits: String,
         cardCompany: String,
+        payments: Number,
         terminalId: String,
         authorizedAmount: Number,
         capturedAt: Date,

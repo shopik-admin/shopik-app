@@ -855,6 +855,7 @@
         "card": "כרטיס",
         "card_expiry": "תוקף",
         "card_company": "חברת האשראי",
+        "payments": "תשלומים",
         "auth_code": "קוד אישור",
         "payment_provider": "חברת סליקה",
         "transaction_id": "מזהה עסקה",

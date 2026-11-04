@@ -3,6 +3,7 @@ import sharp from 'sharp'
 import storage from '#server/external/storage.js'
 import resize from '#server/services/image/resize.js'
 import uid from '#common/functions/uid.js'
+import { APP_ICON_VARIANTS } from '#common/functions/pwaIconUrl.js'
 
 const MAX_BYTES = 8 * 1024 * 1024
 const CACHE_CONTROL = 'public, max-age=31536000, immutable'
@@ -16,16 +17,6 @@ const FILE_TYPES = ['application/pdf']
 const SETTING_IMAGE_SIZES = { l: 600, m: 300, s: 120 }
 
 const DEFAULT_APP_ICON_BG = '#195855'
-
-// PNG variants generated for the `appIcon` setting. `padding` is the fraction
-// of the canvas kept empty on each side; maskable icons need a safe zone so
-// Android's circle/squircle mask never clips the logo.
-const APP_ICON_VARIANTS = [
-    { file: '192.png', size: 192, opaque: true },
-    { file: '512.png', size: 512, opaque: true },
-    { file: 'maskable-512.png', size: 512, padding: 0.1, opaque: true },
-    { file: 'apple-180.png', size: 180, padding: 0.06, opaque: true }
-]
 
 function sanitizeName(name = 'file') {
     return String(name).split(/[?#]/)[0].split('/').pop().replace(/[^\w.\-]+/g, '-').slice(0, 80) || 'file'
@@ -123,14 +114,11 @@ export default async function upload_file(payload, { DL, external }) {
             const background = await resolveAppIconBackground(DL, setting.domainId)
             let variants
             try {
+                // Fixed OS-standard PNG variants (see pwaIconUrl.js).
                 variants = await Promise.all(
-                    APP_ICON_VARIANTS.map(async ({ file, size, padding, opaque }) => [
+                    APP_ICON_VARIANTS.map(async ({ file, size, padding = 0 }) => [
                         file,
-                        await renderAppIcon(buffer, {
-                            size,
-                            padding,
-                            background: opaque ? background : null
-                        })
+                        await renderAppIcon(buffer, { size, padding, background })
                     ])
                 )
             } catch {
@@ -153,7 +141,7 @@ export default async function upload_file(payload, { DL, external }) {
             if (isRaster) {
                 let sizes
                 try {
-                    sizes = await resize(buffer, SETTING_IMAGE_SIZES)
+                    sizes = await resize(buffer, setting.sizes || SETTING_IMAGE_SIZES)
                 } catch {
                     throw { status: 400, message: 'invalid image' }
                 }
@@ -197,7 +185,11 @@ export default async function upload_file(payload, { DL, external }) {
     }
 
     const updated = await DL.Setting.updateOne({ id }, { value: basePath })
-    return { basePath, setting: updated || { ...setting, value: basePath } }
+    // A null here means the setting is only in the settings cache (not in the
+    // database) — report it instead of returning a value that was never stored.
+    if (!updated)
+        throw { status: 404, message: 'setting could not be updated — the row is not in the database (the settings cache is stale, reset it)' }
+    return { basePath, setting: updated }
 }
 
 upload_file.config = {

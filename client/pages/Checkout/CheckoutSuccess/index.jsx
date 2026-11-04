@@ -27,6 +27,7 @@ export default function CheckoutSuccess({ order = {} }) {
     const cart = order?.cart || []
     const itemsCount = cart.reduce((acc, item) => acc + (item.amount || item.units || 1), 0)
     const total = order?.finalSumWithShipping ?? order?.sumWithShipping ?? order?.finalSum ?? order?.sum ?? 0
+    const payments = Number(order?.payment?.payments) || 0
 
     return (
         <div className={styles.successPage}>
@@ -55,6 +56,12 @@ export default function CheckoutSuccess({ order = {} }) {
                     <Text className={styles.value}>{`${itemsCount} ${TR?.('items_suffix')}`}</Text>
                     <Text className={styles.label}>items_count_label</Text>
                 </div>
+                {payments > 1 && (
+                    <div className={styles.row}>
+                        <Text className={styles.value}>{payments}</Text>
+                        <Text className={styles.label}>payments</Text>
+                    </div>
+                )}
                 <div className={`${styles.row} ${styles.totalRow}`}>
                     <Text className={styles.totalValue}>{render({ type: 'coin', value: total })}</Text>
                     <Text className={styles.label}>total_inc_vat</Text>

@@ -34,6 +34,7 @@ export default function PaymentDetailsCard({ order, onChanged }) {
             {payment.provider && <SumRow label={'payment_provider'} value={payment.provider} />}
             {payment.cardCompany && <SumRow label={'card_company'} value={payment.cardCompany} />}
             {payment.last4digits && <SumRow label={'card'} value={<bdi>****{payment.last4digits}</bdi>} />}
+            {payment.payments > 1 && <SumRow label={'payments'} value={String(payment.payments)} />}
             {expiry && <SumRow label={'card_expiry'} value={expiry} />}
             {payment.captureProviderTxnId && <SumRow label={'transaction_id'} value={payment.captureProviderTxnId} />}
             {payment.capturedAt && <SumRow label={'captured_at'} value={render({ type: 'datetime', value: payment.capturedAt })} />}

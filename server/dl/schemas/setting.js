@@ -71,6 +71,13 @@ const settingSchema = {
         type: String,
         enum: Object.values(constants.renderType)
     },
+    // Image variant sizes for file/image uploads ({name: bounding width}).
+    // Defaults to the standard l/m/s when absent, so a setting can declare its
+    // own variants (e.g. appIcon's named PNGs, or seo.ogImage's single
+    // convert-only `full` variant where the width is null).
+    sizes: {
+        type: Object
+    },
     public: {
         type: Boolean,
         default: false,
