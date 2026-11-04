@@ -1,6 +1,7 @@
 import Products from './Products'
 import Sales from './Sales'
 import Account from './Account'
+import Favorites from './Favorites'
 import Home from './Home'
 import Product from './Product'
 import Carousel from './Carousel'
@@ -29,6 +30,12 @@ export default [
         element: Sales,
         title: TR('sales'),
         description: TR('page_sales_desc')
+    },
+    {
+        path: '/favorites',
+        element: Favorites,
+        title: TR('favorites'),
+        description: TR('page_favorites_desc')
     },
     {
         path: '/search',

@@ -12,6 +12,7 @@ import {
     getUnitPriceText
 } from 'common/components/Product'
 import { useProductCart } from 'common/components/Product/useProductCart.js'
+import { useUser } from 'features/User'
 import { getProductState } from '#common/functions/productState.js'
 
 // Re-export common presentational helpers for backward compatibility
@@ -21,6 +22,7 @@ export default function ProductCard(props) {
     const { product, sales = {}, size = 'm' } = props
     const { amount, updateAmount, productMaxAmount } = useProductCart(product, sales)
     const { action, price } = getProductState({ amount, sale: getFirstSale(product, sales) })
+    const { isFavorite, toggleFavorite } = useUser() || {}
 
     return <Flex
         tag={Link}
@@ -30,7 +32,10 @@ export default function ProductCard(props) {
         data-action={action}
         data-price={price}
         className={styles.productCard}>
-        <ProductFavorite />
+        <ProductFavorite
+            on={isFavorite?.(product.id)}
+            onToggle={() => toggleFavorite?.(product.id)}
+        />
         <ProductImage {...props} />
         <ProductInfo {...props} nameLines={2} />
         <ProductStamps product={product} className={styles.stamps} />

@@ -20,15 +20,17 @@ export default async function getClientData(req, bootData) {
         utils.data.getPickupStores(bootData),
     ]
 
-    if (user)
+    if (user) {
         promises.push(utils.data.getUserOrder({ ...bootData, _user: user }))
-    else
+        promises.push(utils.data.getUserFavorites({ DL: bootData.DL, userId: user.id }))
+    } else
         promises.push(utils.data.getGuestCart({ req, DL: bootData.DL }))
     const [
         settingsResult,
         menuResult,
         pickupStoresResult,
-        orderResult
+        orderResult,
+        favoritesResult
     ] = await Promise.allSettled(promises)
 
     if (settingsResult.status === 'rejected')
@@ -37,8 +39,10 @@ export default async function getClientData(req, bootData) {
     if (menuResult.status === 'rejected')
         console.log('menu error', menuResult.reason)
 
+    const favorites = favoritesResult?.status === 'fulfilled' ? favoritesResult.value : []
+
     return {
-        user,
+        user: user ? { ...user, favorites } : user,
         order: orderResult?.status === 'fulfilled' ? orderResult.value : undefined,
         pickupStores: pickupStoresResult.status === 'fulfilled' ? pickupStoresResult.value : undefined,
         settings: settingsResult.status === 'fulfilled' ? settingsResult.value : undefined,

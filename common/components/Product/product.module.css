@@ -259,22 +259,34 @@
     }
 }
 
-/* Favourite heart — visual only, no persistence. Positioned against the card
-   root (which sets position: relative), not the image. */
+/* Favourite heart — outline when off, filled when on. Positioned against the
+   card root (which sets position: relative), not the image. */
 .favorite {
     position: absolute;
     inset-inline-end: 10px;
     top: 10px;
     padding: 0;
-    color: var(--product-favorite-color, var(--text-error-primary));
+    width: 20px;
+    height: 20px;
+    color: var(--product-favorite-color, #F6C9D1);
     z-index: 1;
 
+    svg {
+        width: 20px;
+        height: 20px;
+        font-size: 20px;
+    }
+
     &:hover {
-        color: var(--product-favorite-color, var(--text-error-primary));
+        color: var(--product-favorite-color, #F6C9D1);
     }
 
     &.on {
-        color: var(--product-favorite-color, var(--text-error-primary));
+        color: var(--product-favorite-color, #F6C9D1);
+
+        svg {
+            fill: currentColor;
+        }
     }
 }
 

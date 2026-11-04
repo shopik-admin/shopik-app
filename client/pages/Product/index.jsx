@@ -34,6 +34,7 @@ import { FoodSymbolStamps } from 'common/components/Nutrition'
 import { selectDietIcons, selectFoodSymbols } from 'common/components/Nutrition/constants.js'
 import { getProductState } from '#common/functions/productState.js'
 import { getProductImageUrls } from 'common/functions/productImageUrl.js'
+import { useUser } from 'features/User'
 
 const PASSOVER_TEXT = {
     kosher: 'passover_kosher',
@@ -208,9 +209,9 @@ function SectionBody({ section }) {
 
 export default function Product() {
     const [selectedImageIndex, setSelectedImageIndex] = useState(0)
-    const [wishlisted, setWishlisted] = useState(false)
     const [activeSpecKey, setActiveSpecKey] = useState(null)
     const { productId } = useParams()
+    const { isFavorite, toggleFavorite } = useUser()
     const { loading, pageData } = usePage()
     const { data } = pageData
     const { product, sales, categoryPath, related, relatedSales } = data || {}
@@ -218,7 +219,7 @@ export default function Product() {
     useEffect(() => { if (sales) setSalesCache(sales) }, [sales])
     useEffect(() => { if (data?.sales) setSalesCache(data.sales) }, [data])
     useEffect(() => { if (mergedSales && Object.keys(mergedSales).length) setSalesCache(mergedSales) }, [mergedSales])
-    useEffect(() => { setSelectedImageIndex(0); setWishlisted(false); setActiveSpecKey(null) }, [productId, product?.id])
+    useEffect(() => { setSelectedImageIndex(0); setActiveSpecKey(null) }, [productId, product?.id])
 
     const productImages = product?.images?.product || []
     const images = getProductImageUrls(product?.id, productImages, 'xl')
@@ -246,6 +247,7 @@ export default function Product() {
         amount: cartAmount,
         sale: getFirstSale(product, sales || {}),
     })
+    const wishlisted = isFavorite(product.id)
 
     return (
         <Flex col className={styles.container}
@@ -264,7 +266,7 @@ export default function Product() {
                             icon="heart"
                             aria-label={TR('aria_wishlist')}
                             className={classNames(styles.wish, wishlisted && styles.wishActive)}
-                            onClick={() => setWishlisted(w => !w)}
+                            onClick={() => toggleFavorite(product.id)}
                         />
                     </div>
 

@@ -65,6 +65,7 @@ export default function MobileMenu({ onClose }) {
     const midRows = [
         { key: 'sales', icon: 'salePercent', text: 'Sales', bold: true, accent: true, onClick: () => go('/sales') },
         { key: 'departments', icon: 'grid', text: 'all_departments', bold: true, onClick: () => toggle('departments') },
+        { key: 'favorites', icon: 'heart', text: 'favorites', bold: true, onClick: () => go('/favorites') },
         { key: 'home', icon: 'home', text: 'Home', bold: true, onClick: () => go('/') },
     ]
 
