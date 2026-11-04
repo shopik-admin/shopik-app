@@ -1,4 +1,4 @@
-import { buildWazeUrl, customerNotes, DeliveryMethodTag, formatDepartureTime, formatFullAddress, formatWindow, isShippingStatus, RemainingTime } from '../orderUtils'
+import { buildWazeUrl, customerNotes, DeliveryMethodTag, formatDepartureTime, formatFullAddress, formatWindow, isClosedOrder, isShippingStatus, RemainingTime, shortNumber } from '../orderUtils'
 import classNames from 'common/functions/classNames'
 import TR from 'common/texts/TR.js'
 import Button from 'common/components/Button'
@@ -10,16 +10,18 @@ import styles from './opsOrder.module.css'
 import Text from 'common/components/Text'
 import Icon from 'common/components/Icon'
 import Flex from 'common/components/Flex'
-import { useNavigate, useParams } from 'react-router'
+import { useLocation, useNavigate, useParams } from 'react-router'
 import { useUser } from 'features/User'
+import usePermission from 'common/permissions/usePermision'
 import { useState, useEffect } from 'react'
 import Tabs from '#common/components/Tabs/index.jsx'
-import ProductInline from 'common/components/ProductInline'
+import ProductInline, { PickPill, pickStatus } from 'common/components/ProductInline'
 import Stepper from 'common/components/Stepper'
 import { useModal } from 'common/components/Modal'
 import ProductPickModal from './ProductPickModal'
 import DeliverPhoto from './DeliverPhoto'
-import { formatAmount } from 'common/components/Product'
+import ReleaseOrderButton from './ReleaseOrderButton'
+import { formatPrice, ProductImage, ProductPrice, ProductUnitInfo } from 'common/components/Product'
 
 const STEPS = {
     PREVIEW: 0,
@@ -39,24 +41,43 @@ const stepRenderer = [
     DeliverPhoto,
 ]
 
+// URL key for each screen. The order URL itself is the details page and carries
+// no step, so it is always the level between the list and the order screens.
+const STEP_KEYS = ['', 'pick', 'pack', 'view', 'confirm', 'deliver']
+
 export default function OpsOrder({ }) {
-    const [step, setStep] = useState(STEPS.PREVIEW)
-    const StepComponent = stepRenderer[step] || null
     const { orderId } = useParams()
+    const navigate = useNavigate()
+    const location = useLocation()
+    const step = STEPS[(new URLSearchParams(location.search).get('step') || '').toUpperCase()] ?? STEPS.PREVIEW
+    const isSubStep = step !== STEPS.PREVIEW
+    const StepComponent = stepRenderer[step] || null
     const { error, loading, data = [], setData } = useApi(`order/ops/read`, { filter: { id: orderId } })
     const order = data[0] || {}
     const { id, isSuperAdmin } = useUser()
+    const canManagePick = usePermission('order:pick:manage')
     const isMine = id == order.picker?.adminId,
         cantPick = !isMine && order.picker?.adminId,
         isShipMine = id == order.shipper?.adminId,
         cantShip = !isShipMine && order.shipper?.adminId
-    const navigate = useNavigate()
 
-    useEffect(() => {
-        if (loading || !order?.status) return
-        if (order.status === 'picked' && step === STEPS.PREVIEW) setStep(STEPS.PACK)
-        else if (order.status === 'picking' && step === STEPS.PREVIEW && isMine) setStep(STEPS.PICK)
-    }, [order.status, loading, isMine])
+    // Entering an order screen from the details page pushes, so back returns to
+    // the details page; moving between order screens replaces, so they never
+    // stack — back always goes straight back to the details page.
+    function setStep(name, { replace } = {}) {
+        if (name === step) return
+        if (name === STEPS.PREVIEW) {
+            navigate(-1)
+            return
+        }
+        navigate(
+            { pathname: location.pathname, search: `step=${STEP_KEYS[name]}` },
+            { replace: replace || isSubStep }
+        )
+    }
+
+    // No auto-jump: the details page is the level between the list and every
+    // order screen, for every status.
 
 
     if (loading) return <Loader />
@@ -83,10 +104,22 @@ export default function OpsOrder({ }) {
         }
     }
 
+    function handleReleased(updatedOrder) {
+        handlePicked(updatedOrder)
+        setStep(STEPS.PREVIEW)
+    }
+
+    // Any order screen returns to the details page, and the details page returns
+    // to the queue — the same hierarchy the OS back button walks.
+    function handleBack() {
+        if (isSubStep) navigate(-1)
+        else navigate('/ops')
+    }
+
     return <div className={styles.opsOrder}>
         <Flex gap={15} alignItems='center' className={styles.orderTitle}>
-            <Button icon='back' mode='text' onClick={() => navigate('/ops')} />
-            <Text size='h3' bold >{TR('ops_order_with_number', { number: order.number })}</Text>
+            <Button icon='back' mode='text' onClick={handleBack} />
+            <Text size='h3' bold >{TR('ops_order_with_number', { number: shortNumber(order.number) })}</Text>
         </Flex>
         {StepComponent ? <StepComponent
             order={order}
@@ -96,16 +129,27 @@ export default function OpsOrder({ }) {
             isShipMine={isShipMine}
             cantShip={cantShip}
             isSuperAdmin={isSuperAdmin}
+            canManagePick={canManagePick}
             setStep={setStep}
             goPreview={() => setStep(STEPS.PREVIEW)}
             onPicked={handlePicked}
+            onReleased={handleReleased}
         /> : null}
     </div>
 }
 
-function OrderPreview({ order = {}, claimOrder, isMine, cantPick, isShipMine, cantShip, isSuperAdmin, setStep }) {
+function OrderPreview({ order = {}, claimOrder, isMine, cantPick, isShipMine, cantShip, isSuperAdmin, canManagePick, onReleased, setStep }) {
     const windowTime = formatWindow(order.window)
     const notes = customerNotes(order)
+    const isPicking = order.status === 'picking'
+    const isPicked = order.status === 'picked'
+    // Picking and picked orders can both be released back to the picking queue.
+    const canRelease = isPicking || isPicked
+    const canReleaseOwn = canRelease && isMine
+    const canReleaseOther = canRelease && !isMine && order.picker?.adminId && canManagePick
+    // A closed order has nothing left to work: nothing to claim, pick or deliver, so
+    // the only thing the screen can offer is viewing it.
+    const isClosed = isClosedOrder(order.status)
 
     if (order.status === 'shipped') {
         return <PreviewShell
@@ -116,6 +160,14 @@ function OrderPreview({ order = {}, claimOrder, isMine, cantPick, isShipMine, ca
             bannerSubtitleKey='ops_departure_remaining'
             rows={<>
                 <PriviewRow icon='user' label='customer_name' value={render({ type: 'name', value: order.name })} />
+                {order.phone && <PriviewRow
+                    icon='phone'
+                    label='ops_customer_phone'
+                    value={order.phone}
+                    actionIcon='phoneOutgoing'
+                    actionTooltip='ops_call'
+                    onAction={() => { window.location.href = `tel:${String(order.phone).replace(/[^+\d]/g, '')}` }}
+                />}
                 <PriviewRow
                     icon='location'
                     label='customer_address'
@@ -128,14 +180,7 @@ function OrderPreview({ order = {}, claimOrder, isMine, cantPick, isShipMine, ca
                 <PriviewRow icon='time' label='order_window' value={windowTime.textLong} />
                 {notes && <PriviewRow icon='note' label='ops_customer_notes' value={notes} />}
                 {order.shipperComment && <PriviewRow icon='note' label='ops_shipper_notes' value={order.shipperComment} />}
-                {order.phone && <PriviewRow
-                    icon='phone'
-                    label='ops_customer_phone'
-                    value={order.phone}
-                    actionIcon='phoneOutgoing'
-                    actionTooltip='ops_call'
-                    onAction={() => { window.location.href = `tel:${String(order.phone).replace(/[^+\d]/g, '')}` }}
-                />}
+                <HandlerBlock picker={order.picker} shipper={order.shipper} />
             </>}
             footer={<PreviewFooter
                 primaryKey='ops_order_delivered'
@@ -156,6 +201,14 @@ function OrderPreview({ order = {}, claimOrder, isMine, cantPick, isShipMine, ca
             bannerSubtitleKey='ops_departure_remaining'
             rows={<>
                 <PriviewRow icon='user' label='customer_name' value={render({ type: 'name', value: order.name })} />
+                {order.phone && <PriviewRow
+                    icon='phone'
+                    label='ops_customer_phone'
+                    value={order.phone}
+                    actionIcon='phoneOutgoing'
+                    actionTooltip='ops_call'
+                    onAction={() => { window.location.href = `tel:${String(order.phone).replace(/[^+\d]/g, '')}` }}
+                />}
                 <PriviewRow
                     icon='location'
                     label='customer_address'
@@ -168,14 +221,8 @@ function OrderPreview({ order = {}, claimOrder, isMine, cantPick, isShipMine, ca
                 <PriviewRow icon='time' label='order_window' value={windowTime.textLong} />
                 {notes && <PriviewRow icon='note' label='ops_customer_notes' value={notes} />}
                 {order.shipperComment && <PriviewRow icon='note' label='ops_shipper_notes' value={order.shipperComment} />}
-                {order.phone && <PriviewRow
-                    icon='phone'
-                    label='ops_customer_phone'
-                    value={order.phone}
-                    actionIcon='phoneOutgoing'
-                    actionTooltip='ops_call'
-                    onAction={() => { window.location.href = `tel:${String(order.phone).replace(/[^+\d]/g, '')}` }}
-                />}
+                <HandlerBlock picker={order.picker} shipper={order.shipper} />
+
             </>}
             footer={<PreviewFooter
                 primaryKey='ops_take_order'
@@ -194,18 +241,44 @@ function OrderPreview({ order = {}, claimOrder, isMine, cantPick, isShipMine, ca
         bannerTime={`${order.window?.end}:00`}
         bannerSubtitleKey='time_to_pick_subtitle'
         rows={<>
-            <PriviewRow icon='user' label='customer_name' value={order.phone || '0500000000'} />
+            <PriviewRow icon='user' label='customer_name' value={render({ type: 'name', value: order.name })} />
+            {order.phone && <PriviewRow
+                icon='phone'
+                label='ops_customer_phone'
+                value={order.phone}
+                actionIcon='phoneOutgoing'
+                actionTooltip='ops_call'
+                onAction={() => { window.location.href = `tel:${String(order.phone).replace(/[^+\d]/g, '')}` }}
+            />}
             <PriviewRow icon='location' label='customer_address' value={render({ type: 'address', value: order.address })} />
             <ElevatorRow order={order} />
             <PriviewRow icon='time' label='order_window' value={windowTime.textLong} />
+            <HandlerBlock picker={order.picker} shipper={order.shipper} />
             {/* <PriviewRow icon='replace' label='replace_and_missing' value={order.window?.replace} />
             <PriviewRow icon='note' label='pick_notes' value={order.comments} /> */}
         </>}
         footer={<PreviewFooter
-            primaryKey='start picking'
+            primaryKey={isClosed ? null : isPicked ? 'ops_continue_pack' : canReleaseOwn ? 'ops_continue_picking' : 'start picking'}
             primaryDisabled={cantPick}
-            onPrimary={isMine ? () => setStep(STEPS.PICK) : claimOrder}
-            linkKey='view order'
+            onPrimary={isClosed ? null : isPicked ? () => setStep(STEPS.PACK) : isMine ? () => setStep(STEPS.PICK) : claimOrder}
+            extra={canReleaseOwn
+                ? <ReleaseOrderButton
+                    orderId={order.id}
+                    label='ops_release_order'
+                    q={TR('ops_release_own_confirm')}
+                    onReleased={onReleased}
+                />
+                : canReleaseOther
+                    ? <ReleaseOrderButton
+                        orderId={order.id}
+                        label='ops_release_picker'
+                        q={order.picker?.name
+                            ? TR('ops_release_confirm', { name: order.picker.name })
+                            : TR('ops_release_own_confirm')}
+                        onReleased={onReleased}
+                    />
+                    : null}
+            linkKey={canReleaseOwn ? null : 'view order'}
             onLink={() => setStep(STEPS.VIEW)}
         />}
     />
@@ -220,7 +293,7 @@ function PreviewShell({ order = {}, windowTime = {}, bannerTitleKey, bannerTime,
         <Flex grow col gap={30}>
             <Flex alignItems='center' justifyContent='space-between' style={{ padding: 25, paddingBottom: 0, fontSize: 20 }}>
                 <DeliveryMethodTag deliveryMethod={order.deliveryMethod} />
-                <Text bold size='l'>{order.number}</Text>
+                <Text bold size='l'>{shortNumber(order.number)}</Text>
             </Flex>
             {pills.length > 0 && <Flex gap={10} className={styles.pills}>
                 {pills.map(key => <Flex key={key} center className={styles.pill}><Text size='s'>{key}</Text></Flex>)}
@@ -234,7 +307,9 @@ function PreviewShell({ order = {}, windowTime = {}, bannerTitleKey, bannerTime,
                     </Flex>
                     <Flex gap={5}>
                         <Text size='m' className={styles.subtitle}>{bannerSubtitleKey}</Text>
-                        <RemainingTime size='m' className={styles.subtitle} window={order.window} />
+                        {/* A closed order has no time left to run out of, so the countdown
+                            does not belong on it. */}
+                        {!isClosedOrder(order.status) && <RemainingTime size='m' className={styles.subtitle} window={order.window} />}
                     </Flex>
                 </Flex>
             </Flex>
@@ -246,10 +321,12 @@ function PreviewShell({ order = {}, windowTime = {}, bannerTitleKey, bannerTime,
     </Flex>
 }
 
-function PreviewFooter({ primaryKey, primaryDisabled, onPrimary, linkKey, onLink }) {
+function PreviewFooter({ primaryKey, primaryDisabled, onPrimary, linkKey, onLink, extra }) {
     return <Flex center gap={20} col className={styles.footer}>
-        <Button className={styles.startPickingBtn} disabled={primaryDisabled} onClick={onPrimary}>{primaryKey}</Button>
-        <Button mode='text-brand' onClick={onLink}>{linkKey}</Button>
+        {/* A closed order has no action to offer, so it renders only the link. */}
+        {onPrimary && <Button className={styles.startPickingBtn} disabled={primaryDisabled} onClick={onPrimary}>{primaryKey}</Button>}
+        {extra}
+        {linkKey && <Button mode='text-brand' onClick={onLink}>{linkKey}</Button>}
     </Flex>
 }
 
@@ -277,6 +354,20 @@ function OrderView({ order = {}, setStep }) {
     </Flex>
 }
 
+// Worker block: one divider, then whoever handled the order.
+function HandlerBlock({ picker, shipper }) {
+    const people = [picker, shipper].filter(p => p?.name)
+    if (!people.length) return null
+    return <>
+        <Divider />
+        {people.map(({ name }, i) => <PriviewRow
+            key={i}
+            icon={i == 0 ? 'basket' : 'truck'}
+            label={i == 0 ? 'picker_name' : 'shipper_name'}
+            value={name}
+        />)}
+    </>
+}
 function ElevatorRow({ order }) {
     if (order?.deliveryMethod === 'pickup') return null
     const hasElevator = order?.address?.hasElevator !== false
@@ -285,6 +376,11 @@ function ElevatorRow({ order }) {
         label='address.hasElevator'
         value={TR(hasElevator ? 'elevator_yes' : 'elevator_no')}
     />
+}
+
+// Divider between the customer block and the handler blocks.
+function Divider() {
+    return <div className={styles.divider} />
 }
 
 function PriviewRow({ icon, label, value, actionIcon, actionTooltip, onAction }) {
@@ -401,18 +497,34 @@ function OrderPick({ order = {}, setStep, onPicked }) {
 }
 
 function ReplacementCard({ original = {}, replacer = {}, onClick }) {
-    return <Flex col gap={8} onClick={onClick} style={{ cursor: 'pointer' }} className={styles.replacedCard}>
-        <Flex alignItems="center" gap={6}>
-            <Icon name="replace" size={16} />
-            <Text size="s" bold>ops_replaced</Text>
+    const status = pickStatus(replacer)
+
+    // Original on top, then the divider that runs across the whole card in the
+    // state colour, then the product that replaced it. Same sizes as a regular pick
+    // row (name 14px, unit info and barcode 12px), same ordered/supplied pill.
+    return <Flex col onClick={onClick} style={{ cursor: 'pointer' }} className={classNames(styles.replacedCard, styles[status])}>
+        <Flex col gap={6} className={styles.replacedOriginal}>
+            <Text size="m" bold>
+                {original.name || TR('ops_product_name_fallback')}{original.price != null ? ` - ₪${formatPrice(original.price)}` : ''}
+            </Text>
+            {original.barcode && <Flex alignItems="center" gap={4} justifyContent="end">
+                <Text size="s" mode="sub">{original.barcode}</Text>
+                <Icon name="barcode" size={12} />
+            </Flex>}
         </Flex>
-        <Text size="xs" mode="sub">{TR('ops_replaced_original', { name: original.name || TR('ops_product_name_fallback'), amount: formatAmount(original, original.amount ?? 1) })}</Text>
-        <ProductInline
-            product={replacer}
-            remove={false}
-            note={false}
-            admin
-        />
+        <Flex gap={10} className={styles.replacedReplacement}>
+            <ProductImage product={replacer} size="s" hideSaleBadge />
+            <Flex col gap={5} grow={1} justifyContent='space-around'>
+                <ProductPrice product={replacer} size="s" />
+                <Text size="s" mode="sub"><ProductUnitInfo product={replacer} /></Text>
+                <Text size="m" bold className={styles.replacedName}>{replacer.name || TR('ops_product_name_fallback')}</Text>
+                {replacer.barcode && <Flex alignItems="center" gap={4} justifyContent="end" className={styles.replacedBarcode}>
+                    <Text size="s" mode="sub">{replacer.barcode}</Text>
+                    <Icon name="barcode" size={12} />
+                </Flex>}
+                <PickPill product={replacer} status={status} />
+            </Flex>
+        </Flex>
     </Flex>
 }
 
@@ -437,7 +549,9 @@ function OrderPack({ order = {}, onPicked }) {
             const res = await apiReq('order/ops/pack', { id: order.id, bags })
             const updated = res?.data || res
             if (updated?.id) onPicked?.(updated)
-            navigate('/ops')
+            // Replace the finished screen: back from the queue goes to the order
+            // details, not to a screen that is already done.
+            navigate('/ops', { replace: true })
         } catch (e) {
             setPackError(e)
         } finally {
@@ -503,7 +617,7 @@ function OrderConfirmBags({ order = {}, setStep }) {
                 setStep(STEPS.PREVIEW)
                 return
             }
-            navigate('/ops?asShipper=1')
+            navigate('/ops', { replace: true })
         } catch (e) {
             alert(e.message || 'shipment/start failed')
             setStep(STEPS.PREVIEW)
@@ -537,7 +651,7 @@ function BagRow({ icon, labelKey, value, onChange, expected }) {
     return <Flex justifyContent="space-between" alignItems="center" className={styles.packRow}>
         <Flex gap={8} alignItems="center">
             <Icon name={icon} size={20} className={styles.packIcon} />
-            <Text size="s">{labelKey}</Text>
+            <Text size="m">{labelKey}</Text>
         </Flex>
         <Flex gap={10} alignItems="center">
             {expected != null && <Flex gap={4} alignItems="center" className={styles.expected}>

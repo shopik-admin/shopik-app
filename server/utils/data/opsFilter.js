@@ -1,59 +1,98 @@
+import { opsScope, opsStatusWindow } from '#common/functions/opsView.js'
+import storeScope, { narrowStoreIds } from '#server/utils/data/storeScope.js'
+
+// window.date is a business-day string, so "today" has to be the store's day and
+// not the process clock — resolved with the same timezone the window helpers use.
+export function todayStr() {
+    const timezone = process.env.TZ ?? Intl.DateTimeFormat().resolvedOptions().timeZone
+    return new Intl.DateTimeFormat('en-CA', {
+        timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit'
+    }).format(new Date())
+}
+
+// Search as its own $and branch — a row that matches the text but falls outside
+// the role's scope must not appear, so search cannot be folded into the permission
+// $or. processFilter would strip that $or, which is why the queue reads through the
+// raw Model. Shared by list and count so a badge counts what the tab shows.
+export function opsSearchMatch(Model, filter, search) {
+    if (!search?.length) return filter
+
+    const or = [...(Model.filterFields || [])]
+        .filter(field => Model.schema.path(field)?.instance === 'String')
+        .map(field => ({ [field]: new RegExp(String(search).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') }))
+
+    if (!or.length) return filter
+    return { $and: [filter, { $or: or }] }
+}
+
 // Shared filter builder for the ops order queue (order/ops/list, order/ops/count).
-// Keeps store scope, today/tomorrow window limits and the permission union in one place
-// so the two endpoints cannot drift apart (e.g. tab badges vs tab lists).
-export default async function buildOpsFilter({ _admin, extraFilter = {}, statusFilter }) {
+// One role rule, resolved through common/functions/opsView.js, so the tab badges
+// and the tab lists cannot disagree, and the client cannot ask for more than its
+// permission allows.
+export default async function buildOpsFilter({ _admin, extraFilter = {} }) {
     const me = _admin.id
+    const scope = opsScope({ hasPermission: _admin.hasPermission, isSuperAdmin: _admin.isSuperAdmin })
+    if (!scope) throw { status: 403, message: 'Forbidden' }
 
-    const isSuper = _admin.isSuperAdmin
-    const canRead = _admin.hasPermission('order:read') || isSuper
-    const canPick = _admin.hasPermission('order:pick') || isSuper
-    const canShip = _admin.hasPermission('order:ship') || isSuper
+    const {
+        storeId: clientStoreId,
+        status: clientStatus,
+        'window.date': clientDates,
+        ...rest
+    } = extraFilter
 
-    if (!canRead && !canPick && !canShip)
-        throw { status: 403, message: 'Forbidden' }
+    const filter = { active: true, ...rest }
 
-    // Ops shows the current store only — never a client-picked one, never a
-    // multi-store fallback. No current store → empty queue (StoreGate forces
-    // selection before any orders load). Applies to every role, super included.
-    const filter = { active: true, status: statusFilter, storeId: _admin.currentStoreId || { $in: [] } }
-
-    if (!canRead) {
-        // Non-read roles are limited to today + tomorrow windows
-        const start = new Date()
-        start.setHours(0, 0, 0, 0)
-        const pad = n => String(n).padStart(2, '0')
-        const fmt = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
-        const todayStr = fmt(start)
-        const tomorrow = new Date(start); tomorrow.setDate(tomorrow.getDate() + 1)
-        filter['window.date'] = { $in: [todayStr, fmt(tomorrow)] }
+    // Store, through the canonical scope rule. For the multi-store views nothing is
+    // requested by default, so the whole scope applies; a requested store narrows inside
+    // it, never outside it. For the single-store views the store is pinned — a view
+    // working one store names it in its filter, and there is no store to choose.
+    if (scope.stores === 'scope') {
+        const scopeStores = storeScope({ _admin })
+        const requested = typeof clientStoreId === 'string' ? [clientStoreId]
+            : Array.isArray(clientStoreId?.$in) ? clientStoreId.$in
+                : null
+        const chosen = narrowStoreIds(requested, scopeStores)
+        if (chosen) filter.storeId = { $in: chosen }
+    } else {
+        // Never a client-picked store — the current store always wins.
+        // No current store → empty queue (StoreGate forces selection before any
+        // orders load), which applies to every role, super included.
+        filter.storeId = _admin.currentStoreId || { $in: [] }
     }
 
-    let permissionOr = null
-    if (!canRead) {
-        const or = []
-        if (canPick) {
-            or.push({ status: 'paid' })
-            or.push({ 'picker.adminId': me })
-            or.push({ status: 'picked', 'picker.adminId': { $exists: false } })
-            or.push({ status: 'picked', picker: null })
-            or.push({ status: 'picked', 'picker.adminId': null })
-        }
-        if (canShip) {
-            or.push({ status: 'packed' })
-            or.push({ 'shipper.adminId': me })
-        }
-        permissionOr = or.length ? { $or: or } : null
+    // The default window is a queue rule, not a permission: the ops detail page
+    // looks a single order up by id, and the default bounds there would hide orders
+    // the role can otherwise read. An explicit date request still applies.
+    const queue = opsStatusWindow({
+        scope,
+        status: clientStatus,
+        dates: clientDates,
+        today: todayStr(),
+        defaults: !extraFilter.id
+    })
+
+    // Own + unclaimed, only for the roles without a read-level scope. A picked
+    // order is open to any picker only when nobody picked it — pack keeps the
+    // picker as history, so an empty adminId is the marker for unclaimed.
+    const ownOr = scope.ownOnly
+        ? [
+            ...(scope.canPick ? [{ 'picker.adminId': { $in: [me, null, ''] } }] : []),
+            ...(scope.canShip ? [{ 'shipper.adminId': { $in: [me, null, ''] } }] : [])
+        ]
+        : []
+
+    // Each rule is its own branch: the status+window rule can be an $or (closed
+    // statuses are bounded backwards, in-process ones are not) and the claim rule is
+    // one too, so they cannot share the same $or key.
+    const claimOr = ownOr.length ? { $or: ownOr } : null
+    const merged = { ...filter, ...queue }
+    const final = claimOr ? (merged.$or ? { $and: [merged, claimOr] } : { ...merged, $or: claimOr.$or }) : merged
+
+    return {
+        filter: final,
+        scope,
+        multiStore: scope.stores === 'scope',
+        me
     }
-
-    // Spread extraFilter (e.g. per-tab filters), keep $or injection safe via $and.
-    // A client-passed storeId is dropped — the current store above always wins.
-    const { storeId: _clientStoreId, ...safeExtra } = extraFilter
-    const finalFilter = { ...filter, ...safeExtra }
-    let final
-    if (permissionOr) {
-        if (finalFilter.$or) final = { $and: [finalFilter, permissionOr] }
-        else final = { ...finalFilter, ...permissionOr }
-    } else final = finalFilter
-
-    return { filter: final, perms: { canRead, canPick, canShip, isSuper, me } }
 }

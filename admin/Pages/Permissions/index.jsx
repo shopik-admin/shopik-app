@@ -211,7 +211,7 @@ export default function Permissions() {
                     className={styles.form}
                     noSubmit={!changes}
                     action={onSubmit}
-                    submitText='save changes'
+                    submitText='save_changes'
                     {...formState}
                 >
                     <h3>{selected?.name}</h3>

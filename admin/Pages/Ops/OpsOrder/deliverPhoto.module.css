@@ -62,6 +62,22 @@
     border-bottom-right-radius: 12px;
 }
 
+/* The privacy notice sits under the camera view on the same surface the rest of the
+   admin cards use. Its copy lives in hebrew.json, not here. */
+.privacy {
+    margin: 0 16px;
+    padding: 12px 14px;
+    border-radius: var(--radius-3xl);
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-secondary);
+}
+
+/* The server's message under the privacy card needs its own space above it, otherwise
+   it sits against the card edge. */
+.sendError {
+    padding: 12px 16px;
+}
+
 .errorOverlay {
     position: absolute;
     bottom: 16px;

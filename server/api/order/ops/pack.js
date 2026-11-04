@@ -24,7 +24,9 @@ export default async function pack(payload, { DL, _admin, utils, external }) {
 
     const set = {
         status: 'packed',
-        picker: null,
+        // picker is kept as history — who picked this order. The pack permission
+        // check already ran above, and opsFilter matches a picked order by
+        // picker.adminId, so nothing depends on clearing it.
         ...totals,
         paid: true,
         paidAt: capturedAt,

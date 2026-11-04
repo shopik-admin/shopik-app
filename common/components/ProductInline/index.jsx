@@ -9,6 +9,37 @@ import Icon from 'common/components/Icon'
 import { useState } from 'react'
 import { getProductState } from '#common/functions/productState.js'
 
+// Pick state of an admin product row: what was ordered against what was supplied.
+// Empty until the final amount is entered. Plain keys so each component can resolve
+// them in its own stylesheet.
+export function pickStatus(product = {}) {
+    if (product.missing) return 'red'
+    const supplied = product.finalAmount
+    if (supplied == null) return ''
+    const ordered = product.amount ?? 36
+    if (supplied === ordered) return 'green'
+    return supplied > ordered ? 'red' : 'yellow'
+}
+
+function pickIcon(product = {}) {
+    if (product.missing) return 'x'
+    if (product.finalAmount != null) return 'check'
+    return product.storageType === 'cold' || product.storageType === 'freeze' ? 'snow' : 'stock'
+}
+
+// The ordered/supplied pill of an admin pick row.
+export function PickPill({ product = {}, status = pickStatus(product) }) {
+    const supplied = product.finalAmount
+    return <Flex wrap alignItems="center" justifyContent="space-between" className={classNames(styles.pill, styles[status])}>
+        <Text size="s" bold className={styles.pillText}>הוזמן: {formatAmount(product, product.amount ?? 36)}</Text>
+        {product.missing
+            ? <Text size="s" bold className={classNames(styles[status], styles.missingText)}>חסר במלאי</Text>
+            : supplied != null
+                ? <Text size="s" bold className={classNames(styles[status], styles.pillText)}>סופק: {formatAmount(product, supplied)}</Text>
+                : null}
+    </Flex>
+}
+
 export default function ProductInline({
     product,
     remove = true,
@@ -30,48 +61,19 @@ export default function ProductInline({
     const isAdmin = admin || variant === 'admin'
 
     if (isAdmin) {
-        const ordered = product.amount ?? 36
-        const supplied = product.finalAmount
-        const missing = product.missing
-        const storageType = product.storageType
+        const status = pickStatus(product)
         const barcode = product.barcode || ''
-        const isCold = storageType === 'cold' || storageType === 'freeze'
-        const weight = isWeightProduct(product)
-        const orderedLabel = formatAmount(product, ordered)
-        const suppliedLabel = supplied != null ? formatAmount(product, supplied) : ''
-        let cardStatus = ''
-        let pillStatus = ''
-        if (missing) {
-            cardStatus = styles.red
-            pillStatus = styles.red
-        } else {
-            if (supplied === ordered) {
-                cardStatus = styles.green
-                pillStatus = styles.green
-            } else if (supplied > ordered) {
-                cardStatus = styles.red
-                pillStatus = styles.red
-            } else if (supplied < ordered && supplied != null) {
-                cardStatus = styles.yellow
-                pillStatus = styles.yellow
-            }
-        }
-        const iconName = icon || (missing ? 'x' : supplied != null ? 'check' : isCold ? 'snow' : 'stock')
 
-        return <Flex tag={Card} gap={10} className={classNames(styles.productInline, styles.admin, cardStatus)} {...props}>
+        return <Flex tag={Card} gap={10} className={classNames(styles.productInline, styles.admin, styles[status])} {...props}>
             <ProductImage product={product} size={size} hideSaleBadge />
             <Flex col gap={5} grow={1} justifyContent='space-around'>
-                <Icon name={iconName} size={16} className={classNames(styles.remove, styles.iconSlot, pillStatus)} />
+                <Icon name={icon || pickIcon(product)} size={16} className={classNames(styles.remove, styles.iconSlot, styles[status])} />
                 <ProductInfo product={product} sales={sales} size={size} priceMode={priceMode} saleTotalAmount={saleTotalAmount} />
-                {barcode && <Flex alignItems="center" gap={4} className={styles.barcodeRow}>
+                {barcode && <Flex alignItems="center" gap={4} justifyContent="end" className={styles.barcodeRow}>
+                    <Text size="s" mode="sub">{barcode}</Text>
                     <Icon name="barcode" size={12} />
-                    <Text size="xs" mode="sub">{barcode}</Text>
                 </Flex>}
-                <Flex wrap alignItems="center" justifyContent="space-between" className={classNames(styles.pill, pillStatus)}>
-                    <Text size="s" bold className={styles.pillText}>הוזמן: {orderedLabel}</Text>
-                    {missing ? <Text size="s" className={styles.missingText} bold>חסר במלאי</Text>
-                        : supplied != null ? <Text size="s" className={classNames(pillStatus, styles.pillText)} bold>סופק: {suppliedLabel}</Text> : null}
-                </Flex>
+                <PickPill product={product} status={status} />
                 {product.picking?.recommendations && <Flex alignItems="center" gap={6} className={styles.noteRow}>
                     <Icon name="note" size={12} />
                     <Text size="xs">{product.picking.recommendations}</Text>

@@ -1,18 +1,13 @@
-import buildOpsFilter from '#server/utils/data/opsFilter.js'
+import buildOpsFilter, { opsSearchMatch } from '#server/utils/data/opsFilter.js'
 
 export default async function count(payload, { DL, _admin }) {
-    // Same queue scoping as list.js (shared builder), without pagination.
-    // NOTE: base status stays `{ $ne: 'cart' }` (not list's $in) to preserve
-    // the classic total behavior when no extraFilter is passed.
-    const { filter: extraFilter = {} } = payload || {}
-    const { filter: final } = await buildOpsFilter({
-        _admin,
-        extraFilter,
-        statusFilter: { $ne: 'cart' }
-    })
-    return DL.Order.Model.countDocuments(final)
+    // Same queue scoping as list.js (shared builder), without pagination — so a
+    // tab badge can never count rows the tab itself would not show.
+    const { filter: extraFilter = {}, search } = payload || {}
+    const { filter: final } = await buildOpsFilter({ _admin, extraFilter })
+    return DL.Order.Model.countDocuments(opsSearchMatch(DL.Order.Model, final, search))
 }
 
 count.config = {
-    permissions: ['order:read', 'order:pick', 'order:ship']
+    permissions: ['order:read', 'order:pick', 'order:ship', 'order:pick:manage', 'order:ship:manage']
 }

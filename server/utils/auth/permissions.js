@@ -61,7 +61,7 @@ export default [
     'order_window_template:update',
     'order_window_template:read',
     'order_window_template:id',
-    'order_window:sync',
+    'order_window_template:sync',
     'supply_area:create',
     'supply_area:update',
     'supply_area:read',
