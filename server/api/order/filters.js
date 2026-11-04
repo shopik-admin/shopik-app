@@ -5,8 +5,12 @@ import buildFilterDescriptors from '#server/utils/buildFilterDescriptors.js'
 // storeId resolves to store names (dynamic options fetched client-side via store/read)
 export const MAIN_FIELDS = ['status', 'storeId', 'deliveryMethod', 'window.date']
 
+// userId stays filter:true because DL.Order.read whitelists by that flag and the client
+// and bot endpoints query carts and orders by it — but an admin does not filter orders by it.
+export const HIDDEN_FIELDS = ['userId']
+
 export default async function filters(payload, { DL }) {
-    return buildFilterDescriptors(DL.Order, MAIN_FIELDS)
+    return buildFilterDescriptors(DL.Order, MAIN_FIELDS, HIDDEN_FIELDS)
 }
 
 filters.config = {

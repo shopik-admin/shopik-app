@@ -392,7 +392,7 @@ const orderSchema = {
     supplierMissingCount: { type: Number, default: 0 },
     supplierCapturedAt: Date,
     comaxDoc: {
-        docNumber: { type: String, filter: true },
+        docNumber: String,
         totalSum: Number,
         capturedAt: Date,
         error: String
