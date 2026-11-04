@@ -264,12 +264,18 @@ export default function ApiKeys() {
                             <div className={styles.categoriesContainer}>
                                 {Object.entries(groupedAllowed).map(([category, actions]) => {
                                     const values = actions.map(a => a.fullValue)
-                                    const checked = values.every(p => selectedPermissions.includes(p))
+                                    const selectedCount = values.filter(p => selectedPermissions.includes(p)).length
+                                    const checked = values.length > 0 && selectedCount === values.length
+                                    const indeterminate = selectedCount > 0 && selectedCount < values.length
                                     return (
                                         <div key={category} className={styles.categoryGroup}>
                                             <div className={styles.categoryHeader}>
                                                 <span className={styles.categoryCheckbox}>
-                                                    <Checkbox checked={checked} onChange={e => toggleCategory(actions, e.target.checked)} />
+                                                    <Checkbox
+                                                        checked={checked}
+                                                        indeterminate={indeterminate}
+                                                        onChange={e => toggleCategory(actions, e.target.checked)}
+                                                    />
                                                 </span>
                                                 <Text bold className={styles.categoryName}>
                                                     {getPermissionGroupName(category)}

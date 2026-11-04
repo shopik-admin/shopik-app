@@ -220,7 +220,9 @@ export default function Permissions() {
                         <div className={styles.categoriesContainer} key={selected.id}>
                             {Object.entries(groupedPermissions).map(([category, actions]) => {
                                 const values = actions.map(({ fullValue }) => fullValue)
-                                const checked = values.every((permission) => selectedPermissions.includes(permission))
+                                const selectedCount = values.filter((permission) => selectedPermissions.includes(permission)).length
+                                const checked = values.length > 0 && selectedCount === values.length
+                                const indeterminate = selectedCount > 0 && selectedCount < values.length
                                 const isOpen = Boolean(openSections[category])
 
                                 return (
@@ -246,6 +248,7 @@ export default function Permissions() {
                                             >
                                                 <Checkbox
                                                     checked={checked}
+                                                    indeterminate={indeterminate}
                                                     onChange={(e) => toggleCategory(actions, e.target.checked)}
                                                 />
                                             </span>
