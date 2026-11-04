@@ -260,7 +260,14 @@
 }
 
 /* Favourite heart — outline when off, filled when on. Positioned against the
-   card root (which sets position: relative), not the image. */
+   card root (which sets position: relative), not the image.
+
+   Button's .text mode colours itself at (0,2,0), so a plain colour here loses
+   the cascade and the heart only showed the favourite colour on hover.
+   !important is the same escape this file already uses for Text/Button-owned
+   colours (see .saleBadgeText), and it makes the colour state-independent: off,
+   hover and on all read --product-favorite-color, and currentColor carries it
+   to the svg fill and to the Loader while the toggle is in flight. */
 .favorite {
     position: absolute;
     inset-inline-end: 10px;
@@ -268,7 +275,7 @@
     padding: 0;
     width: 20px;
     height: 20px;
-    color: var(--product-favorite-color, #F6C9D1);
+    color: var(--product-favorite-color, #F6C9D1) !important;
     z-index: 1;
 
     svg {
@@ -277,16 +284,8 @@
         font-size: 20px;
     }
 
-    &:hover {
-        color: var(--product-favorite-color, #F6C9D1);
-    }
-
-    &.on {
-        color: var(--product-favorite-color, #F6C9D1);
-
-        svg {
-            fill: currentColor;
-        }
+    &.on svg {
+        fill: currentColor;
     }
 }
 
