@@ -11,6 +11,28 @@ export function isShippingStatus(status) {
     return SHIPPING_STATUSES.includes(status)
 }
 
+// The shipper's queue runs from packed to the end of the order, so delivered and
+// canceled rows belong in it. A card lays those out as a delivery card (bags);
+// the detail page keeps its shipping shell only for the orders still open, since
+// a closed order has no time left to count.
+export function isDeliveryCard(status) {
+    return isShippingStatus(status) || status == 'done' || status == 'canceled'
+}
+
+// Ops status words. The shared status labels are the customer-facing ones
+// ("paid", "picked"), the queue needs the operational ones — what the order is
+// waiting for, not what was done to it.
+const OPS_STATUS_KEYS = {
+    paid: 'ops_status_waiting_pick',
+    packed: 'ops_waiting_shipment',
+    shipped: 'ops_in_shipment',
+    done: 'ops_status_finished',
+}
+
+export function opsStatusKey(status) {
+    return OPS_STATUS_KEYS[status] || status
+}
+
 // Departure time for the shipping layout (ops_departure_time key).
 // Prefers window.startTimestamp (only source with minute precision, e.g. 09:25),
 // falls back to the whole-hour window.start (e.g. 09:00).
@@ -37,8 +59,10 @@ export function formatWindow(w) {
         const d = new Date(w.date), today = new Date()
         today.setHours(0, 0, 0, 0); d.setHours(0, 0, 0, 0)
         const diff = Math.round((d - today) / 86400000)
-        if (diff === 0 || diff === 1) {
-            const day = diff === 0 ? TR('ops_today') : TR('ops_tomorrow')
+        // The shipper's queue reaches back to yesterday, so a closed order from
+        // yesterday still reads as yesterday rather than a weekday.
+        if (diff === -1 || diff === 0 || diff === 1) {
+            const day = diff === -1 ? TR('ops_yesterday') : diff === 0 ? TR('ops_today') : TR('ops_tomorrow')
             dayText = withTime(day)
             textLong = withTime(day)
         } else {
@@ -87,8 +111,10 @@ export function minutesToStart(w) {
 // Card tone shared by the Ops list and the User order history.
 // done → green; packed/shipped judge the window END; picking-side statuses (paid,
 // picking, picked) judge the window START — danger ≤10 min, warning <60, else green.
+// A closed order has nothing left to run out of, so it gets no tone.
 export function orderCardTone(order) {
     if (order?.status == 'done') return 'success'
+    if (order?.status == 'canceled' || order?.status == 'failed') return null
 
     const w = order?.window
     if (!w) return null

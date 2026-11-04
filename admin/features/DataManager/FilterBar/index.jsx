@@ -80,16 +80,16 @@ function isActive(filter, key) {
     return true
 }
 
-export default function FilterBar({ actions, cols }) {
+export default function FilterBar({ actions, cols, filters = true }) {
     const { apiRoute, filter, setFilter } = useData()
     const { TR } = useText()
     const [descriptors, setDescriptors] = useState([])
     const { stores = [], domains = [], roles = [] } = useLists() || {}
 
     useEffect(() => {
-        if (!apiRoute) return
+        if (!apiRoute || !filters) return
         apiReq(`${apiRoute}/filters`, {}).then(setDescriptors).catch(() => { })
-    }, [apiRoute])
+    }, [apiRoute, filters])
 
     // list-backed reference options (domainId/storeId/storeIds/roleId) from getLists — no extra fetch
     const lists = useMemo(() => ({
@@ -111,8 +111,9 @@ export default function FilterBar({ actions, cols }) {
 
     // ponytail: keep hooks before early return
     const isFiltered = Object.keys(filter).length > 0
-    if (!descriptors.length) {
+    if (!filters || !descriptors.length) {
         // still show search + actions card when no descriptors (e.g. other collections)
+        // or when the page has no filter controls (a queue role fixed by its tabs)
         return <div className={styles.wrapper}>
             <div className={styles.topRow}>
                 <Flex gap={10} alignItems='center' className={styles.leftGroup}>

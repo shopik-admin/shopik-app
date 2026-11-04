@@ -1,5 +1,5 @@
 import { enrichOrders } from '#server/utils/data/enrichCart.js'
-import buildOpsFilter from '#server/utils/data/opsFilter.js'
+import buildOpsFilter, { opsSearchMatch } from '#server/utils/data/opsFilter.js'
 import { withTiebreaker } from '#server/dl/defaults/read.js'
 import { deadlineFirstSort, balancedRoute } from '#common/functions/routeSort.js'
 
@@ -12,12 +12,11 @@ export default async function list(payload, { DL, _admin }) {
         search
     } = payload || {}
 
-    // Shared queue scoping (current store, window limits, permission union) — see opsFilter.js,
-    // which also strips any client-passed storeId from extraFilter.
-    const { filter: finalFilter, perms: { me } } = await buildOpsFilter({
+    // Shared queue scoping (role window, store scope, permission union) — see
+    // common/functions/opsView.js and opsFilter.js.
+    const { filter: finalFilter, multiStore, me } = await buildOpsFilter({
         _admin,
-        extraFilter,
-        statusFilter: { $in: ['paid', 'picking', 'picked', 'packed', 'shipped'] }
+        extraFilter
     })
 
     // Own orders first (mine, then unclaimed), then by window deadline.
@@ -55,14 +54,10 @@ export default async function list(payload, { DL, _admin }) {
         orderRestoredFrom: 1,
     }
 
-    // search via DL layer if provided
-    const options = { sort: baseSort, skip, limit }
-    if (search) options.search = search
-
     // Use raw Model for complex $or/$and that processFilter might strip — bypass read helper and use Model directly
     // But DL.Order.read will call processFilter which strips $or if not in filterFields. So we query Model directly.
     const Model = DL.Order.Model
-    let query = finalFilter
+    const query = opsSearchMatch(Model, finalFilter, search)
 
     // mineFirst is computed before the sort stage, so the read goes through an aggregation
     const pipelineBase = [
@@ -86,8 +81,9 @@ export default async function list(payload, { DL, _admin }) {
     // Route-aware ordering for the shipper screens (store origin, static after leave-store).
     // WAITING (packed): deadline strictly wins; MINE (shipped): persisted balanced routeOrder.
     // In-memory resort over a capped fetch, then slice — keeps order correct for <30-row queues.
-    const isWaiting = extraFilter?.status === 'packed' && !search
-    const isMine = extraFilter?.status === 'shipped' && extraFilter?.['shipper.adminId'] && !search
+    // A contractor's queue spans several stores, so a single origin cannot order it: sort by window.
+    const isWaiting = extraFilter?.status === 'packed' && !search && !multiStore
+    const isMine = extraFilter?.['shipper.adminId'] && !search && !multiStore
     const skipN = Number(skip) || 0
     const limitN = Math.min(Number(limit) || 25, 100)
 
@@ -151,5 +147,5 @@ export default async function list(payload, { DL, _admin }) {
 }
 
 list.config = {
-    permissions: ['order:read', 'order:pick', 'order:ship', 'order:pick:manage']
+    permissions: ['order:read', 'order:pick', 'order:ship', 'order:pick:manage', 'order:ship:manage']
 }

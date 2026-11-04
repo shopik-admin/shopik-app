@@ -45,8 +45,8 @@ const pages = [
     { key: 'windows', name: 'Windows', path: '/windows', section: 'management', icon: 'calendar', component: Windows, permission: 'order_window_template:read' },
     { key: 'sms-templates', name: 'SMS Templates', path: '/sms-templates', section: 'management', icon: 'message', component: SmsTemplates, permission: 'setting:read' },
 
-    { key: 'ops', name: 'ops-page', path: '/ops', section: 'operations', icon: 'orders', component: Ops, permission: ['order:read', 'order:pick', 'order:ship', 'order:pick:manage'] },
-    { key: 'ops-order', name: ' ', path: '/ops-order/:orderId', section: 'operations', icon: 'orders', component: OpsOrder, permission: ['order:read', 'order:pick', 'order:ship', 'order:pick:manage'], notInMenu: true },
+    { key: 'ops', name: 'ops-page', path: '/ops', section: 'operations', icon: 'orders', component: Ops, permission: ['order:read', 'order:pick', 'order:ship', 'order:pick:manage', 'order:ship:manage'] },
+    { key: 'ops-order', name: ' ', path: '/ops-order/:orderId', section: 'operations', icon: 'orders', component: OpsOrder, permission: ['order:read', 'order:pick', 'order:ship', 'order:pick:manage', 'order:ship:manage'], notInMenu: true },
 
     { key: 'comax-products', name: 'Comax Products', path: '/comax-products', section: 'comax', icon: 'products', component: ComaxProducts, permission: 'comax_product:read' },
     { key: 'comax-sales', name: 'Comax Sales', path: '/comax-sales', section: 'comax', icon: 'sale', component: ComaxSales, permission: 'comax_sale:read' },

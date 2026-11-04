@@ -6,7 +6,11 @@
     overflow: auto;
 }
 
-.shipTabs {
+/* Sticky tab bar. Its background is on the wrapper, not on .tabs: line tabs are
+   transparent by design, and a background set from another module is a specificity
+   tie with .tabs.line — which one wins depends on the bundle order, which is how the
+   bar ended up with no background at all. */
+.tabsBar {
     position: sticky;
     top: 0;
     z-index: 2;
