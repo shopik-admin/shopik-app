@@ -21,8 +21,7 @@ export const permissionGroups = {
     coupon: 'קופונים',
     comax_product: 'מוצרי קומקס',
     comax_sale: 'מבצעי קומקס',
-    order_window_template: 'תבניות חלונות הזמנה',
-    order_window: 'ייצור חלונות הזמנה',
+    order_window_template: 'חלונות הזמנה',
     supply_area: 'אזורי אספקה',
     display_block: 'באנרים וקרוסלות',
     payment: 'תשלומים',
@@ -315,7 +314,7 @@ export const permissionMeta = {
         name: 'צפייה בפרטי תבנית חלונות הזמנה',
         description: 'פתיחת הכרטיס של תבנית חלונות בודדת.'
     },
-    'order_window:sync': {
+    'order_window_template:sync': {
         name: 'ייצור חלונות הזמנה עתידיים',
         description: 'יצירה מחדש של חלונות ההזמנה ל־30 הימים הקרובים לפי התבניות.'
     },
