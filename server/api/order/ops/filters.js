@@ -2,6 +2,7 @@ import buildFilterDescriptors from '#server/utils/buildFilterDescriptors.js'
 import { CART, opsScope } from '#common/functions/opsView.js'
 
 const MAIN_FIELDS = ['status', 'deliveryMethod', 'window.date']
+import { HIDDEN_FIELDS } from '#server/api/order/filters.js'
 
 // Filter descriptors for the ops queue, per role: the status list a role may pick,
 // and the store pill only for the contractor, who works across the stores he owns.
@@ -17,7 +18,7 @@ export default async function filters(payload, { DL, _admin }) {
     // storeId is a filter field on the schema, so it would show in the overflow for
     // the single-store roles too — where picking a store has no effect, because the
     // queue is pinned to the current store.
-    return buildFilterDescriptors(DL.Order, main)
+    return buildFilterDescriptors(DL.Order, main, HIDDEN_FIELDS)
         .filter(d => d.key !== 'storeId' || scope.stores === 'scope')
         .map(d => d.key === 'status' ? { ...d, options: statuses } : d)
 }
