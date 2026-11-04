@@ -21,8 +21,8 @@ export const permissionGroups = {
     coupon: 'קופונים',
     comax_product: 'מוצרי קומקס',
     comax_sale: 'מבצעי קומקס',
-    order_window_template: 'חלונות הזמנה',
-    order_window: 'סנכרון חלונות הזמנה',
+    order_window_template: 'תבניות חלונות הזמנה',
+    order_window: 'ייצור חלונות הזמנה',
     supply_area: 'אזורי אספקה',
     display_block: 'באנרים וקרוסלות',
     payment: 'תשלומים',
@@ -300,24 +300,24 @@ export const permissionMeta = {
 
     // חלונות הזמנה
     'order_window_template:create': {
-        name: 'יצירת חלון הזמנה',
-        description: 'הוספת חלון הזמנה חדש.'
+        name: 'יצירת תבנית חלונות הזמנה',
+        description: 'הוספת תבנית חדשה לחלונות ההזמנה.'
     },
     'order_window_template:update': {
-        name: 'עריכת חלון הזמנה',
-        description: 'עדכון חלונות הזמנה וימים מיוחדים.'
+        name: 'עריכת תבנית חלונות הזמנה',
+        description: 'עדכון תבניות חלונות ההזמנה, הימים המיוחדים והחלונות היומיים.'
     },
     'order_window_template:read': {
-        name: 'צפייה בחלונות הזמנה',
-        description: 'צפייה בלוח חלונות ההזמנה.'
+        name: 'צפייה בתבניות חלונות הזמנה',
+        description: 'צפייה בתבניות חלונות ההזמנה, הימים המיוחדים והחלונות היומיים.'
     },
     'order_window_template:id': {
-        name: 'צפייה בפרטי חלון הזמנה',
-        description: 'פתיחת הכרטיס של חלון בודד.'
+        name: 'צפייה בפרטי תבנית חלונות הזמנה',
+        description: 'פתיחת הכרטיס של תבנית חלונות בודדת.'
     },
     'order_window:sync': {
-        name: 'סנכרון חלונות מקומקס',
-        description: 'משיכת חלונות ההזמנה מקומקס.'
+        name: 'ייצור חלונות הזמנה עתידיים',
+        description: 'יצירה מחדש של חלונות ההזמנה ל־30 הימים הקרובים לפי התבניות.'
     },
 
     // אזורי אספקה
@@ -456,8 +456,8 @@ export const permissionMeta = {
         description: 'שליחת ובדיקת קוד אימות חד־פעמי.'
     },
     'bot:order': {
-        name: 'הזמנות דרך הבוט',
-        description: 'יצירת הזמנות ובדיקת סטטוס דרך הבוט.'
+        name: 'הזמנות לקוח דרך הבוט',
+        description: 'צפייה בהזמנות של הלקוח ובדיקת סטטוס המשלוח דרך הבוט.'
     },
     'bot:coupon': {
         name: 'בדיקת קופונים',
