@@ -979,6 +979,8 @@
         "page_terms_desc": "תקנון ותנאי שימוש באתר",
         "page_privacy_desc": "מדיניות פרטיות ואבטחת מידע",
         "sales_empty": "אין מבצעים כרגע",
+        "sale_progress_remaining": "עוד [amount] יח' לקבלת המבצע",
+        "sale_progress_reached": "קיבלת את המבצע!!!",
         "select": "בחירה",
         "edit_name": "ערוך שם",
         "full_name": "שם מלא",

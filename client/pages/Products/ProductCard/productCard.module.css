@@ -1,5 +1,5 @@
 .productCard {
-    padding: 10px;
+    padding: 0;
     /* Colours come from the state contract in common/components/Product/
        product.module.css (data-action / data-price -> --pc-*). This file only
        wires them onto the shell. */
@@ -17,6 +17,69 @@
     max-width: 100%;
     justify-self: stretch;
     overflow: hidden;
+}
+
+/* The card is a bare shell: the sale bar can then run edge to edge, while the
+   regular content keeps its old 10px inset. position: relative anchors the
+   favourite heart to the padded content instead of the card top. */
+.cardContent {
+    padding: 10px;
+    position: relative;
+    flex: 1;
+}
+
+/* Fixed 24px slot every card reserves for the progress strip, so the layout
+   never shifts between sale/non-sale cards or between 0 and 1 units. */
+.saleBarSlot {
+    width: 100%;
+    height: 24px;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+/* Progress line at the top of the card. Uses the same sale tokens as the
+   cart's sale bar (common/components/Product/product.module.css), so the two
+   read as one component and follow the theme settings. It starts slid up
+   behind the slot's top edge and drops in when there is progress to show. */
+.saleBar {
+    width: 100%;
+    height: 24px;
+    box-sizing: border-box;
+    padding: 0 12px;
+    background-color: var(--pc-bar-bg, var(--color-brand-secondary));
+    color: var(--pc-bar-text, var(--text-primary));
+    border-radius: var(--radius-3xl) var(--radius-3xl) 0 0;
+    transform: translateY(-100%);
+    opacity: 0;
+    transition: transform 220ms ease, opacity 220ms ease;
+}
+
+.saleBarVisible {
+    transform: translateY(0);
+    opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .saleBar {
+        transition: none;
+    }
+}
+
+.saleBarText {
+    min-width: 0;
+    color: inherit;
+    font-weight: 600;
+    text-align: center;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.saleBarIcon {
+    color: inherit;
+    flex-shrink: 0;
+    opacity: 0.9;
 }
 
 /* Reserve the stamps row height so cards don't reflow when real stamps land

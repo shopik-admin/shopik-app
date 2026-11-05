@@ -13,6 +13,7 @@ import { getRowPriceInfo, isBundleReached } from 'common/functions/rowPrice.js'
 import { getUnitPriceText, parseWeightOrVolume } from 'common/functions/unitPrice.js'
 import { useState, useEffect } from 'react'
 import { getSalesCache } from '#common/functions/salesCache.js'
+import TR from 'common/texts/TR.js'
 
 export function getFirstSale(product, sales) {
     const saleId = product?.saleIds?.[0]
@@ -93,6 +94,29 @@ export function getInlineSaleBarText(sale, amount) {
         return `עוד ${formatted} יח' בשביל לקבל את המבצע`
     }
     return getSaleBadgeText(sale)
+}
+
+// Only quantity-threshold sales have units worth counting down ("2 for ₪500",
+// "buy 2 get 1"); percent, spend-threshold and single-unit sales are already
+// reflected in the price, so they get no progress bar.
+export function isSaleProgressSale(sale) {
+    if (!sale) return false
+    if (sale.kind === 'percent' || sale.kind === 'receive-price') return false
+    return Number(sale.amount) > 1
+}
+
+// Progress line at the top of a listing card.
+export function getSaleProgressText(sale, amount) {
+    if (!isSaleProgressSale(sale)) return null
+    // The bar is a progress indicator, not a sale label: with nothing of this
+    // sale in the cart there is no progress to show.
+    if (!(Number(amount) > 0)) return null
+    const remaining = getSaleRemaining(sale, amount)
+    if (remaining > 0) {
+        const formatted = Number.isInteger(remaining) ? String(remaining) : String(Math.round(remaining * 1000) / 1000)
+        return TR('sale_progress_remaining', { amount: formatted })
+    }
+    return TR('sale_progress_reached')
 }
 
 export function ProductSaleBadge({ product, sales, size = 'm' }) {
