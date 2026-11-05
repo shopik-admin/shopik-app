@@ -13,6 +13,7 @@ import { getRowPriceInfo, isBundleReached } from 'common/functions/rowPrice.js'
 import { getUnitPriceText, parseWeightOrVolume } from 'common/functions/unitPrice.js'
 import { useState, useEffect } from 'react'
 import { getSalesCache } from '#common/functions/salesCache.js'
+import TR from 'common/texts/TR.js'
 
 export function getFirstSale(product, sales) {
     const saleId = product?.saleIds?.[0]
@@ -113,9 +114,9 @@ export function getSaleProgressText(sale, amount) {
     const remaining = getSaleRemaining(sale, amount)
     if (remaining > 0) {
         const formatted = Number.isInteger(remaining) ? String(remaining) : String(Math.round(remaining * 1000) / 1000)
-        return `עוד ${formatted} יח' לקבלת המבצע`
+        return TR('sale_progress_remaining', { amount: formatted })
     }
-    return 'קיבלת את המבצע!!!'
+    return TR('sale_progress_reached')
 }
 
 export function ProductSaleBadge({ product, sales, size = 'm' }) {
