@@ -1,5 +1,5 @@
 .productCard {
-    padding: 10px;
+    padding: 0;
     /* Colours come from the state contract in common/components/Product/
        product.module.css (data-action / data-price -> --pc-*). This file only
        wires them onto the shell. */
@@ -17,6 +17,41 @@
     max-width: 100%;
     justify-self: stretch;
     overflow: hidden;
+}
+
+/* The card is a bare shell: the sale bar can then run edge to edge, while the
+   regular content keeps its old 10px inset. position: relative anchors the
+   favourite heart to the padded content instead of the card top. */
+.cardContent {
+    padding: 10px;
+    position: relative;
+    flex: 1;
+}
+
+/* Progress line at the top of the card. Uses the same sale tokens as the
+   cart's sale bar (common/components/Product/product.module.css), so the two
+   read as one component and follow the theme settings. */
+.saleBar {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 7px 12px;
+    min-height: 30px;
+    background-color: var(--pc-bar-bg, var(--color-brand-secondary));
+    color: var(--pc-bar-text, var(--text-primary));
+    border-radius: var(--radius-3xl) var(--radius-3xl) 0 0;
+}
+
+.saleBarText {
+    color: inherit;
+    font-weight: 600;
+    text-align: center;
+    line-height: 1.2;
+}
+
+.saleBarIcon {
+    color: inherit;
+    flex-shrink: 0;
+    opacity: 0.9;
 }
 
 /* Reserve the stamps row height so cards don't reflow when real stamps land
