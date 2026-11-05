@@ -95,14 +95,18 @@ export function getInlineSaleBarText(sale, amount) {
     return getSaleBadgeText(sale)
 }
 
-// Progress line at the top of a listing card. Only quantity-threshold sales
-// have units worth counting down ("2 for ₪500", "buy 2 get 1"); percent,
-// spend-threshold and single-unit sales are already reflected in the price,
-// so they show no bar.
+// Only quantity-threshold sales have units worth counting down ("2 for ₪500",
+// "buy 2 get 1"); percent, spend-threshold and single-unit sales are already
+// reflected in the price, so they get no progress bar.
+export function isSaleProgressSale(sale) {
+    if (!sale) return false
+    if (sale.kind === 'percent' || sale.kind === 'receive-price') return false
+    return Number(sale.amount) > 1
+}
+
+// Progress line at the top of a listing card.
 export function getSaleProgressText(sale, amount) {
-    if (!sale) return null
-    if (sale.kind === 'percent' || sale.kind === 'receive-price') return null
-    if (!(Number(sale.amount) > 1)) return null
+    if (!isSaleProgressSale(sale)) return null
     // The bar is a progress indicator, not a sale label: with nothing of this
     // sale in the cart there is no progress to show.
     if (!(Number(amount) > 0)) return null
