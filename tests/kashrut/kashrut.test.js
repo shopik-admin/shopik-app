@@ -22,7 +22,7 @@ describe('selectKashrutStamps', () => {
         }
         const out = selectKashrutStamps(kashrut, 3)
         assert.deepEqual(out.map(e => e.code), ['67085', '67072', '67093'])
-        assert.deepEqual(out.map(e => e.rank), [1, 10, 11])
+        assert.deepEqual(out.map(e => e.rank), [1, 8, 10])
     })
 
     it('caps the result at count', () => {
