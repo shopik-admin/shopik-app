@@ -214,6 +214,9 @@ const productSchema = {
         },
         pathIds: { type: [String], index: true, filter: true }
     },
+    // Raw Comax sub-group code. Kept next to the resolved category so the admin
+    // can reassign a whole sub-group with one update and coverage stays cheap.
+    comaxSubGroupCode: { type: String, filter: true },
     images: {
         product: [{
             main: Boolean,
@@ -294,6 +297,7 @@ export const meta = {
     index: [
         { storeIds: 1 },
         { status: 1, 'category.pathIds': 1 },
+        { status: 1, comaxSubGroupCode: 1 },
         { status: 1, 'prices.domainId': 1 }
     ]
 }

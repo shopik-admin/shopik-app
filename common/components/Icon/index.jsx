@@ -165,6 +165,9 @@ const iconsList = {
     drumstick: LuDrumstick
 }
 
+/** Every icon name the picker can offer. */
+export const iconNames = Object.keys(iconsList)
+
 /**
  * All supported icon names extracted directly from the keys of iconsList.
  *

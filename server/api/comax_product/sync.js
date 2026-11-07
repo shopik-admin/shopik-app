@@ -1,6 +1,6 @@
-import buildCategories from './build_categories.js'
-import { buildCategoryPathIds, groupId, subGroupId } from './categoryIds.js'
 import { buildSyncFilter, hideInactiveProducts, hideStorelessProducts } from './syncRules.js'
+import { loadCategoryLookup, productCategoryFor } from '#server/services/categoryMap/index.js'
+import { invalidateMenu } from '#server/utils/data/getMenu.js'
 import enqueueChangedImages from '#server/services/image/enqueue.js'
 import log from '#server/utils/log.js'
 
@@ -43,18 +43,15 @@ function buildUnit(comax, DL) {
     }
 }
 
-export function buildProduct(comax, DL, defaultDomainId, existing, enforceBuyingPrice) {
-    const category = {}
-    const categoryPathIds = buildCategoryPathIds(comax)
-    if (comax.subGroup) {
-        category.id = subGroupId(comax.subGroupCode)
-        category.title = comax.subGroup
-        category.pathIds = categoryPathIds
-    } else if (comax.group) {
-        category.id = groupId(comax.groupCode)
-        category.title = comax.group
-        category.pathIds = categoryPathIds
-    }
+export function buildProduct(comax, DL, defaultDomainId, existing, enforceBuyingPrice, categoryLookup) {
+    const subGroupCode = comax.subGroupCode == null ? null : String(comax.subGroupCode)
+    const resolvedCategory = productCategoryFor(subGroupCode, categoryLookup)
+    // Before the first category-map import there is no map at all; keep the
+    // stored category instead of wiping the catalog. Once a map exists, an
+    // unassigned sub-group intentionally clears it.
+    const category = categoryLookup?.hasMap
+        ? (resolvedCategory || {})
+        : (existing?.category || {})
     // No image file = hidden. Re-evaluated every sync, so products flip back to
     // ACTIVE on the first sync after the image worker attaches their image.
     // Missing sale price or buying price = archived (never created).
@@ -86,6 +83,7 @@ export function buildProduct(comax, DL, defaultDomainId, existing, enforceBuying
         description: comax.description,
         producer: comax.manufacturer,
         category,
+        comaxSubGroupCode: subGroupCode,
         prices: mergePrices(existing?.prices, defaultDomainId, price > 0 ? price : null),
         buyingPrice: comax.buyingPrice > 0 ? comax.buyingPrice : null,
         vat: comax.vat !== false,
@@ -158,13 +156,15 @@ export default async function syncComax(payload, { DL }) {
     if (!total) {
         // Still sweep: the catalog can hold products whose Comax row is gone.
         const hiddenNoStock = await hideStorelessProducts({ DL })
-        if (hiddenInactive || hiddenNoStock) await buildCategories(payload, { DL })
+        if (hiddenInactive || hiddenNoStock) await invalidateMenu({ DL })
         console.log(`[Comax Sync] No products to sync${hiddenNoStock ? ` — hid ${hiddenNoStock} storeless product(s)` : ''}`)
         return { synced: 0, updated: 0, created: 0, hiddenInactive, hiddenNoStock }
     }
 
     const defaultDomain = await DL.Domain.readOne({ isDefault: true, active: true }, { _id: 0, id: 1 })
     if (!defaultDomain?.id) throw { status: 500, message: 'no default domain configured' }
+
+    const categoryLookup = await loadCategoryLookup(DL)
 
     // Buying-price requirement is enforced only once buying prices were
     // actually imported — otherwise the first deploy would archive everything.
@@ -195,7 +195,7 @@ export default async function syncComax(payload, { DL }) {
         )
         const existingByBarcode = new Map((existingProducts || []).map(p => [p.barcode, p]))
 
-        const productsToSync = comaxProducts.map(c => buildProduct(c, DL, defaultDomain.id, existingByBarcode.get(c.barcode), enforceBuyingPrice))
+        const productsToSync = comaxProducts.map(c => buildProduct(c, DL, defaultDomain.id, existingByBarcode.get(c.barcode), enforceBuyingPrice, categoryLookup))
         hiddenNoImage += productsToSync.filter(p =>
             p.status === DL.Product.constants.STATUS.HIDDEN &&
             (existingByBarcode.get(p.barcode)?.images?.product || []).length === 0
@@ -241,9 +241,9 @@ export default async function syncComax(payload, { DL }) {
         }
     }
 
-    // Rebuild after the product writes so categories reflect this run's statuses.
-    // Products hidden for missing images only become active on a later sync.
-    await buildCategories(payload, { DL })
+    // Product statuses drive the storefront menu (which categories have an
+    // active product), so drop the per-store menu cache after every run.
+    await invalidateMenu({ DL })
 
     return {
         synced,

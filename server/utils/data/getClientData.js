@@ -16,7 +16,7 @@ export default async function getClientData(req, bootData) {
 
     const promises = [
         utils.data.getSettings({ ...bootData, domainId }),
-        utils.data.getMenu(bootData),
+        utils.data.getMenu({ ...bootData, req, _user: user }),
         utils.data.getPickupStores(bootData),
     ]
 

@@ -1,0 +1,293 @@
+.page {
+    height: 100%;
+    min-height: 32rem;
+}
+
+.header {
+    padding: 0 0.25rem;
+}
+
+.notice {
+    padding: 0.6rem 0.8rem;
+    border-radius: var(--radius-md);
+    background: var(--bg-secondary);
+    color: var(--text-brand);
+}
+
+.body {
+    flex: 1;
+    min-height: 0;
+    align-items: stretch;
+}
+
+.treePanel,
+.detailPanel {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.treePanel {
+    flex: 0 0 28rem;
+    padding: 0.75rem;
+}
+
+.detailPanel {
+    flex: 1;
+    padding: 1rem;
+    overflow: auto;
+}
+
+.coverage {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding: 0.6rem 0.7rem;
+    margin-bottom: 0.6rem;
+    border-radius: var(--radius-md);
+    background: var(--bg-secondary);
+}
+
+.tree {
+    flex: 1;
+    overflow: auto;
+    padding-inline-end: 0.25rem;
+}
+
+.node {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-height: 2rem;
+    padding: 0.2rem 0.35rem;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    user-select: none;
+}
+
+.node:hover {
+    background: var(--bg-secondary);
+}
+
+.selected {
+    background: var(--bg-brand-primary);
+    color: var(--text-primary-on-brand);
+}
+
+.dropTarget {
+    outline: 2px dashed var(--border-brand);
+    outline-offset: -2px;
+}
+
+.assignTarget {
+    outline: 2px solid var(--text-brand);
+    outline-offset: -2px;
+    background: var(--bg-secondary);
+}
+
+.inactive .nodeName {
+    opacity: 0.5;
+    text-decoration: line-through;
+}
+
+.chevron,
+.chevronPlaceholder {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.1rem;
+    height: 1.1rem;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    flex: 0 0 auto;
+}
+
+.chevronIcon {
+    transition: transform 0.15s ease;
+}
+
+.chevronOpen {
+    transform: rotate(-90deg);
+}
+
+.nodeIcon {
+    flex: 0 0 auto;
+    width: 1.05rem;
+    height: 1.05rem;
+}
+
+.nodeName {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.levelTag,
+.inactiveTag,
+.code {
+    flex: 0 0 auto;
+    padding: 0 0.3rem;
+    border-radius: 0.3rem;
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    font-size: 0.7rem;
+    line-height: 1.4;
+}
+
+.selected .levelTag,
+.selected .badge {
+    background: rgba(255, 255, 255, 0.2);
+    color: inherit;
+}
+
+.inactiveTag {
+    color: var(--text-error-primary);
+}
+
+.badge {
+    flex: 0 0 auto;
+    min-width: 1.2rem;
+    padding: 0 0.3rem;
+    border-radius: 999px;
+    background: var(--bg-secondary);
+    color: var(--text-brand);
+    font-size: 0.72rem;
+    text-align: center;
+}
+
+.iconRow {
+    margin: 0.75rem 0;
+    padding: 0.6rem;
+    border-radius: var(--radius-md);
+    background: var(--bg-secondary);
+}
+
+.selectedIcon {
+    width: 1.6rem;
+    height: 1.6rem;
+    color: var(--text-brand);
+}
+
+.section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    margin-top: 1rem;
+}
+
+.subGroupList {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    max-height: 22rem;
+    overflow: auto;
+}
+
+.subGroup {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.55rem;
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm);
+    background: var(--bg-primary);
+    cursor: grab;
+}
+
+.subGroup:active {
+    cursor: grabbing;
+}
+
+.subGroupText {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+}
+
+.subGroupText > * {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.search {
+    width: 100%;
+    padding: 0.5rem 0.6rem;
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+.importForm {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    min-width: 26rem;
+}
+
+.iconPicker {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    width: min(42rem, 80vw);
+}
+
+.iconGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(5.2rem, 1fr));
+    gap: 0.4rem;
+    max-height: 55vh;
+    overflow: auto;
+    padding: 0.15rem;
+}
+
+.iconOption {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.5rem 0.25rem;
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 0.7rem;
+    cursor: pointer;
+}
+
+.iconOption:hover {
+    border-color: var(--border-brand);
+}
+
+.iconSelected {
+    border-color: var(--text-brand);
+    background: var(--bg-secondary);
+}
+
+.iconOption svg {
+    width: 1.35rem;
+    height: 1.35rem;
+}
+
+@media (max-width: 900px) {
+    .body {
+        flex-direction: column;
+    }
+
+    .treePanel {
+        flex: 0 0 auto;
+        max-height: 45vh;
+    }
+
+    .importForm {
+        min-width: 0;
+        width: 80vw;
+    }
+}

@@ -13,6 +13,8 @@ export default [
     'product:update',
     'product:read',
     'product:id',
+    'category:read',
+    'category:update',
     'domain:create',
     'domain:update',
     'domain:read',
