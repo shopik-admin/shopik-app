@@ -72,6 +72,14 @@
 
 .node:hover {
     background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+/* Selected keeps its own pair on hover: `--text-primary-on-brand` is white in
+   both palettes, so a plain `.node:hover` background alone would erase it. */
+.selected:hover {
+    background: var(--bg-brand-primary-hover);
+    color: var(--text-primary-on-brand);
 }
 
 .selected {
@@ -132,12 +140,14 @@
 .dropTarget {
     outline: 2px dashed var(--border-brand);
     outline-offset: -2px;
+    color: var(--text-primary);
 }
 
 .assignTarget {
     outline: 2px solid var(--text-brand);
     outline-offset: -2px;
     background: var(--bg-secondary);
+    color: var(--text-primary);
 }
 
 .inactive .nodeName {
@@ -247,7 +257,8 @@
     flex-direction: column;
     gap: 0.35rem;
     max-height: 22rem;
-    overflow: auto;
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
 .subGroup {
@@ -267,7 +278,7 @@
     min-width: 0;
 }
 
-.subGroupText > * {
+.subGroupText>* {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
