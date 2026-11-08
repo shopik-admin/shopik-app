@@ -143,7 +143,7 @@ function CategoryRow({ node, depth, open, count, selected, drag, canUpdate, onSe
     </div>
 }
 
-function SubGroupRow({ entry, isAssigned, busy, canUpdate, selectedId, onAssign }) {
+function SubGroupRow({ entry, isAssigned, canUpdate, selectedId, onAssign }) {
     const { attributes, listeners, setNodeRef, setActivatorNodeRef, isDragging } = useDraggable({
         id: `${SUB_GROUP_PREFIX}${entry.code}`,
         disabled: !canUpdate,
@@ -177,7 +177,6 @@ function SubGroupRow({ entry, isAssigned, busy, canUpdate, selectedId, onAssign 
                 mode='text'
                 tooltip='הסרת שיוך'
                 permission='category:update'
-                disabled={busy}
                 onClick={() => onAssign(entry.code, null)}
             />
             : <Button
@@ -185,14 +184,14 @@ function SubGroupRow({ entry, isAssigned, busy, canUpdate, selectedId, onAssign 
                 mode='text'
                 tooltip='שיוך לקטגוריה הנבחרת'
                 permission='category:update'
-                disabled={busy || !selectedId}
+                disabled={!selectedId}
                 onClick={() => onAssign(entry.code, selectedId)}
             />}
     </div>
 }
 
 export default function MenuCategories() {
-    const { data, loading, error, callReq } = useApi('category/tree')
+    const { data, loading, error, callReq, setData } = useApi('category/tree')
     const { openModal, closeModal } = useModal()
     const canUpdate = usePermission('category:update')
 
@@ -242,6 +241,7 @@ export default function MenuCategories() {
         if (first) setSelectedId(first.id)
     }, [categories, byId, selectedId])
 
+    /** Non-drag edits (icon, active): show progress and reload the tree. */
     async function run(action, successMessage) {
         setBusy(true)
         setNotice('')
@@ -253,6 +253,24 @@ export default function MenuCategories() {
             setNotice(e?.message || String(e))
         } finally {
             setBusy(false)
+        }
+    }
+
+    /**
+     * Drag & drop updates: apply the change to the tree we already have, then
+     * let the server catch up in the background. Nothing shows as loading, the
+     * silent refresh only confirms (and repairs) what is already on screen.
+     */
+    async function optimistic(patch, request) {
+        const snapshot = data
+        setData({ ...data, ...patch })
+        setNotice('')
+        try {
+            await request()
+            await callReq()
+        } catch (e) {
+            if (snapshot) setData(snapshot)
+            setNotice(e?.message || String(e))
         }
     }
 
@@ -271,20 +289,41 @@ export default function MenuCategories() {
         const to = siblings.findIndex(category => category.id === targetId)
         if (from < 0 || to < 0) return
 
-        await run(
+        const ordered = arrayMove(siblings, from, to)
+        const order = new Map(ordered.map((category, index) => [category.id, index]))
+
+        await optimistic(
+            { categories: categories.map(category =>
+                order.has(category.id) ? { ...category, sortOrder: order.get(category.id) } : category) },
             () => apiReq('category/reorder', {
                 parentId: target.parentId || null,
-                orderedIds: arrayMove(siblings, from, to).map(category => category.id)
-            }),
-            'הסדר נשמר'
+                orderedIds: ordered.map(category => category.id)
+            })
         )
     }
 
     async function assign(code, categoryId) {
         if (!canUpdate) return
-        await run(
-            () => apiReq('category/map/assign', { subGroupCode: code, categoryId }),
-            categoryId ? 'תת הקבוצה שויכה' : 'השיוך הוסר'
+        const entry = [...assigned, ...unassigned].find(item => item.code === code)
+        const products = entry?.productCount || 0
+        const moved = { ...entry, categoryId: categoryId || null }
+
+        await optimistic(
+            {
+                assigned: categoryId
+                    ? [...assigned.filter(item => item.code !== code), moved]
+                    : assigned.filter(item => item.code !== code),
+                unassigned: categoryId
+                    ? unassigned.filter(item => item.code !== code)
+                    : [...unassigned, moved],
+                coverage: {
+                    ...coverage,
+                    mappedSubGroups: (coverage.mappedSubGroups ?? 0) + (categoryId ? 1 : -1),
+                    unassignedSubGroups: (coverage.unassignedSubGroups ?? 0) + (categoryId ? -1 : 1),
+                    unassignedProducts: (coverage.unassignedProducts ?? 0) + (categoryId ? -products : products)
+                }
+            },
+            () => apiReq('category/map/assign', { subGroupCode: code, categoryId })
         )
     }
 
@@ -437,7 +476,7 @@ export default function MenuCategories() {
                         )}
                     </div>
 
-                    {loading
+                    {!data && loading
                         ? <Text>טוען קטגוריות...</Text>
                         : error
                             ? <Text mode='error'>{error?.message || String(error)}</Text>
@@ -507,7 +546,6 @@ export default function MenuCategories() {
                                             key={entry.code}
                                             entry={entry}
                                             isAssigned
-                                            busy={busy}
                                             canUpdate={canUpdate}
                                             selectedId={selectedId}
                                             onAssign={assign}
@@ -532,7 +570,6 @@ export default function MenuCategories() {
                                         {filteredUnassigned.slice(0, 100).map(entry => <SubGroupRow
                                             key={entry.code}
                                             entry={entry}
-                                            busy={busy}
                                             canUpdate={canUpdate}
                                             selectedId={selectedId}
                                             onAssign={assign}
