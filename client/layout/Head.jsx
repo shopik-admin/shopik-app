@@ -1,3 +1,5 @@
+import { GLASSIX_ORIGINS } from 'common/functions/glassix.js'
+
 export default function Head({
     title = '',
     description = '',
@@ -7,7 +9,8 @@ export default function Head({
     appleTouchIcon,
     themeColor,
     appTitle,
-    meta
+    meta,
+    glassix
 }) {
     const appleIcon = appleTouchIcon || favicon
     return <>
@@ -31,5 +34,14 @@ export default function Head({
         {favicon && <link rel="icon" href={favicon} />}
         {faviconDark && <link rel="icon" href={faviconDark} media="(prefers-color-scheme: dark)" />}
         {appleIcon && <link rel="apple-touch-icon" href={appleIcon} />}
+        {/* Only for domains with Glassix fully enabled, so a store that never
+            opted in neither opens a socket to Glassix nor shows up in Lighthouse
+            as an unused preconnect. No crossOrigin: the widget script is fetched
+            in non-CORS mode (see client/features/Glassix/loader.js), and a
+            CORS-mode preconnect would warm a socket pool the fetch never reuses.
+            The widget itself still loads after `load` — this only pays for the
+            DNS/TLS handshake in the gap that deferral leaves open. */}
+        {glassix && GLASSIX_ORIGINS.map(origin =>
+            <link key={origin} rel="preconnect" href={origin} />)}
     </>
 }

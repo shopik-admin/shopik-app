@@ -4,6 +4,7 @@ import Head from 'layout/Head'
 import TR from '#common/texts/TR.js'
 import { getSettingFileUrl } from '#common/functions/settingFileUrl.js'
 import { buildMeta } from '#common/functions/buildMeta.js'
+import { resolveGlassixConfig } from '#common/functions/glassix.js'
 import { getPwaIconUrl, PWA_ICON_FILES } from '#common/functions/pwaIconUrl.js'
 import pages from './pages'
 import App from './App'
@@ -39,6 +40,10 @@ export async function render({ url, data, ctx }) {
   const appleTouchUrl = getPwaIconUrl(appearance.appIcon, PWA_ICON_FILES.apple180) || '/icons/apple-180.png'
   const themeColor = colorOf(theme['header-bg'], colorOf(theme['product-button-bg'], DEFAULT_THEME_COLOR))
   const meta = buildMeta({ settings: data.settings, initData: data.initData, page, notFound, url, host: ctx?.host })
+  // Same gate the storefront loader uses: null unless the domain has a
+  // fully-filled, enabled glassix config, so the head never preconnects to
+  // Glassix for a store that does not load the widget.
+  const glassix = resolveGlassixConfig(data.settings)
 
   let head = renderToString(<Head
     title={meta.title || (notFound ? `${siteName} | ${TR('page_not_found')}` : siteName)}
@@ -50,6 +55,7 @@ export async function render({ url, data, ctx }) {
     themeColor={themeColor}
     appTitle={siteName}
     meta={meta}
+    glassix={glassix}
   />)
 
   const themeEntries = Object.entries(data?.settings?.theme || {})
