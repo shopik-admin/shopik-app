@@ -38,8 +38,8 @@ export default function SubGroupProductsModal({ entry, onClose }) {
             {products.map(product => <Card key={product.id} className={styles.productCard}>
                 <ProductImage product={product} size='s' hideSaleBadge />
                 <div className={styles.productText}>
-                    <Text bold size='s'>{product.name}</Text>
-                    <Text size='xs' mode='sub' className={styles.productBarcode}>
+                    <Text bold size='m'>{product.name}</Text>
+                    <Text size='s' mode='sub' className={styles.productBarcode}>
                         {product.barcode || 'ללא ברקוד'}
                         <Icon name='barcode' size={12} />
                     </Text>
