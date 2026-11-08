@@ -121,38 +121,27 @@
     opacity: 0.35;
 }
 
-/* The clone that follows the pointer: the dragged element itself. */
+/* The clone that follows the pointer: the dragged element itself. Its width
+   comes from the source row (min-width inline), so the label never collapses
+   to a few letters, and it is slightly transparent so it reads as lifted. */
 .dragOverlay,
 .dragOverlayCat {
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
-    max-width: 20rem;
+    max-width: min(90vw, 34rem);
     padding: 0.3rem 0.55rem;
     border-radius: var(--radius-sm);
     background: var(--bg-primary);
     color: var(--text-primary);
     font-size: 0.82rem;
+    opacity: 0.88;
     outline: 2px dashed var(--border-brand);
     box-shadow: var(--shadow-lg);
     cursor: grabbing;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-}
-
-/* Thin insertion marker on the row the dragged category lands above. Inset
-   shadow rather than a border: it must not change the row's measured height
-   mid-drag, or dnd-kit re-measures rects while you are still dragging. */
-.dropLine {
-    box-shadow: inset 0 -2px 0 var(--border-brand);
-}
-
-/* Sub-groups cannot preview a target by moving, so the receiving category row
-   is marked in place. Inset shadow: no layout change, no shift under the finger. */
-.assignTarget {
-    background: var(--bg-secondary);
-    box-shadow: inset 0 0 0 2px var(--border-brand);
 }
 
 /* Hover feedback is noise while dragging (the overlay sits over other rows). */

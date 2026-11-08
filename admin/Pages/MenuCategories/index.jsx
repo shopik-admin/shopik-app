@@ -81,7 +81,7 @@ function DragHandle({ innerRef, attributes, listeners, label }) {
     </button>
 }
 
-function CategoryRow({ node, depth, open, count, selected, dropLine, assigning, canUpdate, onSelect, onToggle }) {
+function CategoryRow({ node, depth, open, count, selected, canUpdate, onSelect, onToggle }) {
     const {
         attributes, listeners, setNodeRef, setActivatorNodeRef,
         transform, transition, isDragging
@@ -104,8 +104,6 @@ function CategoryRow({ node, depth, open, count, selected, dropLine, assigning, 
             styles.node,
             selected && styles.selected,
             isDragging && styles.dragging,
-            dropLine && styles.dropLine,
-            assigning && styles.assignTarget,
             node.active === false && styles.inactive
         )}
         onClick={() => onSelect(node.id)}
@@ -223,33 +221,6 @@ export default function MenuCategories() {
             counts.set(entry.categoryId, (counts.get(entry.categoryId) || 0) + 1)
         return counts
     }, [assigned])
-
-    const siblingsByParent = useMemo(() => {
-        const byParent = new Map()
-        for (const category of categories) {
-            const key = category.parentId || null
-            if (!byParent.has(key)) byParent.set(key, [])
-            byParent.get(key).push(category)
-        }
-        for (const [key, list] of byParent)
-            byParent.set(key, list.sort(sortSiblings).map(category => category.id))
-        return byParent
-    }, [categories])
-
-    // The row the insertion line sits above: where the dragged category ends up.
-    const dropLineId = useMemo(() => {
-        if (drag?.kind !== 'category') return null
-        const targetId = drag.dropId
-        if (!targetId) return null
-
-        const siblings = siblingsByParent.get(byId.get(targetId)?.parentId || null) || []
-        const target = siblings.indexOf(targetId)
-        if (target < 0) return null
-
-        // Moving down: the shifted rows close the gap, so the item lands below
-        // the last of them. Moving up: it lands above the hovered row.
-        return target > drag.depth ? siblings[target - 1] : targetId
-    }, [drag, byId, siblingsByParent])
 
     const selected = selectedId ? byId.get(selectedId) : null
     const selectedAssigned = assigned.filter(entry => entry.categoryId === selectedId)
@@ -409,22 +380,20 @@ export default function MenuCategories() {
 
     function onDragStart(event) {
         const data = event.active.data.current || {}
+        // `initial` is the source rect before any transform, i.e. the row the
+        // clone is standing in: give the clone the same width so the label
+        // has exactly as much room as it had in the tree.
+        const width = event.active.rect.current.initial?.width || 0
+
         setDrag(data.subGroupCode
-            ? { kind: 'subgroup', label: data.label, code: data.subGroupCode }
+            ? { kind: 'subgroup', label: data.label, code: data.subGroupCode, width }
             : {
                 kind: 'category',
                 id: String(event.active.id),
                 label: byId.get(event.active.id)?.name || String(event.active.id),
+                width,
                 depth: siblingIndex(byId.get(event.active.id)?.parentId).indexOf(String(event.active.id))
             })
-    }
-
-    function onDragOver(event) {
-        const overId = event.over?.id
-        const dropId = drag?.kind === 'subgroup'
-            ? event.over?.data.current?.categoryId
-            : dropTargetFor(event.active.id, overId)
-        if (dropId !== drag.dropId) setDrag(current => current && { ...current, dropId })
     }
 
     function onDragEnd(event) {
@@ -470,8 +439,6 @@ export default function MenuCategories() {
                         open={open}
                         count={assignedCounts.get(node.id) || 0}
                         selected={selectedId === node.id}
-                        dropLine={node.id === dropLineId}
-                        assigning={drag?.kind === 'subgroup' && drag.dropId === node.id}
                         canUpdate={canUpdate}
                         onSelect={setSelectedId}
                         onToggle={toggleExpanded}
@@ -486,7 +453,6 @@ export default function MenuCategories() {
         sensors={sensors}
         collisionDetection={closestCenter}
         onDragStart={onDragStart}
-        onDragOver={onDragOver}
         onDragEnd={onDragEnd}
         onDragCancel={() => setDrag(null)}
     >
@@ -660,14 +626,20 @@ export default function MenuCategories() {
             {drag?.kind === 'category' && byId.get(drag.id)
                 ? <div
                     className={styles.dragOverlayCat}
-                    style={{ paddingInlineStart: `${drag.depth * 14 + 4}px` }}
+                    style={{
+                        paddingInlineStart: `${drag.depth * 14 + 4}px`,
+                        minWidth: drag.width ? `${drag.width}px` : undefined
+                    }}
                 >
                     <CategoryIcon icon={byId.get(drag.id).icon} fallback={false} className={styles.nodeIcon} />
                     <span className={styles.nodeName}>{byId.get(drag.id).name}</span>
                     <span className={styles.levelTag}>L{byId.get(drag.id).level}</span>
                 </div>
                 : drag?.kind === 'subgroup'
-                    ? <span className={styles.dragOverlay}>
+                    ? <span
+                        className={styles.dragOverlay}
+                        style={{ minWidth: drag.width ? `${drag.width}px` : undefined }}
+                    >
                         {drag.label}
                         <span className={styles.code}>{drag.code}</span>
                     </span>
