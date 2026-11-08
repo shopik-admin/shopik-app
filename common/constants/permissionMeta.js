@@ -11,7 +11,7 @@ export const permissionGroups = {
     admin: 'מנהלים',
     role: 'תפקידים והרשאות',
     product: 'מוצרים',
-    category: 'קטגוריות ותפריט',
+    category: 'תפריט וקטגוריות',
     domain: 'מתחמים',
     setting: 'הגדרות',
     log: 'לוגים',
