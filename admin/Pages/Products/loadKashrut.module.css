@@ -1,0 +1,17 @@
+.report {
+    padding: 12px;
+    border: 1px solid var(--border-secondary);
+    border-radius: var(--radius-md);
+}
+
+.list {
+    padding: 8px 10px;
+    border: 1px solid var(--border-secondary);
+    border-radius: var(--radius-md);
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+.listRow {
+    unicode-bidi: plaintext;
+}

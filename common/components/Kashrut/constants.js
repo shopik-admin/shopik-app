@@ -84,6 +84,30 @@ export function normalizeKashrut(kashrut) {
     }
 }
 
+// Union of two rabbinates lists, deduped by code (name-only entries dedupe by
+// name, same key rule as the GS1 mapper). Existing entries keep their order and
+// their stored name; only codes that are missing get appended, with the canonical
+// name from KASHRUT_CODE_INDEX when the addition carries none. Additions never
+// drop what is already stored — neither a manual kashrut load nor the GS1 enrich.
+export function mergeRabbinates(existing, additions) {
+    const merged = []
+    const seen = new Set()
+    const push = raw => {
+        const code = raw?.code != null ? String(raw.code).trim() : ''
+        const name = raw?.name != null ? String(raw.name).trim() : ''
+        if (!code && !name) return
+        const key = code || `name:${name}`
+        if (seen.has(key)) return
+        seen.add(key)
+        merged.push(code
+            ? { code, name: name || KASHRUT_CODE_INDEX.get(code)?.name || '' }
+            : { name })
+    }
+    for (const raw of (Array.isArray(existing) ? existing : [])) push(raw)
+    for (const raw of (Array.isArray(additions) ? additions : [])) push(raw)
+    return merged
+}
+
 // Sorted stamp entries for display, strongest first. Unknown codes sort last
 // (stable by source order). `hasImage(stampCode)` optionally restricts the
 // result to entries backed by an image; pass no predicate to keep every entry.
@@ -121,4 +145,4 @@ export function getSupervisionLabel(kashrut) {
     return SUPERVISION_LABELS[supervisionType] || ''
 }
 
-export default { KASHRUT_RABBINATES, SUPERVISION_LABELS, selectKashrutStamps, getSupervisionLabel }
+export default { KASHRUT_RABBINATES, SUPERVISION_LABELS, mergeRabbinates, selectKashrutStamps, getSupervisionLabel }

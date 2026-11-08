@@ -5,7 +5,10 @@
  * enrich used to write kashrut as a plain string ("<food category> / <rabbinate>").
  * mapKashrut (server/external/gs1/mapper.js) now emits an object carrying the
  * GS1 rabbinate codes — which drive stamp ranking and images — plus the
- * supervision (food-category) code. This rewrites what's already stored.
+ * supervision (food-category) code. The mapped codes are MERGED into what is
+ * already stored (rabbinates are a set: a value loaded by hand through
+ * admin/Pages/Products, טעינת כשרויות, is never dropped) — the rewrite only
+ * normalizes the shape.
  *
  * Only `kashrut` is touched. Products with no source raw are left untouched:
  * their legacy string is ignored by the UI, which only understands the object
@@ -20,6 +23,7 @@
  *          [--limit N] [--page N]
  */
 import { mapKashrut } from '#server/external/gs1/mapper.js'
+import { mergeRabbinates, normalizeKashrut } from '#common/components/Kashrut/constants.js'
 import { aliasCandidates, aliasEnabled, aliasMinLen } from '#server/services/gs1/alias.js'
 
 const DEFAULT_PAGE = 200
@@ -119,6 +123,12 @@ export default async function backfillProductKashrut(
                 totals.mapError++
                 continue
             }
+            // Rabbinates accumulate: the stored set — including anything loaded by
+            // hand through admin/Pages/Products (טעינת כשרויות) — is kept and the
+            // GS1 codes are merged into it. With no GS1 kashrut at all, a stored
+            // object is left alone; only the ignored legacy string is cleared.
+            if (next) next = { ...next, rabbinates: mergeRabbinates(cur?.rabbinates, next.rabbinates) }
+            else if (normalizeKashrut(cur).rabbinates.length) { totals.identical++; continue }
             if (stable(cur) === stable(next ?? null)) { totals.identical++; continue }
             totals.changed++
             if (next === undefined) unsets.push({ barcode: p.barcode })
