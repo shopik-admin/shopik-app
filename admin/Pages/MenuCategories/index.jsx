@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
     DndContext,
-    DragOverlay,
     KeyboardSensor,
     PointerSensor,
     closestCenter,
@@ -84,7 +83,7 @@ function DragHandle({ innerRef, attributes, listeners, label }) {
 function CategoryRow({ node, depth, open, count, selected, drag, canUpdate, onSelect, onToggle }) {
     const {
         attributes, listeners, setNodeRef, setActivatorNodeRef,
-        transform, transition, isDragging, isOver
+        transform, transition, isDragging
     } = useSortable({
         id: node.id,
         disabled: !canUpdate,
@@ -93,7 +92,7 @@ function CategoryRow({ node, depth, open, count, selected, drag, canUpdate, onSe
 
     const hasChildren = node.children?.length > 0
     // Only the node the drop would actually land on gets highlighted.
-    const canReorderHere = drag?.kind === 'category' && drag.dropId === node.id
+    const landingHere = drag?.kind === 'category' && drag.dropId === node.id
 
     return <div
         ref={setNodeRef}
@@ -106,8 +105,8 @@ function CategoryRow({ node, depth, open, count, selected, drag, canUpdate, onSe
             styles.node,
             selected && styles.selected,
             isDragging && styles.dragging,
-            isOver && canReorderHere && styles.dropTarget,
-            isOver && drag?.kind === 'subgroup' && styles.assignTarget,
+            landingHere && styles.dropTarget,
+            drag?.kind === 'subgroup' && drag.dropId === node.id && styles.assignTarget,
             node.active === false && styles.inactive
         )}
         onClick={() => onSelect(node.id)}
@@ -377,14 +376,15 @@ export default function MenuCategories() {
 
     function onDragStart(event) {
         const data = event.active.data.current || {}
-        setDrag(data.subGroupCode
-            ? { kind: 'subgroup', label: data.label }
-            : { kind: 'category', label: byId.get(event.active.id)?.name || String(event.active.id) })
+        setDrag({ kind: data.subGroupCode ? 'subgroup' : 'category' })
     }
 
     function onDragOver(event) {
-        if (drag?.kind !== 'category') return
-        const dropId = dropTargetFor(event.active.id, event.over?.id)
+        const overId = event.over?.id
+        if (!overId) return
+        const dropId = drag?.kind === 'subgroup'
+            ? overId // A sub-group is assigned to the category under the pointer.
+            : dropTargetFor(event.active.id, overId)
         if (dropId !== drag.dropId) setDrag(current => current && { ...current, dropId })
     }
 
@@ -615,10 +615,6 @@ export default function MenuCategories() {
                 </Card>
             </Flex>
         </Flex>
-
-        <DragOverlay dropAnimation={null}>
-            {drag ? <span className={styles.dragOverlay}>{drag.label}</span> : null}
-        </DragOverlay>
     </DndContext>
 }
 

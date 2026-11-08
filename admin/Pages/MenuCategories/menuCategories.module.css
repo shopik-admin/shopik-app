@@ -60,6 +60,7 @@
 }
 
 .node {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 0.35rem;
@@ -115,26 +116,13 @@
     cursor: grabbing;
 }
 
+/* The row being dragged is the one that moves to its new slot (no DragOverlay),
+   so the mark belongs on it: the list you see mid-drag is the list you get. */
 .dragging {
-    opacity: 0.45;
-}
-
-.dragOverlay {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    max-width: 18rem;
-    padding: 0.3rem 0.55rem;
-    border: 1px solid var(--border-brand);
-    border-radius: var(--radius-sm);
-    background: var(--bg-primary);
-    color: var(--text-brand);
-    font-size: 0.8rem;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
-    cursor: grabbing;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    outline: 2px dashed var(--border-brand);
+    outline-offset: -2px;
+    box-shadow: var(--shadow-md);
+    z-index: 1;
 }
 
 .dropTarget {
@@ -256,12 +244,13 @@
     display: flex;
     flex-direction: column;
     gap: 0.35rem;
-    max-height: 22rem;
     overflow-y: auto;
     overflow-x: hidden;
+    flex-grow: 1;
 }
 
 .subGroup {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 0.5rem;
