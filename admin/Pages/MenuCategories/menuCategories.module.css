@@ -75,6 +75,56 @@
     color: var(--text-primary-on-brand);
 }
 
+.grip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 1.1rem;
+    height: 1.1rem;
+    padding: 0;
+    border: 0;
+    border-radius: 0.25rem;
+    background: transparent;
+    color: inherit;
+    opacity: 0.45;
+    cursor: grab;
+    /* The pointer sensor needs this to tell a drag from a scroll. */
+    touch-action: none;
+}
+
+.grip:hover,
+.grip:focus-visible {
+    opacity: 1;
+    background: var(--bg-secondary);
+}
+
+.grip:active {
+    cursor: grabbing;
+}
+
+.dragging {
+    opacity: 0.45;
+}
+
+.dragOverlay {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    max-width: 18rem;
+    padding: 0.3rem 0.55rem;
+    border: 1px solid var(--border-brand);
+    border-radius: var(--radius-sm);
+    background: var(--bg-primary);
+    color: var(--text-brand);
+    font-size: 0.8rem;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+    cursor: grabbing;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 .dropTarget {
     outline: 2px dashed var(--border-brand);
     outline-offset: -2px;
@@ -161,15 +211,23 @@
 }
 
 .iconRow {
+    flex-wrap: wrap;
     margin: 0.75rem 0;
     padding: 0.6rem;
     border-radius: var(--radius-md);
     background: var(--bg-secondary);
 }
 
+.fileInput {
+    display: none;
+}
+
 .selectedIcon {
-    width: 1.6rem;
-    height: 1.6rem;
+    width: 2rem;
+    height: 2rem;
+    padding: 0.15rem;
+    border-radius: var(--radius-sm);
+    background: var(--bg-primary);
     color: var(--text-brand);
 }
 
@@ -196,11 +254,6 @@
     border: 1px solid var(--border-primary);
     border-radius: var(--radius-sm);
     background: var(--bg-primary);
-    cursor: grab;
-}
-
-.subGroup:active {
-    cursor: grabbing;
 }
 
 .subGroupText {
@@ -230,50 +283,6 @@
     flex-direction: column;
     gap: 0.8rem;
     min-width: 26rem;
-}
-
-.iconPicker {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    width: min(42rem, 80vw);
-}
-
-.iconGrid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(5.2rem, 1fr));
-    gap: 0.4rem;
-    max-height: 55vh;
-    overflow: auto;
-    padding: 0.15rem;
-}
-
-.iconOption {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.25rem;
-    padding: 0.5rem 0.25rem;
-    border: 1px solid var(--border-primary);
-    border-radius: var(--radius-sm);
-    background: var(--bg-primary);
-    color: var(--text-primary);
-    font-size: 0.7rem;
-    cursor: pointer;
-}
-
-.iconOption:hover {
-    border-color: var(--border-brand);
-}
-
-.iconSelected {
-    border-color: var(--text-brand);
-    background: var(--bg-secondary);
-}
-
-.iconOption svg {
-    width: 1.35rem;
-    height: 1.35rem;
 }
 
 @media (max-width: 900px) {

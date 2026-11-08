@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react'
 import styles from './mainMenu.module.css'
 import Flex from 'common/components/Flex'
 import Icon from 'common/components/Icon'
+import CategoryIcon from 'common/components/CategoryIcon'
 import Text from 'common/components/Text'
 import { NavLink, useLocation } from 'react-router'
 import { useAppData } from 'App'
@@ -203,10 +204,7 @@ function Level2Menu({ items, open, basePath, onClose }) {
                                 gap={12}
                             >
                                 <div className={styles.iconWrap}>
-                                    <Icon
-                                        name={item.icon}
-                                        fallback
-                                    />
+                                    <CategoryIcon icon={item.icon} />
                                 </div>
 
                                 <Text size='l'>

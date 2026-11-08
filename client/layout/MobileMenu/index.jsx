@@ -13,6 +13,7 @@ import styles from './mobileMenu.module.css'
 import classNames from 'common/functions/classNames'
 import Flex from 'common/components/Flex'
 import Icon from 'common/components/Icon'
+import CategoryIcon from 'common/components/CategoryIcon'
 import Text from 'common/components/Text'
 
 /**
@@ -214,7 +215,7 @@ function DeptBrowser({ items, basePath, go, onClose }) {
                     onClick={() => (hasChildren ? setActivePath(itemPath) : go(itemPath))}
                 >
                     <span className={styles.iconWrap}>
-                        <Icon name={item.icon} fallback />
+                        <CategoryIcon icon={item.icon} />
                     </span>
                     <Text size='l' className={styles.deptName}>{item.name}</Text>
                     {hasChildren && <Icon name='left' />}
