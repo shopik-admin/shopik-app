@@ -21,7 +21,7 @@ const readStoredCart = () => {
 }
 
 export default function OrderProvider({ children }) {
-    const { order: serverOrder } = useAppData()
+    const { order: serverOrder, refreshMenu } = useAppData()
     const hasServerOrder = !!serverOrder
     const [order, setOrder] = useState(hasServerOrder ? serverOrder : {})
     // Domain pricing is resolved server-side into a flat `price` — the client
@@ -32,6 +32,9 @@ export default function OrderProvider({ children }) {
     const pendingRef = useRef(new Map())
     const queueRef = useRef(Promise.resolve())
     const unconfirmedRef = useRef(new Map())
+    // The store the menu currently on screen was built for. Seeded from the SSR
+    // order so the first render does not re-fetch what SSR already sent.
+    const menuStoreRef = useRef(serverOrder?.storeId ?? null)
 
     const sendCartSync = useCallback((product, amount) => {
         const seq = ++seqRef.current
@@ -126,6 +129,19 @@ export default function OrderProvider({ children }) {
             if (item?.id && amount > 0) queueCartSync(item, amount)
         }
     }, [hasServerOrder])
+
+    // The menu is filtered by the store the shopper belongs to (menu:<storeId|any>)
+    // and only reaches the client through the SSR payload, so when the order moves
+    // to another store - address change, pickup store switch, logout - the menu has
+    // to be re-fetched instead of waiting for the next page load. Every one of those
+    // flows already writes the new order here, so diffing its storeId is the single
+    // trigger point; cart syncs stay a no-op because they never move the store.
+    useEffect(() => {
+        const storeId = order?.storeId ?? null
+        if (storeId === menuStoreRef.current) return
+        menuStoreRef.current = storeId
+        refreshMenu?.()
+    }, [order?.storeId, refreshMenu])
 
     useEffect(() => {
         if (order?.cart) localStorage.cart = JSON.stringify(order.cart)
