@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useAppData } from 'App'
 import { resolveGlassixConfig } from 'common/functions/glassix.js'
 import { loadGlassixAfterPageLoad } from './loader.js'
+import './glassix.css'
 
 // Renders nothing of its own: the launcher is injected into the document by the
 // Glassix script. `settings` comes from window.__SD__ at boot and never changes
