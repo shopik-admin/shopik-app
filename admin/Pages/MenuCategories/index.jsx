@@ -422,7 +422,7 @@ export default function MenuCategories() {
     function openProducts(entry) {
         openModal(
             <SubGroupProductsModal entry={entry} onClose={closeModal} />,
-            { title: entry.subGroup || `תת קבוצה ${entry.code}` }
+            { title: [entry.subGroup, entry.code].filter(Boolean).join(' - ') }
         )
     }
 
