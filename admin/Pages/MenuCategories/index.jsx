@@ -81,7 +81,7 @@ function DragHandle({ innerRef, attributes, listeners, label }) {
     </button>
 }
 
-function CategoryRow({ node, depth, open, count, selected, dropLine, canUpdate, onSelect, onToggle }) {
+function CategoryRow({ node, depth, open, count, selected, dropLine, assigning, canUpdate, onSelect, onToggle }) {
     const {
         attributes, listeners, setNodeRef, setActivatorNodeRef,
         transform, transition, isDragging
@@ -105,6 +105,7 @@ function CategoryRow({ node, depth, open, count, selected, dropLine, canUpdate, 
             selected && styles.selected,
             isDragging && styles.dragging,
             dropLine && styles.dropLine,
+            assigning && styles.assignTarget,
             node.active === false && styles.inactive
         )}
         onClick={() => onSelect(node.id)}
@@ -249,16 +250,6 @@ export default function MenuCategories() {
         // the last of them. Moving up: it lands above the hovered row.
         return target > drag.depth ? siblings[target - 1] : targetId
     }, [drag, byId, siblingsByParent])
-
-    // Text feedback while dragging: a sub-group cannot preview its target,
-    // so both cases state in words what the drop would do.
-    const dragStatus = useMemo(() => {
-        if (!drag) return ''
-        const target = drag.dropId ? byId.get(drag.dropId) : null
-        return drag.kind === 'subgroup'
-            ? `גרירה: ${drag.label || ''} → ${target?.name || 'בחר קטגוריה בעץ'}`
-            : `ממוקם מחדש: ${drag.label || ''} → ${target?.name || 'אותו מקום'}`
-    }, [drag, byId])
 
     const selected = selectedId ? byId.get(selectedId) : null
     const selectedAssigned = assigned.filter(entry => entry.categoryId === selectedId)
@@ -480,6 +471,7 @@ export default function MenuCategories() {
                         count={assignedCounts.get(node.id) || 0}
                         selected={selectedId === node.id}
                         dropLine={node.id === dropLineId}
+                        assigning={drag?.kind === 'subgroup' && drag.dropId === node.id}
                         canUpdate={canUpdate}
                         onSelect={setSelectedId}
                         onToggle={toggleExpanded}
@@ -513,8 +505,6 @@ export default function MenuCategories() {
             </Flex>
 
             {notice && <Text className={styles.notice}>{notice}</Text>}
-            {drag && dragStatus && <Text className={styles.notice}>{dragStatus}</Text>}
-            {drag && dragStatus && <Text className={styles.notice}>{dragStatus}</Text>}
 
             <Flex gap={10} className={styles.body}>
                 <Card className={styles.treePanel}>
