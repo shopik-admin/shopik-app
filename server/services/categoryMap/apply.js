@@ -36,7 +36,9 @@ async function applyCategories(DL, plan) {
     const staleIds = await DL.Category.Model.distinct('id', { id: { $nin: keepIds } })
     if (staleIds.length) {
         await DL.Category.Model.deleteMany({ id: { $in: staleIds } })
-        await DL.Category.cache?.del(staleIds)
+        // Direct Model writes bypass the DL wrappers — drop them from the hashset
+        // too, otherwise the admin tree and menu keep deleted categories.
+        await DL.Category.cache.del(staleIds)
     }
 
     return {

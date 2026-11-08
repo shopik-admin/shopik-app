@@ -22,7 +22,7 @@ export default async function reorder({ parentId = null, orderedIds }, { DL }) {
 
     // findOneAndUpdate/bulkWrite bypass the DL cache; sync the touched docs.
     const updated = await DL.Category.Model.find({ id: { $in: ids } }, { _id: 0 }).lean()
-    await DL.Category.cache?.add(updated)
+    await DL.Category.cache.add(updated)
     await invalidateMenu({ DL })
 
     return { ok: true, count: ids.length }

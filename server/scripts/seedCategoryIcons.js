@@ -39,7 +39,7 @@ export default async function seedCategoryIcons({ DL }) {
         ).lean()
         if (!updated) continue
         // findOneAndUpdate bypasses the DL wrapper — sync Redis manually
-        await DL.Category.cache?.add(updated)
+        await DL.Category.cache.add(updated)
         set++
         console.log(`[categoryIcons] ${name} -> ${icon}`)
     }
