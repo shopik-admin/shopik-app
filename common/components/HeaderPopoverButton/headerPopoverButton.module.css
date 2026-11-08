@@ -21,12 +21,12 @@
     }
 
     &:hover {
-        background-color: var(--bg-brand-primary-hover);
+        background-color: var(--header-cart-bg);
     }
 }
 
 :global(.Popover_visible)+:global(.Popover_btn) .button {
-    background-color: var(--bg-brand-primary-hover);
+    background-color: var(--header-cart-bg);
 
     .icon {
         color: var(--color-brand-secondary);
