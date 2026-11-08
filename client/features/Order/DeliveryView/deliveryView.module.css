@@ -2,3 +2,31 @@
     max-width: 300px;
     min-width: 300px;
 }
+
+.guestPrompt,
+.noServiceView {
+    min-height: 340px;
+    padding: 16px 4px;
+}
+
+.noServiceIcon {
+    width: 54px;
+    height: 54px;
+    color: var(--text-danger, #d93025);
+    margin-bottom: 6px;
+}
+
+.guestIcon {
+    width: 46px;
+    height: 46px;
+    color: var(--text-brand);
+    margin-bottom: 6px;
+}
+
+.noServiceEmail {
+    width: 100%;
+}
+
+.noServiceSuccess {
+    color: var(--text-success-primary, #1b7f4d);
+}
