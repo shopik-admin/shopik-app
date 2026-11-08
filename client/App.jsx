@@ -9,6 +9,7 @@ import User from 'features/User'
 import Main from 'layout/Main'
 import Footer from 'layout/Footer'
 import CartProvider from 'layout/Cart/CartProvider'
+import GlassixWidget from 'features/Glassix'
 import pages from './pages'
 import styles from './App.module.css'
 
@@ -25,6 +26,7 @@ export default function App({ data = {} }) {
         window.scrollTo(0, 0)
     }, [pathname])
     return <AppDataContext value={data}>
+        <GlassixWidget />
         <TextProvider>
             <Lists sdLists={data.lists}>
                 <OrderProvider>
