@@ -1,5 +1,6 @@
 export { applyCategoryMap } from './apply.js'
 export { buildCategoryCsv, exportCategoryMap } from './export.js'
-export { buildCategoryPlan, categoryIdFor, parseCsvRows, EXPECTED_HEADER } from './parse.js'
+export { buildCategoryPlan, categoryIdFor, categorySlug, parseCsvRows, EXPECTED_HEADER } from './parse.js'
 export { loadCategoryLookup, productCategoryFor } from './lookup.js'
 export { COMAX_META_FIELDS, metadataForCode, metaFromComax } from './metadata.js'
+export { buildRenamePlan, normalizeCategoryName } from './rename.js'

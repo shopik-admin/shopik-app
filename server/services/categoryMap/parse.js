@@ -97,6 +97,22 @@ function validateHeader(header) {
 }
 
 /**
+ * Slug for a category name, kept unique inside `used` (the set of slugs already
+ * taken by its siblings, which gains the returned slug). A collision gets the
+ * category code appended, then a counter. Shared with the rename endpoint so a
+ * renamed category gets exactly the slug a CSV import would have given it.
+ */
+export function categorySlug(name, code, used) {
+    const base = toSlug(name) || `cat-${code}`
+    let candidate = base
+    if (used.has(candidate)) candidate = `${base}-${code}`
+    let suffix = 2
+    while (used.has(candidate)) candidate = `${base}-${code}-${suffix++}`
+    used.add(candidate)
+    return candidate
+}
+
+/**
  * Build the category tree + sub-group map from the CSV text.
  *
  * Codes are unique across the whole tree by design: the admin requires it and

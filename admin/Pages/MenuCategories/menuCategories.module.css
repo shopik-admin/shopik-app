@@ -297,6 +297,71 @@
     color: var(--text-primary);
 }
 
+/* Inline rename: the input stands where the title was, at the same scale. */
+.titleRow {
+    min-width: 0;
+}
+
+.renameForm {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.renameInput {
+    flex: 1 1 12rem;
+    min-width: 0;
+    padding: 0.3rem 0.5rem;
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 1.15rem;
+    font-weight: 700;
+}
+
+/* Sub-group products preview. The image is the first child, which is the right
+   side of the RTL flow, with the name beside it and the barcode below. */
+.productsModal {
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+    width: min(46rem, 88vw);
+}
+
+.productsHead {
+    gap: 0.6rem;
+}
+
+.productGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+    gap: 0.55rem;
+}
+
+.productCard {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.5rem;
+}
+
+.productText {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    flex: 1;
+    min-width: 0;
+}
+
+.productBarcode {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
 .importForm {
     display: flex;
     flex-direction: column;

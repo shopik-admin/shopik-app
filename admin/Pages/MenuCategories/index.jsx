@@ -30,6 +30,7 @@ import { useModal } from 'common/components/Modal'
 import usePermission from 'common/permissions/usePermision'
 import classNames from 'common/functions/classNames'
 import { siblingTargetFor } from './siblingTarget.js'
+import SubGroupProductsModal from './SubGroupProductsModal.jsx'
 import styles from './menuCategories.module.css'
 
 const MAX_ICON_BYTES = 4 * 1024 * 1024
@@ -150,7 +151,7 @@ function CategoryRow({ node, depth, open, count, selected, canUpdate, onSelect, 
     </div>
 }
 
-function SubGroupRow({ entry, isAssigned, canUpdate, selectedId, onAssign }) {
+function SubGroupRow({ entry, isAssigned, canUpdate, selectedId, onAssign, onPreview }) {
     const { attributes, listeners, setNodeRef, setActivatorNodeRef, isDragging } = useDraggable({
         id: `${SUB_GROUP_PREFIX}${entry.code}`,
         disabled: !canUpdate,
@@ -178,6 +179,12 @@ function SubGroupRow({ entry, isAssigned, canUpdate, selectedId, onAssign }) {
         </div>
         <span className={styles.code}>{entry.code}</span>
         <span className={styles.badge}>{entry.productCount}</span>
+        <Button
+            icon='products'
+            mode='text'
+            tooltip='תצוגת מוצרים פעילים בתת הקבוצה'
+            onClick={() => onPreview(entry)}
+        />
         {isAssigned
             ? <Button
                 icon='trash'
@@ -396,6 +403,29 @@ export default function MenuCategories() {
         }
     }
 
+    // Renaming rewrites the slug, every path under the category and the titles
+    // stored on its products, so the tree is refetched rather than patched.
+    async function afterRename(result) {
+        setBusy(true)
+        try {
+            await callReq()
+            setNotice(
+                `השם עודכן: ${result?.path || ''} · ` +
+                `${result?.categories ?? 0} קטגוריות, ${result?.products ?? 0} מוצרים עודכנו`
+            )
+        } finally {
+            setBusy(false)
+        }
+    }
+
+    /** What a mapping covers: the active products sitting on that sub-group. */
+    function openProducts(entry) {
+        openModal(
+            <SubGroupProductsModal entry={entry} onClose={closeModal} />,
+            { title: entry.subGroup || `תת קבוצה ${entry.code}` }
+        )
+    }
+
     /** The node a category drop is allowed to land on (see siblingTarget.js). */
     function dropTargetFor(draggedId, overId) {
         return siblingTargetFor(byId.get(draggedId), overId, byId)
@@ -567,7 +597,13 @@ export default function MenuCategories() {
                         : <>
                             <Flex justifyContent='space-between' alignItems='start' gap={10}>
                                 <div>
-                                    <Text bold size='h3'>{selected.name}</Text>
+                                    {canUpdate
+                                        ? <CategoryTitle
+                                            key={selected.id}
+                                            category={selected}
+                                            onDone={afterRename}
+                                        />
+                                        : <Text bold size='h3'>{selected.name}</Text>}
                                     <Text size='s' mode='sub'>
                                         {selected.path} · רמה {selected.level} · קוד {selected.code}
                                     </Text>
@@ -625,6 +661,7 @@ export default function MenuCategories() {
                                             canUpdate={canUpdate}
                                             selectedId={selectedId}
                                             onAssign={assign}
+                                            onPreview={openProducts}
                                         />)}
                                     </div>}
                             </div>
@@ -649,6 +686,7 @@ export default function MenuCategories() {
                                             canUpdate={canUpdate}
                                             selectedId={selectedId}
                                             onAssign={assign}
+                                            onPreview={openProducts}
                                         />)}
                                     </div>}
                             </div>
@@ -681,6 +719,75 @@ export default function MenuCategories() {
                     : null}
         </DragOverlay>
     </DndContext>
+}
+
+/**
+ * Category title with an inline rename: the pencil replaces the title with an
+ * input in place. Enter saves, Escape cancels.
+ *
+ * The server recomputes the slug, the paths of every category below it and the
+ * titles stored on its products; the id never changes, so the CSV export and
+ * the sub-group map keep working.
+ */
+function CategoryTitle({ category, onDone }) {
+    const [editing, setEditing] = useState(false)
+    const [name, setName] = useState(category.name)
+    const [saving, setSaving] = useState(false)
+    const [error, setError] = useState('')
+    const trimmed = name.trim()
+    const dirty = trimmed !== category.name && trimmed.length >= 2
+
+    const start = () => {
+        setName(category.name)
+        setError('')
+        setEditing(true)
+    }
+    const cancel = () => {
+        setEditing(false)
+        setName(category.name)
+        setError('')
+    }
+
+    async function save() {
+        if (!dirty || saving) return
+        setSaving(true)
+        setError('')
+        try {
+            onDone(await apiReq('category/rename', { id: category.id, name: trimmed }))
+            cancel()
+        } catch (e) {
+            setError(e?.message || String(e))
+        } finally {
+            setSaving(false)
+        }
+    }
+
+    if (!editing)
+        return <Flex alignItems='center' gap={4} className={styles.titleRow}>
+            <Text bold size='h3'>{category.name}</Text>
+            <Button
+                icon='edit'
+                mode='text'
+                tooltip='שינוי שם'
+                aria-label='שינוי שם'
+                onClick={start}
+            />
+        </Flex>
+
+    return <form className={styles.renameForm} onSubmit={event => { event.preventDefault(); save() }}>
+        <input
+            className={styles.renameInput}
+            value={name}
+            maxLength={100}
+            autoFocus
+            aria-label='שם הקטגוריה'
+            onChange={event => setName(event.target.value)}
+            onKeyDown={event => { if (event.key === 'Escape') cancel() }}
+        />
+        <Button type='submit' icon='check' mode='text' tooltip='שמירת השם' loading={saving} disabled={!dirty} />
+        <Button mode='text' icon='x' tooltip='ביטול' onClick={cancel} disabled={saving} />
+        {error && <Text size='s' mode='error'>{error}</Text>}
+    </form>
 }
 
 function ImportModal({ onDone, onClose }) {
