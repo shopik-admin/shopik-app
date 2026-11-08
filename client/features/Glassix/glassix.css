@@ -1,30 +1,33 @@
 /* The launcher button is real DOM in our document, so it can follow the store's
- * own header color instead of Glassix's fixed #1B80C4.
+ * own palette instead of Glassix's fixed #1B80C4.
+ *
+ * --chat-button-bg is a per-domain theme Setting (theme/colors chat-button-bg,
+ * seeded by server/scripts/seedGlassixSetting.js) and entry-server.jsx injects
+ * every settings.theme entry as a :root var, so Admin -> Settings controls it
+ * with nothing to configure here. It is deliberately not --header-bg: the header
+ * color can be too dark or too light for Glassix's white launcher icon, and the
+ * bubble needs a color that keeps that icon readable. The fallback below mirrors
+ * the seeded default, for domains where the setting was never seeded.
  *
  * Plain global CSS on purpose, not a .module.css: these are Glassix's own IDs,
  * nothing here is scoped, and a CSS module whose exported class names no JS
  * references gets dropped by the build's CSS tree-shaking (verified — the rules
  * never reached the bundle).
  *
- * !important is load-bearing: Glassix injects its stylesheet at runtime, after
- * our inlined CSS, and both selectors are ID-specificity — on a tie the later
- * rule wins. !important also beats a plain inline style if they ever start
+ * !important is load-bearing too: Glassix injects its stylesheet at runtime,
+ * after our inlined CSS, and both selectors are ID-specificity — on a tie the
+ * later rule wins. !important also beats a plain inline style if they ever start
  * setting one from their dashboard.
- *
- * --header-bg is the exact variable the header reads (layout/Header reads
- * var(--header-bg), entry-server writes it from settings.theme), so every domain
- * gets its own color with nothing to configure here. The fallback is
- * DEFAULT_THEME_COLOR from entry-server.jsx, for domains with no theme settings.
  *
  * Only the launcher lives in our DOM: the opened chat panel is a cross-origin
  * iframe and keeps Glassix's own colors. If they ever rename these IDs the rule
  * stops applying and their default blue comes back — degradation, not breakage.
  */
 #glassix-widget-launcher {
-    background-color: var(--header-bg, #195855) !important;
+    background-color: var(--chat-button-bg, #8bc652) !important;
 }
 
-/* Their focus ring is a hardcoded #003558; keep it in the same brand color. */
+/* Their focus ring is a hardcoded #003558; keep it in the same color. */
 #glassix-widget-launcher:focus-visible {
-    outline-color: var(--header-bg, #195855) !important;
+    outline-color: var(--chat-button-bg, #8bc652) !important;
 }
