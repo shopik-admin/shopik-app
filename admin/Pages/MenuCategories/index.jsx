@@ -201,7 +201,8 @@ export default function MenuCategories() {
     const coverage = data?.coverage || {}
 
     const [selectedId, setSelectedId] = useState(null)
-    const [expanded, setExpanded] = useState({})
+    // Collapsed by default: only the ids in this set are open.
+    const [expanded, setExpanded] = useState(() => new Set())
     const [search, setSearch] = useState('')
     const [busy, setBusy] = useState(false)
     const [notice, setNotice] = useState('')
@@ -403,8 +404,16 @@ export default function MenuCategories() {
     }
 
     function toggleExpanded(id) {
-        setExpanded(current => ({ ...current, [id]: current[id] === false }))
+        setExpanded(current => {
+            const next = new Set(current)
+            if (next.has(id)) next.delete(id)
+            else next.add(id)
+            return next
+        })
     }
+
+    const expandAll = () => setExpanded(new Set(categories.map(category => category.id)))
+    const collapseAll = () => setExpanded(new Set())
 
     function renderTree(nodes, depth = 0) {
         return <SortableContext
@@ -413,7 +422,7 @@ export default function MenuCategories() {
         >
             {nodes.map(node => {
                 const hasChildren = node.children?.length > 0
-                const open = expanded[node.id] !== false
+                const open = expanded.has(node.id)
 
                 return <div key={node.id}>
                     <CategoryRow
@@ -459,6 +468,32 @@ export default function MenuCategories() {
 
             <Flex gap={10} className={styles.body}>
                 <Card className={styles.treePanel}>
+                    <Flex justifyContent='space-between' alignItems='center' className={styles.treeToolbar}>
+                        <Text size='s' mode='sub'>
+                            {categories.length} קטגוריות · {expanded.size} פתוחות
+                        </Text>
+                        <Flex gap={6}>
+                            <Button
+                                icon='expand'
+                                mode='text'
+                                tooltip='הרחבת כל העץ'
+                                onClick={expandAll}
+                                disabled={tree.length === 0}
+                            >
+                                הרחבת הכול
+                            </Button>
+                            <Button
+                                icon='collapse'
+                                mode='text'
+                                tooltip='כיווץ כל העץ'
+                                onClick={collapseAll}
+                                disabled={expanded.size === 0}
+                            >
+                                כיווץ הכול
+                            </Button>
+                        </Flex>
+                    </Flex>
+
                     <div className={styles.coverage}>
                         <Text size='s'>מוצרים פעילים: <b>{coverage.activeProducts ?? 0}</b></Text>
                         <Text size='s'>תתי קבוצות פעילות: <b>{coverage.activeSubGroups ?? 0}</b></Text>
