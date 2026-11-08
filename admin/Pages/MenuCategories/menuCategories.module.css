@@ -125,12 +125,6 @@
     z-index: 1;
 }
 
-.dropTarget {
-    outline: 2px dashed var(--border-brand);
-    outline-offset: -2px;
-    color: var(--text-primary);
-}
-
 .assignTarget {
     outline: 2px solid var(--text-brand);
     outline-offset: -2px;

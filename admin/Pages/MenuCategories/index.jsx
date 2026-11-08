@@ -91,8 +91,9 @@ function CategoryRow({ node, depth, open, count, selected, drag, canUpdate, onSe
     })
 
     const hasChildren = node.children?.length > 0
-    // Only the node the drop would actually land on gets highlighted.
-    const landingHere = drag?.kind === 'category' && drag.dropId === node.id
+    // A dragged category already moves to its slot, so it marks itself; the
+    // neighbour must not be outlined too or the same slot reads as two rows.
+    const assigningHere = drag?.kind === 'subgroup' && drag.dropId === node.id
 
     return <div
         ref={setNodeRef}
@@ -105,8 +106,7 @@ function CategoryRow({ node, depth, open, count, selected, drag, canUpdate, onSe
             styles.node,
             selected && styles.selected,
             isDragging && styles.dragging,
-            landingHere && styles.dropTarget,
-            drag?.kind === 'subgroup' && drag.dropId === node.id && styles.assignTarget,
+            assigningHere && styles.assignTarget,
             node.active === false && styles.inactive
         )}
         onClick={() => onSelect(node.id)}
@@ -379,13 +379,12 @@ export default function MenuCategories() {
         setDrag({ kind: data.subGroupCode ? 'subgroup' : 'category' })
     }
 
+    // Only a sub-group needs a target marker (its row does not move); a dragged
+    // category previews its landing slot by moving itself.
     function onDragOver(event) {
-        const overId = event.over?.id
-        if (!overId) return
-        const dropId = drag?.kind === 'subgroup'
-            ? overId // A sub-group is assigned to the category under the pointer.
-            : dropTargetFor(event.active.id, overId)
-        if (dropId !== drag.dropId) setDrag(current => current && { ...current, dropId })
+        if (drag?.kind !== 'subgroup') return
+        const dropId = event.over?.data.current?.categoryId
+        if (dropId && dropId !== drag.dropId) setDrag(current => current && { ...current, dropId })
     }
 
     function onDragEnd(event) {
