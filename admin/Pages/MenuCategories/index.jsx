@@ -91,9 +91,6 @@ function CategoryRow({ node, depth, open, count, selected, drag, canUpdate, onSe
     })
 
     const hasChildren = node.children?.length > 0
-    // A dragged category already moves to its slot, so it marks itself; the
-    // neighbour must not be outlined too or the same slot reads as two rows.
-    const assigningHere = drag?.kind === 'subgroup' && drag.dropId === node.id
 
     return <div
         ref={setNodeRef}
@@ -106,7 +103,6 @@ function CategoryRow({ node, depth, open, count, selected, drag, canUpdate, onSe
             styles.node,
             selected && styles.selected,
             isDragging && styles.dragging,
-            assigningHere && styles.assignTarget,
             node.active === false && styles.inactive
         )}
         onClick={() => onSelect(node.id)}
@@ -224,6 +220,16 @@ export default function MenuCategories() {
             counts.set(entry.categoryId, (counts.get(entry.categoryId) || 0) + 1)
         return counts
     }, [assigned])
+
+    // Feedback while dragging. A category shows its landing slot by moving
+    // itself; a sub-group cannot, so its target is stated in text.
+    const dragStatus = useMemo(() => {
+        if (!drag) return ''
+        const target = drag.dropId ? byId.get(drag.dropId) : null
+        return drag.kind === 'subgroup'
+            ? `גרירה: ${drag.label || ''} → ${target?.name || 'בחר קטגוריה בעץ'}`
+            : `ממוקם מחדש: ${drag.label || ''} → ${target?.name || 'אותו מקום'}`
+    }, [drag, byId])
 
     const selected = selectedId ? byId.get(selectedId) : null
     const selectedAssigned = assigned.filter(entry => entry.categoryId === selectedId)
@@ -376,15 +382,16 @@ export default function MenuCategories() {
 
     function onDragStart(event) {
         const data = event.active.data.current || {}
-        setDrag({ kind: data.subGroupCode ? 'subgroup' : 'category' })
+        setDrag(data.subGroupCode
+            ? { kind: 'subgroup', label: data.label }
+            : { kind: 'category', label: byId.get(event.active.id)?.name || String(event.active.id) })
     }
 
-    // Only a sub-group needs a target marker (its row does not move); a dragged
-    // category previews its landing slot by moving itself.
     function onDragOver(event) {
-        if (drag?.kind !== 'subgroup') return
-        const dropId = event.over?.data.current?.categoryId
-        if (dropId && dropId !== drag.dropId) setDrag(current => current && { ...current, dropId })
+        const dropId = drag?.kind === 'subgroup'
+            ? event.over?.data.current?.categoryId
+            : dropTargetFor(event.active.id, event.over?.id)
+        if (dropId !== drag.dropId) setDrag(current => current && { ...current, dropId })
     }
 
     function onDragEnd(event) {
@@ -464,6 +471,7 @@ export default function MenuCategories() {
             </Flex>
 
             {notice && <Text className={styles.notice}>{notice}</Text>}
+            {drag && dragStatus && <Text className={styles.notice}>{dragStatus}</Text>}
 
             <Flex gap={10} className={styles.body}>
                 <Card className={styles.treePanel}>

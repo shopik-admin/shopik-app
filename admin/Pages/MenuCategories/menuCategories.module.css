@@ -125,13 +125,6 @@
     z-index: 1;
 }
 
-.assignTarget {
-    outline: 2px solid var(--text-brand);
-    outline-offset: -2px;
-    background: var(--bg-secondary);
-    color: var(--text-primary);
-}
-
 .inactive .nodeName {
     opacity: 0.5;
     text-decoration: line-through;
