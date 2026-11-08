@@ -1,4 +1,5 @@
 import pLimit from 'p-limit'
+import { mergeRabbinates } from '#common/components/Kashrut/constants.js'
 import { enqueueProcessJobs } from '#server/queues/gs1Queues.js'
 import { bufferProduct, bufferRaw, bufferProgress, flush } from './bulk.js'
 import { stageZip, buildFingerprint, hashFingerprint, countStills, rankStills, bucketHasImage, buildImageSizes, isZipBuffer, zipEntryBasenames, baseName, imageExtFromMagic, wrapSingleImage } from './images.js'
@@ -80,10 +81,15 @@ export async function enrichBatch({ DL, external, runId, onlyInStock = true, bar
     if (!page?.length) return { done: true, enriched: 0, skipped: 0, total: 0, next: null }
 
     const barcodes = [...new Set(page.map(r => r?.barcode).filter(Boolean))]
+    // kashrut.rabbinates rides along with the existence gate: the GS1 write must
+    // merge over what the product already carries (see mergeRabbinates below).
     const products = await DL.Product.read(
         { barcode: { $in: barcodes } },
-        { _id: 0, barcode: 1, storeIds: 1 },
+        { _id: 0, barcode: 1, storeIds: 1, 'kashrut.rabbinates': 1 },
         { limit: 0 }
+    )
+    const rabbinatesByBarcode = new Map(
+        (products || []).filter(p => p?.barcode).map(p => [p.barcode, p?.kashrut?.rabbinates])
     )
     const productSet = new Set((products || []).map(p => p.barcode))
     const inStockSet = new Set((products || []).filter(p => (p.storeIds || []).length).map(p => p.barcode))
@@ -120,12 +126,14 @@ export async function enrichBatch({ DL, external, runId, onlyInStock = true, bar
         if (candidates.size) {
             const aliasProducts = await DL.Product.read(
                 { barcode: { $in: [...candidates] } },
-                { _id: 0, barcode: 1, storeIds: 1 },
+                { _id: 0, barcode: 1, storeIds: 1, 'kashrut.rabbinates': 1 },
                 { limit: 0 }
             )
             for (const p of aliasProducts || []) {
                 if (!p?.barcode) continue
                 foundSet.add(p.barcode)
+                if (!rabbinatesByBarcode.has(p.barcode))
+                    rabbinatesByBarcode.set(p.barcode, p?.kashrut?.rabbinates)
                 if ((p.storeIds || []).length) inStockSet.add(p.barcode)
             }
         }
@@ -181,6 +189,11 @@ export async function enrichBatch({ DL, external, runId, onlyInStock = true, bar
             // doc, so a GTIN left in mapped.doc would rewrite Product.barcode
             // (or upsert a duplicate product under the GTIN).
             const doc = { ...mapped.doc, barcode: short }
+            // Rabbinates are a set, not a value: whatever the product already
+            // carries (manual load, earlier run) survives the GS1 $set. Only codes
+            // GS1 adds are appended, so repeated nightly runs cannot grow the list.
+            if (doc.kashrut)
+                doc.kashrut.rabbinates = mergeRabbinates(rabbinatesByBarcode.get(short), doc.kashrut.rabbinates)
             // Report-seeded raws are partial: an absent report field maps to '' in the
             // mapper, and a plain $set would blank whatever the product already has.
             // With skipEmptyValues only fields carrying actual content are written.
