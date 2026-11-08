@@ -13,14 +13,14 @@ async function applyCategories(DL, plan) {
     )
     const existingById = new Map((existing || []).map(category => [category.id, category]))
 
-    // Manual icon/order/active survive a re-import; the tree itself is fully
-    // replaced by the CSV.
+    // The CSV defines the tree *and* its sibling order (first appearance of a
+    // category sets its sortOrder), so bulk reordering is possible by editing
+    // the file. Icon and active are admin-only and survive a re-import.
     const docs = plan.categories.map(node => {
         const previous = existingById.get(node.id)
         const doc = { ...node }
         if (previous) {
             if ('icon' in previous) doc.icon = previous.icon
-            if (Number.isFinite(previous.sortOrder)) doc.sortOrder = previous.sortOrder
             if (typeof previous.active === 'boolean') doc.active = previous.active
         }
         return doc

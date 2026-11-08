@@ -1,6 +1,6 @@
 import toSlug from '#common/functions/toSlug.js'
 
-const EXPECTED_HEADER = [
+export const EXPECTED_HEADER = [
     'שם מחלקת על',
     'מחקלת על',
     'שם מחלקה',
@@ -164,7 +164,6 @@ export function buildCategoryPlan(csvText) {
     for (const row of rows.slice(1)) {
         const value = index => String(row[index] ?? '').trim()
         const subGroupCode = value(COL.SUB_GROUP_CODE)
-        if (!subGroupCode) continue
 
         const l1Code = value(COL.L1_CODE)
         const l1Name = value(COL.L1)
@@ -173,14 +172,21 @@ export function buildCategoryPlan(csvText) {
         const l3Code = value(COL.L3_CODE)
         const l3Name = value(COL.L3)
 
+        // A row with site columns but no sub-group code defines a category that
+        // has nothing mapped to it yet — the export emits those so an empty
+        // category survives a re-import instead of being deleted.
+        const hasSiteColumns = [l1Code, l1Name, l2Code, l2Name, l3Code, l3Name].some(Boolean)
+        if (!subGroupCode && !hasSiteColumns) continue
+
+        const rowLabel = subGroupCode ? ` for sub-group ${subGroupCode}` : ''
         if (!l1Code || !l1Name)
-            throw { status: 400, message: `missing level 1 category for sub-group ${subGroupCode}` }
+            throw { status: 400, message: `missing level 1 category${rowLabel}` }
         if (!l2Code || !l2Name)
-            throw { status: 400, message: `missing level 2 category for sub-group ${subGroupCode}` }
+            throw { status: 400, message: `missing level 2 category${rowLabel}` }
         if (l3Name && !l3Code)
-            throw { status: 400, message: `missing level 3 code for sub-group ${subGroupCode}` }
+            throw { status: 400, message: `missing level 3 code${rowLabel}` }
         if (l3Code && !l3Name)
-            throw { status: 400, message: `missing level 3 name for sub-group ${subGroupCode}` }
+            throw { status: 400, message: `missing level 3 name${rowLabel}` }
 
         const l1 = ensureNode({
             level: 1,
@@ -205,6 +211,8 @@ export function buildCategoryPlan(csvText) {
                 pathCodes: [l1Code, l2Code, l3Code]
             })
             : l2
+
+        if (!subGroupCode) continue
 
         const existing = mapByCode.get(subGroupCode)
         if (existing && existing.categoryId !== leaf.id)

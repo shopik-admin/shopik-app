@@ -66,6 +66,17 @@ function readFileAsDataUrl(file) {
     })
 }
 
+function downloadCsvFile(filename, csv) {
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
+}
+
 /** Shared drag activator: dragging starts on the handle, so rows stay clickable. */
 function DragHandle({ innerRef, attributes, listeners, label }) {
     return <button
@@ -366,6 +377,25 @@ export default function MenuCategories() {
         )
     }
 
+    // The exported file is the same format the upload accepts: edit it and send
+    // it back for bulk reassignment or reordering.
+    async function exportCsv() {
+        setBusy(true)
+        setNotice('')
+        try {
+            const file = await apiReq('category/export')
+            downloadCsvFile(file?.filename || 'category-map.csv', file?.csv || '')
+            setNotice(
+                `הקובץ הורד: ${file?.categories ?? 0} קטגוריות, ${file?.mapped ?? 0} תתי קבוצות משויכות. ` +
+                `(${file?.unassigned ?? 0} ללא שיוך אינן בקובץ - הייבוא משמור אותן ללא שיוך)`
+            )
+        } catch (e) {
+            setNotice(e?.message || String(e))
+        } finally {
+            setBusy(false)
+        }
+    }
+
     /** The node a category drop is allowed to land on (see siblingTarget.js). */
     function dropTargetFor(draggedId, overId) {
         return siblingTargetFor(byId.get(draggedId), overId, byId)
@@ -465,9 +495,14 @@ export default function MenuCategories() {
                         או גררו תת קבוצה אל קטגוריה כדי לשייך אותה.
                     </Text>
                 </div>
-                <Button icon='upload' onClick={openImport} disabled={busy} permission='category:update'>
-                    העלאת CSV
-                </Button>
+                <Flex gap={8}>
+                    <Button icon='download' onClick={exportCsv} disabled={busy} permission='category:read'>
+                        הורדת CSV
+                    </Button>
+                    <Button icon='upload' onClick={openImport} disabled={busy} permission='category:update'>
+                        העלאת CSV
+                    </Button>
+                </Flex>
             </Flex>
 
             {notice && <Text className={styles.notice}>{notice}</Text>}
@@ -669,6 +704,7 @@ function ImportModal({ onDone, onClose }) {
         <Text>
             הקובץ יחליף את <b>כל</b> עץ הקטגוריות ואת כל שיוכי תתי הקבוצות.
             הפעולה אינה ניתנת לביטול.
+            סדר השורות בקובץ הוא סדר הקטגוריות בתפריט.
         </Text>
         <input
             type='file'
