@@ -14,13 +14,13 @@ export default async function edit(payload, { DL, _user, external, utils }) {
     )
 
     await DL.redis?.del(`user_auth:${_user.id}`)
-    if (sameLocation && geocoded.active === existingAddr.active) return { user }
+    if (sameLocation && geocoded.active === existingAddr.active) return { user, address: geocoded }
 
     const order = await utils.data.getUserOrder({ DL, _user })
 
     const { DELIVERY_METHOD } = DL.Order.constants
     const orderUpdateRequired = existingAddr.active && order.deliveryMethod === DELIVERY_METHOD.DELIVERY
-    if (!orderUpdateRequired) return { user }
+    if (!orderUpdateRequired) return { user, address: geocoded }
 
     const actor = utils.data.timeline.userActor(_user)
     const updatedOrder = geocoded.active
@@ -29,7 +29,8 @@ export default async function edit(payload, { DL, _user, external, utils }) {
 
     return {
         user,
-        order: updatedOrder
+        order: updatedOrder,
+        address: geocoded
     }
 }
 

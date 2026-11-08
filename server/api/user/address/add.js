@@ -10,7 +10,7 @@ export default async function add(payload, { DL, _user, external, utils }) {
         { select: DL.User.defaultSelect }
     )
     await DL.redis?.del(`user_auth:${_user.id}`)
-    if (!geocoded.active) return { user: updatedUser }
+    if (!geocoded.active) return { user: updatedUser, address: geocoded }
 
     const order = await utils.data.getUserOrder({ DL, _user })
     const { DELIVERY_METHOD } = DL.Order.constants
@@ -22,10 +22,10 @@ export default async function add(payload, { DL, _user, external, utils }) {
             order,
             actor: utils.data.timeline.userActor(_user)
         })
-        return { user: updatedUser, order: updatedOrder }
+        return { user: updatedUser, order: updatedOrder, address: geocoded }
     }
 
-    return { user: updatedUser }
+    return { user: updatedUser, address: geocoded }
 }
 
 add.config = { auth: 'required', required: ['city', 'street', 'building'] }
