@@ -29,6 +29,7 @@ import Icon from 'common/components/Icon'
 import { useModal } from 'common/components/Modal'
 import { useText } from 'common/texts/TextProvider'
 import { FLAGS_HEADER } from 'common/constants/categoryFlags.js'
+import { buildFlagsTemplate } from 'common/functions/buildFlagsTemplate.js'
 import usePermission from 'common/permissions/usePermision'
 import classNames from 'common/functions/classNames'
 import { siblingTargetFor } from './siblingTarget.js'
@@ -985,6 +986,10 @@ function FlagImportModal({ onDone, onClose }) {
         }
     }
 
+    function downloadTemplate() {
+        downloadCsvFile('category-flags-template.csv', buildFlagsTemplate())
+    }
+
     return <form className={styles.importForm} onSubmit={submit}>
         <Text>{TR('menu_categories_flags_hint')}</Text>
         <Text size='s' mode='sub'>{TR('menu_categories_flags_headers')}</Text>
@@ -997,13 +1002,18 @@ function FlagImportModal({ onDone, onClose }) {
             onChange={event => setFile(event.target.files?.[0] || null)}
         />
         {state?.error && <Text mode='error'>{state.error?.message || String(state.error)}</Text>}
-        <Flex gap={8} justifyContent='end'>
-            <Button mode='text' onClick={onClose} disabled={state?.loading}>
-                {TR('cancel')}
+        <Flex gap={8} justifyContent='space-between'>
+            <Button mode='text' icon='download' onClick={downloadTemplate}>
+                {TR('menu_categories_flags_template')}
             </Button>
-            <Button type='submit' icon='shield' loading={state?.loading} disabled={!file}>
-                {TR('menu_categories_flags_confirm')}
-            </Button>
+            <Flex gap={8}>
+                <Button mode='text' onClick={onClose} disabled={state?.loading}>
+                    {TR('cancel')}
+                </Button>
+                <Button type='submit' icon='shield' loading={state?.loading} disabled={!file}>
+                    {TR('menu_categories_flags_confirm')}
+                </Button>
+            </Flex>
         </Flex>
     </form>
 }
