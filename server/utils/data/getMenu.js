@@ -68,7 +68,7 @@ export default async function getMenu({ DL, req, utils, _user }) {
 
     const menu = [
         {
-            name: 'Products',
+            name: 'all_departments',
             path: '/products',
             icon: 'grid',
             children: buildMenu(categories || [])
