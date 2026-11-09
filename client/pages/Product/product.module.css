@@ -326,35 +326,6 @@
     color: var(--text-secondary);
 }
 
-/* ---------- related: isolated so main-product styles never leak in ---------- */
-.related {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    margin-top: 24px;
-    min-width: 0;
-    isolation: isolate;
-}
-
-.relatedTitle {
-    font-size: 20px;
-    text-align: start;
-}
-
-.relatedScroll {
-    width: 100%;
-}
-
-.relatedCard {
-    flex: 0 0 13rem;
-    min-width: 0;
-    display: flex;
-}
-
-.relatedCard>div {
-    width: 100%;
-}
-
 /* ---------- tablet (601–1024px): keep 2 columns, use full width ---------- */
 @media (max-width: 1024px) {
     .crumbs {
@@ -416,10 +387,6 @@
         width: 0.625rem;
         height: 0.625rem;
     }
-
-    .relatedCard {
-        flex-basis: 12rem;
-    }
 }
 
 /* ---------- mobile (<=600px): gallery first, no full-bleed ---------- */
@@ -467,18 +434,6 @@
     .collapses {
         display: flex;
         padding: 8px;
-    }
-
-    .related {
-        margin-top: 16px;
-    }
-
-    .relatedTitle {
-        font-size: 17px;
-    }
-
-    .relatedCard {
-        flex: 0 0 clamp(10.5rem, 44vw, 12rem);
     }
 
     .nutGrid {

@@ -19,7 +19,7 @@ import NotFound from 'pages/NotFound'
 import { usePage } from 'layout/Page'
 import TR from '#common/texts/TR.js'
 import { ProductButton } from 'pages/Products/ProductCard'
-import ProductCard from 'pages/Products/ProductCard'
+import ProductRail from 'features/Display/ProductRail'
 import { useProductCart } from '#common/components/Product/useProductCart.js'
 import {
     ProductPrice,
@@ -429,23 +429,12 @@ export default function Product({ modal = false, initialData } = {}) {
             </div>
 
             {!refreshing && relatedList.length > 0 && (
-                <div className={styles.related}>
-                    <Text size="h2" bold className={styles.relatedTitle}>related_products</Text>
-                    <HorizontalScroll
-                        className={styles.relatedScroll}
-                        items={relatedList.map(p => {
-                            const psales = (p.saleIds || []).reduce((acc, sId) => {
-                                if (mergedSales[sId]) acc[sId] = mergedSales[sId]
-                                return acc
-                            }, {})
-                            return (
-                                <div key={p.id} className={styles.relatedCard}>
-                                    <ProductCard product={p} sales={psales} size="m" />
-                                </div>
-                            )
-                        })}
-                    />
-                </div>
+                <ProductRail
+                    title='related_products'
+                    products={relatedList}
+                    sales={mergedSales}
+                    showAllTo={categoryPath ? `/products/${categoryPath}` : '/products'}
+                />
             )}
         </Flex>
     )
