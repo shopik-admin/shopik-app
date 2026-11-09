@@ -100,6 +100,13 @@ export async function hideCategoryFlaggedProducts({ DL }) {
  * Same backstop for kashrut: an ACTIVE product in a "kashrut required" sub-group
  * without a valid rabbinate code is hidden. A product becomes visible again only
  * when the sync ladder sees a valid code (never through this sweep).
+ *
+ * "without a valid code" must be negated at the array level: a plain
+ * `rabbinates.code: { $nin: valid }` matches when ANY element is invalid, which
+ * would hide a product that also carries a valid code (and fight the ladder,
+ * which passes on ANY valid code via hasValidKashrut). $not + $elemMatch means
+ * "no entry has a valid code", matching products with no kashrut at all, empty
+ * rabbinates, name-only entries and legacy string kashrut too.
  */
 export async function hideKashrutMissingProducts({ DL }) {
     const codes = await flaggedCodes(DL, 'requireKashrut', true)
@@ -109,7 +116,7 @@ export async function hideKashrutMissingProducts({ DL }) {
         {
             status: ACTIVE,
             comaxSubGroupCode: { $in: codes },
-            'kashrut.rabbinates.code': { $nin: [...KASHRUT_VALID_CODES] }
+            'kashrut.rabbinates': { $not: { $elemMatch: { code: { $in: [...KASHRUT_VALID_CODES] } } } }
         },
         { status: HIDDEN }
     )

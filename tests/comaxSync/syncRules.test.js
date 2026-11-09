@@ -202,7 +202,7 @@ describe('comax sync rules', () => {
             filter: {
                 status: 'active',
                 comaxSubGroupCode: { $in: ['90200'] },
-                'kashrut.rabbinates.code': { $nin: [...KASHRUT_VALID_CODES] }
+                'kashrut.rabbinates': { $not: { $elemMatch: { code: { $in: [...KASHRUT_VALID_CODES] } } } }
             },
             update: { status: 'hidden' }
         }])
