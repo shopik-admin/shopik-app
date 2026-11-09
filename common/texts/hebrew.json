@@ -1256,6 +1256,8 @@
         "menu_categories_flag_hidden": "מוסתר",
         "menu_categories_flag_kashrut": "חובה כשרות",
         "menu_categories_flag_hidden_count": "[count] תתי קבוצות מוסתרות (כולל תתי קטגוריות)",
-        "menu_categories_flag_kashrut_count": "[count] תתי קבוצות מחייבות כשרות (כולל תתי קטגוריות)"
+        "menu_categories_flag_kashrut_count": "[count] תתי קבוצות מחייבות כשרות (כולל תתי קטגוריות)",
+        "menu_categories_choose_file": "בחירת קובץ",
+        "menu_categories_no_file": "לא נבחר קובץ"
     }
 }

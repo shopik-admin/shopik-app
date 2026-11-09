@@ -931,6 +931,7 @@ function ImportModal({ onDone, onClose }) {
     const { TR } = useText()
     const [file, setFile] = useState(null)
     const [state, setState] = useState()
+    const fileInput = useRef(null)
 
     async function submit(event) {
         event.preventDefault()
@@ -952,13 +953,26 @@ function ImportModal({ onDone, onClose }) {
             {TR('menu_categories_import_warning_after')}
         </Text>
         <input
+            ref={fileInput}
             type='file'
             accept='.csv,text/csv'
-            onChange={event => setFile(event.target.files?.[0] || null)}
+            className={styles.fileInput}
+            onChange={event => {
+                setFile(event.target.files?.[0] || null)
+                event.target.value = ''
+            }}
         />
+        <Flex gap={8} alignItems='center' className={styles.filePicker}>
+            <Button type='button' mode='text' icon='csv' onClick={() => fileInput.current?.click()}>
+                {TR('menu_categories_choose_file')}
+            </Button>
+            <Text size='s' mode={file ? undefined : 'sub'} className={styles.fileName}>
+                {file?.name || TR('menu_categories_no_file')}
+            </Text>
+        </Flex>
         {state?.error && <Text mode='error'>{state.error?.message || String(state.error)}</Text>}
         <Flex gap={8} justifyContent='end'>
-            <Button mode='text' onClick={onClose} disabled={state?.loading}>
+            <Button type='button' mode='text' onClick={onClose} disabled={state?.loading}>
                 {TR('cancel')}
             </Button>
             <Button type='submit' icon='upload' loading={state?.loading} disabled={!file}>
@@ -972,6 +986,7 @@ function FlagImportModal({ onDone, onClose }) {
     const { TR } = useText()
     const [file, setFile] = useState(null)
     const [state, setState] = useState()
+    const fileInput = useRef(null)
 
     async function submit(event) {
         event.preventDefault()
@@ -997,17 +1012,30 @@ function FlagImportModal({ onDone, onClose }) {
             {FLAGS_HEADER.map(name => <span key={name} className={styles.headerChip}>{name}</span>)}
         </div>
         <input
+            ref={fileInput}
             type='file'
             accept='.csv,text/csv'
-            onChange={event => setFile(event.target.files?.[0] || null)}
+            className={styles.fileInput}
+            onChange={event => {
+                setFile(event.target.files?.[0] || null)
+                event.target.value = ''
+            }}
         />
+        <Flex gap={8} alignItems='center' className={styles.filePicker}>
+            <Button type='button' mode='text' icon='csv' onClick={() => fileInput.current?.click()}>
+                {TR('menu_categories_choose_file')}
+            </Button>
+            <Text size='s' mode={file ? undefined : 'sub'} className={styles.fileName}>
+                {file?.name || TR('menu_categories_no_file')}
+            </Text>
+        </Flex>
         {state?.error && <Text mode='error'>{state.error?.message || String(state.error)}</Text>}
         <Flex gap={8} justifyContent='space-between'>
-            <Button mode='text' icon='download' onClick={downloadTemplate}>
+            <Button type='button' mode='text' icon='download' onClick={downloadTemplate}>
                 {TR('menu_categories_flags_template')}
             </Button>
             <Flex gap={8}>
-                <Button mode='text' onClick={onClose} disabled={state?.loading}>
+                <Button type='button' mode='text' onClick={onClose} disabled={state?.loading}>
                     {TR('cancel')}
                 </Button>
                 <Button type='submit' icon='shield' loading={state?.loading} disabled={!file}>

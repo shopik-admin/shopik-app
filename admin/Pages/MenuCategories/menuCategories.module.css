@@ -273,6 +273,20 @@
     display: none;
 }
 
+/* Styled file picker: a text button opens the hidden input, the chosen name
+   sits next to it (same pattern as the category icon upload). */
+.filePicker {
+    flex-wrap: wrap;
+}
+
+.fileName {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .selectedIcon {
     width: 2rem;
     height: 2rem;
