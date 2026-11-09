@@ -8,18 +8,22 @@ import { planUploadFiles, barcodeFromFileName, MAX_FILES } from '#server/service
  * and which products will lose their GS1 alternates BEFORE a single file is
  * uploaded. Same two-step shape as product/load_kashrut.
  *
- * POST /api/product/upload_images_check { files: [{ name, bytes }] }
+ * POST /api/product/upload_images_check { selection: [{ name, bytes }] }
  */
 
 const READ_CHUNK = 500
 
 export default async function upload_images_check(payload, { DL }) {
-    const files = Array.isArray(payload?.files) ? payload.files : []
-    if (!files.length) throw { status: 400, message: 'no files selected' }
-    if (files.length > MAX_FILES)
+    // NOT `files`: common/functions/apiReq.js treats a `files` key as a
+    // multipart upload and rewrites the whole body as FormData, which no route
+    // here can read (server/index.js has no multer/busboy, so req.files is
+    // always empty and the body arrives as {}).
+    const picked = Array.isArray(payload?.selection) ? payload.selection : []
+    if (!picked.length) throw { status: 400, message: 'no files selected' }
+    if (picked.length > MAX_FILES)
         throw { status: 400, message: `too many files (max ${MAX_FILES})` }
 
-    const barcodes = [...new Set(files.map(file => barcodeFromFileName(file?.name)).filter(Boolean))]
+    const barcodes = [...new Set(picked.map(file => barcodeFromFileName(file?.name)).filter(Boolean))]
 
     const products = []
     for (let i = 0; i < barcodes.length; i += READ_CHUNK) {
@@ -31,11 +35,11 @@ export default async function upload_images_check(payload, { DL }) {
         products.push(...(found || []))
     }
 
-    return planUploadFiles(files, products)
+    return planUploadFiles(picked, products)
 }
 
 upload_images_check.config = {
-    required: ['files'],
+    required: ['selection'],
     permissions: ['product:update'],
     preventMultiple: true
 }

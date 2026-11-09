@@ -113,7 +113,9 @@ export default function LoadImagesModal({ onDone }) {
         setDoneCount(0)
         try {
             setReport(await apiReq('product/upload_images_check', {
-                files: picked.map(file => ({ name: file.name, bytes: file.size }))
+                // `selection`, never `files` — apiReq reserves that key for
+                // multipart bodies (see server/api/product/upload_images_check.js).
+                selection: picked.map(file => ({ name: file.name, bytes: file.size }))
             }))
         } catch (err) {
             setError(err?.message || String(err))

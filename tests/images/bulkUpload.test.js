@@ -1,5 +1,8 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
+import apiReq from '#common/functions/apiReq.js'
+import checkRoute from '#server/api/product/upload_images_check.js'
+import uploadRoute from '#server/api/product/upload_image.js'
 import {
     applyProductUpload,
     barcodeFromFileName,
@@ -124,5 +127,50 @@ describe('bulk image upload rejects', () => {
             async () => await applyProductUpload({ DL: DL([]), name: '9999999999999.png', fileBase64: 'AAA=' }),
             e => e.status === 404 && /9999999999999/.test(e.message)
         )
+    })
+})
+
+// The client/server contract, because it is the part that silently breaks:
+// common/functions/apiReq.js rewrites ANY body carrying a `files` key into a
+// multipart form, and no route here can read multipart (server/index.js parses
+// json/urlencoded only), so the check pass used to arrive as an empty body.
+describe('bulk image upload route contract', () => {
+    it('never asks for the reserved `files` key', () => {
+        assert.ok(!checkRoute.config.required.includes('files'))
+        assert.ok(!uploadRoute.config.required.includes('files'))
+    })
+
+    it('sends the selection as JSON', async () => {
+        globalThis.APP_VERSION = 'test'
+        const realFetch = globalThis.fetch
+        let sent
+        globalThis.fetch = async (url, opts) => {
+            sent = { contentType: opts.headers?.['Content-Type'], body: opts.body }
+            return { ok: true, status: 200, json: async () => ({ status: 200, data: { accepted: [] } }) }
+        }
+        try {
+            await apiReq('product/upload_images_check', { selection: [{ name: '3528.png', bytes: 12 }] })
+        } finally {
+            globalThis.fetch = realFetch
+        }
+
+        assert.equal(sent.contentType, 'application/json')
+        assert.ok(!(sent.body instanceof FormData))
+        assert.deepEqual(JSON.parse(sent.body).selection, [{ name: '3528.png', bytes: 12 }])
+    })
+
+    it('plans a selection end to end', async () => {
+        const DL = {
+            Product: {
+                read: async () => [{ barcode: '3528', id: 'p1', name: 'בננה', images: { product: [{ main: true, sourceUrl: 'gs1://3528' }] } }]
+            }
+        }
+        const report = await checkRoute(
+            { selection: [{ name: '3528.png', bytes: 40 }, { name: 'nope.png', bytes: 40 }] },
+            { DL }
+        )
+
+        assert.deepEqual(report.accepted, [{ name: '3528.png', barcode: '3528' }])
+        assert.deepEqual(report.invalid, [{ name: 'nope.png', reason: 'bad_name' }])
     })
 })
