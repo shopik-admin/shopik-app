@@ -112,9 +112,6 @@ const productSchema = {
     label: {
         type: String,
         trim: true,
-        search: 8,
-        searchPrefixBoost: 15,
-        searchFuzzy: 1,
         filter: true
     },
     producer: {
