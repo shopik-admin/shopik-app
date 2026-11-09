@@ -11,6 +11,7 @@ export const permissionGroups = {
     admin: 'מנהלים',
     role: 'תפקידים והרשאות',
     product: 'מוצרים',
+    category: 'תפריט וקטגוריות',
     domain: 'מתחמים',
     setting: 'הגדרות',
     log: 'לוגים',
@@ -95,6 +96,16 @@ export const permissionMeta = {
     'product:id': {
         name: 'צפייה בפרטי מוצר',
         description: 'פתיחת הכרטיס של מוצר בודד.'
+    },
+
+    // קטגוריות ותפריט
+    'category:read': {
+        name: 'צפייה בקטגוריות',
+        description: 'צפייה בעץ הקטגוריות, בכיסוי ובשיבוצים.'
+    },
+    'category:update': {
+        name: 'עריכת קטגוריות',
+        description: 'שינוי סדר, אייקונים, שיבוץ תתי קבוצות והעלאת CSV.'
     },
 
     // מתחמים

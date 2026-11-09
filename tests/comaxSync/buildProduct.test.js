@@ -31,8 +31,8 @@ function existingProduct(overrides = {}) {
     }
 }
 
-const build = (comax = {}, existing = existingProduct(), enforceBuyingPrice = false) =>
-    buildProduct(comaxProduct(comax), DL, 'default', existing, enforceBuyingPrice)
+const build = (comax = {}, existing = existingProduct(), enforceBuyingPrice = false, lookup) =>
+    buildProduct(comaxProduct(comax), DL, 'default', existing, enforceBuyingPrice, lookup)
 
 describe('comax product build', () => {
     it('hides an item that is in stock in no store', () => {
@@ -90,5 +90,49 @@ describe('comax product build', () => {
         const product = build({ storeIds: ['store-a'] }, existingProduct({ images: { product: [] } }))
 
         assert.equal(product.status, STATUS.HIDDEN)
+    })
+
+    it('maps the comax sub-group through the category map', () => {
+        const lookup = {
+            hasMap: true,
+            mapByCode: new Map([['92410', 'nc:9:904:9142:92410']]),
+            categoriesById: new Map([[
+                'nc:9:904:9142:92410',
+                {
+                    id: 'nc:9:904:9142:92410',
+                    name: 'בגדי ים',
+                    parentIds: ['nc:9', 'nc:9:904', 'nc:9:904:9142']
+                }
+            ]])
+        }
+
+        const product = build({ subGroupCode: '92410' }, existingProduct(), false, lookup)
+
+        assert.equal(product.comaxSubGroupCode, '92410')
+        assert.deepEqual(product.category, {
+            id: 'nc:9:904:9142:92410',
+            title: 'בגדי ים',
+            pathIds: ['nc:9', 'nc:9:904', 'nc:9:904:9142', 'nc:9:904:9142:92410']
+        })
+    })
+
+    it('clears the category for an unassigned sub-group once a map exists', () => {
+        const lookup = {
+            hasMap: true,
+            mapByCode: new Map([['1', null]]),
+            categoriesById: new Map()
+        }
+
+        const product = build({ subGroupCode: '1' }, existingProduct({ category: { id: 'old' } }), false, lookup)
+
+        assert.deepEqual(product.category, {})
+    })
+
+    it('keeps the stored category before the first map import', () => {
+        const category = { id: 'sg:1', title: 'ישן', pathIds: ['sg:1'] }
+
+        const product = build({ subGroupCode: '1' }, existingProduct({ category }))
+
+        assert.deepEqual(product.category, category)
     })
 })
