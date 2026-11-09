@@ -130,6 +130,10 @@
     margin-top: 10px;
 }
 
+.badgeGroup {
+    min-width: 0;
+}
+
 /* stepper: small pill on desktop like design */
 .purchase>div {
     width: 10rem;

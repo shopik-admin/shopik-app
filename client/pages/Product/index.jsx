@@ -24,13 +24,13 @@ import { useProductCart } from '#common/components/Product/useProductCart.js'
 import {
     ProductPrice,
     ProductSaleBadge,
-    ProductStamps,
     getFirstSale,
     getUnitInfoText,
     ProductUnitInfo
 } from 'common/components/Product'
+import { KashrutStamps } from 'common/components/Kashrut'
 import { selectKashrutStamps, getSupervisionLabel } from 'common/components/Kashrut/constants.js'
-import { FoodSymbolStamps } from 'common/components/Nutrition'
+import { DietIcons, FoodSymbolStamps } from 'common/components/Nutrition'
 import { selectDietIcons, selectFoodSymbols } from 'common/components/Nutrition/constants.js'
 import { getProductState } from '#common/functions/productState.js'
 import { getProductImageUrls } from 'common/functions/productImageUrl.js'
@@ -295,13 +295,20 @@ export default function Product({ modal = false, initialData } = {}) {
                         const hasSymbols = selectFoodSymbols(product.nutrients).length > 0
                         if (!supervisionLabel && !hasPassover && !hasStamps && !hasDiet && !hasSymbols) return null
                         return (
-                            <Flex className={styles.badgeRow} gap={6} wrap alignItems="center">
-                                <ProductStamps product={product} kashrutCount={2} dietCount={6} imagesOnly={false} />
-                                {supervisionLabel && <Badge><Text size="s">{supervisionLabel}</Text></Badge>}
-                                {hasPassover && (
-                                    <Badge><Text size="s">{PASSOVER_TEXT[product.passoverKashrut]}</Text></Badge>
-                                )}
-                                <FoodSymbolStamps nutrients={product.nutrients} />
+                            <Flex className={styles.badgeRow} gap={6} wrap alignItems="center" justifyContent="space-between">
+                                {/* Kashrut side: stamps, supervision and Passover stay packed at the start. */}
+                                <Flex gap={6} wrap alignItems="center" className={styles.badgeGroup}>
+                                    <KashrutStamps kashrut={product.kashrut} count={2} imagesOnly={false} />
+                                    {supervisionLabel && <Badge><Text size="s">{supervisionLabel}</Text></Badge>}
+                                    {hasPassover && (
+                                        <Badge><Text size="s">{PASSOVER_TEXT[product.passoverKashrut]}</Text></Badge>
+                                    )}
+                                </Flex>
+                                {/* Health side: diet icons and food symbols sit at the end, like the card. */}
+                                <Flex gap={6} wrap alignItems="center" className={styles.badgeGroup}>
+                                    <DietIcons diet={product.diet} count={6} />
+                                    <FoodSymbolStamps nutrients={product.nutrients} />
+                                </Flex>
                             </Flex>
                         )
                     })()}
