@@ -4,12 +4,14 @@ import upload from '../upload.js'
 import download from '../download.js'
 import { findCandidate } from './providers.js'
 import log from '#server/utils/log.js'
+import { outranks, sourceLabel } from '../sourcePriority.js'
 
 const hashUrl = url => createHash('sha1').update(url).digest('hex')
 
-// Priority: GS1 > scrape > Comax. Never touches GS1 mains; Comax picUrl
-// jobs are blocked from overwriting scrape mains (see enqueue.js +
-// imageWorker.js guards), so this is the only writer of scrape:// entries.
+// Priority: upload > gs1 > scrape > Comax. A higher-ranked main is never
+// replaced (not even with --force); Comax picUrl jobs are blocked from
+// overwriting scrape mains (see enqueue.js + imageWorker.js guards), so this
+// is the only writer of scrape:// entries.
 export default async function scrapeProductImage({ DL, barcode, force = false, dryRun = false, order = null }) {
     if (!barcode) throw new Error('barcode required')
     const product = await DL.Product.readOne(
@@ -19,8 +21,9 @@ export default async function scrapeProductImage({ DL, barcode, force = false, d
     if (!product) return { barcode, skipped: 'no-product' }
 
     const main = (product.images?.product || []).find(img => img?.main)
-    if (main?.sourceUrl?.startsWith('gs1://'))
-        return { barcode, skipped: 'gs1-present' }
+    // A higher-ranked main is never replaced, not even by --force.
+    if (outranks(main?.sourceUrl, 'scrape://'))
+        return { barcode, skipped: `${sourceLabel(main?.sourceUrl)}-present` }
     // Imageless-only: never replace an existing image (any source).
     // --force explicitly overrides (re-scrape / provider change).
     if ((product.images?.product || []).length > 0 && !force)

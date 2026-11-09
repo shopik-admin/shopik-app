@@ -6,6 +6,7 @@ import { stageZip, buildFingerprint, hashFingerprint, countStills, rankStills, b
 import { mem } from './memlog.js'
 import { aliasCandidates, aliasEnabled, resolveAlias, aliasMinLen } from './alias.js'
 import log from '#server/utils/log.js'
+import { isUploadMain } from '#server/services/image/sourcePriority.js'
 
 const enrichBatchSize = () => Number(process.env.GS1_ENRICH_BATCH || 500)
 const imageBatchSize = () => Number(process.env.GS1_IMAGE_BATCH || 200)
@@ -61,6 +62,10 @@ async function fetchStagedSource(external, barcode, wantedMain) {
     return { buffer: buf, via: 'media=all' }
 }
 
+// The main entry of a lean product read — one helper so every guard above
+// reads the same field the same way.
+const mainImageOf = product => (product?.images?.product || []).find(img => img?.main)
+
 // Phase 2: enrich products from the local gs1_products collection.
 // Two-pass to bound memory: page barcode-only docs, gate in bulk, then load
 // full raws ONLY for passers. No GS1 calls, no per-doc writes, no images.
@@ -85,7 +90,7 @@ export async function enrichBatch({ DL, external, runId, onlyInStock = true, bar
     // merge over what the product already carries (see mergeRabbinates below).
     const products = await DL.Product.read(
         { barcode: { $in: barcodes } },
-        { _id: 0, barcode: 1, storeIds: 1, 'kashrut.rabbinates': 1 },
+        { _id: 0, barcode: 1, storeIds: 1, 'kashrut.rabbinates': 1, 'images.product': 1 },
         { limit: 0 }
     )
     const rabbinatesByBarcode = new Map(
@@ -93,6 +98,11 @@ export async function enrichBatch({ DL, external, runId, onlyInStock = true, bar
     )
     const productSet = new Set((products || []).map(p => p.barcode))
     const inStockSet = new Set((products || []).filter(p => (p.storeIds || []).length).map(p => p.barcode))
+    // Barcodes whose main image is the admin's own upload — GS1 may enrich
+    // every other field but must never clear or replace those images.
+    const uploadedSet = new Set((products || [])
+        .filter(p => p?.barcode && isUploadMain(mainImageOf(p)))
+        .map(p => p.barcode))
 
     let enriched = 0
     let skipped = 0
@@ -126,7 +136,7 @@ export async function enrichBatch({ DL, external, runId, onlyInStock = true, bar
         if (candidates.size) {
             const aliasProducts = await DL.Product.read(
                 { barcode: { $in: [...candidates] } },
-                { _id: 0, barcode: 1, storeIds: 1, 'kashrut.rabbinates': 1 },
+                { _id: 0, barcode: 1, storeIds: 1, 'kashrut.rabbinates': 1, 'images.product': 1 },
                 { limit: 0 }
             )
             for (const p of aliasProducts || []) {
@@ -135,6 +145,7 @@ export async function enrichBatch({ DL, external, runId, onlyInStock = true, bar
                 if (!rabbinatesByBarcode.has(p.barcode))
                     rabbinatesByBarcode.set(p.barcode, p?.kashrut?.rabbinates)
                 if ((p.storeIds || []).length) inStockSet.add(p.barcode)
+                if (isUploadMain(mainImageOf(p))) uploadedSet.add(p.barcode)
             }
         }
         for (const g of unmatched) {
@@ -207,8 +218,9 @@ export async function enrichBatch({ DL, external, runId, onlyInStock = true, bar
                     if (empty) delete doc[key]
                 }
             }
-            // Supplier removed/unchecked images → clear local images (status untouched).
-            if (mapped.removal.deleted || mapped.removal.unchecked) {
+            // Supplier removed/unchecked images → clear local images (status
+            // untouched). An admin upload outranks the supplier: keep it.
+            if ((mapped.removal.deleted || mapped.removal.unchecked) && !uploadedSet.has(short)) {
                 bufferProduct(short, { ...doc, 'images.product': [] })
                 log.warn(`[GS1] Images cleared for ${barcode} (supplier removal flag)`)
             } else {
@@ -403,6 +415,13 @@ export async function runImages({ DL, external, runId, force = false, limit = 0,
             const product = productByBarcode.get(barcode)
             if (!product) {
                 bufferRaw({ barcode, status: 'skipped', skipReason: 'no-product-images' })
+                totals.skipped++
+                return
+            }
+            // An admin upload outranks supplier media: retire the raw without
+            // touching images, so phase 3 never renders over it.
+            if (isUploadMain(mainImageOf(product))) {
+                bufferRaw({ barcode, imagesDone: true })
                 totals.skipped++
                 return
             }

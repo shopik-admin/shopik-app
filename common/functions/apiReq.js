@@ -17,6 +17,11 @@ export default async function apiReq(path, data = {}, ctx) {
         if (ctx.platform) headers.platform = ctx.platform
     }
 
+    // RESERVED KEY: a `files` key rewrites the entire body as multipart.
+    // No route can read that today — server/index.js parses json/urlencoded
+    // only and nothing populates req.files — so any payload using this key
+    // arrives as an empty body. Uploads go through base64 fields instead
+    // (display_block/upload_image, setting/upload_file, product/upload_image).
     if (data.files) {
         const fData = new FormData()
         Object.keys(data.files).forEach(k => {
