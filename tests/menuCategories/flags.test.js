@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { importCategoryFlags, parseFlagsCsv } from '../../server/services/categoryMap/flags.js'
 import { applyCategoryFlagStatuses } from '../../server/services/categoryMap/flagStatus.js'
 
-const HEADER = 'שם מחלקת על,מחקלת על,שם מחלקה,מחלקה,שם קבוצה,קבוצה,שם,קוד,הצגת קטגוריה,חובה כשרות'
+const HEADER = 'שם מחלקת על,מחלקת על,שם מחלקה,מחלקה,שם קבוצה,קבוצה,שם,קוד,הצגת קטגוריה,חובה כשרות'
 const row = (code, show, kashrut, name = 'מוצר') =>
     `לחם,1,ביצים,101,ביצים מיוחדות,1010,${name},${code},${show},${kashrut}`
 const csv = (...rows) => [HEADER, ...rows].join('\r\n')
@@ -69,7 +69,7 @@ describe('category flags CSV', () => {
     })
 
     it('rejects a 14-column tree file', () => {
-        const treeHeader = 'שם מחלקת על,מחקלת על,שם מחלקה,מחלקה,שם קבוצה,קבוצה,שם,קוד,רמה 1 באתר,קוד רמה 1,רמה 2 באתר,קוד רמה 2,רמה 3 באתר,קוד רמה 3'
+        const treeHeader = 'שם מחלקת על,מחלקת על,שם מחלקה,מחלקה,שם קבוצה,קבוצה,שם,קוד,רמה 1 באתר,קוד רמה 1,רמה 2 באתר,קוד רמה 2,רמה 3 באתר,קוד רמה 3'
         assert.throws(
             () => parseFlagsCsv([treeHeader, 'a,1,b,2,c,3,d,4,e,5,f,6,g,7'].join('\n')),
             messageMatches(/invalid flags CSV header/)

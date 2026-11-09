@@ -2,7 +2,7 @@ import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import importCategoryFlags from '#server/api/category/import_flags.js'
 
-const HEADER = 'שם מחלקת על,מחקלת על,שם מחלקה,מחלקה,שם קבוצה,קבוצה,שם,קוד,הצגת קטגוריה,חובה כשרות'
+const HEADER = 'שם מחלקת על,מחלקת על,שם מחלקה,מחלקה,שם קבוצה,קבוצה,שם,קוד,הצגת קטגוריה,חובה כשרות'
 const row = (code, show, kashrut) =>
     `לחם,1,ביצים,101,ביצים מיוחדות,1010,מוצר,${code},${show},${kashrut}`
 const csv = (...rows) => [HEADER, ...rows].join('\r\n')

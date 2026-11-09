@@ -2,7 +2,7 @@ import toSlug from '#common/functions/toSlug.js'
 
 export const EXPECTED_HEADER = [
     'שם מחלקת על',
-    'מחקלת על',
+    'מחלקת על',
     'שם מחלקה',
     'מחלקה',
     'שם קבוצה',

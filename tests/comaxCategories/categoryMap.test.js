@@ -2,7 +2,7 @@ import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import { buildCategoryPlan, categoryIdFor, parseCsvRows } from '../../server/services/categoryMap/parse.js'
 
-const HEADER = 'שם מחלקת על,מחקלת על,שם מחלקה,מחלקה,שם קבוצה,קבוצה,שם,קוד,רמה 1 באתר,קוד רמה 1,רמה 2 באתר,קוד רמה 2,רמה 3 באתר,קוד רמה 3'
+const HEADER = 'שם מחלקת על,מחלקת על,שם מחלקה,מחלקה,שם קבוצה,קבוצה,שם,קוד,רמה 1 באתר,קוד רמה 1,רמה 2 באתר,קוד רמה 2,רמה 3 באתר,קוד רמה 3'
 
 function csv(...rows) {
     return [HEADER, ...rows].join('\r\n')

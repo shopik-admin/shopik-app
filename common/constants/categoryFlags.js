@@ -3,7 +3,7 @@
 // the two can never drift apart.
 export const FLAGS_HEADER = [
     'שם מחלקת על',
-    'מחקלת על',
+    'מחלקת על',
     'שם מחלקה',
     'מחלקה',
     'שם קבוצה',
