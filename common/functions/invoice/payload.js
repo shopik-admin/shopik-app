@@ -78,6 +78,11 @@ export function buildDocPayload({
         item: items
     }
 
+    // Display-only flag: item prices already carry the exact charged gross
+    // (vat_type INC), but EZcount prints them before VAT unless asked otherwise.
+    // This only changes the printed price per row; net/VAT/total are untouched.
+    payload.show_items_including_vat = 'true'
+
     // 320 (invoice receipt) rejects the request without `price_total` and a
     // payment row. Our rows carry the exact charged gross, so their sum is the
     // captured total — no recalculation, and it matches assertTotalsMatch by

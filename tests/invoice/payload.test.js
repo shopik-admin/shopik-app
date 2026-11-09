@@ -67,6 +67,15 @@ describe('buildDocPayload', () => {
         assert.equal(payload.comment, 'זיכוי לחשבונית 30012')
     })
 
+    it('shows the item prices the customer actually paid, VAT included', () => {
+        const invoice = buildDocPayload({ order, lines, customer })
+        assert.equal(invoice.show_items_including_vat, 'true')
+
+        // The credit note mirrors the invoice presentation.
+        const credit = buildDocPayload({ order, lines, customer, docType: DOC_TYPE.CREDIT })
+        assert.equal(credit.show_items_including_vat, 'true')
+    })
+
     it('sends the captured total as price_total on a 320 (mandatory field)', () => {
         const payload = buildDocPayload({ order, lines, customer })
         assert.equal(payload.price_total, 155)
