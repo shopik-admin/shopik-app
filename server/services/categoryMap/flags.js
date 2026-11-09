@@ -1,20 +1,11 @@
+import { FLAGS_HEADER } from '#common/constants/categoryFlags.js'
 import { parseCsvRows } from './parse.js'
 
 // The Comax category-filter file: the 8 catalog columns plus the two flags.
 // It is deliberately separate from the 14-column tree file: importing it only
 // flips flags on existing category_map rows, never the tree or assignments.
-export const FLAGS_HEADER = [
-    'שם מחלקת על',
-    'מחקלת על',
-    'שם מחלקה',
-    'מחלקה',
-    'שם קבוצה',
-    'קבוצה',
-    'שם',
-    'קוד',
-    'הצגת קטגוריה',
-    'חובה כשרות'
-]
+// The header list lives in common/ so the admin upload dialog can show it.
+export { FLAGS_HEADER }
 
 const COL = {
     SUB_GROUP_CODE: 7,

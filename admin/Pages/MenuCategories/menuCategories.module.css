@@ -403,6 +403,24 @@
     min-width: 26rem;
 }
 
+/* The exact column headers the flags CSV must carry, shown in the upload
+   dialog so the admin can prepare the file without guessing. */
+.headerList {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+}
+
+.headerChip {
+    padding: 0 0.4rem;
+    border-radius: 0.3rem;
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    font-size: 0.72rem;
+    line-height: 1.7;
+    white-space: nowrap;
+}
+
 @media (max-width: 900px) {
     .body {
         flex-direction: column;

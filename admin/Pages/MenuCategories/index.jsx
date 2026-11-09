@@ -28,6 +28,7 @@ import Text from 'common/components/Text'
 import Icon from 'common/components/Icon'
 import { useModal } from 'common/components/Modal'
 import { useText } from 'common/texts/TextProvider'
+import { FLAGS_HEADER } from 'common/constants/categoryFlags.js'
 import usePermission from 'common/permissions/usePermision'
 import classNames from 'common/functions/classNames'
 import { siblingTargetFor } from './siblingTarget.js'
@@ -986,6 +987,10 @@ function FlagImportModal({ onDone, onClose }) {
 
     return <form className={styles.importForm} onSubmit={submit}>
         <Text>{TR('menu_categories_flags_hint')}</Text>
+        <Text size='s' mode='sub'>{TR('menu_categories_flags_headers')}</Text>
+        <div className={styles.headerList}>
+            {FLAGS_HEADER.map(name => <span key={name} className={styles.headerChip}>{name}</span>)}
+        </div>
         <input
             type='file'
             accept='.csv,text/csv'
