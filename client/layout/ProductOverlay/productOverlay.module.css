@@ -1,0 +1,134 @@
+/* Product overlay: the product page rendered above the page the customer came
+   from. Sits below the sticky header (10000) and the cart drawer (9999) so both
+   stay usable, and below the generic modal layer (99999). */
+.overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9998;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    /* The sticky header paints above this layer, so keep the dialog clear of it
+       instead of letting the header cover the top of the dialog. */
+    padding-top: var(--product-overlay-top, 0px);
+    background: rgba(0, 0, 0, 0.5);
+    animation: productOverlayFade 180ms ease;
+}
+
+.panel {
+    position: relative;
+    /* Desktop: as wide as the store's content column and as tall as the space
+       left under the sticky header, minus a small breathing gap. */
+    width: min(var(--max-width, 1920px), calc(100vw - 60px));
+    /* Fixed size: the dialog must not grow while the full product payload
+       streams in, otherwise the centered box jumps up and down. */
+    height: calc(100dvh - var(--product-overlay-top, 0px) - 16px);
+    max-height: 100%;
+    /* The scroller lives on .scroll: a native scrollbar painted inside a
+       rounded element squares off the corners, while an overflow:hidden
+       wrapper clips it to the radius. */
+    overflow: hidden;
+    box-sizing: border-box;
+    background: var(--bg-primary, #fff);
+    border-radius: 16px;
+    box-shadow: var(--shadow-lg, 0 24px 60px rgba(0, 0, 0, 0.25));
+    animation: productOverlayRise 200ms ease;
+}
+
+.scroll {
+    height: 100%;
+    overflow: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    border-radius: inherit;
+}
+
+/* Zero-height sticky holder keeps the close button floating over the scrolled
+   content without taking part in the product page layout. */
+.closeWrap {
+    position: sticky;
+    top: 10px;
+    z-index: 3;
+    height: 0;
+    display: flex;
+    justify-content: flex-start;
+    padding-inline-start: 10px;
+    pointer-events: none;
+}
+
+.closeWrap > * {
+    pointer-events: auto;
+}
+
+.close {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border-radius: 50%;
+    background: var(--bg-primary);
+    box-shadow: var(--shadow-sm, 0 2px 8px rgba(0, 0, 0, 0.15));
+}
+
+@media (max-width: 649.98px) {
+    .overlay {
+        align-items: stretch;
+        justify-content: stretch;
+        background: var(--bg-page, #fff);
+        animation: none;
+    }
+
+    .panel {
+        width: 100%;
+        max-width: none;
+        height: 100%;
+        max-height: 100%;
+        border-radius: 0;
+        box-shadow: none;
+        animation: productOverlaySlide 220ms ease;
+    }
+
+    .scroll {
+        border-radius: 0;
+    }
+}
+
+@keyframes productOverlayFade {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes productOverlayRise {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes productOverlaySlide {
+    from {
+        transform: translateY(100%);
+    }
+
+    to {
+        transform: translateY(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+    .overlay,
+    .panel {
+        animation: none;
+    }
+}
