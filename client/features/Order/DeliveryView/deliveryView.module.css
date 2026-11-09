@@ -3,6 +3,14 @@
     min-width: 300px;
 }
 
+.addressList {
+    max-height: min(360px, calc(100dvh - 240px));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    /* Room for the card border/shadow so it is not clipped by the scroller. */
+    padding: 4px;
+}
+
 .guestPrompt,
 .noServiceView {
     min-height: 340px;

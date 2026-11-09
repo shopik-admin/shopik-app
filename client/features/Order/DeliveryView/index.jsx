@@ -13,6 +13,7 @@ import Icon from 'common/components/Icon'
 import Form from 'common/components/Form'
 import Input from 'common/components/Input'
 import apiReq from '#common/functions/apiReq'
+import { noServiceAddressFromSave, sortAddressesActiveFirst } from '#common/functions/address.js'
 import openLoginPrompt from 'common/functions/openLoginPrompt'
 import events from 'common/features/events'
 import { useUser } from 'features/User'
@@ -142,8 +143,15 @@ function Delivery({ open }) {
         setShowAddressList(false)
     }
 
+    // AddressForm reports the full server response. Only a saved address with
+    // hasService === false should open the no-service screen; treating a whole
+    // response object as an address made in-service addresses show it too.
+    function handleAddressSaved(res) {
+        handleNoService(noServiceAddressFromSave(res))
+    }
+
     if (!addresses.length)
-        return <AddressForm onDone={handleNoService} />
+        return <AddressForm onDone={handleAddressSaved} />
 
     if (displayedNoService && !showAddressList)
         return <NoServiceView
@@ -233,6 +241,7 @@ function Addresses({ onDone, onNoService }) {
     const { setOrder } = useOrder()
     const [mode, setMode] = useState(null)
     const [editAddress, setEditAddress] = useState(null)
+    const sortedAddresses = sortAddressesActiveFirst(addresses)
 
     async function select(address) {
         try {
@@ -270,7 +279,7 @@ function Addresses({ onDone, onNoService }) {
         return <Flex col gap={15}>
             <Button icon='back' mode='text-brand' text='back' onClick={() => setMode(null)} />
             <AddressForm initialData={editAddress} onDone={(res) => {
-                onNoService?.(res?.address?.hasService === false ? res.address : null)
+                onNoService?.(noServiceAddressFromSave(res))
                 setMode(null)
                 setEditAddress(null)
             }} />
@@ -278,14 +287,16 @@ function Addresses({ onDone, onNoService }) {
     }
 
     return <Flex col gap={15}>
-        {addresses.map(address => {
-            const disabled = address.hasService === false
-            return <Address key={address.addressId} address={address} onEdit={handleEdit} onRemove={handleRemove} action={{
-                text: 'select',
-                onClick: () => select(address),
-                disabled
-            }} />
-        })}
+        <Flex col gap={15} className={styles.addressList}>
+            {sortedAddresses.map(address => {
+                const disabled = address.hasService === false
+                return <Address key={address.addressId} address={address} onEdit={handleEdit} onRemove={handleRemove} action={{
+                    text: 'select',
+                    onClick: () => select(address),
+                    disabled
+                }} />
+            })}
+        </Flex>
         <Button onClick={handleAdd}>add-address</Button>
     </Flex>
 }
