@@ -1,5 +1,5 @@
 import AddressAutocomplete from 'common/components/AddressAutocomplete'
-import { isElevatorRequired } from '#common/functions/address'
+import { isElevatorRequired, sortAddressesActiveFirst } from '#common/functions/address'
 import Checkbox from '#common/components/Checkbox/index'
 import { useOrder } from 'features/Order/OrderProvider'
 import { useText } from 'common/texts/TextProvider'
@@ -115,7 +115,7 @@ export default function Addresses({ action, hideHeader, blinkNoService = false }
         }
     }
 
-    const addresses = user?.addresses || []
+    const addresses = sortAddressesActiveFirst(user?.addresses || [])
     if (['add', 'edit'].includes(mode))
         return <Flex col gap={16}>
             <Button icon='back' onClick={() => setMode(action ? 'select' : 'browse')} mode='text-brand' text='back' />
