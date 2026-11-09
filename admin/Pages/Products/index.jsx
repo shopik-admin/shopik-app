@@ -1,6 +1,7 @@
 import DataManager from 'features/DataManager'
 import { useModal } from 'common/components/Modal'
 import LoadKashrutModal from './LoadKashrutModal'
+import LoadImagesModal from './LoadImagesModal'
 import styles from './products.module.css'
 
 export default function Products({ }) {
@@ -18,10 +19,20 @@ export default function Products({ }) {
         )
     }
 
+    const loadImages = {
+        icon: 'upload',
+        text: 'action_load_images',
+        permission: 'product:update',
+        onClick: ({ refresh }) => openModal(
+            <LoadImagesModal onDone={refresh} />,
+            { title: 'product_load_images' }
+        )
+    }
+
     return <div className={styles.products}>
         <DataManager
             apiRoute='product'
-            actions={[loadKashrut, 'add', 'export', 'refresh']}
+            actions={[loadKashrut, loadImages, 'add', 'export', 'refresh']}
             defaultSort={{ updatedAt: -1 }}
             rowActions={['edit']}
             onRowClick={console.log}

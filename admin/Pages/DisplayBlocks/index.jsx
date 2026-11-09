@@ -14,7 +14,7 @@ import { useModal } from 'common/components/Modal'
 import { useText } from 'common/texts/TextProvider'
 import { getDisplayImageUrl } from 'common/functions/displayImageUrl'
 import { resolveSlideImage } from 'common/functions/displayImageBreakpoints'
-import { getProductImageUrl } from 'common/functions/productImageUrl'
+import { getProductImageUrl, mainImageHash } from 'common/functions/productImageUrl'
 import BlockEditor from './BlockEditor'
 import styles from './displayBlocks.module.css'
 
@@ -278,7 +278,7 @@ function PreviewStrip({ products, TR }) {
     }
     return <div className={styles.previewStrip}>
         {products.slice(0, 5).map(p => (
-            <Image key={p.id} src={getProductImageUrl(p.id, 's')} className={styles.previewThumb} />
+            <Image key={p.id} src={getProductImageUrl(p.id, 's', '', mainImageHash(p))} className={styles.previewThumb} />
         ))}
     </div>
 }

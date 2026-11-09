@@ -5,7 +5,7 @@ import Flex from 'common/components/Flex'
 import Text from 'common/components/Text'
 import downloadCsv from 'features/DataManager/DataActions/exportCsv'
 import { useText } from 'common/texts/TextProvider'
-import styles from './loadKashrut.module.css'
+import styles from './bulkLoad.module.css'
 
 const MAX_CSV_CHARS = 2000000
 const LIST_LIMIT = 50

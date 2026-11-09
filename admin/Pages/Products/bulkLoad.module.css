@@ -15,3 +15,19 @@
 .listRow {
     unicode-bidi: plaintext;
 }
+
+/* Uploaded file rows: name (LTR) + barcode + per-file state. */
+.fileRow {
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+    unicode-bidi: plaintext;
+}
+
+.fileRow[data-state='error'] {
+    color: var(--text-error-primary);
+}
+
+.fileRow[data-state='done'] {
+    opacity: 0.65;
+}
