@@ -1244,6 +1244,16 @@
         "menu_categories_products_showing": " (מציג [shown])",
         "menu_categories_products_loading": "טוענים מוצרים...",
         "menu_categories_products_empty": "אין מוצרים פעילים בתת קבוצה זו.",
-        "menu_categories_no_barcode": "ללא ברקוד"
+        "menu_categories_no_barcode": "ללא ברקוד",
+        "menu_categories_flags_import": "טעינת דגלי קטגוריה",
+        "menu_categories_flags_title": "טעינת קובץ דגלי קטגוריה",
+        "menu_categories_flags_hint": "הקובץ מעדכן רק את הדגלים הצגת קטגוריה וחובה כשרות של תתי הקבוצות. עץ הקטגוריות והשיוכים לא משתנים. מוצרים פעילים שנחסמו יוסתרו מהאתר מיד.",
+        "menu_categories_flags_confirm": "טעינת הדגלים",
+        "menu_categories_flags_done": "הדגלים עודכנו: [written] שונו, [unchanged] ללא שינוי. הוסתרו [hidden] מוצרים.",
+        "menu_categories_flags_unknown": " ([count] קודים לא נמצאו במפה)",
+        "menu_categories_flag_hidden": "מוסתר",
+        "menu_categories_flag_kashrut": "חובה כשרות",
+        "menu_categories_flag_hidden_count": "[count] תתי קבוצות מוסתרות (כולל תתי קטגוריות)",
+        "menu_categories_flag_kashrut_count": "[count] תתי קבוצות מחייבות כשרות (כולל תתי קטגוריות)"
     }
 }

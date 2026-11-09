@@ -25,7 +25,9 @@ const MAP_SELECT = {
     department: 1,
     groupCode: 1,
     group: 1,
-    subGroup: 1
+    subGroup: 1,
+    showOnSite: 1,
+    requireKashrut: 1
 }
 
 function withMeta(mapDoc) {
@@ -33,6 +35,9 @@ function withMeta(mapDoc) {
         code: mapDoc.subGroupCode,
         categoryId: mapDoc.categoryId || null,
         productCount: 0,
+        // Missing flags mean the default: shown, no kashrut requirement.
+        showOnSite: mapDoc.showOnSite !== false,
+        requireKashrut: mapDoc.requireKashrut === true,
         oldPath: [mapDoc.superDepartment, mapDoc.department, mapDoc.group, mapDoc.subGroup]
             .filter(Boolean)
             .join(' / '),

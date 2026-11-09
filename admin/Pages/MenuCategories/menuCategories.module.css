@@ -216,6 +216,40 @@
     color: var(--text-error-primary);
 }
 
+/* Category flags from the Comax category-filter file. `flagTag` is shared by
+   the tree chips (icon + count) and the sub-group/card labels. */
+.flagTag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.15rem;
+    flex: 0 0 auto;
+    padding: 0 0.35rem;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    line-height: 1.5;
+    white-space: nowrap;
+}
+
+.flagIcon {
+    width: 0.85em;
+    height: 0.85em;
+}
+
+.flagHidden {
+    background: var(--bg-error-secondary);
+    color: var(--text-error-primary);
+}
+
+.flagKashrut {
+    background: var(--bg-brand-secondary);
+    color: var(--text-brand);
+}
+
+.flagRow {
+    flex-wrap: wrap;
+    margin-top: 0.35rem;
+}
+
 .badge {
     flex: 0 0 auto;
     min-width: 1.2rem;

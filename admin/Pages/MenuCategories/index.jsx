@@ -94,7 +94,7 @@ function DragHandle({ innerRef, attributes, listeners, label }) {
     </button>
 }
 
-function CategoryRow({ node, depth, open, count, selected, canUpdate, onSelect, onToggle }) {
+function CategoryRow({ node, depth, open, count, flags, selected, canUpdate, onSelect, onToggle }) {
     const { TR } = useText()
     const {
         attributes, listeners, setNodeRef, setActivatorNodeRef,
@@ -148,6 +148,18 @@ function CategoryRow({ node, depth, open, count, selected, canUpdate, onSelect, 
         <CategoryIcon icon={node.icon} fallback={false} className={styles.nodeIcon} />
         <span className={styles.nodeName}>{node.name}</span>
         <span className={styles.levelTag}>L{node.level}</span>
+        {flags?.hidden ? <span
+            className={classNames(styles.flagTag, styles.flagHidden)}
+            title={TR('menu_categories_flag_hidden_count', { count: flags.hidden })}
+        >
+            <Icon name='x' className={styles.flagIcon} />{flags.hidden}
+        </span> : null}
+        {flags?.kashrut ? <span
+            className={classNames(styles.flagTag, styles.flagKashrut)}
+            title={TR('menu_categories_flag_kashrut_count', { count: flags.kashrut })}
+        >
+            <Icon name='shield' className={styles.flagIcon} />{flags.kashrut}
+        </span> : null}
         {count ? <span className={styles.badge}>{count}</span> : null}
         {node.active === false
             ? <span className={styles.inactiveTag}>{TR('menu_categories_inactive_tag')}</span>
@@ -186,6 +198,12 @@ function SubGroupRow({ entry, isAssigned, canUpdate, selectedId, onAssign, onPre
             </Text>
         </div>
         <span className={styles.code}>{entry.code}</span>
+        {entry.showOnSite === false ? <span className={classNames(styles.flagTag, styles.flagHidden)}>
+            {TR('menu_categories_flag_hidden')}
+        </span> : null}
+        {entry.requireKashrut === true ? <span className={classNames(styles.flagTag, styles.flagKashrut)}>
+            {TR('menu_categories_flag_kashrut')}
+        </span> : null}
         <span className={styles.badge}>{entry.productCount}</span>
         <Button
             icon='products'
@@ -248,9 +266,31 @@ export default function MenuCategories() {
             counts.set(entry.categoryId, (counts.get(entry.categoryId) || 0) + 1)
         return counts
     }, [assigned])
+    // Roll flagged sub-groups up to their ancestors, so a category shows the
+    // flags of every sub-group below it, not only the ones assigned directly.
+    const flagCounts = useMemo(() => {
+        const counts = new Map()
+        const add = (categoryId, key) => {
+            const seen = new Set()
+            let id = categoryId
+            while (id && !seen.has(id)) {
+                seen.add(id)
+                const entry = counts.get(id) || { hidden: 0, kashrut: 0 }
+                entry[key] += 1
+                counts.set(id, entry)
+                id = byId.get(id)?.parentId || null
+            }
+        }
+        for (const entry of assigned) {
+            if (entry.showOnSite === false) add(entry.categoryId, 'hidden')
+            if (entry.requireKashrut === true) add(entry.categoryId, 'kashrut')
+        }
+        return counts
+    }, [assigned, byId])
 
     const selected = selectedId ? byId.get(selectedId) : null
     const selectedAssigned = assigned.filter(entry => entry.categoryId === selectedId)
+    const selectedFlags = selectedId ? flagCounts.get(selectedId) : null
     const filteredUnassigned = unassigned.filter(entry => {
         const query = search.trim().toLowerCase()
         if (!query) return true
@@ -404,6 +444,31 @@ export default function MenuCategories() {
         )
     }
 
+    // The flags file is separate from the tree file: it only updates the
+    // show/hide + kashrut flags of existing sub-groups.
+    function openFlagsImport() {
+        openModal(
+            <FlagImportModal
+                onClose={closeModal}
+                onDone={async summary => {
+                    closeModal()
+                    await callReq()
+                    setNotice(
+                        TR('menu_categories_flags_done', {
+                            written: summary.written,
+                            unchanged: summary.unchanged,
+                            hidden: summary.hidden
+                        }) +
+                        (summary.unknown
+                            ? TR('menu_categories_flags_unknown', { count: summary.unknown })
+                            : '')
+                    )
+                }}
+            />,
+            { title: TR('menu_categories_flags_title') }
+        )
+    }
+
     // The exported file is the same format the upload accepts: edit it and send
     // it back for bulk reassignment or reordering.
     async function exportCsv() {
@@ -520,6 +585,7 @@ export default function MenuCategories() {
                         depth={depth}
                         open={open}
                         count={assignedCounts.get(node.id) || 0}
+                        flags={flagCounts.get(node.id)}
                         selected={selectedId === node.id}
                         canUpdate={canUpdate}
                         onSelect={setSelectedId}
@@ -550,6 +616,9 @@ export default function MenuCategories() {
                     </Button>
                     <Button icon='upload' onClick={openImport} disabled={busy} permission='category:update'>
                         {TR('menu_categories_import')}
+                    </Button>
+                    <Button icon='shield' onClick={openFlagsImport} disabled={busy} permission='category:update'>
+                        {TR('menu_categories_flags_import')}
                     </Button>
                 </Flex>
             </Flex>
@@ -641,6 +710,24 @@ export default function MenuCategories() {
                                             code: selected.code
                                         })}
                                     </Text>
+                                    {selectedFlags && (selectedFlags.hidden || selectedFlags.kashrut)
+                                        ? <Flex gap={6} className={styles.flagRow}>
+                                            {selectedFlags.hidden ? <span
+                                                className={classNames(styles.flagTag, styles.flagHidden)}
+                                            >
+                                                {TR('menu_categories_flag_hidden_count', {
+                                                    count: selectedFlags.hidden
+                                                })}
+                                            </span> : null}
+                                            {selectedFlags.kashrut ? <span
+                                                className={classNames(styles.flagTag, styles.flagKashrut)}
+                                            >
+                                                {TR('menu_categories_flag_kashrut_count', {
+                                                    count: selectedFlags.kashrut
+                                                })}
+                                            </span> : null}
+                                        </Flex>
+                                        : null}
                                 </div>
                                 <Checkbox
                                     checked={selected.active !== false}
@@ -874,6 +961,43 @@ function ImportModal({ onDone, onClose }) {
             </Button>
             <Button type='submit' icon='upload' loading={state?.loading} disabled={!file}>
                 {TR('menu_categories_import_confirm')}
+            </Button>
+        </Flex>
+    </form>
+}
+
+function FlagImportModal({ onDone, onClose }) {
+    const { TR } = useText()
+    const [file, setFile] = useState(null)
+    const [state, setState] = useState()
+
+    async function submit(event) {
+        event.preventDefault()
+        if (!file) return
+        setState({ loading: true })
+        try {
+            const csvBase64 = await readFileAsDataUrl(file)
+            const summary = await apiReq('category/import_flags', { csvBase64, filename: file.name })
+            await onDone(summary)
+        } catch (e) {
+            setState({ error: e })
+        }
+    }
+
+    return <form className={styles.importForm} onSubmit={submit}>
+        <Text>{TR('menu_categories_flags_hint')}</Text>
+        <input
+            type='file'
+            accept='.csv,text/csv'
+            onChange={event => setFile(event.target.files?.[0] || null)}
+        />
+        {state?.error && <Text mode='error'>{state.error?.message || String(state.error)}</Text>}
+        <Flex gap={8} justifyContent='end'>
+            <Button mode='text' onClick={onClose} disabled={state?.loading}>
+                {TR('cancel')}
+            </Button>
+            <Button type='submit' icon='shield' loading={state?.loading} disabled={!file}>
+                {TR('menu_categories_flags_confirm')}
             </Button>
         </Flex>
     </form>
