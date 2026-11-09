@@ -471,26 +471,6 @@ export default function MenuCategories() {
         )
     }
 
-    // The exported file is the same format the upload accepts: edit it and send
-    // it back for bulk reassignment or reordering.
-    async function exportCsv() {
-        setBusy(true)
-        setNotice('')
-        try {
-            const file = await apiReq('category/export')
-            downloadCsvFile(file?.filename || 'category-map.csv', file?.csv || '')
-            setNotice(TR('menu_categories_export_done', {
-                categories: file?.categories ?? 0,
-                mapped: file?.mapped ?? 0,
-                unassigned: file?.unassigned ?? 0
-            }))
-        } catch (e) {
-            setNotice(e?.message || String(e))
-        } finally {
-            setBusy(false)
-        }
-    }
-
     // Renaming rewrites the slug, every path under the category and the titles
     // stored on its products, so the tree is refetched rather than patched.
     async function afterRename(result) {
@@ -613,9 +593,6 @@ export default function MenuCategories() {
                     <Text size='s' mode='sub'>{TR('menu_categories_hint')}</Text>
                 </div>
                 <Flex gap={8}>
-                    <Button icon='download' onClick={exportCsv} disabled={busy} permission='category:read'>
-                        {TR('menu_categories_export')}
-                    </Button>
                     <Button icon='upload' onClick={openImport} disabled={busy} permission='category:update'>
                         {TR('menu_categories_import')}
                     </Button>
@@ -946,6 +923,32 @@ function ImportModal({ onDone, onClose }) {
         }
     }
 
+    // The exported file is the same format the upload accepts: download it,
+    // edit it, and send it back for bulk reassignment or reordering.
+    async function exportCsv() {
+        setState(current => ({
+            ...current,
+            exporting: true,
+            exportError: null,
+            exportNotice: ''
+        }))
+        try {
+            const exported = await apiReq('category/export')
+            downloadCsvFile(exported?.filename || 'category-map.csv', exported?.csv || '')
+            setState(current => ({
+                ...current,
+                exporting: false,
+                exportNotice: TR('menu_categories_export_done', {
+                    categories: exported?.categories ?? 0,
+                    mapped: exported?.mapped ?? 0,
+                    unassigned: exported?.unassigned ?? 0
+                })
+            }))
+        } catch (e) {
+            setState(current => ({ ...current, exporting: false, exportError: e }))
+        }
+    }
+
     return <form className={styles.importForm} onSubmit={submit}>
         <Text>
             {TR('menu_categories_import_warning_before')}{' '}
@@ -963,21 +966,53 @@ function ImportModal({ onDone, onClose }) {
             }}
         />
         <Flex gap={8} alignItems='center' className={styles.filePicker}>
-            <Button type='button' mode='text' icon='csv' onClick={() => fileInput.current?.click()}>
+            <Button
+                type='button'
+                mode='text'
+                icon='csv'
+                onClick={() => fileInput.current?.click()}
+                disabled={state?.exporting}
+            >
                 {TR('menu_categories_choose_file')}
             </Button>
             <Text size='s' mode={file ? undefined : 'sub'} className={styles.fileName}>
                 {file?.name || TR('menu_categories_no_file')}
             </Text>
         </Flex>
+        {state?.exportNotice && <Text size='s' mode='sub'>{state.exportNotice}</Text>}
+        {state?.exportError && (
+            <Text mode='error'>{state.exportError?.message || String(state.exportError)}</Text>
+        )}
         {state?.error && <Text mode='error'>{state.error?.message || String(state.error)}</Text>}
-        <Flex gap={8} justifyContent='end'>
-            <Button type='button' mode='text' onClick={onClose} disabled={state?.loading}>
-                {TR('cancel')}
+        <Flex gap={8} justifyContent='space-between'>
+            <Button
+                type='button'
+                mode='text'
+                icon='download'
+                loading={state?.exporting}
+                disabled={state?.loading}
+                onClick={exportCsv}
+            >
+                {TR('menu_categories_export')}
             </Button>
-            <Button type='submit' icon='upload' loading={state?.loading} disabled={!file}>
-                {TR('menu_categories_import_confirm')}
-            </Button>
+            <Flex gap={8}>
+                <Button
+                    type='button'
+                    mode='text'
+                    onClick={onClose}
+                    disabled={state?.loading || state?.exporting}
+                >
+                    {TR('cancel')}
+                </Button>
+                <Button
+                    type='submit'
+                    icon='upload'
+                    loading={state?.loading}
+                    disabled={!file || state?.exporting}
+                >
+                    {TR('menu_categories_import_confirm')}
+                </Button>
+            </Flex>
         </Flex>
     </form>
 }
