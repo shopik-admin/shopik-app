@@ -1,3 +1,5 @@
+import { KASHRUT_VALID_CODES } from '#common/components/Kashrut/constants.js'
+
 export function buildSyncFilter() {
     return {
         active: { $ne: false },
@@ -64,6 +66,51 @@ export async function hideStorelessProducts({ DL }) {
     const { ACTIVE, HIDDEN } = statuses(DL)
     const res = await DL.Product.update(
         { status: ACTIVE, 'storeIds.0': { $exists: false } },
+        { status: HIDDEN }
+    )
+    return res?.modifiedCount || 0
+}
+
+async function flaggedCodes(DL, field, value) {
+    const rows = await DL.CategoryMap.read(
+        { [field]: value },
+        { _id: 0, subGroupCode: 1 },
+        { limit: 0 }
+    )
+    return (rows || []).map(row => String(row.subGroupCode)).filter(Boolean)
+}
+
+/**
+ * Backstop for products the sync loop never visits (Comax row gone or filtered
+ * out): an ACTIVE product whose sub-group is marked "hide on site" must not stay
+ * visible. Hide-only — nothing is ever un-hidden here.
+ */
+export async function hideCategoryFlaggedProducts({ DL }) {
+    const codes = await flaggedCodes(DL, 'showOnSite', false)
+    if (!codes.length) return 0
+    const { ACTIVE, HIDDEN } = statuses(DL)
+    const res = await DL.Product.update(
+        { status: ACTIVE, comaxSubGroupCode: { $in: codes } },
+        { status: HIDDEN }
+    )
+    return res?.modifiedCount || 0
+}
+
+/**
+ * Same backstop for kashrut: an ACTIVE product in a "kashrut required" sub-group
+ * without a valid rabbinate code is hidden. A product becomes visible again only
+ * when the sync ladder sees a valid code (never through this sweep).
+ */
+export async function hideKashrutMissingProducts({ DL }) {
+    const codes = await flaggedCodes(DL, 'requireKashrut', true)
+    if (!codes.length) return 0
+    const { ACTIVE, HIDDEN } = statuses(DL)
+    const res = await DL.Product.update(
+        {
+            status: ACTIVE,
+            comaxSubGroupCode: { $in: codes },
+            'kashrut.rabbinates.code': { $nin: [...KASHRUT_VALID_CODES] }
+        },
         { status: HIDDEN }
     )
     return res?.modifiedCount || 0

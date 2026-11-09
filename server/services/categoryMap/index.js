@@ -4,3 +4,5 @@ export { buildCategoryPlan, categoryIdFor, categorySlug, parseCsvRows, EXPECTED_
 export { loadCategoryLookup, productCategoryFor } from './lookup.js'
 export { COMAX_META_FIELDS, metadataForCode, metaFromComax } from './metadata.js'
 export { buildRenamePlan, normalizeCategoryName } from './rename.js'
+export { FLAGS_HEADER, importCategoryFlags, parseFlagsCsv } from './flags.js'
+export { applyCategoryFlagStatuses } from './flagStatus.js'

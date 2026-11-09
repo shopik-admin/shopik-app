@@ -1,4 +1,11 @@
-import { buildSyncFilter, hideInactiveProducts, hideStorelessProducts } from './syncRules.js'
+import {
+    buildSyncFilter,
+    hideCategoryFlaggedProducts,
+    hideInactiveProducts,
+    hideKashrutMissingProducts,
+    hideStorelessProducts
+} from './syncRules.js'
+import { deriveStatus, retailPrice } from './status.js'
 import { loadCategoryLookup, productCategoryFor } from '#server/services/categoryMap/index.js'
 import { invalidateMenu } from '#server/utils/data/getMenu.js'
 import enqueueChangedImages from '#server/services/image/enqueue.js'
@@ -12,15 +19,6 @@ function isWeightProduct(comax) {
     // // ק"ג variants: קג, קילו, kg
     // if (norm.includes('קג') || norm.includes('קילו') || norm.includes('kg')) return true
     return false
-}
-
-// What the customer pays: the Comax price plus the deposit (trailing item)
-// when the import resolved one. priceWithTrailing is written by the import;
-// older rows without it fall back to the plain Comax price.
-function retailPrice(comax) {
-    if (!(comax.price > 0)) return comax.price
-    const withTrailing = Number(comax.priceWithTrailing)
-    return Number.isFinite(withTrailing) && withTrailing > 0 ? withTrailing : comax.price
 }
 
 function buildUnit(comax, DL) {
@@ -52,30 +50,18 @@ export function buildProduct(comax, DL, defaultDomainId, existing, enforceBuying
     const category = categoryLookup?.hasMap
         ? (resolvedCategory || {})
         : (existing?.category || {})
-    // No image file = hidden. Re-evaluated every sync, so products flip back to
-    // ACTIVE on the first sync after the image worker attaches their image.
-    // Missing sale price or buying price = archived (never created).
-    //
-    // In stock nowhere = hidden. `storeIds` is the import's per-store feed state
-    // (see api/comax_product/import.js); an explicit empty array means every
-    // store dropped the item. A MISSING field means it was never tracked (no
-    // StockStoreID, skipped/partial run) and must not hide anything.
-    const hasImages = (existing?.images?.product || []).length > 0
+    // Status is re-derived every sync (see deriveStatus): an image, a valid
+    // kashrut or a flag change flips it back on its own. The category flags
+    // come from the same lookup used for the category itself.
+    const status = deriveStatus({
+        comax,
+        existing,
+        flags: subGroupCode ? categoryLookup?.flagsByCode?.get(subGroupCode) : null,
+        status: DL.Product.constants.STATUS,
+        enforceBuyingPrice
+    })
     const price = retailPrice(comax)
-    const missingPrice = !(price > 0) || (enforceBuyingPrice && !(comax.buyingPrice > 0))
     const storeIds = Array.isArray(comax.storeIds) ? comax.storeIds : null
-    const outOfStock = storeIds?.length === 0
-    const status = comax.archived ?
-        DL.Product.constants.STATUS.ARCHIVED :
-        missingPrice ?
-            DL.Product.constants.STATUS.ARCHIVED :
-            !hasImages ?
-                DL.Product.constants.STATUS.HIDDEN :
-                outOfStock ?
-                    DL.Product.constants.STATUS.HIDDEN :
-                    comax.showInWeb ?
-                        DL.Product.constants.STATUS.ACTIVE :
-                        DL.Product.constants.STATUS.HIDDEN
 
     return {
         barcode: comax.barcode,
@@ -156,9 +142,20 @@ export default async function syncComax(payload, { DL }) {
     if (!total) {
         // Still sweep: the catalog can hold products whose Comax row is gone.
         const hiddenNoStock = await hideStorelessProducts({ DL })
-        if (hiddenInactive || hiddenNoStock) await invalidateMenu({ DL })
+        const hiddenFlagged = await hideCategoryFlaggedProducts({ DL })
+        const hiddenKashrut = await hideKashrutMissingProducts({ DL })
+        if (hiddenInactive || hiddenNoStock || hiddenFlagged || hiddenKashrut)
+            await invalidateMenu({ DL })
         console.log(`[Comax Sync] No products to sync${hiddenNoStock ? ` — hid ${hiddenNoStock} storeless product(s)` : ''}`)
-        return { synced: 0, updated: 0, created: 0, hiddenInactive, hiddenNoStock }
+        return {
+            synced: 0,
+            updated: 0,
+            created: 0,
+            hiddenInactive,
+            hiddenNoStock,
+            hiddenFlagged,
+            hiddenKashrut
+        }
     }
 
     const defaultDomain = await DL.Domain.readOne({ isDefault: true, active: true }, { _id: 0, id: 1 })
@@ -190,7 +187,7 @@ export default async function syncComax(payload, { DL }) {
         // replacing the array, and hides products with no image file
         const existingProducts = await DL.Product.read(
             { barcode: { $in: comaxProducts.map(c => c.barcode) } },
-            { _id: 0, barcode: 1, prices: 1, images: 1 },
+            { _id: 0, barcode: 1, prices: 1, images: 1, 'kashrut.rabbinates': 1 },
             { limit: 0 }
         )
         const existingByBarcode = new Map((existingProducts || []).map(p => [p.barcode, p]))
@@ -229,8 +226,10 @@ export default async function syncComax(payload, { DL }) {
     // Backstop for products the loop never visits: no Comax row (or one the
     // sync filter excludes) means their status would never be re-evaluated.
     const hiddenNoStock = await hideStorelessProducts({ DL })
+    const hiddenFlagged = await hideCategoryFlaggedProducts({ DL })
+    const hiddenKashrut = await hideKashrutMissingProducts({ DL })
 
-    console.log(`[Comax Sync] Created ${created}, updated ${updated}, hidden (no image): ${hiddenNoImage}, hidden (no stock): ${hiddenNoStock}, archived (no price): ${archivedNoPrice}, hidden (inactive): ${hiddenInactive}`)
+    console.log(`[Comax Sync] Created ${created}, updated ${updated}, hidden (no image): ${hiddenNoImage}, hidden (no stock): ${hiddenNoStock}, hidden (flag): ${hiddenFlagged}, hidden (kashrut): ${hiddenKashrut}, archived (no price): ${archivedNoPrice}, hidden (inactive): ${hiddenInactive}`)
 
     if (!payload?.skipImageEnqueue) {
         try {
@@ -251,6 +250,8 @@ export default async function syncComax(payload, { DL }) {
         updated,
         hiddenNoImage,
         hiddenNoStock,
+        hiddenFlagged,
+        hiddenKashrut,
         archivedNoPrice,
         hiddenInactive
     }
