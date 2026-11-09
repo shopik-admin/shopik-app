@@ -77,9 +77,79 @@ describe('category flags import API', () => {
             unknown: 0,
             skipped: 0,
             untouched: 0,
+            relaxed: 0,
             hidden: 1,
+            unhidden: 0,
             reasons: { category: 0, kashrut: 0, both: 1 }
         })
+    })
+
+    // The reason an upload has to reconcile both directions: a sub-group that
+    // turned back on must show its products in the storefront right away.
+    it('brings back the hidden products of a sub-group whose flags were relaxed', async () => {
+        const mapRows = [{ subGroupCode: '10100', showOnSite: false, requireKashrut: false }]
+        const products = [
+            {
+                barcode: '7',
+                status: 'hidden',
+                comaxSubGroupCode: '10100',
+                images: { product: [{ main: true }] }
+            }
+        ]
+        const comaxRows = [{
+            barcode: '7',
+            active: true,
+            isTrailingItem: false,
+            archived: false,
+            price: 10,
+            priceWithTrailing: 10,
+            buyingPrice: 5,
+            showInWeb: true,
+            storeIds: ['s1']
+        }]
+        const productWrites = []
+        const DL = {
+            CategoryMap: {
+                read: async () => mapRows,
+                // The sweep runs after the import, so it must see the flags
+                // the import just wrote.
+                bulkWrite: async ({ docs }) => {
+                    for (const doc of docs) Object.assign(mapRows[0], {
+                        showOnSite: doc.showOnSite,
+                        requireKashrut: doc.requireKashrut
+                    })
+                }
+            },
+            ComaxProduct: {
+                count: async () => comaxRows.filter(row => row.buyingPrice > 0).length,
+                read: async filter => comaxRows.filter(row => filter.barcode.$in.includes(row.barcode))
+            },
+            Product: {
+                constants: { STATUS: { ACTIVE: 'active', HIDDEN: 'hidden', ARCHIVED: 'archived' } },
+                Model: {
+                    find: filter => ({
+                        lean: async () => products.filter(product => product.status === filter.status)
+                    })
+                },
+                bulkWrite: async ({ docs }) => { productWrites.push(...docs) }
+            }
+        }
+
+        const summary = await importCategoryFlags({
+            csvText: csv(row('10100', 'TRUE', 'FALSE')),
+            filename: 'flags.csv'
+        }, { DL })
+
+        assert.equal(summary.written, 1)
+        assert.equal(summary.relaxed, 1)
+        assert.equal(summary.hidden, 0)
+        assert.equal(summary.unhidden, 1)
+        assert.deepEqual(productWrites, [{
+            barcode: '7',
+            previousStatus: 'hidden',
+            status: 'active',
+            storeIds: ['s1']
+        }])
     })
 
     it('accepts the browser data-url payload', async () => {

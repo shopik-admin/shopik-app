@@ -459,7 +459,8 @@ export default function MenuCategories() {
                         TR('menu_categories_flags_done', {
                             written: summary.written,
                             unchanged: summary.unchanged,
-                            hidden: summary.hidden
+                            hidden: summary.hidden,
+                            unhidden: summary.unhidden
                         }) +
                         (summary.unknown
                             ? TR('menu_categories_flags_unknown', { count: summary.unknown })

@@ -23,14 +23,19 @@ function decodeCsv({ csvText, csvBase64 }) {
  * חובה כשרות). It only flips flags on existing category_map rows — the tree and
  * the sub-group assignments are left alone.
  *
- * The hide-only status sweep runs right after the import so the change is
- * visible immediately; un-hiding stays with the nightly Comax sync.
+ * The status sweep runs in the same request and moves statuses in both
+ * directions: products the new flags hide go out immediately, and products of a
+ * sub-group whose flags just relaxed come back as soon as the full status ladder
+ * allows it. Without the second half the admin would see "I uploaded the file and
+ * the product is still missing" until the nightly sync.
  */
 export default async function importCategoryFlagFile(payload, { DL }) {
     const csvText = decodeCsv(payload)
     const flags = await importCategoryFlags({ DL, csvText })
-    const status = await applyCategoryFlagStatuses({ DL })
+    const status = await applyCategoryFlagStatuses({ DL, relaxCodes: flags.relaxed })
 
+    // Any status change changes which categories have an active product, so both
+    // directions have to drop the cached menus and product blocks.
     if (status.toWrite) {
         await invalidateMenu({ DL })
         if (DL.redis) await scanDel(DL.redis, 'display:*')
@@ -44,7 +49,9 @@ export default async function importCategoryFlagFile(payload, { DL }) {
         unknown: flags.unknown.length,
         skipped: flags.skipped.length,
         untouched: flags.untouched.length,
-        hidden: status.toWrite,
+        relaxed: flags.relaxed.length,
+        hidden: status.hidden,
+        unhidden: status.unhidden,
         reasons: status.reasons
     }
 }

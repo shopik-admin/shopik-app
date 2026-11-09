@@ -143,6 +143,16 @@ export async function importCategoryFlags({ DL, csvText, dryRun = false }) {
         })
     }
 
+    // A flag change can only un-hide products when it became more permissive, so
+    // the status sweep needs exactly those codes: show turned on, or the kashrut
+    // requirement dropped. A row with no stored flags already means the
+    // permissive default, so it can never be part of this set.
+    const relaxed = known
+        .filter(({ subGroupCode, showOnSite, requireKashrut, previous }) =>
+            (showOnSite && previous.showOnSite === false) ||
+            (requireKashrut === false && previous.requireKashrut === true))
+        .map(({ subGroupCode }) => subGroupCode)
+
     return {
         codes: flags.length,
         written: dryRun ? 0 : known.length,
@@ -151,6 +161,7 @@ export async function importCategoryFlags({ DL, csvText, dryRun = false }) {
         unknown,
         skipped,
         untouched,
+        relaxed,
         previous: known.map(({ subGroupCode, previous }) => ({ subGroupCode, ...previous }))
     }
 }

@@ -40,6 +40,7 @@ console.log(`[categoryFlags] file: ${file}${dryRun ? ' (DRY RUN — no writes)' 
 console.log(`[categoryFlags] codes in file: ${summary.codes}`)
 console.log(`[categoryFlags] changed: ${summary.pending}${dryRun ? '' : ` (written: ${summary.written})`}`)
 console.log(`[categoryFlags] already matched: ${summary.unchanged}`)
+console.log(`[categoryFlags] relaxed flags (their hidden products can come back on the next status sweep): ${summary.relaxed.length}${summary.relaxed.length ? ` — ${summary.relaxed.join(', ')}` : ''}`)
 console.log(`[categoryFlags] unknown to category_map: ${summary.unknown.length}${summary.unknown.length ? ` — ${summary.unknown.join(', ')}` : ''}`)
 console.log(`[categoryFlags] skipped non-numeric rows: ${summary.skipped.length}`)
 console.log(`[categoryFlags] map codes not in file (left untouched): ${summary.untouched.length}${summary.untouched.length ? ` — ${summary.untouched.join(', ')}` : ''}`)
