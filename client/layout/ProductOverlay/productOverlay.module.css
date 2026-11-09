@@ -18,10 +18,12 @@
 
 .panel {
     position: relative;
-    width: min(1100px, calc(100vw - 48px));
+    /* Desktop: as wide as the store's content column and as tall as the space
+       left under the sticky header, minus a small breathing gap. */
+    width: min(var(--max-width, 1920px), calc(100vw - 60px));
     /* Fixed size: the dialog must not grow while the full product payload
        streams in, otherwise the centered box jumps up and down. */
-    height: min(calc(100dvh - var(--product-overlay-top, 0px) - 48px), 960px);
+    height: calc(100dvh - var(--product-overlay-top, 0px) - 16px);
     max-height: 100%;
     /* The scroller lives on .scroll: a native scrollbar painted inside a
        rounded element squares off the corners, while an overflow:hidden
