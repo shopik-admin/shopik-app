@@ -11,6 +11,7 @@ describe('comax sync storeless sweep', () => {
         const updates = []
         const DL = {
             ComaxProduct: { count: async () => 0 },
+            CategoryMap: { read: async () => [] },
             Product: {
                 constants: { STATUS },
                 update: async (filter, update) => {

@@ -216,6 +216,40 @@
     color: var(--text-error-primary);
 }
 
+/* Category flags from the Comax category-filter file. `flagTag` is shared by
+   the tree chips (icon + count) and the sub-group/card labels. */
+.flagTag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.15rem;
+    flex: 0 0 auto;
+    padding: 0 0.35rem;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    line-height: 1.5;
+    white-space: nowrap;
+}
+
+.flagIcon {
+    width: 0.85em;
+    height: 0.85em;
+}
+
+.flagHidden {
+    background: var(--bg-error-secondary);
+    color: var(--text-error-primary);
+}
+
+.flagKashrut {
+    background: var(--bg-brand-secondary);
+    color: var(--text-brand);
+}
+
+.flagRow {
+    flex-wrap: wrap;
+    margin-top: 0.35rem;
+}
+
 .badge {
     flex: 0 0 auto;
     min-width: 1.2rem;
@@ -237,6 +271,20 @@
 
 .fileInput {
     display: none;
+}
+
+/* Styled file picker: a text button opens the hidden input, the chosen name
+   sits next to it (same pattern as the category icon upload). */
+.filePicker {
+    flex-wrap: wrap;
+}
+
+.fileName {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .selectedIcon {
@@ -367,6 +415,24 @@
     flex-direction: column;
     gap: 0.8rem;
     min-width: 26rem;
+}
+
+/* The exact column headers the flags CSV must carry, shown in the upload
+   dialog so the admin can prepare the file without guessing. */
+.headerList {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+}
+
+.headerChip {
+    padding: 0 0.4rem;
+    border-radius: 0.3rem;
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    font-size: 0.72rem;
+    line-height: 1.7;
+    white-space: nowrap;
 }
 
 @media (max-width: 900px) {

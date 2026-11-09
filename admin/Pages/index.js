@@ -37,7 +37,7 @@ const pages = [
     { key: 'sales', name: 'Sales', path: '/sales', section: 'content', icon: 'sale', component: Sales, permission: 'sale:read' },
     { key: 'coupons', name: 'Coupons', path: '/coupons', section: 'content', icon: 'coupon', component: Coupons, permission: 'coupon:read' },
     { key: 'display-blocks', name: 'display_blocks', path: '/display-blocks', section: 'content', icon: 'blocks', component: DisplayBlocks, permission: 'display_block:read' },
-    { key: 'menu-categories', name: 'תפריט וקטגוריות', path: '/menu-categories', section: 'content', icon: 'grid', component: MenuCategories, permission: 'category:read' },
+    { key: 'menu-categories', name: 'menu_categories_nav', path: '/menu-categories', section: 'content', icon: 'grid', component: MenuCategories, permission: 'category:read' },
     { key: 'reports', name: 'reports_page', path: '/reports', section: 'content', icon: 'reports', component: Reports, permission: 'report:read' },
 
     { key: 'admins', name: 'Admins', path: '/admins', section: 'management', icon: 'persons', component: Admins, permission: 'admin:read' },

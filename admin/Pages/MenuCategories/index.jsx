@@ -27,6 +27,9 @@ import Flex from 'common/components/Flex'
 import Text from 'common/components/Text'
 import Icon from 'common/components/Icon'
 import { useModal } from 'common/components/Modal'
+import { useText } from 'common/texts/TextProvider'
+import { FLAGS_HEADER } from 'common/constants/categoryFlags.js'
+import { buildFlagsTemplate } from 'common/functions/buildFlagsTemplate.js'
 import usePermission from 'common/permissions/usePermision'
 import classNames from 'common/functions/classNames'
 import { siblingTargetFor } from './siblingTarget.js'
@@ -93,7 +96,8 @@ function DragHandle({ innerRef, attributes, listeners, label }) {
     </button>
 }
 
-function CategoryRow({ node, depth, open, count, selected, canUpdate, onSelect, onToggle }) {
+function CategoryRow({ node, depth, open, count, flags, selected, canUpdate, onSelect, onToggle }) {
+    const { TR } = useText()
     const {
         attributes, listeners, setNodeRef, setActivatorNodeRef,
         transform, transition, isDragging
@@ -124,7 +128,7 @@ function CategoryRow({ node, depth, open, count, selected, canUpdate, onSelect, 
             innerRef={setActivatorNodeRef}
             attributes={attributes}
             listeners={listeners}
-            label='גרירה ושינוי סדר'
+            label={TR('menu_categories_drag_category')}
         />}
 
         {hasChildren
@@ -146,19 +150,35 @@ function CategoryRow({ node, depth, open, count, selected, canUpdate, onSelect, 
         <CategoryIcon icon={node.icon} fallback={false} className={styles.nodeIcon} />
         <span className={styles.nodeName}>{node.name}</span>
         <span className={styles.levelTag}>L{node.level}</span>
+        {flags?.hidden ? <span
+            className={classNames(styles.flagTag, styles.flagHidden)}
+            title={TR('menu_categories_flag_hidden_count', { count: flags.hidden })}
+        >
+            <Icon name='x' className={styles.flagIcon} />{flags.hidden}
+        </span> : null}
+        {flags?.kashrut ? <span
+            className={classNames(styles.flagTag, styles.flagKashrut)}
+            title={TR('menu_categories_flag_kashrut_count', { count: flags.kashrut })}
+        >
+            <Icon name='shield' className={styles.flagIcon} />{flags.kashrut}
+        </span> : null}
         {count ? <span className={styles.badge}>{count}</span> : null}
-        {node.active === false ? <span className={styles.inactiveTag}>כבוי</span> : null}
+        {node.active === false
+            ? <span className={styles.inactiveTag}>{TR('menu_categories_inactive_tag')}</span>
+            : null}
     </div>
 }
 
 function SubGroupRow({ entry, isAssigned, canUpdate, selectedId, onAssign, onPreview }) {
+    const { TR } = useText()
+    const label = entry.subGroup || TR('menu_categories_subgroup_code', { code: entry.code })
     const { attributes, listeners, setNodeRef, setActivatorNodeRef, isDragging } = useDraggable({
         id: `${SUB_GROUP_PREFIX}${entry.code}`,
         disabled: !canUpdate,
         data: {
             subGroupCode: entry.code,
             categoryId: entry.categoryId || null,
-            label: entry.subGroup || `קוד ${entry.code}`
+            label
         }
     })
 
@@ -170,33 +190,41 @@ function SubGroupRow({ entry, isAssigned, canUpdate, selectedId, onAssign, onPre
             innerRef={setActivatorNodeRef}
             attributes={attributes}
             listeners={listeners}
-            label='גרירה אל קטגוריה'
+            label={TR('menu_categories_drag_subgroup')}
         />}
 
         <div className={styles.subGroupText}>
-            <Text bold>{entry.subGroup || `קוד ${entry.code}`}</Text>
-            <Text size='s' mode='sub'>{entry.oldPath || 'ללא היררכיה מקומקס'}</Text>
+            <Text bold>{label}</Text>
+            <Text size='s' mode='sub'>
+                {entry.oldPath || TR('menu_categories_no_hierarchy')}
+            </Text>
         </div>
         <span className={styles.code}>{entry.code}</span>
+        {entry.showOnSite === false ? <span className={classNames(styles.flagTag, styles.flagHidden)}>
+            {TR('menu_categories_flag_hidden')}
+        </span> : null}
+        {entry.requireKashrut === true ? <span className={classNames(styles.flagTag, styles.flagKashrut)}>
+            {TR('menu_categories_flag_kashrut')}
+        </span> : null}
         <span className={styles.badge}>{entry.productCount}</span>
         <Button
             icon='products'
             mode='text'
-            tooltip='תצוגת מוצרים פעילים בתת הקבוצה'
+            tooltip={TR('menu_categories_preview_products')}
             onClick={() => onPreview(entry)}
         />
         {isAssigned
             ? <Button
                 icon='trash'
                 mode='text'
-                tooltip='הסרת שיוך'
+                tooltip={TR('menu_categories_unassign')}
                 permission='category:update'
                 onClick={() => onAssign(entry.code, null)}
             />
             : <Button
                 icon='add'
                 mode='text'
-                tooltip='שיוך לקטגוריה הנבחרת'
+                tooltip={TR('menu_categories_assign_selected')}
                 permission='category:update'
                 disabled={!selectedId}
                 onClick={() => onAssign(entry.code, selectedId)}
@@ -207,6 +235,7 @@ function SubGroupRow({ entry, isAssigned, canUpdate, selectedId, onAssign, onPre
 export default function MenuCategories() {
     const { data, loading, error, callReq, setData } = useApi('category/tree')
     const { openModal, closeModal } = useModal()
+    const { TR } = useText()
     const canUpdate = usePermission('category:update')
 
     const categories = data?.categories || []
@@ -239,9 +268,31 @@ export default function MenuCategories() {
             counts.set(entry.categoryId, (counts.get(entry.categoryId) || 0) + 1)
         return counts
     }, [assigned])
+    // Roll flagged sub-groups up to their ancestors, so a category shows the
+    // flags of every sub-group below it, not only the ones assigned directly.
+    const flagCounts = useMemo(() => {
+        const counts = new Map()
+        const add = (categoryId, key) => {
+            const seen = new Set()
+            let id = categoryId
+            while (id && !seen.has(id)) {
+                seen.add(id)
+                const entry = counts.get(id) || { hidden: 0, kashrut: 0 }
+                entry[key] += 1
+                counts.set(id, entry)
+                id = byId.get(id)?.parentId || null
+            }
+        }
+        for (const entry of assigned) {
+            if (entry.showOnSite === false) add(entry.categoryId, 'hidden')
+            if (entry.requireKashrut === true) add(entry.categoryId, 'kashrut')
+        }
+        return counts
+    }, [assigned, byId])
 
     const selected = selectedId ? byId.get(selectedId) : null
     const selectedAssigned = assigned.filter(entry => entry.categoryId === selectedId)
+    const selectedFlags = selectedId ? flagCounts.get(selectedId) : null
     const filteredUnassigned = unassigned.filter(entry => {
         const query = search.trim().toLowerCase()
         if (!query) return true
@@ -344,7 +395,10 @@ export default function MenuCategories() {
 
     async function removeIcon() {
         if (!selected || !canUpdate) return
-        await run(() => apiReq('category/update', { id: selected.id, icon: '' }), 'האייקון הוסר')
+        await run(
+            () => apiReq('category/update', { id: selected.id, icon: '' }),
+            TR('menu_categories_icon_removed')
+        )
     }
 
     async function uploadIcon(event) {
@@ -352,22 +406,27 @@ export default function MenuCategories() {
         event.target.value = ''
         if (!file || !selected || !canUpdate) return
         if (!ICON_EXTENSIONS.test(file.name)) {
-            setNotice('יש להעלות קובץ PNG / JPG / WebP (הקובץ מומר אוטומטית ל-WebP)')
+            setNotice(TR('menu_categories_icon_invalid'))
             return
         }
         if (file.size > MAX_ICON_BYTES) {
-            setNotice(`הקובץ גדול מדי (מקסימום ${Math.floor(MAX_ICON_BYTES / 1024)}KB)`)
+            setNotice(TR('menu_categories_icon_too_large', {
+                max: Math.floor(MAX_ICON_BYTES / 1024)
+            }))
             return
         }
         await run(async () => {
             const fileBase64 = await readFileAsDataUrl(file)
             return apiReq('category/upload_icon', { id: selected.id, fileBase64 })
-        }, 'האייקון הועלה')
+        }, TR('menu_categories_icon_uploaded'))
     }
 
     async function toggleActive(active) {
         if (!selected || !canUpdate) return
-        await run(() => apiReq('category/update', { id: selected.id, active }), 'הסטטוס נשמר')
+        await run(
+            () => apiReq('category/update', { id: selected.id, active }),
+            TR('menu_categories_status_saved')
+        )
     }
 
     function openImport() {
@@ -377,30 +436,40 @@ export default function MenuCategories() {
                 onDone={async summary => {
                     closeModal()
                     await callReq()
-                    setNotice(`הייבוא הושלם: ${summary.categories} קטגוריות, ${summary.map} תתי קבוצות`)
+                    setNotice(TR('menu_categories_import_done', {
+                        categories: summary.categories,
+                        map: summary.map
+                    }))
                 }}
             />,
-            { title: 'העלאת קובץ קטגוריות' }
+            { title: TR('menu_categories_import_title') }
         )
     }
 
-    // The exported file is the same format the upload accepts: edit it and send
-    // it back for bulk reassignment or reordering.
-    async function exportCsv() {
-        setBusy(true)
-        setNotice('')
-        try {
-            const file = await apiReq('category/export')
-            downloadCsvFile(file?.filename || 'category-map.csv', file?.csv || '')
-            setNotice(
-                `הקובץ הורד: ${file?.categories ?? 0} קטגוריות, ${file?.mapped ?? 0} תתי קבוצות משויכות. ` +
-                `(${file?.unassigned ?? 0} ללא שיוך אינן בקובץ - הייבוא משמור אותן ללא שיוך)`
-            )
-        } catch (e) {
-            setNotice(e?.message || String(e))
-        } finally {
-            setBusy(false)
-        }
+    // The flags file is separate from the tree file: it only updates the
+    // show/hide + kashrut flags of existing sub-groups.
+    function openFlagsImport() {
+        openModal(
+            <FlagImportModal
+                onClose={closeModal}
+                onDone={async summary => {
+                    closeModal()
+                    await callReq()
+                    setNotice(
+                        TR('menu_categories_flags_done', {
+                            written: summary.written,
+                            unchanged: summary.unchanged,
+                            hidden: summary.hidden,
+                            unhidden: summary.unhidden
+                        }) +
+                        (summary.unknown
+                            ? TR('menu_categories_flags_unknown', { count: summary.unknown })
+                            : '')
+                    )
+                }}
+            />,
+            { title: TR('menu_categories_flags_title') }
+        )
     }
 
     // Renaming rewrites the slug, every path under the category and the titles
@@ -409,10 +478,11 @@ export default function MenuCategories() {
         setBusy(true)
         try {
             await callReq()
-            setNotice(
-                `השם עודכן: ${result?.path || ''} · ` +
-                `${result?.categories ?? 0} קטגוריות, ${result?.products ?? 0} מוצרים עודכנו`
-            )
+            setNotice(TR('menu_categories_rename_done', {
+                path: result?.path || '',
+                categories: result?.categories ?? 0,
+                products: result?.products ?? 0
+            }))
         } finally {
             setBusy(false)
         }
@@ -498,6 +568,7 @@ export default function MenuCategories() {
                         depth={depth}
                         open={open}
                         count={assignedCounts.get(node.id) || 0}
+                        flags={flagCounts.get(node.id)}
                         selected={selectedId === node.id}
                         canUpdate={canUpdate}
                         onSelect={setSelectedId}
@@ -519,18 +590,15 @@ export default function MenuCategories() {
         <Flex col gap={10} className={classNames(styles.page, drag && styles.isDragging)}>
             <Flex justifyContent='space-between' alignItems='center' className={styles.header}>
                 <div>
-                    <Text bold size='h2'>תפריט וקטגוריות</Text>
-                    <Text size='s' mode='sub'>
-                        גררו את ידית הגרירה של קטגוריה כדי לשנות סדר בין אחים,
-                        או גררו תת קבוצה אל קטגוריה כדי לשייך אותה.
-                    </Text>
+                    <Text bold size='h2'>{TR('menu_categories_nav')}</Text>
+                    <Text size='s' mode='sub'>{TR('menu_categories_hint')}</Text>
                 </div>
                 <Flex gap={8}>
-                    <Button icon='download' onClick={exportCsv} disabled={busy} permission='category:read'>
-                        הורדת CSV
-                    </Button>
                     <Button icon='upload' onClick={openImport} disabled={busy} permission='category:update'>
-                        העלאת CSV
+                        {TR('menu_categories_import')}
+                    </Button>
+                    <Button icon='shield' onClick={openFlagsImport} disabled={busy} permission='category:update'>
+                        {TR('menu_categories_flags_import')}
                     </Button>
                 </Flex>
             </Flex>
@@ -541,59 +609,70 @@ export default function MenuCategories() {
                 <Card className={styles.treePanel}>
                     <Flex justifyContent='space-between' alignItems='center' className={styles.treeToolbar}>
                         <Text size='s' mode='sub'>
-                            {categories.length} קטגוריות · {expanded.size} פתוחות
+                            {TR('menu_categories_tree_counts', {
+                                categories: categories.length,
+                                open: expanded.size
+                            })}
                         </Text>
                         <Flex gap={6}>
                             <Button
                                 icon='expand'
                                 mode='text'
-                                tooltip='הרחבת כל העץ'
+                                tooltip={TR('menu_categories_expand_all_tooltip')}
                                 onClick={expandAll}
                                 disabled={tree.length === 0}
                             >
-                                הרחבת הכול
+                                {TR('menu_categories_expand_all')}
                             </Button>
                             <Button
                                 icon='collapse'
                                 mode='text'
-                                tooltip='כיווץ כל העץ'
+                                tooltip={TR('menu_categories_collapse_all_tooltip')}
                                 onClick={collapseAll}
                                 disabled={expanded.size === 0}
                             >
-                                כיווץ הכול
+                                {TR('menu_categories_collapse_all')}
                             </Button>
                         </Flex>
                     </Flex>
 
                     <div className={styles.coverage}>
-                        <Text size='s'>מוצרים פעילים: <b>{coverage.activeProducts ?? 0}</b></Text>
-                        <Text size='s'>תתי קבוצות פעילות: <b>{coverage.activeSubGroups ?? 0}</b></Text>
+                        <Text size='s'>
+                            {TR('menu_categories_active_products')} <b>{coverage.activeProducts ?? 0}</b>
+                        </Text>
+                        <Text size='s'>
+                            {TR('menu_categories_active_subgroups')} <b>{coverage.activeSubGroups ?? 0}</b>
+                        </Text>
                         <Text
                             size='s'
                             mode={coverage.unassignedSubGroups ? 'error' : undefined}
                         >
-                            לא משויכות: <b>{coverage.unassignedSubGroups ?? 0}</b>
-                            {coverage.unassignedProducts ? ` (${coverage.unassignedProducts} מוצרים)` : ''}
+                            {TR('menu_categories_unassigned')} <b>{coverage.unassignedSubGroups ?? 0}</b>
+                            {coverage.unassignedProducts
+                                ? TR('menu_categories_unassigned_products', {
+                                    count: coverage.unassignedProducts
+                                })
+                                : ''}
                         </Text>
                         {coverage.noCodeProducts > 0 && (
                             <Text size='s' mode='error'>
-                                מוצרים ללא קוד תת קבוצה: <b>{coverage.noCodeProducts}</b>
+                                {TR('menu_categories_no_code_products')} <b>{coverage.noCodeProducts}</b>
                             </Text>
                         )}
                     </div>
 
                     {!data && loading
-                        ? <Text>טוען קטגוריות...</Text>
+                        ? <Text>{TR('menu_categories_loading')}</Text>
                         : error
                             ? <Text mode='error'>{error?.message || String(error)}</Text>
                             : tree.length === 0
-                                ? <Text mode='sub'>אין קטגוריות. העלו קובץ CSV כדי להתחיל.</Text>
+                                ? <Text mode='sub'>{TR('menu_categories_empty')}</Text>
                                 : <div className={styles.tree}>{renderTree(tree)}</div>}
                 </Card>
 
                 <Card className={styles.detailPanel}>
                     {!selected
-                        ? <Text mode='sub'>בחרו קטגוריה מהעץ כדי לנהל את תתי הקבוצות שלה.</Text>
+                        ? <Text mode='sub'>{TR('menu_categories_select_hint')}</Text>
                         : <>
                             <Flex justifyContent='space-between' alignItems='start' gap={10}>
                                 <div>
@@ -605,15 +684,37 @@ export default function MenuCategories() {
                                         />
                                         : <Text bold size='h3'>{selected.name}</Text>}
                                     <Text size='s' mode='sub'>
-                                        {selected.path} · רמה {selected.level} · קוד {selected.code}
+                                        {TR('menu_categories_meta', {
+                                            path: selected.path,
+                                            level: selected.level,
+                                            code: selected.code
+                                        })}
                                     </Text>
+                                    {selectedFlags && (selectedFlags.hidden || selectedFlags.kashrut)
+                                        ? <Flex gap={6} className={styles.flagRow}>
+                                            {selectedFlags.hidden ? <span
+                                                className={classNames(styles.flagTag, styles.flagHidden)}
+                                            >
+                                                {TR('menu_categories_flag_hidden_count', {
+                                                    count: selectedFlags.hidden
+                                                })}
+                                            </span> : null}
+                                            {selectedFlags.kashrut ? <span
+                                                className={classNames(styles.flagTag, styles.flagKashrut)}
+                                            >
+                                                {TR('menu_categories_flag_kashrut_count', {
+                                                    count: selectedFlags.kashrut
+                                                })}
+                                            </span> : null}
+                                        </Flex>
+                                        : null}
                                 </div>
                                 <Checkbox
                                     checked={selected.active !== false}
                                     disabled={busy || !canUpdate}
                                     onChange={event => toggleActive(event.target.checked)}
                                 >
-                                    פעיל
+                                    {TR('active')}
                                 </Checkbox>
                             </Flex>
 
@@ -633,7 +734,7 @@ export default function MenuCategories() {
                                     disabled={busy || !canUpdate}
                                     permission='category:update'
                                 >
-                                    העלאת אייקון
+                                    {TR('menu_categories_upload_icon')}
                                 </Button>
                                 {selected.icon && <Button
                                     icon='trash'
@@ -642,17 +743,21 @@ export default function MenuCategories() {
                                     disabled={busy || !canUpdate}
                                     permission='category:update'
                                 >
-                                    הסרת אייקון
+                                    {TR('menu_categories_remove_icon')}
                                 </Button>}
                                 <Text size='s' mode='sub'>
-                                    PNG / JPG / WebP, לפחות 64x64, עד 1024x1024. נשמר כ-WebP.
+                                    {TR('menu_categories_icon_hint')}
                                 </Text>
                             </Flex>}
 
                             <div className={styles.section}>
-                                <Text bold>תתי קבוצות משויכות ({selectedAssigned.length})</Text>
+                                <Text bold>
+                                    {TR('menu_categories_assigned_title', {
+                                        count: selectedAssigned.length
+                                    })}
+                                </Text>
                                 {selectedAssigned.length === 0
-                                    ? <Text size='s' mode='sub'>אין תתי קבוצות משויכות לקטגוריה זו.</Text>
+                                    ? <Text size='s' mode='sub'>{TR('menu_categories_assigned_empty')}</Text>
                                     : <div className={styles.subGroupList}>
                                         {selectedAssigned.map(entry => <SubGroupRow
                                             key={entry.code}
@@ -667,18 +772,20 @@ export default function MenuCategories() {
                             </div>
 
                             <div className={styles.section}>
-                                <Text bold>תתי קבוצות ללא שיוך ({unassigned.length})</Text>
-                                <Text size='s' mode='sub'>
-                                    גררו תת קבוצה אל קטגוריה בעץ, או הוסיפו אותה לקטגוריה הנבחרת.
+                                <Text bold>
+                                    {TR('menu_categories_unassigned_title', {
+                                        count: unassigned.length
+                                    })}
                                 </Text>
+                                <Text size='s' mode='sub'>{TR('menu_categories_unassigned_hint')}</Text>
                                 <input
                                     className={styles.search}
-                                    placeholder='חיפוש לפי קוד, שם או היררכיה...'
+                                    placeholder={TR('menu_categories_search_placeholder')}
                                     value={search}
                                     onChange={event => setSearch(event.target.value)}
                                 />
                                 {filteredUnassigned.length === 0
-                                    ? <Text size='s' mode='sub'>אין תתי קבוצות מתאימות.</Text>
+                                    ? <Text size='s' mode='sub'>{TR('menu_categories_no_matches')}</Text>
                                     : <div className={styles.subGroupList}>
                                         {filteredUnassigned.slice(0, 100).map(entry => <SubGroupRow
                                             key={entry.code}
@@ -730,6 +837,7 @@ export default function MenuCategories() {
  * the sub-group map keep working.
  */
 function CategoryTitle({ category, onDone }) {
+    const { TR } = useText()
     const [editing, setEditing] = useState(false)
     const [name, setName] = useState(category.name)
     const [saving, setSaving] = useState(false)
@@ -768,8 +876,8 @@ function CategoryTitle({ category, onDone }) {
             <Button
                 icon='edit'
                 mode='text'
-                tooltip='שינוי שם'
-                aria-label='שינוי שם'
+                tooltip={TR('menu_categories_rename_tooltip')}
+                aria-label={TR('menu_categories_rename_tooltip')}
                 onClick={start}
             />
         </Flex>
@@ -780,19 +888,28 @@ function CategoryTitle({ category, onDone }) {
             value={name}
             maxLength={100}
             autoFocus
-            aria-label='שם הקטגוריה'
+            aria-label={TR('menu_categories_rename_aria')}
             onChange={event => setName(event.target.value)}
             onKeyDown={event => { if (event.key === 'Escape') cancel() }}
         />
-        <Button type='submit' icon='check' mode='text' tooltip='שמירת השם' loading={saving} disabled={!dirty} />
-        <Button mode='text' icon='x' tooltip='ביטול' onClick={cancel} disabled={saving} />
+        <Button
+            type='submit'
+            icon='check'
+            mode='text'
+            tooltip={TR('menu_categories_save_name')}
+            loading={saving}
+            disabled={!dirty}
+        />
+        <Button mode='text' icon='x' tooltip={TR('cancel')} onClick={cancel} disabled={saving} />
         {error && <Text size='s' mode='error'>{error}</Text>}
     </form>
 }
 
 function ImportModal({ onDone, onClose }) {
+    const { TR } = useText()
     const [file, setFile] = useState(null)
     const [state, setState] = useState()
+    const fileInput = useRef(null)
 
     async function submit(event) {
         event.preventDefault()
@@ -807,23 +924,160 @@ function ImportModal({ onDone, onClose }) {
         }
     }
 
+    // The exported file is the same format the upload accepts: download it,
+    // edit it, and send it back for bulk reassignment or reordering.
+    async function exportCsv() {
+        setState(current => ({
+            ...current,
+            exporting: true,
+            exportError: null,
+            exportNotice: ''
+        }))
+        try {
+            const exported = await apiReq('category/export')
+            downloadCsvFile(exported?.filename || 'category-map.csv', exported?.csv || '')
+            setState(current => ({
+                ...current,
+                exporting: false,
+                exportNotice: TR('menu_categories_export_done', {
+                    categories: exported?.categories ?? 0,
+                    mapped: exported?.mapped ?? 0,
+                    unassigned: exported?.unassigned ?? 0
+                })
+            }))
+        } catch (e) {
+            setState(current => ({ ...current, exporting: false, exportError: e }))
+        }
+    }
+
     return <form className={styles.importForm} onSubmit={submit}>
         <Text>
-            הקובץ יחליף את <b>כל</b> עץ הקטגוריות ואת כל שיוכי תתי הקבוצות.
-            הפעולה אינה ניתנת לביטול.
-            סדר השורות בקובץ הוא סדר הקטגוריות בתפריט.
+            {TR('menu_categories_import_warning_before')}{' '}
+            <b>{TR('menu_categories_import_warning_all')}</b>{' '}
+            {TR('menu_categories_import_warning_after')}
         </Text>
         <input
+            ref={fileInput}
             type='file'
             accept='.csv,text/csv'
-            onChange={event => setFile(event.target.files?.[0] || null)}
+            className={styles.fileInput}
+            onChange={event => {
+                setFile(event.target.files?.[0] || null)
+                event.target.value = ''
+            }}
         />
-        {state?.error && <Text mode='error'>{state.error?.message || String(state.error)}</Text>}
-        <Flex gap={8} justifyContent='end'>
-            <Button mode='text' onClick={onClose} disabled={state?.loading}>ביטול</Button>
-            <Button type='submit' icon='upload' loading={state?.loading} disabled={!file}>
-                החלפת הכול
+        <Flex gap={8} alignItems='center' className={styles.filePicker}>
+            <Button
+                type='button'
+                mode='text'
+                icon='csv'
+                onClick={() => fileInput.current?.click()}
+                disabled={state?.exporting}
+            >
+                {TR('menu_categories_choose_file')}
             </Button>
+            <Text size='s' mode={file ? undefined : 'sub'} className={styles.fileName}>
+                {file?.name || TR('menu_categories_no_file')}
+            </Text>
+        </Flex>
+        {state?.exportNotice && <Text size='s' mode='sub'>{state.exportNotice}</Text>}
+        {state?.exportError && (
+            <Text mode='error'>{state.exportError?.message || String(state.exportError)}</Text>
+        )}
+        {state?.error && <Text mode='error'>{state.error?.message || String(state.error)}</Text>}
+        <Flex gap={8} justifyContent='space-between'>
+            <Button
+                type='button'
+                mode='text'
+                icon='download'
+                loading={state?.exporting}
+                disabled={state?.loading}
+                onClick={exportCsv}
+            >
+                {TR('menu_categories_export')}
+            </Button>
+            <Flex gap={8}>
+                <Button
+                    type='button'
+                    mode='text'
+                    onClick={onClose}
+                    disabled={state?.loading || state?.exporting}
+                >
+                    {TR('cancel')}
+                </Button>
+                <Button
+                    type='submit'
+                    icon='upload'
+                    loading={state?.loading}
+                    disabled={!file || state?.exporting}
+                >
+                    {TR('menu_categories_import_confirm')}
+                </Button>
+            </Flex>
+        </Flex>
+    </form>
+}
+
+function FlagImportModal({ onDone, onClose }) {
+    const { TR } = useText()
+    const [file, setFile] = useState(null)
+    const [state, setState] = useState()
+    const fileInput = useRef(null)
+
+    async function submit(event) {
+        event.preventDefault()
+        if (!file) return
+        setState({ loading: true })
+        try {
+            const csvBase64 = await readFileAsDataUrl(file)
+            const summary = await apiReq('category/import_flags', { csvBase64, filename: file.name })
+            await onDone(summary)
+        } catch (e) {
+            setState({ error: e })
+        }
+    }
+
+    function downloadTemplate() {
+        downloadCsvFile('category-flags-template.csv', buildFlagsTemplate())
+    }
+
+    return <form className={styles.importForm} onSubmit={submit}>
+        <Text>{TR('menu_categories_flags_hint')}</Text>
+        <Text size='s' mode='sub'>{TR('menu_categories_flags_headers')}</Text>
+        <div className={styles.headerList}>
+            {FLAGS_HEADER.map(name => <span key={name} className={styles.headerChip}>{name}</span>)}
+        </div>
+        <input
+            ref={fileInput}
+            type='file'
+            accept='.csv,text/csv'
+            className={styles.fileInput}
+            onChange={event => {
+                setFile(event.target.files?.[0] || null)
+                event.target.value = ''
+            }}
+        />
+        <Flex gap={8} alignItems='center' className={styles.filePicker}>
+            <Button type='button' mode='text' icon='csv' onClick={() => fileInput.current?.click()}>
+                {TR('menu_categories_choose_file')}
+            </Button>
+            <Text size='s' mode={file ? undefined : 'sub'} className={styles.fileName}>
+                {file?.name || TR('menu_categories_no_file')}
+            </Text>
+        </Flex>
+        {state?.error && <Text mode='error'>{state.error?.message || String(state.error)}</Text>}
+        <Flex gap={8} justifyContent='space-between'>
+            <Button type='button' mode='text' icon='download' onClick={downloadTemplate}>
+                {TR('menu_categories_flags_template')}
+            </Button>
+            <Flex gap={8}>
+                <Button type='button' mode='text' onClick={onClose} disabled={state?.loading}>
+                    {TR('cancel')}
+                </Button>
+                <Button type='submit' icon='shield' loading={state?.loading} disabled={!file}>
+                    {TR('menu_categories_flags_confirm')}
+                </Button>
+            </Flex>
         </Flex>
     </form>
 }

@@ -73,6 +73,18 @@ export const KASHRUT_CODE_INDEX = (() => {
     return index
 })()
 
+// Codes that satisfy the storefront's per-sub-group kashrut rule
+// (category_map.requireKashrut). Unknown/legacy rabbinate codes do not count.
+export const KASHRUT_VALID_CODES = new Set(KASHRUT_CODE_INDEX.keys())
+
+export function hasValidKashrut(kashrut) {
+    const rabbinates = Array.isArray(kashrut?.rabbinates) ? kashrut.rabbinates : []
+    return rabbinates.some(raw => {
+        const code = raw?.code != null ? String(raw.code).trim() : ''
+        return Boolean(code) && KASHRUT_VALID_CODES.has(code)
+    })
+}
+
 // Normalize a product.kashrut value. Legacy products stored a plain string, so
 // anything other than the expected object shape yields an empty, safe value.
 export function normalizeKashrut(kashrut) {

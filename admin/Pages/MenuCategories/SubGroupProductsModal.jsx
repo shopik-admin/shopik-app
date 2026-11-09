@@ -5,6 +5,7 @@ import Flex from 'common/components/Flex'
 import Icon from 'common/components/Icon'
 import Text from 'common/components/Text'
 import { ProductImage } from 'common/components/Product'
+import { useText } from 'common/texts/TextProvider'
 import styles from './menuCategories.module.css'
 
 /**
@@ -16,6 +17,7 @@ import styles from './menuCategories.module.css'
  * image comes first.
  */
 export default function SubGroupProductsModal({ entry, onClose }) {
+    const { TR } = useText()
     const { data, loading, error } = useApi('category/products', { subGroupCode: entry.code })
     const products = data?.products || []
     const total = data?.total ?? 0
@@ -24,15 +26,18 @@ export default function SubGroupProductsModal({ entry, onClose }) {
         <Flex justifyContent='space-between' alignItems='center' gap={10} className={styles.productsHead}>
             <Text size='s' mode='sub'>
                 {data
-                    ? `${total} מוצרים פעילים${total > products.length ? ` (מציג ${products.length})` : ''}`
-                    : 'טוענים מוצרים...'}
+                    ? TR('menu_categories_products_count', { total }) +
+                        (total > products.length
+                            ? TR('menu_categories_products_showing', { shown: products.length })
+                            : '')
+                    : TR('menu_categories_products_loading')}
             </Text>
-            <Button mode='text' icon='x' onClick={onClose}>סגירה</Button>
+            <Button mode='text' icon='x' onClick={onClose}>{TR('close')}</Button>
         </Flex>
 
         {error && <Text mode='error'>{error?.message || String(error)}</Text>}
-        {!error && loading && !products.length && <Text mode='sub'>טוענים מוצרים...</Text>}
-        {!error && !loading && !products.length && <Text mode='sub'>אין מוצרים פעילים בתת קבוצה זו.</Text>}
+        {!error && loading && !products.length && <Text mode='sub'>{TR('menu_categories_products_loading')}</Text>}
+        {!error && !loading && !products.length && <Text mode='sub'>{TR('menu_categories_products_empty')}</Text>}
 
         {products.length > 0 && <div className={styles.productGrid}>
             {products.map(product => <Card key={product.id} className={styles.productCard}>
@@ -40,7 +45,7 @@ export default function SubGroupProductsModal({ entry, onClose }) {
                 <div className={styles.productText}>
                     <Text bold size='m'>{product.name}</Text>
                     <Text size='s' mode='sub' className={styles.productBarcode}>
-                        {product.barcode || 'ללא ברקוד'}
+                        {product.barcode || TR('menu_categories_no_barcode')}
                         <Icon name='barcode' size={12} />
                     </Text>
                 </div>
