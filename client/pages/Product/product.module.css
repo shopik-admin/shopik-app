@@ -9,6 +9,13 @@
     box-sizing: border-box;
 }
 
+/* Rendered inside the product overlay dialog, which (unlike Main) supplies no
+   outer spacing; the smaller-breakpoint .container paddings still win. */
+.inModal {
+    max-width: none;
+    padding: 24px clamp(16px, 3vw, 32px) 32px;
+}
+
 .crumbs {
     display: block;
 }
@@ -198,6 +205,12 @@
     border: 1px solid var(--border-secondary);
     border-radius: var(--radius-2xl);
     box-shadow: none;
+}
+
+/* Holds the detail card's height while the full payload is still loading. */
+.specLoading {
+    min-height: 220px;
+    padding: 24px;
 }
 
 .specLayout {
