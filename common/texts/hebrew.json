@@ -390,6 +390,7 @@
         "web_login_subTitle": "אנחנו במרחק נגיעה מעוד קניה חכמה",
         "web_login_subTitle_otp": "נא להזין את הקוד",
         "send_otp": "שלחו לי קוד",
+        "send_otp_voice": "שלחו קוד בהודעה קולית",
         "login_phone_label": "מספר טלפון",
         "login_phone_placeholder": "להזין מספר טלפון",
         "login_remember_30": "זכור אותי למשך 30 יום",

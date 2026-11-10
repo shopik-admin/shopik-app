@@ -27,12 +27,17 @@ export function buildSmsBody({ username, source, phones, message, tts }) {
 
 /**
  * `voice: true`      -> use the domain config, only when VOICE.enabled is on.
+ * `voice: 'call'`    -> force a call-only TTS (type 4), only when VOICE.enabled.
  * `voice: {...}`     -> explicit override (admin dev tools); ignores `enabled`.
  * falsy              -> plain SMS.
  */
 function resolveTts(requested, voiceConfig) {
     if (!requested) return null
     const base = voiceConfig || DEFAULT_VOICE
+    if (requested === 'call') {
+        if (!base.enabled) return null
+        return { type: 4, voice: base.voice, repeat: base.repeat, rate: base.rate }
+    }
     if (requested === true) {
         if (!base.enabled) return null
         return { type: base.type, voice: base.voice, repeat: base.repeat, rate: base.rate }
@@ -70,8 +75,9 @@ export default function sms({ DL }) {
             voiceSettings = DEFAULT_VOICE
         }
 
-        const tts = resolveTts(opts?.voice, voiceSettings)
-        const channel = tts ? 'sms+voice' : 'sms'
+        const voiceRequest = opts?.voice
+        const tts = resolveTts(voiceRequest, voiceSettings)
+        const channel = voiceRequest === 'call' ? 'voice' : tts ? 'sms+voice' : 'sms'
 
         try {
             const logData = {
@@ -93,6 +99,7 @@ export default function sms({ DL }) {
             log.actor({ type: DL.Log.constants.ACTOR.API })
 
             if (configError) throw configError
+            if (voiceRequest === 'call' && !tts) throw new Error('019 voice calls are not enabled for this domain')
 
             if (!Array.isArray(phones) || phones.length === 0) throw new Error('No phones provided')
             if (!message || typeof message !== 'string' || !message.trim()) throw new Error('Empty message')
