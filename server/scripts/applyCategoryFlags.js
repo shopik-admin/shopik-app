@@ -40,8 +40,9 @@ const summary = await applyCategoryFlagStatuses({
 
 console.log(`[categoryFlags] active products: ${summary.products}${dryRun ? ' (DRY RUN — no writes)' : ''}`)
 console.log(`[categoryFlags] hidden by category flag: ${summary.reasons.category}`)
+console.log(`[categoryFlags] hidden by inactive category: ${summary.reasons.categoryActive}`)
 console.log(`[categoryFlags] hidden by kashrut rule: ${summary.reasons.kashrut}`)
-console.log(`[categoryFlags] hidden by both: ${summary.reasons.both}`)
+console.log(`[categoryFlags] hidden by more than one rule: ${summary.reasons.both}`)
 console.log(`[categoryFlags] to hide: ${summary.hidden}`)
 if (unhide) {
     console.log(`[categoryFlags] hidden products checked: ${summary.unhideCandidates}`)

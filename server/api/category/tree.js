@@ -27,7 +27,8 @@ const MAP_SELECT = {
     group: 1,
     subGroup: 1,
     showOnSite: 1,
-    requireKashrut: 1
+    requireKashrut: 1,
+    categoryActive: 1
 }
 
 function withMeta(mapDoc) {
@@ -35,9 +36,10 @@ function withMeta(mapDoc) {
         code: mapDoc.subGroupCode,
         categoryId: mapDoc.categoryId || null,
         productCount: 0,
-        // Missing flags mean the default: shown, no kashrut requirement.
+        // Missing flags mean the default: shown, no kashrut requirement, active.
         showOnSite: mapDoc.showOnSite !== false,
         requireKashrut: mapDoc.requireKashrut === true,
+        categoryActive: mapDoc.categoryActive !== false,
         oldPath: [mapDoc.superDepartment, mapDoc.department, mapDoc.group, mapDoc.subGroup]
             .filter(Boolean)
             .join(' / '),

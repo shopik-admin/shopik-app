@@ -82,11 +82,17 @@ async function flaggedCodes(DL, field, value) {
 
 /**
  * Backstop for products the sync loop never visits (Comax row gone or filtered
- * out): an ACTIVE product whose sub-group is marked "hide on site" must not stay
- * visible. Hide-only — nothing is ever un-hidden here.
+ * out): an ACTIVE product whose sub-group is marked "hide on site", or whose
+ * mapped category was deactivated, must not stay visible. Hide-only — nothing
+ * is ever un-hidden here.
  */
 export async function hideCategoryFlaggedProducts({ DL }) {
-    const codes = await flaggedCodes(DL, 'showOnSite', false)
+    // Two independent hide flags: Comax's showOnSite and the mirrored category
+    // active state. Union the codes so a single update covers both.
+    const codes = [...new Set([
+        ...await flaggedCodes(DL, 'showOnSite', false),
+        ...await flaggedCodes(DL, 'categoryActive', false)
+    ])]
     if (!codes.length) return 0
     const { ACTIVE, HIDDEN } = statuses(DL)
     const res = await DL.Product.update(

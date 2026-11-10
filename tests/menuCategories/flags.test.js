@@ -210,7 +210,7 @@ describe('category flag status sweep', () => {
         const written = []
         const summary = await applyCategoryFlagStatuses({ DL: makeDL(written) })
 
-        assert.deepEqual(summary.reasons, { category: 1, kashrut: 1, both: 1 })
+        assert.deepEqual(summary.reasons, { category: 1, categoryActive: 0, kashrut: 1, both: 1 })
         assert.equal(summary.hidden, 3)
         assert.equal(summary.unhidden, 0)
         assert.equal(summary.unhideCandidates, 0)

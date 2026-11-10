@@ -1,7 +1,10 @@
 import { buildCategoryPlan } from './parse.js'
 import { productCategoryFor } from './lookup.js'
 import { COMAX_META_FIELDS, metaFromComax } from './metadata.js'
+import { mirrorCategoryActive } from './categoryActive.js'
+import { applyCategoryFlagStatuses } from './flagStatus.js'
 import { invalidateMenu } from '#server/utils/data/getMenu.js'
+import { scanDel } from '#server/utils/data/displayBlocks.js'
 
 const BATCH = 1000
 
@@ -147,7 +150,14 @@ export async function applyCategoryMap({ DL, csvText, filename }) {
         .map(String)
 
     const map = await applyMap(DL, plan, activeCodes, products.metaByCode)
+
+    // The imported tree may re-point sub-groups (and carries each category's
+    // existing active flag), so reconcile the mirror and the catalog after it.
+    const mirror = await mirrorCategoryActive({ DL })
+    const status = await applyCategoryFlagStatuses({ DL, relaxCodes: mirror.relaxed })
+
     await invalidateMenu({ DL })
+    if (status.toWrite && DL.redis) await scanDel(DL.redis, 'display:*')
 
     return {
         filename: filename || null,
@@ -159,6 +169,9 @@ export async function applyCategoryMap({ DL, csvText, filename }) {
         map: map.total,
         unassigned: map.unassigned,
         removedMap: map.removed,
-        productsUpdated: products.updated
+        productsUpdated: products.updated,
+        categoryActive: mirror.written,
+        hidden: status.hidden,
+        unhidden: status.unhidden
     }
 }

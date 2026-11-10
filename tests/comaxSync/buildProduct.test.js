@@ -155,6 +155,17 @@ describe('comax product build', () => {
             assert.equal(product.status, STATUS.HIDDEN)
         })
 
+        it('hides an item whose category was deactivated', () => {
+            const product = build(
+                { subGroupCode: '100', storeIds: ['store-a'] },
+                existingProduct(),
+                false,
+                lookupWith({ categoryActive: false, showOnSite: true, requireKashrut: false })
+            )
+
+            assert.equal(product.status, STATUS.HIDDEN)
+        })
+
         it('hides an item in a kashrut-required sub-group with no kashrut data', () => {
             const product = build(
                 { subGroupCode: '100', storeIds: ['store-a'] },

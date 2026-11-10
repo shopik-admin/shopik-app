@@ -11,7 +11,7 @@ function fakeDL() {
     ]
     const mapDocs = [
         // Both flags on: shown as hidden + kashrut in the admin.
-        { subGroupCode: '100', categoryId: 'nc:1:2', showOnSite: false, requireKashrut: true },
+        { subGroupCode: '100', categoryId: 'nc:1:2', showOnSite: false, requireKashrut: true, categoryActive: false },
         { subGroupCode: '101', categoryId: 'nc:1:2', showOnSite: true, requireKashrut: false },
         // Imported before the flags file: no flag fields means show + no rule.
         { subGroupCode: '102', categoryId: 'nc:1:2' }
@@ -47,11 +47,14 @@ describe('category tree flags', () => {
 
         assert.equal(byCode.get('100').showOnSite, false)
         assert.equal(byCode.get('100').requireKashrut, true)
+        assert.equal(byCode.get('100').categoryActive, false)
         assert.equal(byCode.get('101').showOnSite, true)
         assert.equal(byCode.get('101').requireKashrut, false)
+        assert.equal(byCode.get('101').categoryActive, true)
         // Missing flags must keep the old behaviour: shown, no kashrut rule.
         assert.equal(byCode.get('102').showOnSite, true)
         assert.equal(byCode.get('102').requireKashrut, false)
+        assert.equal(byCode.get('102').categoryActive, true)
     })
 
     it('uses the same defaults for a sub-group with no map row', async () => {
@@ -60,5 +63,6 @@ describe('category tree flags', () => {
 
         assert.equal(entry.showOnSite, true)
         assert.equal(entry.requireKashrut, false)
+        assert.equal(entry.categoryActive, true)
     })
 })

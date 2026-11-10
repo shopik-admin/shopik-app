@@ -240,6 +240,11 @@
     color: var(--text-error-primary);
 }
 
+.flagCategoryInactive {
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+}
+
 .flagKashrut {
     background: var(--bg-brand-secondary);
     color: var(--text-brand);

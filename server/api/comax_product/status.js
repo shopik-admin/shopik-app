@@ -17,12 +17,14 @@ export function retailPrice(comax) {
  *   archived / no price                    -> archived (never resurrected)
  *   no image / in stock nowhere            -> hidden
  *   comax showInWeb off                    -> hidden
+ *   category (or an ancestor) inactive     -> hidden
  *   sub-group showOnSite false             -> hidden
  *   sub-group requires kashrut, no valid   -> hidden
  *   otherwise                              -> active
  *
- * `flags` is the product's category_map row ({ showOnSite, requireKashrut });
- * missing flags mean show + no kashrut requirement.
+ * `flags` is the product's category_map row
+ * ({ categoryActive, showOnSite, requireKashrut }); missing flags mean active,
+ * shown and no kashrut requirement.
  */
 export function deriveStatus({ comax, existing, flags, status, enforceBuyingPrice = false }) {
     if (comax.archived) return status.ARCHIVED
@@ -36,6 +38,7 @@ export function deriveStatus({ comax, existing, flags, status, enforceBuyingPric
     if (Array.isArray(comax.storeIds) && comax.storeIds.length === 0) return status.HIDDEN
     if (!comax.showInWeb) return status.HIDDEN
 
+    if (flags?.categoryActive === false) return status.HIDDEN
     if (flags?.showOnSite === false) return status.HIDDEN
     if (flags?.requireKashrut === true && !hasValidKashrut(existing?.kashrut))
         return status.HIDDEN

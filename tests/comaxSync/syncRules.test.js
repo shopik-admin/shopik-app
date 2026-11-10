@@ -145,14 +145,16 @@ describe('comax sync rules', () => {
         assert.equal(await hideStorelessProducts({ DL }), 0)
     })
 
-    it('hides active products in sub-groups marked hide on site', async () => {
+    it('hides active products in sub-groups marked hide on site or in an inactive category', async () => {
         const calls = []
         const filters = []
         const DL = {
             CategoryMap: {
                 read: async (filter, select) => {
                     filters.push({ filter, select })
-                    return [{ subGroupCode: '1' }, { subGroupCode: 2 }]
+                    return filter.showOnSite === false
+                        ? [{ subGroupCode: '1' }, { subGroupCode: 2 }]
+                        : [{ subGroupCode: '3' }]
                 }
             },
             Product: {
@@ -167,12 +169,12 @@ describe('comax sync rules', () => {
         const hidden = await hideCategoryFlaggedProducts({ DL })
 
         assert.equal(hidden, 3)
-        assert.deepEqual(filters, [{
-            filter: { showOnSite: false },
-            select: { _id: 0, subGroupCode: 1 }
-        }])
+        assert.deepEqual(filters, [
+            { filter: { showOnSite: false }, select: { _id: 0, subGroupCode: 1 } },
+            { filter: { categoryActive: false }, select: { _id: 0, subGroupCode: 1 } }
+        ])
         assert.deepEqual(calls, [{
-            filter: { status: 'active', comaxSubGroupCode: { $in: ['1', '2'] } },
+            filter: { status: 'active', comaxSubGroupCode: { $in: ['1', '2', '3'] } },
             update: { status: 'hidden' }
         }])
     })

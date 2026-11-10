@@ -15,7 +15,11 @@ const categoryMapSchema = {
     // default: show the sub-group and do not require kashrut. They live here
     // (not on Product) because the nightly sync re-derives every status.
     showOnSite: { type: Boolean, filter: true },
-    requireKashrut: { type: Boolean, filter: true }
+    requireKashrut: { type: Boolean, filter: true },
+    // Mirror of the mapped Category's (cascaded) active state. Missing means
+    // active. Kept separate from showOnSite on purpose: un-hiding a category
+    // must never override a sub-group Comax marked permanently hidden.
+    categoryActive: { type: Boolean, filter: true }
 }
 
 export const meta = {
