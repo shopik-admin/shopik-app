@@ -1,11 +1,24 @@
 import DataManager from 'features/DataManager'
 import apiReq from 'common/functions/apiReq'
 import { useModal } from 'common/components/Modal'
+import { useNotificationCount } from 'features/Notifications'
 import SalesWindowModal from './SalesWindowModal'
+import Gs1MatchModal from './Gs1MatchModal'
 
 export default function ComaxProducts({ }) {
     const { openModal, closeModal } = useModal()
+    const gs1Pending = useNotificationCount('comax.gs1Aliases')
 
+    const gs1Matches = {
+        icon: 'barcode',
+        text: 'comax_gs1_matches',
+        badge: gs1Pending,
+        onClick: () => openModal(
+            <Gs1MatchModal onClose={closeModal} />,
+            { title: 'comax_gs1_matches' }
+        ),
+        permission: 'comax_product:update'
+    }
     const salesWindow = {
         icon: 'settings',
         text: 'comax_products_sales_window',
@@ -35,7 +48,7 @@ export default function ComaxProducts({ }) {
     }
     return <DataManager
         apiRoute='comax_product'
-        actions={[importProducts, syncProducts, salesWindow, 'export', 'refresh']}
+        actions={[importProducts, syncProducts, gs1Matches, salesWindow, 'export', 'refresh']}
         rowActions={['active']}
         defaultSort={{ lastImportedAt: -1 }}
         cols={[
