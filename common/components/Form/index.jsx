@@ -4,7 +4,7 @@ import styles from './form.module.css'
 import Button from '../Button'
 import Text from '../Text'
 
-export default function Form({ className = '', children, submitText, error, loading, action, onSubmit, noSubmit, actions, onChange, autoComplete, sticky, stickyFooter }) {
+export default function Form({ className = '', children, submitText, error, loading, disabled, action, onSubmit, noSubmit, actions, onChange, autoComplete, sticky, stickyFooter }) {
     const
         form = useRef(),
         [actionLoading, setActionLoading] = useState(false),
@@ -85,7 +85,7 @@ export default function Form({ className = '', children, submitText, error, load
             {currentError ? <Text size='l' mode='error' center className={styles.error}>{currentError}</Text> : null}
             {noSubmit && !actions ? null :
                 <div className={styles.actions}>
-                    {!noSubmit && <Button loading={loading || actionLoading} type='submit' size='xl'>{submitText || 'send'}</Button>}
+                    {!noSubmit && <Button loading={loading || actionLoading} disabled={disabled || loading || actionLoading} type='submit' size='xl'>{submitText || 'send'}</Button>}
                     {actions}
                 </div>}
         </div>

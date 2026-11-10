@@ -71,10 +71,12 @@ function useOtpFlow(requestOtp) {
         [otpToken, setOtpToken] = useState(''),
         [remember, setRemember] = useState(true),
         [error, setError] = useState(''),
+        [loading, setLoading] = useState(false),
         [values, setValues] = useState({})
 
     async function request(vals, opts) {
         setError('')
+        setLoading(true)
         try {
             const res = await requestOtp(vals, { phone, ...opts })
             setOtpToken(res.token)
@@ -83,10 +85,12 @@ function useOtpFlow(requestOtp) {
             setStep(2)
         } catch (err) {
             setError(err.message || err)
+        } finally {
+            setLoading(false)
         }
     }
 
-    return { step, setStep, phone, otpToken, remember, error, values, setValues, setError, request }
+    return { step, setStep, phone, otpToken, remember, error, loading, values, setValues, setError, request }
 }
 
 function PhoneInput({ defaultValue }) {
@@ -113,6 +117,7 @@ function SwitchFooter({ question, action, onAction }) {
 // the domain has `sms:019` VOICE.enabled on (exposed in the SSR feature flags).
 function VoiceOtpButton({ flow }) {
     function requestVoice() {
+        if (flow.loading) return
         const digits = String(flow.values?.phone ?? '').replace(/\D/g, '')
         if (!/^0?5\d{8}$/.test(digits)) {
             flow.setError('Invalid phone number')
@@ -122,7 +127,7 @@ function VoiceOtpButton({ flow }) {
     }
 
     return <Flex center className={styles.voiceCall}>
-        <Button type='button' mode='text-brand' icon='phoneOutgoing' onClick={requestVoice}>
+        <Button type='button' mode='text-brand' icon='phoneOutgoing' onClick={requestVoice} disabled={flow.loading}>
             send_otp_voice
         </Button>
     </Flex>
@@ -151,7 +156,7 @@ function LoginForm({ onClose, onToRegister }) {
 
     return <>
         <AuthHero />
-        <Form action={flow.request} error={flow.error} submitText='send_otp' className={styles.form} onChange={flow.setValues}>
+        <Form action={flow.request} error={flow.error} disabled={flow.loading} submitText='send_otp' className={styles.form} onChange={flow.setValues}>
             <Flex col gap={4}>
                 <PhoneInput defaultValue={flow.phone} />
             </Flex>
@@ -187,7 +192,7 @@ function RegisterForm({ onClose, onToLogin }) {
 
     return <>
         <AuthHero icon='circleUser' title='web_register_title' subtitle='web_register_phone_subTitle' />
-        <Form action={flow.request} error={flow.error} submitText='send_otp' className={styles.form} onChange={flow.setValues}>
+        <Form action={flow.request} error={flow.error} disabled={flow.loading} submitText='send_otp' className={styles.form} onChange={flow.setValues}>
             <Flex col gap={10}>
                 <PhoneInput />
                 <Input name='name.first' />
