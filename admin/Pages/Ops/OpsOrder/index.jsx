@@ -56,6 +56,7 @@ export default function OpsOrder({ }) {
     const order = data[0] || {}
     const { id, isSuperAdmin } = useUser()
     const canManagePick = usePermission('order:pick:manage')
+    const canManageShip = usePermission('order:ship:manage')
     const isMine = id == order.picker?.adminId,
         cantPick = !isMine && order.picker?.adminId,
         isShipMine = id == order.shipper?.adminId,
@@ -130,6 +131,7 @@ export default function OpsOrder({ }) {
             cantShip={cantShip}
             isSuperAdmin={isSuperAdmin}
             canManagePick={canManagePick}
+            canManageShip={canManageShip}
             setStep={setStep}
             goPreview={() => setStep(STEPS.PREVIEW)}
             onPicked={handlePicked}
@@ -138,7 +140,7 @@ export default function OpsOrder({ }) {
     </div>
 }
 
-function OrderPreview({ order = {}, claimOrder, isMine, cantPick, isShipMine, cantShip, isSuperAdmin, canManagePick, onReleased, setStep }) {
+function OrderPreview({ order = {}, claimOrder, isMine, cantPick, isShipMine, cantShip, isSuperAdmin, canManagePick, canManageShip, onReleased, setStep }) {
     const windowTime = formatWindow(order.window)
     const notes = customerNotes(order)
     const isPicking = order.status === 'picking'
@@ -184,7 +186,10 @@ function OrderPreview({ order = {}, claimOrder, isMine, cantPick, isShipMine, ca
             </>}
             footer={<PreviewFooter
                 primaryKey='ops_order_delivered'
-                primaryDisabled={cantShip && !isSuperAdmin}
+                // The shipment's own shipper closes it. A manager may close it for him —
+                // the same permission that already lets him cancel that shipment — and a
+                // super admin keeps the escape either way.
+                primaryDisabled={cantShip && !isSuperAdmin && !canManageShip}
                 onPrimary={() => setStep(STEPS.DELIVER)}
                 linkKey='ops_view_order_only'
                 onLink={() => setStep(STEPS.VIEW)}
