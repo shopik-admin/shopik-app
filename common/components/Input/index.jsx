@@ -61,15 +61,17 @@ function Input(props) {
         {(label && type != 'hidden') && <Text className={styles.label}>{TR(title) || TR(label) || label}{label.trim() && requiredSign}</Text>}
         {functionType ? type(defaults) :
             <>
-                {icon && <Icon name={icon} className={styles.icon} />}
-                <InputTag
-                    ref={innerRef}
-                    {...ps}
-                    {...{ name, type, onBlur, defaultValue, autoFocus }}
-                    onChange={onInputChange}
-                    aria-invalid={!!invalidError}
-                    placeholder={(TR(placeholder) || placeholder) + requiredSign}
-                />
+                <div className={styles.control}>
+                    {icon && <Icon name={icon} className={styles.icon} />}
+                    <InputTag
+                        ref={innerRef}
+                        {...ps}
+                        {...{ name, type, onBlur, defaultValue, autoFocus }}
+                        onChange={onInputChange}
+                        aria-invalid={!!invalidError}
+                        placeholder={(TR(placeholder) || placeholder) + requiredSign}
+                    />
+                </div>
                 {info && !(invalidError && visited) && <Text size='s' mode='sub' className={styles.info}>{info}</Text>}
                 {invalidError && !hideErrorMessage && <Text size='s' mode='error' className={styles.error}>{invalidError}</Text>}
             </>}
