@@ -65,4 +65,19 @@ export function collectGarbage() {
     return true
 }
 
+/**
+ * End-of-phase trim for the cron jobs: collect first, then log, so the
+ * snapshot reads post-collection numbers.
+ *
+ * A cron phase allocates a whole working set (a catalog, a batch of raws, a
+ * zip) and then drops it. Without a collection the heap it used stays
+ * committed until something else needs the space, which is why the process
+ * parks at its high-water mark after 02:00/03:30/04:00 instead of coming back.
+ */
+export function trimMemory(tag, prefix = 'mem') {
+    const collected = collectGarbage()
+    mem(tag, prefix)
+    return collected
+}
+
 export default mem

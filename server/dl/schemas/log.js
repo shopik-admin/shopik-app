@@ -95,11 +95,12 @@ const logSchema = {
         }
     }
 }
-
+const HOUR = 60 * 60
+const DAY = 24 * HOUR
 const index = [
     [
         { createdAt: 1 },
-        { expireAfterSeconds: process.env.PRODUCTION ? 3 * 24 * 60 * 60 : 60 * 60 }
+        { expireAfterSeconds: process.env.PRODUCTION ? 3 * DAY : 6 * HOUR }
     ],
     { duration: 1 }
 ]

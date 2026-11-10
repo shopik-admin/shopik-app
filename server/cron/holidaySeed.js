@@ -2,6 +2,7 @@ import cron from 'node-cron'
 import { HebrewCalendar, flags } from '@hebcal/core'
 import log from '#server/utils/log.js'
 import { acquireLock } from '#server/utils/redisLock.js'
+import { trimMemory } from '#server/utils/mem.js'
 import { SPECIAL_DAY_EREV_START } from '#common/constants.js'
 import { overlapsSpecialDay } from '#common/functions/specialDay.js'
 import uid from '#common/functions/uid.js'
@@ -91,6 +92,7 @@ export default function startHolidaySeed(bootData) {
             }
 
             const result = await seedHolidays(DL)
+            trimMemory('after holiday seed', 'HolidaySeed')
             log.success(`[HolidaySeed] Done: ${result.seeded} seeded of ${result.total} candidates`)
         } catch (e) {
             log.error('[HolidaySeed] Failed:', e?.message || e)
