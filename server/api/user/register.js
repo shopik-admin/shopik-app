@@ -7,6 +7,7 @@ export default async function register(payload, { DL, utils, external }) {
 
     const allowed = ['phone', 'name', 'email', 'getOffers', 'domainId']
     const domainId = payload.domainId
+    const channel = payload.channel
     const remember = toRemember(payload.remember)
     const filtered = {}
     for (const key of allowed) {
@@ -43,7 +44,7 @@ export default async function register(payload, { DL, utils, external }) {
         remember,
         payload: filtered
     })
-    await external.sms.otp(filtered.phone, otp, { domainId, voice: true })
+    await external.sms.otp(filtered.phone, otp, { domainId, voice: channel === 'voice' ? 'call' : true })
 
     return { user: filtered, token }
 }

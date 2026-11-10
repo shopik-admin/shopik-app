@@ -25,6 +25,21 @@ const gs1ProductSchema = {
         filter: true
     },
     skipReason: String,
+    // Short-barcode resolution: 'ambiguous' = 2+ product barcodes match this
+    // GTIN and an admin must pick one; 'manual' = aliasShort was confirmed in
+    // the admin UI (it wins over suffix guessing); 'auto' = resolved by exact
+    // or suffix matching. Empty/absent means no alias state.
+    aliasStatus: {
+        type: String,
+        index: true,
+        filter: true
+    },
+    aliasShort: {
+        type: String,
+        trim: true
+    },
+    aliasCandidates: [String],
+    aliasUpdatedAt: Date,
     // Set when the zip is staged, so enrich can process images without GS1 calls.
     fingerprint: String,
     stagingPath: String,

@@ -5,6 +5,7 @@ import { BrowserRouter } from 'react-router'
 import Lists from 'common/features/Lists'
 import ReactDOM from 'react-dom/client'
 import User from 'features/User'
+import Notifications from 'features/Notifications'
 import App from './App'
 import { registerServiceWorker } from 'common/functions/registerSW.js'
 
@@ -22,9 +23,11 @@ ReactDOM
             <TextProvider>
                 <Lists sdLists={sd.lists}>
                     <User sdUser={sd.user}>
-                        <ModalProvider>
-                            <App />
-                        </ModalProvider>
+                        <Notifications>
+                            <ModalProvider>
+                                <App />
+                            </ModalProvider>
+                        </Notifications>
                     </User>
                 </Lists>
             </TextProvider>

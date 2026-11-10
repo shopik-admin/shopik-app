@@ -152,6 +152,35 @@ describe('sms.otp voice routing', () => {
         assert.equal(fetchStub.calls[0].body.sms.destinations.phone, PHONE)
     })
 
+    it('sends a call-only TTS with the domain voice settings for voice "call"', async t => {
+        const fetchStub = stubFetch()
+        t.after(fetchStub.restore)
+        const { DL, logs } = createDl({
+            TOKEN_019: 't',
+            USERNAME_019: 'u',
+            VOICE: { enabled: true, voice: 'ymFemale', repeat: 3, rate: -2 }
+        })
+        const external = sms({ DL })
+
+        await external.otp(PHONE, '482913', { domainId: 'd1', voice: 'call' })
+
+        assert.deepEqual(fetchStub.calls[0].body.sms.tts, { type: 4, voice: 'ymFemale', repeat: 3, rate: -2 })
+        assert.equal(logs.at(-1).channel, 'voice')
+    })
+
+    it('refuses a call-only TTS when the domain has voice disabled', async t => {
+        const fetchStub = stubFetch()
+        t.after(fetchStub.restore)
+        const { DL } = createDl({ TOKEN_019: 't', USERNAME_019: 'u', VOICE: { enabled: false } })
+        const external = sms({ DL })
+
+        await assert.rejects(
+            () => external.otp(PHONE, '482913', { domainId: 'd1', voice: 'call' }),
+            /not enabled/
+        )
+        assert.equal(fetchStub.calls.length, 0)
+    })
+
     it('uses the per-domain OTP template', async t => {
         const fetchStub = stubFetch()
         t.after(fetchStub.restore)

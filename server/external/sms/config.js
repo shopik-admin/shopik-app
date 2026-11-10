@@ -4,8 +4,8 @@ const DEFAULT_VOICE = {
     enabled: false,
     type: 2,
     voice: 'ymMale',
-    repeat: 2,
-    rate: 0
+    repeat: 4,
+    rate: -2
 }
 const VOICE_TYPES = [2, 3, 4]
 const VOICES = ['ymMale', 'ymFemale']
@@ -33,6 +33,9 @@ function toInt(value, min, max, fallback) {
  * `enabled` false keeps plain SMS; it is the per-domain rollout switch.
  */
 function sanitizeVoice(value) {
+    if (typeof value === 'string') {
+        value = JSON.parse(value)
+    }
     const v = value && typeof value === 'object' && !Array.isArray(value) ? value : {}
     const type = toInt(v.type, 0, 99, DEFAULT_VOICE.type)
     return {

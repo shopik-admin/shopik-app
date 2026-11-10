@@ -33,7 +33,7 @@ function normalizeMode(mode) {
  * @param {*} [props.row] - payload forwarded to `onClick` (lavy called this `pass`)
  * @param {*} [props.pass] - alias of `row` (lavy compat)
  */
-export default function ContextMenu({ options = [], iconOnStart = true, row, pass, button, btnClassName, triggerIcon = 'options', ...popoverProps }) {
+export default function ContextMenu({ options = [], iconOnStart = true, row, pass, button, btnClassName, triggerIcon = 'options', badge, ...popoverProps }) {
     const payload = pass ?? row
     const user = useUser()
     const { TR } = useText?.() || {}
@@ -46,10 +46,16 @@ export default function ContextMenu({ options = [], iconOnStart = true, row, pas
 
     if (!visible.length) return null
 
+    // Sum the badges of the options that actually render. A caller may also
+    // pass an explicit trigger badge, which wins.
+    const totalBadge = badge !== undefined
+        ? badge
+        : visible.reduce((sum, o) => sum + (Number(o.badge) || 0), 0)
+
     // Single action renders inline (icon-only, like the old toolbar/row buttons).
     if (visible.length === 1) {
         const { hide, seperator, separator, text, permission, ...single } = visible[0]
-        return <Button preventDefault stopPropagation {...single} />
+        return <Button preventDefault stopPropagation {...single} badge={badge !== undefined ? badge : single.badge} />
     }
 
     function onKeyDown(e, close) {
@@ -74,7 +80,7 @@ export default function ContextMenu({ options = [], iconOnStart = true, row, pas
     }
 
     return <Popover
-        button={button || <Button mode='text' icon={triggerIcon} />}
+        button={button || <Button mode='text' icon={triggerIcon} badge={totalBadge} />}
         btnClassName={btnClassName}
         {...popoverProps}
     >
@@ -137,6 +143,7 @@ export default function ContextMenu({ options = [], iconOnStart = true, row, pas
                     }}
                 >
                     <Text size='l' ellipsis>{option.text}</Text>
+                    {option.badge ? <span className={styles.badge}>{Number(option.badge) > 99 ? '99+' : option.badge}</span> : null}
                     {busy ? <Loader size={16} className={styles.loaderSlot} /> :
                         typeof option.icon == 'string'
                             ? <Icon name={option.icon} className={styles.icon} />
