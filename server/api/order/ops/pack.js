@@ -1,4 +1,5 @@
 import captureOrder from '#server/utils/data/captureOrder.js'
+import { withSortedCart } from '#server/utils/data/sortCartByCategory.js'
 import { snapshotSupplierCost } from '#server/utils/data/supplierCost.js'
 import { isComaxDeliveryEnabled } from '#server/external/comax/utils.js'
 
@@ -103,7 +104,7 @@ export default async function pack(payload, { DL, _admin, utils, external }) {
         })
     } catch {}
 
-    return updated
+    return withSortedCart(updated)
 }
 
 pack.config = {

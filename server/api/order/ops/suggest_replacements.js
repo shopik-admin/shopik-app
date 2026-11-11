@@ -1,3 +1,5 @@
+import { isProductInCart } from '#common/functions/cartReplacements.js'
+
 export default async function suggest_replacements(payload, { DL, _admin }) {
     const { id, barcode, search = '', limit = 20 } = payload || {}
     if (!id || !barcode) throw { status: 400, message: 'id, barcode required' }
@@ -7,10 +9,17 @@ export default async function suggest_replacements(payload, { DL, _admin }) {
     if (order.status !== 'picking') throw { status: 400, message: 'order not in picking' }
     if (order.picker?.adminId !== _admin.id) throw { status: 403, message: 'not your order' }
 
-    const item = (order.cart || []).find(c => c.barcode === barcode)
+    const cart = order.cart || []
+    const item = cart.find(c => c.barcode === barcode)
     if (!item) throw { status: 404, message: 'item not found' }
 
     const lim = Math.min(Math.max(Number(limit) || 20, 1), 50)
+    // Products the order already has are never candidates, but they still count
+    // against the query limit — read extra rows so the filtered list stays full.
+    const fetchLimit = Math.min(lim + cart.length, 100)
+    const candidates = (products) => (products || [])
+        .filter(p => !isProductInCart(p, cart))
+        .slice(0, lim)
     const STATUS = DL.Product.constants.STATUS.ACTIVE
     const select = {
         _id: 0, id: 1, barcode: 1, scannableBarcodes: 1, name: 1,
@@ -33,6 +42,9 @@ export default async function suggest_replacements(payload, { DL, _admin }) {
         )
         if (exact && exact.status !== DL.Product.constants.STATUS.ARCHIVED
             && (!order.domainId || (exact.prices || []).some(p => p?.domainId === order.domainId))) {
+            // The cart already has this product — it is not an alternative.
+            if (isProductInCart(exact, cart))
+                return { products: [], sales: {} }
             const sales = await collectSales([exact], DL)
             return { products: [exact], sales }
         }
@@ -60,27 +72,28 @@ export default async function suggest_replacements(payload, { DL, _admin }) {
     let products = []
     try {
         if (q) {
-            products = await DL.Product.search(q, baseFilter, { limit: lim, select })
+            products = await DL.Product.search(q, baseFilter, { limit: fetchLimit, select })
         } else {
-            products = await DL.Product.read(baseFilter, select, { limit: lim, sort: { totalSalesUnits: -1, sortOrder: -1 } })
+            products = await DL.Product.read(baseFilter, select, { limit: fetchLimit, sort: { totalSalesUnits: -1, sortOrder: -1 } })
         }
     } catch (err) {
         products = []
     }
 
     // Fallback: no same-category candidates → broaden to same storage type
-    if (!products?.length && !q && (categoryId || categoryPathIds?.length)) {
+    if (!candidates(products).length && !q && (categoryId || categoryPathIds?.length)) {
         try {
             const broad = { status: STATUS, barcode: { $ne: barcode }, ...domainPriceFilter }
             if (item.storageType) broad.storageType = item.storageType
-            products = await DL.Product.read(broad, select, { limit: lim, sort: { totalSalesUnits: -1 } })
+            products = await DL.Product.read(broad, select, { limit: fetchLimit, sort: { totalSalesUnits: -1 } })
         } catch {
             products = []
         }
     }
 
-    const sales = await collectSales(products, DL)
-    return { products: products || [], sales }
+    const result = candidates(products)
+    const sales = await collectSales(result, DL)
+    return { products: result, sales }
 
     async function collectSales(prods, DL) {
         const saleIdSet = new Set()

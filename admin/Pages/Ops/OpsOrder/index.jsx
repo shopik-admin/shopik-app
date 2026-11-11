@@ -404,8 +404,14 @@ function OrderPick({ order = {}, setStep, onPicked }) {
     const donePickItems = singleItems.filter(e => isScanned(e.product))
     const isDoneTab = tab === 'done_pick'
     const isWaitTab = tab === 'wait_pick'
-    // Pairs lead the done tab: a pair is by definition something already handled.
-    const displayedEntries = isDoneTab ? [...pairs, ...donePickItems] : isWaitTab ? [] : toPickItems
+    // Stock-outs are the first thing the done tab has to surface, then the
+    // replacement pairs, then everything that was supplied. The server already
+    // ordered each part by category.
+    const missingItems = donePickItems.filter(e => e.product?.missing)
+    const suppliedItems = donePickItems.filter(e => !e.product?.missing)
+    const displayedEntries = isDoneTab
+        ? [...missingItems, ...pairs, ...suppliedItems]
+        : isWaitTab ? [] : toPickItems
     const allHandled = toPickItems.length === 0 && entries.length > 0
 
     useEffect(() => {
@@ -416,7 +422,7 @@ function OrderPick({ order = {}, setStep, onPicked }) {
 
     function handleProductClick(product) {
         openModal(
-            <ProductPickModal product={product} orderId={order.id} onClose={() => closeModal()} onPicked={onPicked} />,
+            <ProductPickModal product={product} orderId={order.id} cart={order.cart || []} onClose={() => closeModal()} onPicked={onPicked} />,
             { fullScreen: true, className: styles.pickModal }
         )
     }

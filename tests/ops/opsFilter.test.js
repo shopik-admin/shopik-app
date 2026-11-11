@@ -269,6 +269,35 @@ describe('ops queue roles', () => {
         assert.equal(match.$and[1].$or.length, 1)
     })
 
+    it('returns each ops cart grouped by category', async () => {
+        const docs = [{
+            id: 'o1', storeId: 's1', status: 'paid', cart: [
+                { barcode: 'later-l3', category: { id: 'nc:9:904:9142' } },
+                { barcode: 'first', category: { id: 'nc:203:2003' } },
+                { barcode: 'uncategorized' },
+                { barcode: 'later-l2', category: { id: 'nc:9:904' } }
+            ]
+        }]
+        const DL = {
+            Order: {
+                Model: {
+                    filterFields: new Set(['id']),
+                    schema: { path: () => ({ instance: 'String' }) },
+                    aggregate: async () => docs
+                }
+            },
+            Store: { readById: async () => null }
+        }
+        const admin = makeAdmin({ id: 'a1', permissions: ['order:read'], currentStoreId: 's1' })
+
+        const rows = await list({ filter: {} }, { DL, _admin: admin })
+
+        assert.deepEqual(
+            rows[0].cart.map(item => item.barcode),
+            ['first', 'later-l2', 'later-l3', 'uncategorized']
+        )
+    })
+
     it('a tab asks for its view through the same rule the server uses, so a badge cannot count more than the tab shows', () => {
         const view = viewScope('order:ship')
         const waiting = opsStatusWindow({ scope: view, status: 'packed', today })

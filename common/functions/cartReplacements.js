@@ -18,6 +18,25 @@ export function isReplacedLine(line) {
     )
 }
 
+// Is this product already a line in the cart? Replacement candidates are meant to
+// be an alternative the order does not have yet, so every candidate list (picker
+// suggestions, admin search) filters its products through this.
+export function isProductInCart(product, cart = []) {
+    if (!product) return false
+    const barcode = String(product.barcode ?? '').trim()
+    const altBarcodes = Array.isArray(product.scannableBarcodes)
+        ? product.scannableBarcodes.map(b => String(b ?? '').trim())
+        : []
+    for (const line of cart || []) {
+        if (!line) continue
+        if (product.id && line.id && line.id === product.id) return true
+        const lineBarcode = String(line.barcode ?? '').trim()
+        if (!lineBarcode) continue
+        if (lineBarcode === barcode || altBarcodes.includes(lineBarcode)) return true
+    }
+    return false
+}
+
 // The other half of a pair, from either side: the product that supplied the order
 // when looked at from the replaced side, the product it stands for when looked at
 // from the replacement side. `taken` keeps one line from being claimed by two

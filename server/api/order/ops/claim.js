@@ -1,3 +1,5 @@
+import { withSortedCart } from '#server/utils/data/sortCartByCategory.js'
+
 export default async function claim(payload, { DL, _admin, external, utils }) {
     const { id } = payload
     if (!id) throw { status: 400, message: 'order id required' }
@@ -55,7 +57,7 @@ export default async function claim(payload, { DL, _admin, external, utils }) {
         })
     } catch {}
 
-    return order
+    return withSortedCart(order)
 }
 
 claim.config = {
