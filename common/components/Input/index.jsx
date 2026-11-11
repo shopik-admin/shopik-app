@@ -42,7 +42,8 @@ function Input(props) {
         } = props,
         functionType = typeof type == 'function',
         [visited, setVisited] = useState(),
-        [value, setValue] = useState(defaultValue),
+        initialValue = type == 'date' ? toDateInputValue(defaultValue) : defaultValue,
+        [value, setValue] = useState(initialValue),
         { TR } = useText(),
         InputTag = getInputTag(props),
         invalidError = functionType ? '' : getInputInvalidError(value, props),
@@ -66,7 +67,7 @@ function Input(props) {
                     <InputTag
                         ref={innerRef}
                         {...ps}
-                        {...{ name, type, onBlur, defaultValue, autoFocus }}
+                        {...{ name, type, onBlur, defaultValue: initialValue, autoFocus }}
                         onChange={onInputChange}
                         aria-invalid={!!invalidError}
                         placeholder={(TR(placeholder) || placeholder) + requiredSign}
@@ -84,6 +85,16 @@ export { default as isValidIsraeliId } from 'common/functions/isValidIsraeliId'
 
 function CheckboxInput(props) {
     return <Checkbox {...props} label='' />
+}
+
+// <input type="date"> only accepts YYYY-MM-DD; API values arrive as ISO strings
+// or Date objects. Format in local time so the shown day matches the user's day.
+function toDateInputValue(value) {
+    if (!value) return ''
+    const date = new Date(value)
+    if (isNaN(date.getTime())) return ''
+    const pad = n => String(n).padStart(2, '0')
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
 }
 
 function SwitchInput(props) {

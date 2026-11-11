@@ -71,7 +71,7 @@ export default function Form({ className = '', children, submitText, error, load
         }
     }
 
-    const currentError = actionError?.message || actionError || error
+    const currentError = errorMessage(actionError) || errorMessage(error)
 
     return <form
         ref={form}
@@ -90,4 +90,12 @@ export default function Form({ className = '', children, submitText, error, load
                 </div>}
         </div>
     </form>
+}
+
+// Errors reach the form either as strings or Error/plain objects thrown by
+// apiReq. Never hand a raw object to React as a child.
+function errorMessage(err) {
+    if (!err) return ''
+    if (typeof err === 'string') return err
+    return err.message || ''
 }
