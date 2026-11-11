@@ -7,9 +7,23 @@ import { normalizeHostname, rootHostname } from './normalizeDomain.js'
 // 3. The single isDefault domain
 // Throws when none resolves — there is no magic 'default' id anymore.
 const TTL_MS = 60_000
+// Bounded so a hostile/unusual Host header can't grow the map forever. Real
+// traffic only ever resolves a handful of domains.
+const CACHE_MAX = 500
 let cachedDefaultId = null
 let defaultExpiresAt = 0
 const urlCache = new Map() // root hostname -> { id|null, expiresAt }
+
+function rememberRoot(root, entry) {
+    if (urlCache.size >= CACHE_MAX) {
+        const now = Date.now()
+        for (const [key, value] of urlCache)
+            if (value.expiresAt <= now) urlCache.delete(key)
+        while (urlCache.size >= CACHE_MAX)
+            urlCache.delete(urlCache.keys().next().value)
+    }
+    urlCache.set(root, entry)
+}
 
 export function clearDomainCache() {
     cachedDefaultId = null
@@ -31,7 +45,7 @@ async function cachedRootId(root, DL) {
     if (cached && cached.expiresAt > Date.now()) return cached.id || null
     const found = await DL.Domain.readOne({ url: root, active: true }, { _id: 0, id: 1 })
     const id = found?.id || null
-    urlCache.set(root, { id, expiresAt: Date.now() + TTL_MS })
+    rememberRoot(root, { id, expiresAt: Date.now() + TTL_MS })
     return id
 }
 
