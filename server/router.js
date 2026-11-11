@@ -7,8 +7,24 @@ import uid from '#common/functions/uid.js'
 const appVersion = pkg?.version || 'unknown'
 
 // Bodies above this size are logged as `{ omitted: true, bytes }` instead of
-// verbatim — see the request-log block below.
-const MAX_LOGGED_BODY_BYTES = 64 * 1024
+// verbatim — see loggedRequestBody below.
+export const MAX_LOGGED_BODY_BYTES = 64 * 1024
+
+/**
+ * Request bodies worth storing in the Log doc.
+ *
+ * Base64 upload bodies run to ~10MB, and truncateLogData stringifies the whole
+ * body before slicing, so a big body costs a matching string plus the doc.
+ * Compressed bodies are omitted too: content-length would understate them.
+ */
+export function loggedRequestBody(headers, body) {
+    const declaredBytes = Number(headers?.['content-length']) || 0
+    const encoding = headers?.['content-encoding']
+    const encoded = encoding && encoding !== 'identity'
+    if (encoded || declaredBytes > MAX_LOGGED_BODY_BYTES)
+        return { omitted: true, bytes: declaredBytes, ...(encoded ? { encoding } : {}) }
+    return body
+}
 
 const allPermissionsHash = [...allPermissions, ...apiKeyPermissions].reduce((acc, curr) => {
     acc[curr] = true
@@ -77,16 +93,6 @@ export default function router(app, bootData) {
                 }
             }
             if (apiFunction?.config?.log !== false) {
-                // Base64 upload bodies can be ~10MB. JSON.stringify'ing one
-                // into a Log doc allocates a matching string (truncateLogData
-                // stringifies before slicing), so log only its size. Compressed
-                // bodies are omitted too: content-length would understate them.
-                const declaredBytes = Number(headers['content-length']) || 0
-                const encoding = headers['content-encoding']
-                const encoded = encoding && encoding !== 'identity'
-                const loggedBody = encoded || declaredBytes > MAX_LOGGED_BODY_BYTES
-                    ? { omitted: true, bytes: declaredBytes, ...(encoded ? { encoding } : {}) }
-                    : body
                 const logData = {
                     requestId,
                     action: route,
@@ -96,7 +102,7 @@ export default function router(app, bootData) {
                     data: {
                         request: {
                             platform,
-                            body: loggedBody
+                            body: loggedRequestBody(headers, body)
                         }
                     }
                 }

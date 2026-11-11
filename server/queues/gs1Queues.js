@@ -55,7 +55,7 @@ const enqueueChunkSize = () => {
     return Number.isFinite(value) && value > 0 ? Math.floor(value) : 500
 }
 
-async function addBulkInChunks(queue, jobs) {
+export async function addBulkInChunks(queue, jobs) {
     const size = enqueueChunkSize()
     for (let i = 0; i < jobs.length; i += size)
         await queue.addBulk(jobs.slice(i, i + size))

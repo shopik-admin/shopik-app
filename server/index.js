@@ -1,7 +1,8 @@
-import express, { json, urlencoded, static as serveStatic } from 'express'
+import express, { static as serveStatic } from 'express'
 import cookieParser from 'cookie-parser'
 import path from 'path'
 import router from './router.js'
+import bodyParsers from './middleware/bodyParsers.js'
 import registerManifestRoute from './routes/manifest.js'
 import boot from './boot.js'
 import ssr from './ssr.js'
@@ -79,25 +80,8 @@ app.use((req, res, next) => {
 })
 
 // Only the base64 upload/import routes legitimately carry more than a
-// megabyte. Everything else gets a 1MB cap so a stray or hostile body can't
-// pin 15MB of buffers per concurrent request on a 512MB box.
-const LARGE_BODY_ROUTES = new Set([
-    '/api/product/upload_image',
-    '/api/setting/upload_file',
-    '/api/category/upload_icon',
-    '/api/category/import',
-    '/api/category/import_flags',
-    '/api/display_block/upload_image',
-    '/api/shipment/deliver'
-])
-const isLargeBodyRoute = req => LARGE_BODY_ROUTES.has((req.path || '').replace(/\/+$/, ''))
-
-const smallJson = json({ limit: '1mb' })
-const largeJson = json({ limit: '15mb' })
-const smallUrlencoded = urlencoded({ extended: true, limit: '1mb' })
-const largeUrlencoded = urlencoded({ extended: true, limit: '15mb' })
-const parseJson = (req, res, next) => (isLargeBodyRoute(req) ? largeJson : smallJson)(req, res, next)
-const parseUrlencoded = (req, res, next) => (isLargeBodyRoute(req) ? largeUrlencoded : smallUrlencoded)(req, res, next)
+// megabyte — see middleware/bodyParsers.js.
+const [parseJson, parseUrlencoded] = bodyParsers()
 
 app.use(parseJson)
 app.use(cookieParser())
