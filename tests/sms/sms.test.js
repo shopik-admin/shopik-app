@@ -222,7 +222,7 @@ describe('sms.otp voice routing', () => {
 
         await external.send([PHONE], 'test', { domainId: 'd1', voice: { type: 4, repeat: 1 } })
 
-        assert.deepEqual(fetchStub.calls[0].body.sms.tts, { type: 4, voice: 'ymMale', repeat: 1, rate: 0 })
+        assert.deepEqual(fetchStub.calls[0].body.sms.tts, { type: 4, voice: 'ymMale', repeat: 1, rate: -2 })
     })
 
     it('logs the channel so voice sends are traceable', async t => {
