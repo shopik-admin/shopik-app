@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { dissolvePair, findReplacement, groupCart, isReplacedLine } from '../../common/functions/cartReplacements.js'
+import { dissolvePair, findReplacement, groupCart, isProductInCart, isReplacedLine } from '../../common/functions/cartReplacements.js'
 
 describe('groupCart', () => {
     it('shows a replaced product together with the product that supplied its order', () => {
@@ -104,5 +104,36 @@ describe('isReplacedLine', () => {
         assert.equal(isReplacedLine({ replacement: { replacementBarcode: 'B' } }), true)
         assert.equal(isReplacedLine({ missing: true, missingReason: 'missing' }), false)
         assert.equal(isReplacedLine(null), false)
+    })
+})
+
+describe('isProductInCart', () => {
+    const cart = [
+        { id: 'p1', barcode: 'A' },
+        { id: 'p2', barcode: 'B', scannableBarcodes: ['B-alt'] }
+    ]
+
+    it('matches the cart line by product id', () => {
+        assert.equal(isProductInCart({ id: 'p2', barcode: 'other' }, cart), true)
+    })
+
+    it('matches the cart line by barcode when the id is not carried by the candidate', () => {
+        assert.equal(isProductInCart({ barcode: 'A' }, cart), true)
+        // Cart lines from older orders may not carry an id at all.
+        assert.equal(isProductInCart({ id: 'p9', barcode: 'B' }, [{ barcode: 'B' }]), true)
+    })
+
+    it('matches a cart barcode that the candidate sells under an alternate barcode', () => {
+        assert.equal(isProductInCart({ id: 'p9', barcode: 'C', scannableBarcodes: ['B'] }, cart), true)
+    })
+
+    it('lets through a product the cart does not have', () => {
+        assert.equal(isProductInCart({ id: 'p3', barcode: 'C' }, cart), false)
+    })
+
+    it('handles an empty or missing cart', () => {
+        assert.equal(isProductInCart({ id: 'p1', barcode: 'A' }, []), false)
+        assert.equal(isProductInCart({ id: 'p1', barcode: 'A' }), false)
+        assert.equal(isProductInCart(null, cart), false)
     })
 })

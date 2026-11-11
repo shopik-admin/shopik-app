@@ -11,8 +11,9 @@ import classNames from 'common/functions/classNames'
 import { isWeightProduct, getUnitLabel, ProductUnitInfo, formatAmount, ProductImage } from 'common/components/Product'
 import { getPickRange, isPickInRange, DEFAULT_PICK_LIMITS } from 'common/functions/pickLimits'
 import limitDecimalInput from 'common/functions/decimalInput'
+import { isProductInCart } from 'common/functions/cartReplacements'
 
-export default function ReplaceProduct({ product = {}, orderId, onClose, onPicked }) {
+export default function ReplaceProduct({ product = {}, orderId, cart = [], onClose, onPicked }) {
     const [phase, setPhase] = useState('list') // list | scanning | amount
     const [query, setQuery] = useState('')
     const [results, setResults] = useState([])
@@ -67,7 +68,9 @@ export default function ReplaceProduct({ product = {}, orderId, onClose, onPicke
                 setError(res.error)
                 return
             }
-            const list = (res?.products || []).filter(p => String(p.barcode || '').trim() !== origBarcode)
+            const list = (res?.products || [])
+                .filter(p => String(p.barcode || '').trim() !== origBarcode)
+                .filter(p => !isProductInCart(p, cart))
             setResults(list)
         } catch (e) {
             setError(e.message || 'search failed')
@@ -170,6 +173,10 @@ export default function ReplaceProduct({ product = {}, orderId, onClose, onPicke
             const found = res?.products?.[0]
             if (!found) {
                 setScanError(`מוצר ${val} לא נמצא`)
+                return
+            }
+            if (isProductInCart(found, cart)) {
+                setScanError('מוצר זה כבר בעגלה — לא ניתן לבחור בו כתחליף')
                 return
             }
             stopCamera()

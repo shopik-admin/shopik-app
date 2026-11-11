@@ -1,5 +1,8 @@
 import { USER_TOKEN_EXPIRY_MS, USER_TOKEN_EXPIRY_SHORT_MS, USER_TOKEN_COOKIE, GUEST_CART_TOKEN_COOKIE } from '#common/constants.js'
 import toRemember from '#common/functions/toRemember.js'
+import { calcShipping } from '#common/functions/shipping.js'
+import { round2 } from '#common/functions/calcOrder/utils.js'
+import getShippingConfig from '#server/utils/data/getShippingConfig.js'
 
 export default async function login({ domainId, phone, otpToken, otp, remember }, { DL, utils, platform, setCookie, cookies, clearCookie }) {
     const storedOtp = await DL.Otp.readOne({ token: otpToken })
@@ -46,15 +49,29 @@ export default async function login({ domainId, phone, otpToken, otp, remember }
         const guestCart = await DL.GuestCart.readOne({ id: guestToken, active: true })
         if (guestCart) {
             if (!order.cart?.length && guestCart.cart?.length) {
+                const sum = Number(guestCart.sum ?? 0) || 0
+                const finalSum = Number(guestCart.finalSum ?? sum) || 0
+                // The guest cart snapshot has no per-delivery-method shipping
+                // (guests always shop as 'delivery') and its *_WithShipping
+                // fields may be stale zeros, so recompute shipping here for the
+                // order's actual delivery method. Copying `sum` alone is what
+                // left carts payable at ₪0 (finalSumWithShipping = 0).
+                const shippingConfig = await getShippingConfig(DL, guestCart.domainId)
+                const shipping = calcShipping({ sum, deliveryMethod: order.deliveryMethod, shippingConfig })
                 const transfer = {
                     domainId: guestCart.domainId,
                     cart: guestCart.cart,
                     sales: guestCart.sales,
-                    sum: guestCart.sum,
+                    sum,
                     sumNoCoupon: guestCart.sumNoCoupon,
-                    finalSum: guestCart.finalSum,
+                    finalSum,
                     finalSumNoCoupon: guestCart.finalSumNoCoupon,
-                    coupons: guestCart.coupons
+                    coupons: guestCart.coupons,
+                    shipping,
+                    finalShipping: shipping,
+                    sumWithShipping: round2(sum + shipping),
+                    finalSumWithShipping: round2(finalSum + shipping),
+                    customerUpdatedAt: new Date()
                 }
                 const setData = Object.fromEntries(Object.entries(transfer).filter(([, v]) => v !== undefined))
                 await DL.Order.updateOne({ id: order.id }, { $set: setData })

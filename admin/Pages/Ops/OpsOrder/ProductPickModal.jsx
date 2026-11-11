@@ -10,7 +10,7 @@ import styles from './productPickModal.module.css'
 import { isWeightProduct, formatAmount, getUnitLabel, getUnitInfoText, ProductUnitInfo } from 'common/components/Product'
 import { getProductImageUrls } from 'common/functions/productImageUrl.js'
 
-export default function ProductPickModal({ product = {}, orderId, onClose, onPicked }) {
+export default function ProductPickModal({ product = {}, orderId, cart = [], onClose, onPicked }) {
     const weight = isWeightProduct(product)
     const isScanned = product.finalAmount != null || !!product.missing
     const [phase, setPhase] = useState(isScanned ? 'amount' : 'details')
@@ -31,6 +31,7 @@ export default function ProductPickModal({ product = {}, orderId, onClose, onPic
         return <ReplaceProduct
             product={product}
             orderId={orderId}
+            cart={cart}
             onClose={onClose}
             onPicked={onPicked}
         />

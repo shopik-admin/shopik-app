@@ -422,7 +422,7 @@ function OrderPick({ order = {}, setStep, onPicked }) {
 
     function handleProductClick(product) {
         openModal(
-            <ProductPickModal product={product} orderId={order.id} onClose={() => closeModal()} onPicked={onPicked} />,
+            <ProductPickModal product={product} orderId={order.id} cart={order.cart || []} onClose={() => closeModal()} onPicked={onPicked} />,
             { fullScreen: true, className: styles.pickModal }
         )
     }
