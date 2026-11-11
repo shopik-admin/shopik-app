@@ -404,16 +404,13 @@ function OrderPick({ order = {}, setStep, onPicked }) {
     const donePickItems = singleItems.filter(e => isScanned(e.product))
     const isDoneTab = tab === 'done_pick'
     const isWaitTab = tab === 'wait_pick'
-    // A stock-out is what the done tab has to surface first: the rest of the tab
-    // is supplied, and the server already ordered it by category. Pairs lead as
-    // before; this partition only reorders the single items after them.
-    const missingFirst = items => [
-        ...items.filter(e => e.product?.missing),
-        ...items.filter(e => !e.product?.missing),
-    ]
-    // Pairs lead the done tab: a pair is by definition something already handled.
+    // Stock-outs are the first thing the done tab has to surface, then the
+    // replacement pairs, then everything that was supplied. The server already
+    // ordered each part by category.
+    const missingItems = donePickItems.filter(e => e.product?.missing)
+    const suppliedItems = donePickItems.filter(e => !e.product?.missing)
     const displayedEntries = isDoneTab
-        ? [...pairs, ...missingFirst(donePickItems)]
+        ? [...missingItems, ...pairs, ...suppliedItems]
         : isWaitTab ? [] : toPickItems
     const allHandled = toPickItems.length === 0 && entries.length > 0
 
