@@ -1,6 +1,7 @@
 import { calcOrderSum } from '#common/functions/calcOrder/index.js'
 import { applyCalcToCart } from '#common/functions/calcOrder/cart.js'
 import { findReplacement, isReplacedLine } from '#common/functions/cartReplacements.js'
+import { withSortedCart } from '#server/utils/data/sortCartByCategory.js'
 import { round2, round3 } from '#common/functions/calcOrder/utils.js'
 
 export default async function pick_complete(payload, { DL, _admin, utils }) {
@@ -151,7 +152,7 @@ export default async function pick_complete(payload, { DL, _admin, utils }) {
         })
     } catch {}
 
-    return updated
+    return withSortedCart(updated)
 }
 
 pick_complete.config = {

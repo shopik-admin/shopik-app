@@ -2,6 +2,7 @@ import { constants as productConstants } from '#server/dl/schemas/product.js'
 import { buildCartProduct, CART_PRODUCT_STATUS } from '#common/functions/calcOrder/cart.js'
 import { dissolvePair, isReplacedLine } from '#common/functions/cartReplacements.js'
 import enrichCart from '#server/utils/data/enrichCart.js'
+import { withSortedCart } from '#server/utils/data/sortCartByCategory.js'
 import getPickLimits from '#server/utils/data/getPickLimits.js'
 import { getPickRange, isPickInRange } from '#common/functions/pickLimits.js'
 
@@ -296,7 +297,7 @@ export default async function pick_item(payload, { DL, _admin, utils }) {
         })
     } catch { }
 
-    return updated
+    return withSortedCart(updated)
 }
 
 pick_item.config = {
