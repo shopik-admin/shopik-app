@@ -7,6 +7,7 @@ export default async function coupon(payload, { DL, _user, utils }) {
     const now = new Date()
     const coupons = await DL.Coupon.read({
         status: DL.Coupon.constants.STATUS.ACTIVE,
+        public: true,
         start: { $lte: now },
         end: { $gte: now },
     })
