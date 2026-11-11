@@ -17,7 +17,7 @@ export async function loadCategoryLookup(DL) {
     const [maps, categories] = await Promise.all([
         DL.CategoryMap.read(
             {},
-            { _id: 0, subGroupCode: 1, categoryId: 1, showOnSite: 1, requireKashrut: 1 },
+            { _id: 0, subGroupCode: 1, categoryId: 1, showOnSite: 1, requireKashrut: 1, categoryActive: 1 },
             { limit: 0 }
         ),
         DL.Category.read({}, { _id: 0, id: 1, name: 1, parentIds: 1 }, { limit: 0 })
@@ -32,6 +32,7 @@ export async function loadCategoryLookup(DL) {
         const code = String(row.subGroupCode)
         mapByCode.set(code, row.categoryId || null)
         flagsByCode.set(code, {
+            categoryActive: row.categoryActive !== false,
             showOnSite: row.showOnSite !== false,
             requireKashrut: row.requireKashrut === true
         })

@@ -200,6 +200,12 @@ function SubGroupRow({ entry, isAssigned, canUpdate, selectedId, onAssign, onPre
             </Text>
         </div>
         <span className={styles.code}>{entry.code}</span>
+        {entry.categoryActive === false ? <span
+            className={classNames(styles.flagTag, styles.flagCategoryInactive)}
+            title={TR('menu_categories_flag_category_inactive_hint')}
+        >
+            {TR('menu_categories_flag_category_inactive')}
+        </span> : null}
         {entry.showOnSite === false ? <span className={classNames(styles.flagTag, styles.flagHidden)}>
             {TR('menu_categories_flag_hidden')}
         </span> : null}

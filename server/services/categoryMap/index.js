@@ -6,3 +6,4 @@ export { COMAX_META_FIELDS, metadataForCode, metaFromComax } from './metadata.js
 export { buildRenamePlan, normalizeCategoryName } from './rename.js'
 export { FLAGS_HEADER, importCategoryFlags, parseFlagsCsv } from './flags.js'
 export { applyCategoryFlagStatuses } from './flagStatus.js'
+export { descendantIds, mirrorCategoryActive } from './categoryActive.js'

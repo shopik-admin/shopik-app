@@ -1268,6 +1268,8 @@
         "menu_categories_flags_done": "הדגלים עודכנו: [written] שונו, [unchanged] ללא שינוי. הוסתרו [hidden] מוצרים, הוחזרו [unhidden] מוצרים.",
         "menu_categories_flags_unknown": " ([count] קודים לא נמצאו במפה)",
         "menu_categories_flag_hidden": "מוסתר",
+        "menu_categories_flag_category_inactive": "קטגוריה לא פעילה",
+        "menu_categories_flag_category_inactive_hint": "הקטגוריה של תת הקבוצה אינה פעילה, ולכן המוצרים שלה מוסתרים מהאתר",
         "menu_categories_flag_kashrut": "חובה כשרות",
         "menu_categories_flag_hidden_count": "[count] תתי קבוצות מוסתרות (כולל תתי קטגוריות)",
         "menu_categories_flag_kashrut_count": "[count] תתי קבוצות מחייבות כשרות (כולל תתי קטגוריות)",

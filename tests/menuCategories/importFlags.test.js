@@ -80,7 +80,7 @@ describe('category flags import API', () => {
             relaxed: 0,
             hidden: 1,
             unhidden: 0,
-            reasons: { category: 0, kashrut: 0, both: 1 }
+            reasons: { category: 0, categoryActive: 0, kashrut: 0, both: 1 }
         })
     })
 

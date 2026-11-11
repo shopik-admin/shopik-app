@@ -35,10 +35,13 @@ const inSyncScope = comax =>
  *           permissive, re-derived through the full status ladder so nothing
  *           comes back for a reason the ladder would ignore.
  *
- * `relaxCodes` is the sub-group codes the last import relaxed. Without it the
- * sweep stays hide-only; `relaxCodes: 'all'` reconciles the whole catalog (the
- * CLI repair run). ARCHIVED products are never candidates, and a candidate with
- * no usable Comax row is left alone — only the nightly sync resurrects that.
+ * The flags are the Comax showOnSite / requireKashrut pair plus the mirrored
+ * `categoryActive` state of the mapped category. `relaxCodes` is the sub-group
+ * codes that just relaxed (any of the three), whatever changed them. Without it
+ * the sweep stays hide-only; `relaxCodes: 'all'` reconciles the whole catalog
+ * (the CLI repair run). ARCHIVED products are never candidates, and a candidate
+ * with no usable Comax row is left alone — only the nightly sync resurrects
+ * that.
  *
  * `updates` is returned so the caller can write a rollback file.
  */
@@ -51,7 +54,7 @@ export async function applyCategoryFlagStatuses({
 
     const rows = await DL.CategoryMap.read(
         {},
-        { _id: 0, subGroupCode: 1, showOnSite: 1, requireKashrut: 1 },
+        { _id: 0, subGroupCode: 1, showOnSite: 1, requireKashrut: 1, categoryActive: 1 },
         { limit: 0 }
     )
     const flagsByCode = new Map((rows || []).map(row => [String(row.subGroupCode), row]))
@@ -62,18 +65,22 @@ export async function applyCategoryFlagStatuses({
         { _id: 0, barcode: 1, comaxSubGroupCode: 1, 'kashrut.rabbinates': 1 }
     ).lean()
 
-    const reasons = { category: 0, kashrut: 0, both: 0 }
+    // `category` is the sub-group showOnSite flag; `both` counts products that
+    // violate more than one rule (whichever they are).
+    const reasons = { category: 0, categoryActive: 0, kashrut: 0, both: 0 }
     const toHide = []
 
     for (const product of products) {
         const flags = flagsByCode.get(String(product.comaxSubGroupCode ?? ''))
         if (!flags) continue
 
-        const byCategory = flags.showOnSite === false
-        const byKashrut = flags.requireKashrut === true && !hasValidKashrut(product.kashrut)
-        if (!byCategory && !byKashrut) continue
+        const violated = []
+        if (flags.categoryActive === false) violated.push('categoryActive')
+        if (flags.showOnSite === false) violated.push('category')
+        if (flags.requireKashrut === true && !hasValidKashrut(product.kashrut)) violated.push('kashrut')
+        if (!violated.length) continue
 
-        reasons[byCategory && byKashrut ? 'both' : byCategory ? 'category' : 'kashrut'] += 1
+        reasons[violated.length > 1 ? 'both' : violated[0]] += 1
         if (cap && toHide.length >= cap) continue
         toHide.push({
             barcode: product.barcode,
