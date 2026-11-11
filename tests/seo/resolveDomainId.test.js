@@ -44,4 +44,28 @@ describe('resolveDomainId host fallback', () => {
             { status: 500, message: 'no default domain configured' }
         )
     })
+
+    it('bounds the host cache, evicting the oldest entries', async () => {
+        const reads = new Map()
+        const counting = {
+            Domain: {
+                async readOne(filter) {
+                    if (!filter.url) return { id: 'd1' }
+                    reads.set(filter.url, (reads.get(filter.url) || 0) + 1)
+                    return { id: 'd1' }
+                }
+            }
+        }
+        const resolve = host => resolveDomainId({ headers: { host } }, counting)
+
+        for (let i = 0; i < 600; i++) await resolve(`h${i}.test`)
+        assert.equal(reads.get('h0.test'), 1)
+        assert.equal(reads.get('h599.test'), 1)
+
+        await resolve('h599.test') // still cached
+        assert.equal(reads.get('h599.test'), 1)
+
+        await resolve('h0.test') // pushed out by the cap -> resolved again
+        assert.equal(reads.get('h0.test'), 2)
+    })
 })
