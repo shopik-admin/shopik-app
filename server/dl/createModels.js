@@ -1,6 +1,7 @@
 import { CACHE_STRATEGIES } from '#common/constants.js'
 import uid from '#common/functions/uid.js'
 import get from '#common/functions/get.js'
+import seedCache from './cache/seed.js'
 import { fileURLToPath } from 'url'
 import mongoose from 'mongoose'
 import path from 'path'
@@ -439,7 +440,9 @@ export default async function createModels(redis) {
 
     const models = {}
 
-    await Promise.all(files.map(async file => {
+    // Sequential on purpose: seeding every collection in parallel multiplies
+    // the per-collection allocation burst and OOMs small containers.
+    for (const file of files) {
         try {
             const model = await createModelFromSchema(file)
             if (model) {
@@ -465,9 +468,9 @@ export default async function createModels(redis) {
                             try {
                                 // Rebuild from scratch: add-only merging kept
                                 // deleted/renamed docs in the hash forever.
-                                await redis.del(model.cacheName)
-                                const docs = await model.find({}, { _id: 0 }).lean()
-                                await model.cache.add(docs)
+                                // Chunked so only one seed batch is in memory.
+                                const seeded = await seedCache(redis, model, { clear: true })
+                                log.info(`Cache rebuilt for ${model.modelName}: ${seeded} docs`)
                             } catch (e) {
                                 log.error('Cache seeding error:', e)
                             }
@@ -480,7 +483,7 @@ export default async function createModels(redis) {
         } catch (err) {
             console.error(`\n💥 Failed to process ${file}:`, err.message)
         }
-    }))
+    }
 
     return models
 }
