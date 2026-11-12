@@ -17,8 +17,8 @@ export const isLargeBodyRoute = req => LARGE_BODY_ROUTES.has((req.path || '').re
 
 /**
  * Content-type parsers with a per-route size cap. Returns
- * `[parseJson, parseUrlencoded]` so the caller can keep cookieParser between
- * them.
+ * `[parseJson, parseUrlencoded]` separately so the caller controls their
+ * position relative to other middleware.
  */
 export default function bodyParsers() {
     const smallJson = json({ limit: '1mb' })

@@ -23,6 +23,9 @@ import log from '#server/utils/log.js'
 import compression from 'compression'
 import setupSecurity from './middleware/security.js'
 import setupWwwRedirect from './middleware/redirectWww.js'
+import createGate from './middleware/gate.js'
+import setupNoindex from './middleware/noindex.js'
+import registerRobotsRoute from './routes/robots.js'
 import { getHeapStatistics } from 'node:v8'
 import { containerMemoryLimitMb } from '#server/utils/mem.js'
 
@@ -79,18 +82,36 @@ app.use((req, res, next) => {
     next()
 })
 
+// robots.txt answers before the gate: a 401 there would leave crawlers with no
+// instructions at all (see routes/robots.js). NOINDEX is independent of the
+// gate on purpose — see middleware/noindex.js.
+registerRobotsRoute(app)
+setupNoindex(app)
+
+// The gate runs before the body parsers so an unauthenticated request can never
+// buffer a large body, and after cookieParser so it can read its own cookie.
+// It is a no-op unless SITE_GATE_PASSWORD is set.
+app.use(cookieParser())
+app.use(createGate())
+
 // Only the base64 upload/import routes legitimately carry more than a
 // megabyte — see middleware/bodyParsers.js.
 const [parseJson, parseUrlencoded] = bodyParsers()
 
 app.use(parseJson)
-app.use(cookieParser())
 app.use(parseUrlencoded)
 
 app.use(compression())
 
 registerManifestRoute(app, bootData)
 router(app, bootData)
+
+if (process.env.SITE_GATE_PASSWORD) {
+    log.warn('[Gate] Access gate is ON — storefront, admin and API all require the password cookie.')
+}
+if (process.env.NOINDEX) {
+    log.warn('[Gate] NOINDEX is ON — every response carries X-Robots-Tag: noindex.')
+}
 
 try {
     await startImageWorker({ DL: bootData.DL })
