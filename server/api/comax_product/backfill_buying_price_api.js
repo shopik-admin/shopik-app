@@ -91,7 +91,8 @@ export default async function backfillComaxBuyingPrices(payload = {}, { DL, exte
         return pickBuyingPrice(products, comaxId)
     }
 
-    const limitConcurrency = pLimit(Math.min(concurrency, targets.length))
+    // p-limit v7 throws on a non-integer/zero concurrency, so clamp to >= 1.
+    const limitConcurrency = pLimit(Math.max(1, Math.min(concurrency, targets.length)))
 
     await Promise.all(targets.map(target => limitConcurrency(async () => {
         for (let attempt = 1; attempt <= RETRIES; attempt++) {
