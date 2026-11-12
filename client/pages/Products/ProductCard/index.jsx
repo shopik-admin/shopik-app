@@ -16,6 +16,7 @@ import Icon from 'common/components/Icon'
 import Text from 'common/components/Text'
 import classNames from 'common/functions/classNames'
 import { useProductCart } from 'common/components/Product/useProductCart.js'
+import { useProductModalLink } from 'layout/ProductOverlay/useProductModalLink.js'
 import { useUser } from 'features/User'
 import { getProductState } from '#common/functions/productState.js'
 
@@ -29,11 +30,11 @@ export default function ProductCard(props) {
     const { action, price } = getProductState({ amount, sale })
     const saleProgressText = getSaleProgressText(sale, saleTotalAmount)
     const { isFavorite, toggleFavorite } = useUser() || {}
+    const productLink = useProductModalLink(product, sales)
 
     return <Flex
         tag={Link}
-        to={`/product/${product.id}`}
-        state={{ product }}
+        {...productLink}
         col justifyContent='space-between'
         data-action={action}
         data-price={price}

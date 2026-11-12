@@ -13,6 +13,7 @@ import Form from 'common/components/Form'
 import Text from 'common/components/Text'
 import { useUser } from 'features/User'
 import { takeCartLoginPending } from 'layout/Cart/cartLoginPending'
+import { useAppData } from 'App'
 import { useState } from 'react'
 import Account from 'pages/Account'
 
@@ -69,22 +70,27 @@ function useOtpFlow(requestOtp) {
         [phone, setPhone] = useState(''),
         [otpToken, setOtpToken] = useState(''),
         [remember, setRemember] = useState(true),
-        [error, setError] = useState('')
+        [error, setError] = useState(''),
+        [loading, setLoading] = useState(false),
+        [values, setValues] = useState({})
 
-    async function request(vals) {
+    async function request(vals, opts) {
         setError('')
+        setLoading(true)
         try {
-            const res = await requestOtp(vals, { phone })
+            const res = await requestOtp(vals, { phone, ...opts })
             setOtpToken(res.token)
             if (vals?.phone) setPhone(vals.phone)
             setRemember(vals?.remember === true)
             setStep(2)
         } catch (err) {
             setError(err.message || err)
+        } finally {
+            setLoading(false)
         }
     }
 
-    return { step, setStep, phone, otpToken, remember, error, request }
+    return { step, setStep, phone, otpToken, remember, error, loading, values, setValues, setError, request }
 }
 
 function PhoneInput({ defaultValue }) {
@@ -107,9 +113,34 @@ function SwitchFooter({ question, action, onAction }) {
     </Flex>
 }
 
+// 019 voice-call OTP is a paid per-domain option, so the link only appears when
+// the domain has `sms:019` VOICE.enabled on (exposed in the SSR feature flags).
+function VoiceOtpButton({ flow }) {
+    function requestVoice() {
+        if (flow.loading) return
+        const digits = String(flow.values?.phone ?? '').replace(/\D/g, '')
+        if (!/^0?5\d{8}$/.test(digits)) {
+            flow.setError('Invalid phone number')
+            return
+        }
+        return flow.request(flow.values, { channel: 'voice' })
+    }
+
+    return <Flex center className={styles.voiceCall}>
+        <Button type='button' mode='text-brand' icon='phoneOutgoing' onClick={requestVoice} disabled={flow.loading}>
+            send_otp_voice
+        </Button>
+    </Flex>
+}
+
 function LoginForm({ onClose, onToRegister }) {
-    const flow = useOtpFlow((vals, { phone }) =>
-        apiReq('user/login_otp', { phone: vals?.phone || phone, remember: vals?.remember === true }))
+    const { features } = useAppData() || {}
+    const flow = useOtpFlow((vals, opts) =>
+        apiReq('user/login_otp', {
+            phone: vals?.phone || opts?.phone,
+            remember: vals?.remember === true,
+            channel: opts?.channel
+        }))
 
     if (flow.step === 2) {
         return <DigitsInputStep
@@ -125,19 +156,26 @@ function LoginForm({ onClose, onToRegister }) {
 
     return <>
         <AuthHero />
-        <Form action={flow.request} error={flow.error} submitText='send_otp' className={styles.form}>
+        <Form action={flow.request} error={flow.error} disabled={flow.loading} submitText='send_otp' className={styles.form} onChange={flow.setValues}>
             <Flex col gap={4}>
                 <PhoneInput defaultValue={flow.phone} />
             </Flex>
             <RememberRow />
         </Form>
+        {features?.voiceOtp && <VoiceOtpButton flow={flow} />}
         <SwitchFooter question='no_account_question' action='to_register' onAction={onToRegister} />
     </>
 }
 
 function RegisterForm({ onClose, onToLogin }) {
-    const flow = useOtpFlow(data =>
-        apiReq('user/register', { ...data, remember: data?.remember === true }))
+    const { features } = useAppData() || {}
+    const flow = useOtpFlow((vals, opts) =>
+        apiReq('user/register', {
+            ...vals,
+            phone: vals?.phone || opts?.phone,
+            remember: vals?.remember === true,
+            channel: opts?.channel
+        }))
 
     if (flow.step === 2) {
         return <DigitsInputStep
@@ -154,7 +192,7 @@ function RegisterForm({ onClose, onToLogin }) {
 
     return <>
         <AuthHero icon='circleUser' title='web_register_title' subtitle='web_register_phone_subTitle' />
-        <Form action={flow.request} error={flow.error} submitText='send_otp' className={styles.form}>
+        <Form action={flow.request} error={flow.error} disabled={flow.loading} submitText='send_otp' className={styles.form} onChange={flow.setValues}>
             <Flex col gap={10}>
                 <PhoneInput />
                 <Input name='name.first' />
@@ -162,6 +200,7 @@ function RegisterForm({ onClose, onToLogin }) {
             </Flex>
             <RememberRow />
         </Form>
+        {features?.voiceOtp && <VoiceOtpButton flow={flow} />}
         <SwitchFooter question='have_account_question' action='to_login' onAction={onToLogin} />
     </>
 }

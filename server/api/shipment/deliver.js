@@ -35,12 +35,17 @@ export default async function deliver(payload, { DL, _admin, external, utils }) 
     if (order.status !== 'shipped') throw { status: 400, message: 'order not in shipped' }
 
     const shipment = order.shipmentId ? await DL.Shipment.readById(order.shipmentId) : null
-    if (shipment && shipment.shipper?.adminId !== _admin.id && !_admin.isSuperAdmin) throw { status: 403, message: 'not your shipment' }
+    // The shipment's own shipper closes it. A manager (order:ship:manage) may close it
+    // for him — the permission that already lets him cancel that shipment — and the
+    // close is recorded against the shipper he acted for.
+    const canManageShip = _admin.hasPermission('order:ship:manage')
+    const closedForOtherShipper = !!shipment && shipment.shipper?.adminId !== _admin.id
+    if (closedForOtherShipper && !_admin.isSuperAdmin && !canManageShip) throw { status: 403, message: 'not your shipment' }
 
     // `force` is the legacy name for the same override; both still require the
     // manage permission, so old clients cannot bypass the check anonymously.
     const requestedOverride = override === true || force === true
-    const canOverride = _admin.hasPermission('order:ship:manage')
+    const canOverride = canManageShip
     if (requestedOverride && !canOverride) throw { status: 403, message: 'proximity override not allowed' }
 
     const proximity = evaluateProximity({ order, coordinates, override: requestedOverride, canOverride })
@@ -106,7 +111,7 @@ export default async function deliver(payload, { DL, _admin, external, utils }) 
         await record({
             DL, order, eventType: DL.Timeline.constants.EVENT_TYPES.ORDER_STATUS_UPDATE, actor: adminActor(_admin),
             changes: { oldData: { status: 'shipped' }, newData: { status: 'done', deliveryProof: { url } } },
-            context: { step: 'deliver', override: overridden, overrideReason: overrideMeta?.reason, distanceM: overrideMeta?.distanceM, radiusM: overrideMeta?.radiusM, proofUrl: url },
+            context: { step: 'deliver', override: overridden, overrideReason: overrideMeta?.reason, distanceM: overrideMeta?.distanceM, radiusM: overrideMeta?.radiusM, proofUrl: url, forShipperAdminId: closedForOtherShipper ? shipment.shipper?.adminId : undefined },
             metadata: { source: 'shipment/deliver' }
         })
     } catch {}

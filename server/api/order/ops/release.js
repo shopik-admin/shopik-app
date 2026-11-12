@@ -1,4 +1,5 @@
 import storeScope, { assertStoreVisible } from '#server/utils/data/storeScope.js'
+import { withSortedCart } from '#server/utils/data/sortCartByCategory.js'
 
 // A release puts the order back into the picking queue with its scan progress
 // kept, so picking (still open) and picked (finished but not packed) can both be
@@ -53,7 +54,7 @@ export default async function release(payload, { DL, _admin, utils }) {
         })
     } catch { }
 
-    return updated
+    return withSortedCart(updated)
 }
 
 release.config = {

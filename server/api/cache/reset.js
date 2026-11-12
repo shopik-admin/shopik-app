@@ -1,5 +1,6 @@
 import { CACHE_STRATEGIES } from '#common/constants.js'
 import { scanDel } from '#server/utils/data/displayBlocks.js'
+import seedCache from '#server/dl/cache/seed.js'
 import log from '#server/utils/log.js'
 
 export default async function reset(payload, { DL, _admin }) {
@@ -20,9 +21,9 @@ export default async function reset(payload, { DL, _admin }) {
         try {
             if (Model.cacheStrategy === CACHE_STRATEGIES.HASHSET) {
                 entry.deletedKeys = await redis.del(Model.cacheName)
-                const docs = await Model.find({}, { _id: 0 }).lean()
-                if (docs.length && Model.cache) await Model.cache.add(docs)
-                entry.refilled = docs.length
+                // Chunked: loading 150k gov_addresses + one giant HSET peaked
+                // at ~400MB RSS and OOM-killed the 512MB test container.
+                entry.refilled = await seedCache(redis, Model)
             } else if (Model.cacheStrategy === CACHE_STRATEGIES.VERSION) {
                 entry.deletedKeys =
                     await scanDel(redis, `${Model.cacheName}:*:version`) +
@@ -55,9 +56,9 @@ export default async function reset(payload, { DL, _admin }) {
     }
 
     try {
-        results.push({ model: 'menu', cacheName: 'menu', deletedKeys: await redis.del('menu') })
+        results.push({ model: 'menu', cacheName: 'menu:*', deletedKeys: await scanDel(redis, 'menu:*') })
     } catch (e) {
-        results.push({ model: 'menu', cacheName: 'menu', error: e?.message || 'failed' })
+        results.push({ model: 'menu', cacheName: 'menu:*', error: e?.message || 'failed' })
     }
 
     return { ok: true, results }

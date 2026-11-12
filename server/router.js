@@ -6,6 +6,26 @@ import uid from '#common/functions/uid.js'
 
 const appVersion = pkg?.version || 'unknown'
 
+// Bodies above this size are logged as `{ omitted: true, bytes }` instead of
+// verbatim — see loggedRequestBody below.
+export const MAX_LOGGED_BODY_BYTES = 64 * 1024
+
+/**
+ * Request bodies worth storing in the Log doc.
+ *
+ * Base64 upload bodies run to ~10MB, and truncateLogData stringifies the whole
+ * body before slicing, so a big body costs a matching string plus the doc.
+ * Compressed bodies are omitted too: content-length would understate them.
+ */
+export function loggedRequestBody(headers, body) {
+    const declaredBytes = Number(headers?.['content-length']) || 0
+    const encoding = headers?.['content-encoding']
+    const encoded = encoding && encoding !== 'identity'
+    if (encoded || declaredBytes > MAX_LOGGED_BODY_BYTES)
+        return { omitted: true, bytes: declaredBytes, ...(encoded ? { encoding } : {}) }
+    return body
+}
+
 const allPermissionsHash = [...allPermissions, ...apiKeyPermissions].reduce((acc, curr) => {
     acc[curr] = true
     return acc
@@ -82,7 +102,7 @@ export default function router(app, bootData) {
                     data: {
                         request: {
                             platform,
-                            body
+                            body: loggedRequestBody(headers, body)
                         }
                     }
                 }

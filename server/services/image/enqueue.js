@@ -1,6 +1,7 @@
 import log from '#server/utils/log.js'
 import { enqueueImageJobs } from '#server/queues/imageQueue.js'
 import { isMainImageComplete } from './constants.js'
+import { outranks } from './sourcePriority.js'
 
 export default async function enqueueChangedImages(DL) {
     // Paged: the picUrl scan + $in:[all barcodes] product read held two full
@@ -12,8 +13,7 @@ export default async function enqueueChangedImages(DL) {
 
     let scanned = 0
     let enqueued = 0
-    let skippedGs1 = 0
-    let skippedScrape = 0
+    let skippedProtected = 0
     for (let skip = 0; skip < total; skip += BATCH) {
         const comaxProducts = await DL.ComaxProduct.Model.find(
             filter,
@@ -39,14 +39,10 @@ export default async function enqueueChangedImages(DL) {
             if (!product || !comax.picUrl) continue
 
             const mainImage = (product.images?.product || []).find(img => img?.main)
-            // GS1- and scrape-sourced images are never touched — neither
-            // filled nor refreshed. Priority: GS1 > scrape > Comax picUrl.
-            if (mainImage?.sourceUrl?.startsWith('gs1://')) {
-                skippedGs1++
-                continue
-            }
-            if (mainImage?.sourceUrl?.startsWith('scrape://')) {
-                skippedScrape++
+            // A higher-ranked source is never touched — neither filled nor
+            // refreshed. Priority: upload > gs1 > scrape > Comax picUrl.
+            if (outranks(mainImage?.sourceUrl, comax.picUrl)) {
+                skippedProtected++
                 continue
             }
             // Own (Comax/manual) main unchanged and complete → skip;
@@ -60,7 +56,7 @@ export default async function enqueueChangedImages(DL) {
         enqueued += jobs.length
     }
 
-    log.info(`[ImageQueue] Enqueued ${enqueued}/${scanned} products with images (skipped ${skippedGs1} GS1-imaged, ${skippedScrape} scraped)`)
+    log.info(`[ImageQueue] Enqueued ${enqueued}/${scanned} products with images (skipped ${skippedProtected} protected-source mains)`)
 
     return { scanned, enqueued }
 }

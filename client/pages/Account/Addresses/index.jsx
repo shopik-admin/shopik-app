@@ -1,11 +1,12 @@
 import AddressAutocomplete from 'common/components/AddressAutocomplete'
-import { isElevatorRequired } from '#common/functions/address'
+import { isElevatorRequired, sortAddressesActiveFirst } from '#common/functions/address'
 import Checkbox from '#common/components/Checkbox/index'
 import { useOrder } from 'features/Order/OrderProvider'
 import { useText } from 'common/texts/TextProvider'
 import Title from '#common/components/Title/index'
 import Button from 'common/components/Button'
 import apiReq from 'common/functions/apiReq'
+import openLoginPrompt from 'common/functions/openLoginPrompt'
 import styles from './addresses.module.css'
 import Input from 'common/components/Input'
 import Text from 'common/components/Text'
@@ -17,7 +18,7 @@ import Address from './Address'
 
 export function AddressForm({ initialData, onDone, cityRef }) {
     const [formState, setFormState] = useState()
-    const { onLogin } = useUser()
+    const { onLogin, id: userId } = useUser()
     const { setOrder } = useOrder()
     const { TR } = useText() || {}
     const [autocomplete, setAutocomplete] = useState({
@@ -28,6 +29,12 @@ export function AddressForm({ initialData, onDone, cityRef }) {
     })
 
     function handleSubmit(data) {
+        // Addresses belong to a user; guests must sign in first. Sending the
+        // request while logged out returns 401 and triggers a page reload.
+        if (!userId) {
+            openLoginPrompt()
+            return
+        }
         if (isElevatorRequired(data)) {
             setFormState({ error: TR?.('address_elevator_required'), loading: false })
             return
@@ -51,7 +58,7 @@ export function AddressForm({ initialData, onDone, cityRef }) {
                 if (res?.order) {
                     setOrder(res.order)
                 }
-                onDone?.()
+                onDone?.(res)
             })
             .catch(error => {
                 setFormState({ error: error?.message || String(error), loading: false })
@@ -67,7 +74,7 @@ export function AddressForm({ initialData, onDone, cityRef }) {
                 <Input name='floor' defaultValue={initialData?.floor} />
                 <Input name='entrance' defaultValue={initialData?.entrance} />
             </Flex>
-            <Checkbox name='hasElevator' defaultChecked={initialData?.hasElevator ?? true} className={styles.hasElevator} >
+            <Checkbox name='hasElevator' defaultChecked={initialData ? initialData.hasElevator !== false : false} className={styles.hasElevator} >
                 hasElevator
             </Checkbox>
             <Input name='comment' placeholder={'address.comment'} type='textarea' rows={3} defaultValue={initialData?.notes} />
@@ -108,7 +115,7 @@ export default function Addresses({ action, hideHeader, blinkNoService = false }
         }
     }
 
-    const addresses = user?.addresses || []
+    const addresses = sortAddressesActiveFirst(user?.addresses || [])
     if (['add', 'edit'].includes(mode))
         return <Flex col gap={16}>
             <Button icon='back' onClick={() => setMode(action ? 'select' : 'browse')} mode='text-brand' text='back' />

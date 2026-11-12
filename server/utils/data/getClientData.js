@@ -1,3 +1,4 @@
+import { getSmsConfig } from '#server/external/sms/config.js'
 import resolveDomainId from '#server/utils/resolveDomainId.js'
 
 export default async function getClientData(req, bootData) {
@@ -16,8 +17,9 @@ export default async function getClientData(req, bootData) {
 
     const promises = [
         utils.data.getSettings({ ...bootData, domainId }),
-        utils.data.getMenu(bootData),
+        utils.data.getMenu({ ...bootData, req, _user: user }),
         utils.data.getPickupStores(bootData),
+        getSmsConfig(bootData.DL, domainId).then(cfg => cfg.voice.enabled).catch(() => false),
     ]
 
     if (user) {
@@ -29,6 +31,7 @@ export default async function getClientData(req, bootData) {
         settingsResult,
         menuResult,
         pickupStoresResult,
+        voiceOtpResult,
         orderResult,
         favoritesResult
     ] = await Promise.allSettled(promises)
@@ -47,6 +50,10 @@ export default async function getClientData(req, bootData) {
         pickupStores: pickupStoresResult.status === 'fulfilled' ? pickupStoresResult.value : undefined,
         settings: settingsResult.status === 'fulfilled' ? settingsResult.value : undefined,
         menu: menuResult.status === 'fulfilled' ? menuResult.value : undefined,
+        features: {
+            // 019 voice-call OTP is a paid per-domain option (sms:019 VOICE.enabled).
+            voiceOtp: voiceOtpResult.status === 'fulfilled' && voiceOtpResult.value === true,
+        },
         env: {
             FILES_BASE_URL: process.env.FILES_BASE_URL || 'https://files.shopik.co.il',
         },

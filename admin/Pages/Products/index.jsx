@@ -1,11 +1,38 @@
 import DataManager from 'features/DataManager'
+import { useModal } from 'common/components/Modal'
+import LoadKashrutModal from './LoadKashrutModal'
+import LoadImagesModal from './LoadImagesModal'
 import styles from './products.module.css'
 
 export default function Products({ }) {
+    const { openModal } = useModal()
+
+    // First so it sits at the top of the ⋯ menu: it is the tool that fixes the
+    // kashrut stamps admins ask about most.
+    const loadKashrut = {
+        icon: 'upload',
+        text: 'action_load_kashrut',
+        permission: 'product:update',
+        onClick: ({ refresh }) => openModal(
+            <LoadKashrutModal onDone={refresh} />,
+            { title: 'product_load_kashrut' }
+        )
+    }
+
+    const loadImages = {
+        icon: 'upload',
+        text: 'action_load_images',
+        permission: 'product:update',
+        onClick: ({ refresh }) => openModal(
+            <LoadImagesModal onDone={refresh} />,
+            { title: 'product_load_images' }
+        )
+    }
+
     return <div className={styles.products}>
         <DataManager
             apiRoute='product'
-            actions={['add', 'export', 'refresh']}
+            actions={[loadKashrut, loadImages, 'add', 'export', 'refresh']}
             defaultSort={{ updatedAt: -1 }}
             rowActions={['edit']}
             onRowClick={console.log}

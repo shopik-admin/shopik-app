@@ -1,16 +1,22 @@
 const searchFieldRegex = /[^\d\sA-Za-zא-ת%.]/g
 const separatorRegex = /[-,/\\]/g
 
-/**
- * Generates a MongoDB Atlas Search query object based on the Model's configuration.
- * 
- * @param {Object} Model - The Mongoose/Model instance containing collection info and searchFields config.
- * @param {string} query - The sanitized search string (e.g., "red 50% off").
- * @returns {Object} The $search object ready to be used in a query pipeline.
- */
-function buildSearchQuery(Model, query) {
-    const indexName = Model.getSearchIndexName()
+const isPrefixField = (Model, path) =>
+    !!Model.searchPrefixFields && Object.prototype.hasOwnProperty.call(Model.searchPrefixFields, path)
 
+/**
+ * Builds the compound.should clauses for a single word against fields that
+ * have a word-level analyzer (standard).
+ *
+ * Keyword-analyzed prefix fields are skipped: a lone word can only match the
+ * very start of the whole value there, so they are handled by
+ * buildPhraseClauses with the full query instead.
+ *
+ * @param {Object} Model - The Mongoose/Model instance containing searchFields config.
+ * @param {string} term - A single sanitized word (e.g., "red").
+ * @returns {Object[]} Clauses for compound.should.
+ */
+function buildWordClauses(Model, term) {
     // Schema-driven tiered ranking:
     // - search: autocomplete boost (e.g. name:30, label:8)
     // - searchPrefixBoost: sequential prefix boost on dual-type field (edgeGram keyword) (e.g. name:100, label:15)
@@ -18,42 +24,46 @@ function buildSearchQuery(Model, query) {
     // Product schema now defines all tiers explicitly; other models fallback to generic.
     const shouldClauses = []
 
-    // Prefix boosts (sequential = field starts with query) — highest tier
-    if (Model.searchPrefixFields) {
-        for (const [path, boost] of Object.entries(Model.searchPrefixFields)) {
-            shouldClauses.push({
-                autocomplete: {
-                    query,
-                    path,
-                    tokenOrder: 'sequential',
-                    score: { boost: { value: boost } }
-                }
-            })
-        }
+    // Prefix fields are keyword-analyzed for the starts-with phrase tier, but
+    // ensureSearchIndex also maps them as `string` (standard analyzer). A prefix
+    // wildcard there lets a word match anywhere in the value, e.g. "טחון" in
+    // "בשר טחון", without rebuilding the index. The phrase tier above still adds
+    // its own bonus on top when the value starts with the query.
+    for (const [path, score] of Object.entries(Model.searchPrefixFields || {})) {
+        shouldClauses.push({
+            wildcard: {
+                query: `${term}*`,
+                path,
+                allowAnalyzedField: true,
+                score: { constant: { value: score } }
+            }
+        })
     }
 
-    // Regular autocomplete per search field — generic models double-weight autocomplete vs fuzzy (boost*2 / boost)
+    // Regular autocomplete per word-analyzed search field — generic models double-weight autocomplete vs fuzzy (boost*2 / boost)
     const hasPrefixForWeight = Model.searchPrefixFields && Object.keys(Model.searchPrefixFields).length > 0
-    for (const [path, boost] of Object.entries(Model.searchFields || {})) {
-        const autocompleteBoost = hasPrefixForWeight ? boost : boost * 2
+    for (const [path, score] of Object.entries(Model.searchFields || {})) {
+        if (isPrefixField(Model, path)) continue
+        const autocompleteScore = hasPrefixForWeight ? score : score * 2
         shouldClauses.push({
             autocomplete: {
-                query,
+                query: term,
                 path,
-                score: { boost: { value: autocompleteBoost } }
+                score: { constant: { value: autocompleteScore } }
             }
         })
     }
 
     // Fuzzy — explicit per-field if defined (product: name:3, label:1), otherwise generic fallback for other models
     if (Model.searchFuzzyFields && Object.keys(Model.searchFuzzyFields).length) {
-        for (const [path, boost] of Object.entries(Model.searchFuzzyFields)) {
+        for (const [path, score] of Object.entries(Model.searchFuzzyFields)) {
+            if (isPrefixField(Model, path)) continue
             shouldClauses.push({
                 autocomplete: {
-                    query,
+                    query: term,
                     path,
                     fuzzy: { maxEdits: 1, prefixLength: 2 },
-                    score: { boost: { value: boost } }
+                    score: { constant: { value: score } }
                 }
             })
         }
@@ -62,24 +72,127 @@ function buildSearchQuery(Model, query) {
         const hasFuzzy = Model.searchFuzzyFields && Object.keys(Model.searchFuzzyFields).length > 0
         const hasPrefix = Model.searchPrefixFields && Object.keys(Model.searchPrefixFields).length > 0
         if (!hasFuzzy && !hasPrefix) {
-            for (const [path, boost] of Object.entries(Model.searchFields)) {
+            for (const [path, score] of Object.entries(Model.searchFields)) {
                 shouldClauses.push({
                     autocomplete: {
-                        query,
+                        query: term,
                         path,
                         fuzzy: { maxEdits: 1, prefixLength: 2 },
-                        score: { boost: { value: boost } }
+                        score: { constant: { value: score } }
                     }
                 })
             }
         }
     }
 
+    return shouldClauses
+}
+
+/**
+ * Builds clauses that match the whole query as a starts-with phrase on
+ * keyword-analyzed prefix fields. Because those fields are indexed as a
+ * single term, only the full phrase can use them: "בשר טחון" matches names
+ * that start with "בשר טחון", and implies every word is present.
+ *
+ * @param {Object} Model - The Mongoose/Model instance containing searchPrefixFields config.
+ * @param {string} phrase - The joined query (e.g., "בשר טחון").
+ * @returns {Object[]} Clauses for compound.should.
+ */
+function buildPhraseClauses(Model, phrase) {
+    const shouldClauses = []
+
+    // Prefix boosts (sequential = field starts with phrase) — highest tier
+    for (const [path, score] of Object.entries(Model.searchPrefixFields || {})) {
+        shouldClauses.push({
+            autocomplete: {
+                query: phrase,
+                path,
+                tokenOrder: 'sequential',
+                score: { constant: { value: score } }
+            }
+        })
+    }
+
+    // Regular autocomplete on the same keyword-analyzed fields (phrase, not word-level)
+    const hasPrefixForWeight = Model.searchPrefixFields && Object.keys(Model.searchPrefixFields).length > 0
+    for (const [path, score] of Object.entries(Model.searchFields || {})) {
+        if (!isPrefixField(Model, path)) continue
+        shouldClauses.push({
+            autocomplete: {
+                query: phrase,
+                path,
+                score: { constant: { value: hasPrefixForWeight ? score : score * 2 } }
+            }
+        })
+    }
+
+    // Phrase-level fuzzy on keyword-analyzed fields
+    if (Model.searchFuzzyFields && Object.keys(Model.searchFuzzyFields).length) {
+        for (const [path, score] of Object.entries(Model.searchFuzzyFields)) {
+            if (!isPrefixField(Model, path)) continue
+            shouldClauses.push({
+                autocomplete: {
+                    query: phrase,
+                    path,
+                    fuzzy: { maxEdits: 1, prefixLength: 2 },
+                    score: { constant: { value: score } }
+                }
+            })
+        }
+    }
+
+    return shouldClauses
+}
+
+/**
+ * Generates a MongoDB Atlas Search query object based on the Model's configuration.
+ * A document matches when either:
+ * - its keyword-analyzed prefix field starts with the full phrase (e.g. the
+ *   product name starts with "בשר טחון"), or
+ * - every word matches at least one word-analyzed field (AND across words,
+ *   OR across fields per word).
+ * 
+ * @param {Object} Model - The Mongoose/Model instance containing collection info and searchFields config.
+ * @param {string[]} words - The sanitized search words (e.g., ["בשר", "טחון"]).
+ * @returns {Object} The $search object ready to be used in a query pipeline.
+ */
+function buildSearchQuery(Model, words) {
+    const indexName = Model.getSearchIndexName()
+    const terms = Array.isArray(words) ? words : [words]
+
+    const alternatives = []
+
+    // Starts-with phrase path — also gives name-prefix matches their high score
+    const phraseClauses = buildPhraseClauses(Model, terms.join(' '))
+    if (phraseClauses.length) {
+        alternatives.push({
+            compound: {
+                should: phraseClauses,
+                minimumShouldMatch: 1
+            }
+        })
+    }
+
+    // All-words path — each word may hit a different field, but every word must hit one
+    const wordClauseGroups = terms.map(term => buildWordClauses(Model, term))
+    if (wordClauseGroups.every(clauses => clauses.length)) {
+        alternatives.push({
+            compound: {
+                must: wordClauseGroups.map(clauses => ({
+                    compound: {
+                        should: clauses,
+                        minimumShouldMatch: 1
+                    }
+                }))
+            }
+        })
+    }
+
     return {
         $search: {
             index: indexName,
             compound: {
-                should: shouldClauses,
+                should: alternatives,
                 minimumShouldMatch: 1
             }
         }
@@ -111,8 +224,7 @@ export default (Model) => async function search(value = '', filter, options = {}
 
     if (!sanitizedWords.length) return []
 
-    const sanitizedValue = sanitizedWords.join(' ')
-    const searchStage = buildSearchQuery(Model, sanitizedValue,)
+    const searchStage = buildSearchQuery(Model, sanitizedWords)
 
     const projection = select || Model.defaultSelect
     const sort = Model.defaultSort || {}

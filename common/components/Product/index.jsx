@@ -8,7 +8,7 @@ import classNames from 'common/functions/classNames'
 import KashrutStamps from 'common/components/Kashrut'
 import { DietIcons } from 'common/components/Nutrition'
 import { round2, round3 } from 'common/functions/calcOrder/utils.js'
-import { getProductImageUrl } from 'common/functions/productImageUrl.js'
+import { getProductImageUrl, mainImageHash } from 'common/functions/productImageUrl.js'
 import { getRowPriceInfo, isBundleReached } from 'common/functions/rowPrice.js'
 import { getUnitPriceText, parseWeightOrVolume } from 'common/functions/unitPrice.js'
 import { useState, useEffect } from 'react'
@@ -132,7 +132,7 @@ export function ProductSaleBadge({ product, sales, size = 'm' }) {
 export function ProductImage({ product, size = 'm', sales, hideSaleBadge = false }) {
     const [failed, setFailed] = useState(false)
     useEffect(() => { setFailed(false) }, [product?.id, size])
-    const src = product?.id ? getProductImageUrl(product.id, size) : ''
+    const src = product?.id ? getProductImageUrl(product.id, size, '', mainImageHash(product)) : ''
     const saleBadge = hideSaleBadge ? null : <ProductSaleBadge product={product} sales={sales} size={size} />
     if (failed || !src) {
         return <div className={classNames(styles.productImageWrapper, styles[size])}>

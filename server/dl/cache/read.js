@@ -1,7 +1,9 @@
 import handleSelect from '#server/dl/handleSelect.js'
 import { CACHE_STRATEGIES } from '#common/constants.js'
-import { parseArray } from '#common/functions/safeJsonParse.js'
+import safeJsonParse from '#common/functions/safeJsonParse.js'
 import get from '#common/functions/get.js'
+
+const SCAN_COUNT = 1000
 
 export default function (redis, Model) {
     function searchValue(doc, search) {
@@ -66,23 +68,39 @@ export default function (redis, Model) {
         // If Redis is not connected, signal caller to fall back to MongoDB
         if (!redis || redis.status !== 'ready') return null
 
-        let docsMap
+        const { search, sort } = options
+        const skip = Number(options.skip) || 0
+        const limit = options.limit == null ? 30 : Number(options.limit)
+        const processedFilter = Model.processFilter(filter)
+        const shouldFilter = Object.keys(processedFilter).length > 0
+        const searchTerm = search?.length ? search.toLowerCase() : null
+        // Without a sort the order is already arbitrary (hash order), so stop
+        // as soon as we have enough rows. With a sort we must see every match.
+        const target = sort || !limit || limit <= 0 ? Infinity : skip + limit
+
+        // HSCAN in pages instead of HVALS: HVALS materialises every value at
+        // once (150k gov_addresses → ~400MB RSS), HSCAN keeps one page live.
+        const matched = []
+        let cursor = '0'
         try {
-            docsMap = await redis.hvals(Model.cacheName)
+            do {
+                const [next, page] = await redis.hscan(Model.cacheName, cursor, 'COUNT', SCAN_COUNT)
+                cursor = next
+                // page = [field1, value1, field2, value2, ...]
+                for (let i = 0; i < page.length; i += 2) {
+                    const doc = safeJsonParse(page[i + 1])
+                    if (!doc) continue
+                    if (shouldFilter && !matchesFilter(doc, processedFilter)) continue
+                    if (searchTerm && !searchValue(doc, searchTerm)) continue
+                    matched.push(doc)
+                    if (matched.length >= target) { cursor = '0'; break }
+                }
+            } while (cursor !== '0')
         } catch {
             return null
         }
-        let docs = parseArray(docsMap)
-        const { search, skip = 0, limit = 30, sort } = options
 
-        const processedFilter = Model.processFilter(filter)
-        const shouldFilter = Object.keys(processedFilter).length > 0
-
-        docs = docs.filter(doc => {
-            if (shouldFilter && !matchesFilter(doc, processedFilter)) return false
-            if (search?.length && !searchValue(doc, search.toLowerCase())) return false
-            return true
-        })
+        let docs = matched
 
         if (sort) {
             const entries = Object.entries(sort)
@@ -101,7 +119,7 @@ export default function (redis, Model) {
         }
 
         if (skip > 0 || limit > 0)
-            docs = docs.slice(skip, limit != null ? skip + limit : undefined)
+            docs = docs.slice(skip, limit > 0 ? skip + limit : undefined)
 
         return handleSelect(docs, select)
     }

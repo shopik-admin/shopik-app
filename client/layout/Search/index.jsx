@@ -5,6 +5,7 @@ import Loader from '#common/components/Loader'
 import Flex from '#common/components/Flex'
 import Text from '#common/components/Text'
 import ProductInline from 'layout/Cart/ProductInline'
+import { useProductModalLink } from 'layout/ProductOverlay/useProductModalLink.js'
 import { useText } from '#common/texts/TextProvider'
 import { useNavigate, Link } from 'react-router'
 import { useEffect, useRef, useState } from 'react'
@@ -108,17 +109,17 @@ export default function Search({ }) {
         {showResults && <div className={styles.results}>
             {loading ? <Flex center className={styles.state}><Loader /></Flex> : (
                 results?.length ? results.map(product => (
-                    <Link
-                        key={product.id}
-                        to={`/product/${product.id}`}
-                        state={{ product }}
-                        className={styles.result}
-                        onClick={() => setOpen(false)}
-                    >
-                        <ProductInline product={product} remove={false} note={false} />
-                    </Link>
+                    <SearchResult key={product.id} product={product} onNavigate={() => setOpen(false)} />
                 )) : <Text mode='sub' className={styles.state}>{TR('no_search_results')}</Text>
             )}
         </div>}
     </div>
+}
+
+// One hook per result, so product links can carry the overlay background state.
+function SearchResult({ product, onNavigate }) {
+    const productLink = useProductModalLink(product)
+    return <Link {...productLink} className={styles.result} onClick={onNavigate}>
+        <ProductInline product={product} remove={false} note={false} />
+    </Link>
 }

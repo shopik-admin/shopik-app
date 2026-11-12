@@ -8,7 +8,13 @@ import WindowOptions from '../WindowOptions'
 import Flex from 'common/components/Flex'
 import Loader from 'common/components/Loader'
 import Tabs from 'common/components/Tabs'
+import Text from 'common/components/Text'
+import Icon from 'common/components/Icon'
+import Form from 'common/components/Form'
+import Input from 'common/components/Input'
 import apiReq from '#common/functions/apiReq'
+import { noServiceAddressFromSave, sortAddressesActiveFirst } from '#common/functions/address.js'
+import openLoginPrompt from 'common/functions/openLoginPrompt'
 import events from 'common/features/events'
 import { useUser } from 'features/User'
 import { useEffect, useState } from 'react'
@@ -27,7 +33,7 @@ const deliveryMethods = {
 export default function DeliveryView({ }) {
     const
         { order = {}, setOrder } = useOrder(),
-        { addresses = [], deliveryMethod: userMethod, onLogin } = useUser(),
+        { addresses = [], deliveryMethod: userMethod, onLogin, id: userId } = useUser(),
         { pickupStores = [] } = useAppData(),
         [deliveryMethod, setDeliveryMethod] = useState(userMethod == deliveryMethods.pickup.text ?
             deliveryMethods.pickup.text : deliveryMethods.delivery.text),
@@ -96,50 +102,153 @@ export default function DeliveryView({ }) {
         />}
     >
         {() => <Flex col gap={25} className={styles.deliveryView}>
-            {pickupStores.length ? <Tabs
-                active={deliveryMethod}
-                onChange={handleDeliveryMethodChange}
-                options={Object.values(deliveryMethods)}
-            /> : null}
-            {isSwitching ? <Loader /> : deliveryMethod == deliveryMethods.delivery.text ?
-                <Delivery open={popoverOpened} /> : <Pickup />}
+            {!userId ? <GuestPrompt /> : <>
+                {pickupStores.length ? <Tabs
+                    active={deliveryMethod}
+                    onChange={handleDeliveryMethodChange}
+                    options={Object.values(deliveryMethods)}
+                /> : null}
+                {isSwitching ? <Loader /> : deliveryMethod == deliveryMethods.delivery.text ?
+                    <Delivery open={popoverOpened} /> : <Pickup />}
+            </>}
         </Flex>}
     </Popover>
+}
+
+function GuestPrompt() {
+    const { TR } = useText() || {}
+
+    return <Flex col center gap={14} className={styles.guestPrompt}>
+        <Icon name='user' className={styles.guestIcon} />
+        <Text bold size='xl' center>{TR?.('login_required_delivery_title')}</Text>
+        <Text mode='sub' center>{TR?.('login_required_delivery_subtitle')}</Text>
+        <Button onClick={openLoginPrompt}>{TR?.('login')}</Button>
+    </Flex>
 }
 
 function Delivery({ open }) {
     const { addresses = [] } = useUser()
     const [isEditing, setIsEditing] = useState(false)
+    const [noServiceAddress, setNoServiceAddress] = useState(null)
+    // "Back" from the no-service screen: keeps the screen from trapping the
+    // shopper when every saved address is outside the service area.
+    const [showAddressList, setShowAddressList] = useState(false)
     const activeAddress = addresses.find(({ active }) => active)
+    const allNoService = !activeAddress && addresses.length > 0 &&
+        addresses.every(address => address.hasService === false)
+    const displayedNoService = noServiceAddress || (allNoService ? addresses[addresses.length - 1] : null)
+
+    function handleNoService(address) {
+        setNoServiceAddress(address || null)
+        setShowAddressList(false)
+    }
+
+    // AddressForm reports the full server response. Only a saved address with
+    // hasService === false should open the no-service screen; treating a whole
+    // response object as an address made in-service addresses show it too.
+    function handleAddressSaved(res) {
+        handleNoService(noServiceAddressFromSave(res))
+    }
 
     if (!addresses.length)
-        return <AddressForm />
+        return <AddressForm onDone={handleAddressSaved} />
+
+    if (displayedNoService && !showAddressList)
+        return <NoServiceView
+            address={displayedNoService}
+            onBack={() => setShowAddressList(true)}
+        />
 
     if (isEditing) return <Flex col gap={15}>
         <Button mode="text" onClick={() => setIsEditing(false)}>cancel</Button>
-        <Addresses onDone={() => setIsEditing(false)} />
+        <Addresses onDone={() => setIsEditing(false)} onNoService={handleNoService} />
     </Flex>
 
-    if (activeAddress || addresses.length == 1) {
+    if (activeAddress) {
         return open
             ? <WindowOptions onChangeAddress={() => setIsEditing(true)} />
             : null
     }
 
-    return <Addresses />
+    return <Addresses onNoService={handleNoService} />
 }
 
-function Addresses({ onDone }) {
+function NoServiceView({ address, onBack }) {
+    const { TR } = useText() || {}
+    const { email } = useUser()
+    const [formState, setFormState] = useState()
+    const [done, setDone] = useState(false)
+
+    async function handleSubmit(data) {
+        setFormState({ loading: true })
+        try {
+            await apiReq('supply_area/notify', {
+                email: data.email,
+                address: {
+                    city: address?.city,
+                    street: address?.street,
+                    building: address?.building,
+                    apartment: address?.apartment,
+                    areaId: address?.areaId,
+                    location: address?.location
+                }
+            })
+            setDone(true)
+            setFormState({ loading: false })
+        } catch (error) {
+            setFormState({ error: error?.message || String(error), loading: false })
+            throw error
+        }
+    }
+
+    return <Flex col gap={12}>
+        <Form
+            action={handleSubmit}
+            {...formState}
+            submitText='no_service_area_submit'
+            noSubmit={done}
+            autoComplete='off'
+        >
+            <Flex col center gap={16} className={styles.noServiceView}>
+                <Icon name='home' className={styles.noServiceIcon} />
+                <Text bold size='xl' center>{TR?.('no_service_area_title')}</Text>
+                <Text mode='sub' center>{TR?.('no_service_area_subtitle')}</Text>
+                {done
+                    ? <Text bold center className={styles.noServiceSuccess}>
+                        {TR?.('no_service_area_success')}
+                    </Text>
+                    : <Input
+                        name='email'
+                        type='email'
+                        required
+                        label=''
+                        placeholder='no_service_area_email_placeholder'
+                        defaultValue={email || ''}
+                        className={styles.noServiceEmail}
+                    />}
+            </Flex>
+        </Form>
+        <Flex center>
+            <Button type='button' mode='text-brand' onClick={onBack}>
+                {TR?.('no_service_area_back')}
+            </Button>
+        </Flex>
+    </Flex>
+}
+
+function Addresses({ onDone, onNoService }) {
     const { addresses = [], onLogin } = useUser()
     const { setOrder } = useOrder()
     const [mode, setMode] = useState(null)
     const [editAddress, setEditAddress] = useState(null)
+    const sortedAddresses = sortAddressesActiveFirst(addresses)
 
     async function select(address) {
         try {
             const res = await apiReq('user/address/active', { addressId: address.addressId })
             onLogin(res)
             if (res?.order) setOrder(res.order)
+            onNoService?.(null)
             onDone?.()
         } catch (err) {
             console.error(err)
@@ -169,19 +278,25 @@ function Addresses({ onDone }) {
     if (mode === 'add' || mode === 'edit') {
         return <Flex col gap={15}>
             <Button icon='back' mode='text-brand' text='back' onClick={() => setMode(null)} />
-            <AddressForm initialData={editAddress} onDone={() => { setMode(null); setEditAddress(null) }} />
+            <AddressForm initialData={editAddress} onDone={(res) => {
+                onNoService?.(noServiceAddressFromSave(res))
+                setMode(null)
+                setEditAddress(null)
+            }} />
         </Flex>
     }
 
     return <Flex col gap={15}>
-        {addresses.map(address => {
-            const disabled = address.hasService === false
-            return <Address key={address.addressId} address={address} onEdit={handleEdit} onRemove={handleRemove} action={{
-                text: 'select',
-                onClick: () => select(address),
-                disabled
-            }} />
-        })}
+        <Flex col gap={15} className={styles.addressList}>
+            {sortedAddresses.map(address => {
+                const disabled = address.hasService === false
+                return <Address key={address.addressId} address={address} onEdit={handleEdit} onRemove={handleRemove} action={{
+                    text: 'select',
+                    onClick: () => select(address),
+                    disabled
+                }} />
+            })}
+        </Flex>
         <Button onClick={handleAdd}>add-address</Button>
     </Flex>
 }

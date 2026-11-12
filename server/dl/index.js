@@ -16,6 +16,10 @@ export default async function createDL(__dirname) {
         const [modelName, Model] = entry
         DL[modelName] = {
             Model,
+            // Exposed so `DL.X.cache.del/add` works next to direct Model writes.
+            // Without it the optional-chained call is a silent no-op and the
+            // hashset keeps docs (or field values) that Mongo no longer has.
+            cache: Model.cache,
             constants: Model.constants,
             defaultSelect: Model.defaultSelect,
             defaultSelectOne: Model.defaultSelectOne

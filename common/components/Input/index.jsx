@@ -42,7 +42,8 @@ function Input(props) {
         } = props,
         functionType = typeof type == 'function',
         [visited, setVisited] = useState(),
-        [value, setValue] = useState(defaultValue),
+        initialValue = type == 'date' ? toDateInputValue(defaultValue) : defaultValue,
+        [value, setValue] = useState(initialValue),
         { TR } = useText(),
         InputTag = getInputTag(props),
         invalidError = functionType ? '' : getInputInvalidError(value, props),
@@ -61,15 +62,17 @@ function Input(props) {
         {(label && type != 'hidden') && <Text className={styles.label}>{TR(title) || TR(label) || label}{label.trim() && requiredSign}</Text>}
         {functionType ? type(defaults) :
             <>
-                {icon && <Icon name={icon} className={styles.icon} />}
-                <InputTag
-                    ref={innerRef}
-                    {...ps}
-                    {...{ name, type, onBlur, defaultValue, autoFocus }}
-                    onChange={onInputChange}
-                    aria-invalid={!!invalidError}
-                    placeholder={(TR(placeholder) || placeholder) + requiredSign}
-                />
+                <div className={styles.control}>
+                    {icon && <Icon name={icon} className={styles.icon} />}
+                    <InputTag
+                        ref={innerRef}
+                        {...ps}
+                        {...{ name, type, onBlur, defaultValue: initialValue, autoFocus }}
+                        onChange={onInputChange}
+                        aria-invalid={!!invalidError}
+                        placeholder={(TR(placeholder) || placeholder) + requiredSign}
+                    />
+                </div>
                 {info && !(invalidError && visited) && <Text size='s' mode='sub' className={styles.info}>{info}</Text>}
                 {invalidError && !hideErrorMessage && <Text size='s' mode='error' className={styles.error}>{invalidError}</Text>}
             </>}
@@ -82,6 +85,16 @@ export { default as isValidIsraeliId } from 'common/functions/isValidIsraeliId'
 
 function CheckboxInput(props) {
     return <Checkbox {...props} label='' />
+}
+
+// <input type="date"> only accepts YYYY-MM-DD; API values arrive as ISO strings
+// or Date objects. Format in local time so the shown day matches the user's day.
+function toDateInputValue(value) {
+    if (!value) return ''
+    const date = new Date(value)
+    if (isNaN(date.getTime())) return ''
+    const pad = n => String(n).padStart(2, '0')
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
 }
 
 function SwitchInput(props) {

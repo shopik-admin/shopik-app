@@ -120,32 +120,53 @@ export function countStills(mediaAssets) {
 // Main = default_image match; alternates = other S matches, capped.
 // Falls back to the legacy single largest pick when nothing matches.
 export function pickImageEntries(zipBuffer, mediaAssets, maxAlternates) {
-    let entries
+    const bytes = new Uint8Array(zipBuffer.buffer, zipBuffer.byteOffset, zipBuffer.byteLength)
+    // Pass 1 reads the central directory only (the filter rejects every entry),
+    // so the largest-file fallback can be ranked by uncompressed size without
+    // inflating a 50MB spin-set zip. Pass 2 inflates just the picked stills.
+    const entries = []
     try {
-        entries = unzipSync(new Uint8Array(zipBuffer))
+        unzipSync(bytes, { filter: file => { entries.push(file); return false } })
     } catch (e) {
         throw new Error(`GS1 zip corrupt: ${e?.message || e}`)
     }
-    const images = Object.entries(entries)
-        .filter(([name]) => IMAGE_EXT.test(name))
-        .map(([name, data]) => ({ name, data: Buffer.from(data) }))
+    const images = entries.filter(file => IMAGE_EXT.test(file.name))
     if (!images.length) throw new Error('GS1 zip contains no images')
 
     // S stills only: image_type 'S' with an image filename. E containers (zips)
     // and 360° frames never match an S filename, so they're excluded by construction.
     const { main: rankedMain, alternates: rankedAlts } = rankStills(mediaAssets, maxAlternates)
     const ordered = [...(rankedMain ? [rankedMain.asset] : []), ...rankedAlts.map(r => r.asset)]
-    const matched = []
+    const picked = []
     for (const asset of ordered) {
         const hit = images.find(e => baseName(e.name) === baseName(asset.filename))
-        if (hit && !matched.some(m => m.name === hit.name))
-            matched.push({ ...hit, asset })
+        if (hit && !picked.some(p => p.name === hit.name))
+            picked.push({ ...hit, asset })
     }
-    if (!matched.length) {
-        images.sort((a, b) => b.data.length - a.data.length)
-        return { main: { ...images[0], asset: ordered[0] || null }, alternates: [] }
+    if (!picked.length) {
+        const biggest = [...images].sort((a, b) => (b.originalSize ?? b.size) - (a.originalSize ?? a.size))[0]
+        picked.push({ ...biggest, asset: ordered[0] || null })
     }
-    const [main, ...rest] = matched
+
+    const wantedNames = new Set(picked.map(p => p.name))
+    let inflated
+    try {
+        inflated = unzipSync(bytes, { filter: file => wantedNames.has(file.name) })
+    } catch (e) {
+        throw new Error(`GS1 zip corrupt: ${e?.message || e}`)
+    }
+    // Buffer view over fflate's own output — no second copy of the image bytes.
+    const withData = picked
+        .map(p => {
+            const raw = inflated[p.name]
+            return raw
+                ? { name: p.name, data: Buffer.from(raw.buffer, raw.byteOffset, raw.byteLength), asset: p.asset }
+                : null
+        })
+        .filter(Boolean)
+    if (!withData.length) throw new Error('GS1 zip contains no readable images')
+
+    const [main, ...rest] = withData
     return { main, alternates: rest }
 }
 

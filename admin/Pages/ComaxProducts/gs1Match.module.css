@@ -1,0 +1,74 @@
+.modal {
+    width: min(900px, 86vw);
+}
+
+.search {
+    min-width: 240px;
+}
+
+.list {
+    max-height: 58vh;
+    overflow: auto;
+    padding-inline-end: 4px;
+}
+
+.row {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px;
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    background-color: var(--bg-primary);
+}
+
+.gtin {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: .5px;
+}
+
+.candidates {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.candidate {
+    text-align: start;
+    padding: 8px 10px;
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    background-color: var(--bg-secondary);
+    cursor: pointer;
+    min-width: 190px;
+    max-width: 260px;
+    transition: border-color .2s, background-color .2s;
+
+    &:hover {
+        border-color: var(--border-brand);
+    }
+
+    &.selected {
+        border-color: var(--border-brand);
+        background-color: var(--bg-brand-secondary);
+    }
+}
+
+.thumb,
+.thumbPlaceholder {
+    width: 42px;
+    height: 42px;
+    flex-shrink: 0;
+    object-fit: contain;
+    border-radius: var(--radius-sm, 4px);
+    background-color: var(--bg-primary);
+}
+
+.pickInput {
+    min-width: 220px;
+    flex: 1;
+}
+
+.empty {
+    padding: 40px 16px;
+}

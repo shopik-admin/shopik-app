@@ -31,8 +31,8 @@ function existingProduct(overrides = {}) {
     }
 }
 
-const build = (comax = {}, existing = existingProduct(), enforceBuyingPrice = false) =>
-    buildProduct(comaxProduct(comax), DL, 'default', existing, enforceBuyingPrice)
+const build = (comax = {}, existing = existingProduct(), enforceBuyingPrice = false, lookup) =>
+    buildProduct(comaxProduct(comax), DL, 'default', existing, enforceBuyingPrice, lookup)
 
 describe('comax product build', () => {
     it('hides an item that is in stock in no store', () => {
@@ -90,5 +90,138 @@ describe('comax product build', () => {
         const product = build({ storeIds: ['store-a'] }, existingProduct({ images: { product: [] } }))
 
         assert.equal(product.status, STATUS.HIDDEN)
+    })
+
+    it('maps the comax sub-group through the category map', () => {
+        const lookup = {
+            hasMap: true,
+            mapByCode: new Map([['92410', 'nc:9:904:9142:92410']]),
+            categoriesById: new Map([[
+                'nc:9:904:9142:92410',
+                {
+                    id: 'nc:9:904:9142:92410',
+                    name: 'בגדי ים',
+                    parentIds: ['nc:9', 'nc:9:904', 'nc:9:904:9142']
+                }
+            ]])
+        }
+
+        const product = build({ subGroupCode: '92410' }, existingProduct(), false, lookup)
+
+        assert.equal(product.comaxSubGroupCode, '92410')
+        assert.deepEqual(product.category, {
+            id: 'nc:9:904:9142:92410',
+            title: 'בגדי ים',
+            pathIds: ['nc:9', 'nc:9:904', 'nc:9:904:9142', 'nc:9:904:9142:92410']
+        })
+    })
+
+    it('clears the category for an unassigned sub-group once a map exists', () => {
+        const lookup = {
+            hasMap: true,
+            mapByCode: new Map([['1', null]]),
+            categoriesById: new Map()
+        }
+
+        const product = build({ subGroupCode: '1' }, existingProduct({ category: { id: 'old' } }), false, lookup)
+
+        assert.deepEqual(product.category, {})
+    })
+
+    it('keeps the stored category before the first map import', () => {
+        const category = { id: 'sg:1', title: 'ישן', pathIds: ['sg:1'] }
+
+        const product = build({ subGroupCode: '1' }, existingProduct({ category }))
+
+        assert.deepEqual(product.category, category)
+    })
+
+    describe('category flags', () => {
+        const lookupWith = flags => ({
+            hasMap: true,
+            mapByCode: new Map([['100', null]]),
+            flagsByCode: new Map([['100', flags]]),
+            categoriesById: new Map()
+        })
+
+        it('hides an item in a sub-group marked hide on site', () => {
+            const product = build(
+                { subGroupCode: '100', storeIds: ['store-a'] },
+                existingProduct(),
+                false,
+                lookupWith({ showOnSite: false, requireKashrut: false })
+            )
+
+            assert.equal(product.status, STATUS.HIDDEN)
+        })
+
+        it('hides an item whose category was deactivated', () => {
+            const product = build(
+                { subGroupCode: '100', storeIds: ['store-a'] },
+                existingProduct(),
+                false,
+                lookupWith({ categoryActive: false, showOnSite: true, requireKashrut: false })
+            )
+
+            assert.equal(product.status, STATUS.HIDDEN)
+        })
+
+        it('hides an item in a kashrut-required sub-group with no kashrut data', () => {
+            const product = build(
+                { subGroupCode: '100', storeIds: ['store-a'] },
+                existingProduct(),
+                false,
+                lookupWith({ showOnSite: true, requireKashrut: true })
+            )
+
+            assert.equal(product.status, STATUS.HIDDEN)
+        })
+
+        it('hides an item whose rabbinate code is not on the valid list', () => {
+            const product = build(
+                { subGroupCode: '100', storeIds: ['store-a'] },
+                existingProduct({ kashrut: { rabbinates: [{ code: '67011', name: 'הרבנות הראשית' }] } }),
+                false,
+                lookupWith({ showOnSite: true, requireKashrut: true })
+            )
+
+            assert.equal(product.status, STATUS.HIDDEN)
+        })
+
+        it('keeps an item with a valid rabbinate code', () => {
+            const product = build(
+                { subGroupCode: '100', storeIds: ['store-a'] },
+                existingProduct({ kashrut: { rabbinates: [{ code: '67085' }] } }),
+                false,
+                lookupWith({ showOnSite: true, requireKashrut: true })
+            )
+
+            assert.equal(product.status, STATUS.ACTIVE)
+        })
+
+        it('does not resurrect an archived item through its flags', () => {
+            const product = build(
+                { archived: true, subGroupCode: '100', storeIds: ['store-a'] },
+                existingProduct({ kashrut: { rabbinates: [{ code: '67085' }] } }),
+                false,
+                lookupWith({ showOnSite: true, requireKashrut: true })
+            )
+
+            assert.equal(product.status, STATUS.ARCHIVED)
+        })
+
+        it('keeps a normal item active when its sub-group has no flags', () => {
+            const lookup = {
+                hasMap: true,
+                mapByCode: new Map([['100', null]]),
+                flagsByCode: new Map(),
+                categoriesById: new Map()
+            }
+
+            assert.equal(
+                build({ subGroupCode: '100', storeIds: ['store-a'] }, existingProduct(), false, lookup).status,
+                STATUS.ACTIVE
+            )
+        })
     })
 })

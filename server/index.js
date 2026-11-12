@@ -1,7 +1,8 @@
-import express, { json, urlencoded, static as serveStatic } from 'express'
+import express, { static as serveStatic } from 'express'
 import cookieParser from 'cookie-parser'
 import path from 'path'
 import router from './router.js'
+import bodyParsers from './middleware/bodyParsers.js'
 import registerManifestRoute from './routes/manifest.js'
 import boot from './boot.js'
 import ssr from './ssr.js'
@@ -78,9 +79,13 @@ app.use((req, res, next) => {
     next()
 })
 
-app.use(json({ limit: '15mb' }))
+// Only the base64 upload/import routes legitimately carry more than a
+// megabyte — see middleware/bodyParsers.js.
+const [parseJson, parseUrlencoded] = bodyParsers()
+
+app.use(parseJson)
 app.use(cookieParser())
-app.use(urlencoded({ extended: true, limit: '15mb' }))
+app.use(parseUrlencoded)
 
 app.use(compression())
 

@@ -48,40 +48,49 @@ export function getProcessQueue() {
 const attempts = 5
 const backoff = { type: 'exponential', delay: 2 * 60 * 1000 }
 
+// BullMQ builds the whole command payload for addBulk at once; a bootstrap
+// run can be ~9k jobs, so send them in bounded batches.
+const enqueueChunkSize = () => {
+    const value = Number(process.env.GS1_ENQUEUE_CHUNK || 500)
+    return Number.isFinite(value) && value > 0 ? Math.floor(value) : 500
+}
+
+export async function addBulkInChunks(queue, jobs) {
+    const size = enqueueChunkSize()
+    for (let i = 0; i < jobs.length; i += size)
+        await queue.addBulk(jobs.slice(i, i + size))
+}
+
 // jobId dedupes re-enqueues of the same product code across overlapping runs.
 export async function enqueueFetchJobs(jobs) {
     if (!jobs?.length) return { enqueued: 0 }
-    await getFetchQueue().addBulk(
-        jobs.map(job => ({
-            name: 'fetch-product',
-            data: job,
-            opts: {
-                jobId: `gs1-${job.productCode}`,
-                attempts,
-                backoff,
-                removeOnComplete: true,
-                removeOnFail: false
-            }
-        }))
-    )
+    await addBulkInChunks(getFetchQueue(), jobs.map(job => ({
+        name: 'fetch-product',
+        data: job,
+        opts: {
+            jobId: `gs1-${job.productCode}`,
+            attempts,
+            backoff,
+            removeOnComplete: true,
+            removeOnFail: false
+        }
+    })))
     return { enqueued: jobs.length }
 }
 
 export async function enqueueProcessJobs(jobs) {
     if (!jobs?.length) return { enqueued: 0 }
-    await getProcessQueue().addBulk(
-        jobs.map(job => ({
-            name: 'process-images',
-            data: job,
-            opts: {
-                jobId: `gs1img-${job.productId}`,
-                attempts,
-                backoff,
-                removeOnComplete: true,
-                removeOnFail: false
-            }
-        }))
-    )
+    await addBulkInChunks(getProcessQueue(), jobs.map(job => ({
+        name: 'process-images',
+        data: job,
+        opts: {
+            jobId: `gs1img-${job.productId}`,
+            attempts,
+            backoff,
+            removeOnComplete: true,
+            removeOnFail: false
+        }
+    })))
     return { enqueued: jobs.length }
 }
 

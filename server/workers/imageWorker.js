@@ -2,6 +2,7 @@ import { Worker } from 'bullmq'
 import { createHash } from 'crypto'
 import processImage from '#server/services/image/process.js'
 import { isMainImageComplete } from '#server/services/image/constants.js'
+import { outranks, sourceLabel } from '#server/services/image/sourcePriority.js'
 import { getConnection, getQueue } from '#server/queues/imageQueue.js'
 import log from '#server/utils/log.js'
 
@@ -36,17 +37,14 @@ export default async function startImageWorker({ DL }) {
                 { _id: 0, images: 1 }
             ).catch(() => null)
             const currentMain = (current?.images?.product || []).find(img => img?.main)
-            if (currentMain?.sourceUrl?.startsWith('gs1://')) {
-                log.warn(`[ImageWorker] Skipped ${productId} — GS1 image present`)
-                return { skipped: 'gs1-present' }
-            }
-            // Race guard: a scraped image may have landed between enqueue and
-            // processing — a Comax picUrl job must never overwrite it
-            // (priority GS1 > scrape > Comax). Scrape/GS1 jobs still proceed.
-            if (currentMain?.sourceUrl?.startsWith('scrape://') &&
-                !sourceUrl.startsWith('scrape://') && !sourceUrl.startsWith('gs1://')) {
-                log.warn(`[ImageWorker] Skipped ${productId} — scraped image present`)
-                return { skipped: 'scrape-present' }
+            // Race guard: a higher-ranked main may have landed between enqueue
+            // and processing. Every job on this queue is a Comax picUrl (the
+            // upload tool and the scraper both write inline), so one rank check
+            // covers upload / gs1 / scrape.
+            if (outranks(currentMain?.sourceUrl, sourceUrl)) {
+                const owner = sourceLabel(currentMain.sourceUrl)
+                log.warn(`[ImageWorker] Skipped ${productId} — ${owner} image present`)
+                return { skipped: `${owner}-present` }
             }
 
             // Unchanged source with a complete previous write → skip the

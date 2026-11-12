@@ -3,6 +3,7 @@ import log from '#server/utils/log.js'
 import { acquireLock } from '#server/utils/redisLock.js'
 import importComaxSales from '#server/api/comax_sale/import.js'
 import syncComaxSales from '#server/api/comax_sale/sync.js'
+import { trimMemory } from '#server/utils/mem.js'
 
 const LOCK_KEY = 'sales-sync:lock'
 const LOCK_TTL_SECONDS = 60 * 60 * 2
@@ -25,10 +26,12 @@ export async function runSalesSync(
 
         log.warn('[SalesSync] Started')
         const importResult = await importFn({ justActive: true, futurePromotions: true }, { DL, external })
+        trimMemory('after sale import', 'SalesSync')
         log.warn(`[SalesSync] Imported: ${importResult?.count ?? 0}`)
         // syncFn writes ComaxSale rows into Sale, then rolls statuses and
         // refreshes product saleIds (see sale/sync.js).
         const syncResult = await syncFn({ justActive: true, futurePromotions: true }, { DL })
+        trimMemory('after sale sync', 'SalesSync')
         const statusUpdates = syncResult?.saleUpdates ?? syncResult ?? {}
         log.success(`[SalesSync] Done: imported=${importResult?.count ?? 0}, sales=${syncResult?.synced ?? 0} (created=${syncResult?.created ?? 0}, updated=${syncResult?.updated ?? 0}), statuses=${JSON.stringify({ done: statusUpdates?.updatedToDone, active: statusUpdates?.updatedToActive })}, products=${statusUpdates?.updatedProducts ?? 0}, cleared=${statusUpdates?.clearedProducts ?? 0}`)
         return { importResult, syncResult }

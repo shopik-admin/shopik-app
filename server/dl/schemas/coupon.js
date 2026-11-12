@@ -89,6 +89,11 @@ const couponSchema = {
         }]
     },
     campaignName: String,
+    public: {
+        type: Boolean,
+        default: false,
+        filter: true
+    },
     status: {
         type: String,
         default: STATUS.ACTIVE,

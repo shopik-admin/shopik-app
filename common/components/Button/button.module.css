@@ -57,6 +57,31 @@
         color: var(--text-white)
     }
 
+    /* Unread/work counter. Sits on the button corner so an icon-only action
+       (⋯, bell, barcode) still shows there is something to review. */
+    &.hasBadge {
+        position: relative;
+        overflow: visible;
+    }
+
+    .badge {
+        position: absolute;
+        top: -7px;
+        inset-inline-end: -7px;
+        min-width: 18px;
+        height: 18px;
+        padding: 0 5px;
+        border-radius: 100px;
+        background-color: #d92d20;
+        color: #fff;
+        font-size: 11px;
+        font-weight: 700;
+        line-height: 18px;
+        text-align: center;
+        box-shadow: 0 0 0 2px var(--bg-primary, #fff);
+        pointer-events: none;
+    }
+
     &.outline {
         background-color: var(--bg-primary);
         color: var(--text-secondary);

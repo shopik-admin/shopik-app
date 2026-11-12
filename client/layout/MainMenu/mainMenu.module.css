@@ -155,9 +155,14 @@
         justify-content: center;
 
         border-radius: 50%;
-
-        background-color: #edf4f3;
         padding: 10px;
+    }
+
+    /* Uploaded category icons (img) size like the 1em react-icons glyphs. */
+    .iconWrap img {
+        width: 40px;
+        height: 40px;
+        object-fit: contain;
     }
 
     .level2Item> :first-child {
@@ -165,8 +170,6 @@
         display: flex;
         align-items: center;
         justify-content: center;
-
-        background-color: #edf4f3;
     }
 
     .level2Item> :nth-child(2) {

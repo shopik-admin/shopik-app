@@ -1,4 +1,5 @@
 import { enrichOrders } from '#server/utils/data/enrichCart.js'
+import { withSortedCart } from '#server/utils/data/sortCartByCategory.js'
 import buildOpsFilter, { opsSearchMatch } from '#server/utils/data/opsFilter.js'
 import { withTiebreaker } from '#server/dl/defaults/read.js'
 import { CLOSED_STATUSES } from '#common/functions/opsView.js'
@@ -149,8 +150,9 @@ export default async function list(payload, { DL, _admin }) {
         await enrichOrders(docs, DL)
     } catch { }
 
-    // Annotate isMine (mineFirst and closedFirst are only used for ordering)
-    return docs.map(({ mineFirst, closedFirst, ...d }) => ({
+    // Annotate isMine (mineFirst and closedFirst are only used for ordering).
+    // The cart is grouped by category for the ops screens.
+    return docs.map(({ mineFirst, closedFirst, ...d }) => withSortedCart({
         ...d,
         isMine: (d.picker?.adminId === me) || (d.shipper?.adminId === me)
     }))

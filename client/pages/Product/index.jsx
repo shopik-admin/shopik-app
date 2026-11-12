@@ -19,18 +19,18 @@ import NotFound from 'pages/NotFound'
 import { usePage } from 'layout/Page'
 import TR from '#common/texts/TR.js'
 import { ProductButton } from 'pages/Products/ProductCard'
-import ProductCard from 'pages/Products/ProductCard'
+import ProductRail from 'features/Display/ProductRail'
 import { useProductCart } from '#common/components/Product/useProductCart.js'
 import {
     ProductPrice,
     ProductSaleBadge,
-    ProductStamps,
     getFirstSale,
     getUnitInfoText,
     ProductUnitInfo
 } from 'common/components/Product'
+import { KashrutStamps } from 'common/components/Kashrut'
 import { selectKashrutStamps, getSupervisionLabel } from 'common/components/Kashrut/constants.js'
-import { FoodSymbolStamps } from 'common/components/Nutrition'
+import { DietIcons, FoodSymbolStamps } from 'common/components/Nutrition'
 import { selectDietIcons, selectFoodSymbols } from 'common/components/Nutrition/constants.js'
 import { getProductState } from '#common/functions/productState.js'
 import { getProductImageUrls } from 'common/functions/productImageUrl.js'
@@ -207,12 +207,12 @@ function SectionBody({ section }) {
     )
 }
 
-export default function Product() {
+export default function Product({ modal = false, initialData } = {}) {
     const [selectedImageIndex, setSelectedImageIndex] = useState(0)
     const [activeSpecKey, setActiveSpecKey] = useState(null)
     const { productId } = useParams()
     const { isFavorite, toggleFavorite } = useUser()
-    const { loading, pageData } = usePage()
+    const { loading, refreshing, pageData } = usePage(initialData, { live: modal })
     const { data } = pageData
     const { product, sales, categoryPath, related, relatedSales } = data || {}
     const mergedSales = useMemo(() => ({ ...(relatedSales || {}), ...(sales || {}) }), [sales, relatedSales])
@@ -250,7 +250,7 @@ export default function Product() {
     const wishlisted = isFavorite(product.id)
 
     return (
-        <Flex col className={styles.container}
+        <Flex col className={classNames(styles.container, [styles.inModal, modal])}
             data-action={detailState.action}
             data-price={detailState.price}>
             <div className={styles.crumbs}>
@@ -295,13 +295,20 @@ export default function Product() {
                         const hasSymbols = selectFoodSymbols(product.nutrients).length > 0
                         if (!supervisionLabel && !hasPassover && !hasStamps && !hasDiet && !hasSymbols) return null
                         return (
-                            <Flex className={styles.badgeRow} gap={6} wrap alignItems="center">
-                                <ProductStamps product={product} kashrutCount={2} dietCount={6} imagesOnly={false} />
-                                {supervisionLabel && <Badge><Text size="s">{supervisionLabel}</Text></Badge>}
-                                {hasPassover && (
-                                    <Badge><Text size="s">{PASSOVER_TEXT[product.passoverKashrut]}</Text></Badge>
-                                )}
-                                <FoodSymbolStamps nutrients={product.nutrients} />
+                            <Flex className={styles.badgeRow} gap={6} wrap alignItems="center" justifyContent="space-between">
+                                {/* Kashrut side: stamps, supervision and Passover stay packed at the start. */}
+                                <Flex gap={6} wrap alignItems="center" className={styles.badgeGroup}>
+                                    <KashrutStamps kashrut={product.kashrut} count={2} imagesOnly={false} />
+                                    {supervisionLabel && <Badge><Text size="s">{supervisionLabel}</Text></Badge>}
+                                    {hasPassover && (
+                                        <Badge><Text size="s">{PASSOVER_TEXT[product.passoverKashrut]}</Text></Badge>
+                                    )}
+                                </Flex>
+                                {/* Health side: diet icons and food symbols sit at the end, like the card. */}
+                                <Flex gap={6} wrap alignItems="center" className={styles.badgeGroup}>
+                                    <DietIcons diet={product.diet} count={6} />
+                                    <FoodSymbolStamps nutrients={product.nutrients} />
+                                </Flex>
                             </Flex>
                         )
                     })()}
@@ -363,72 +370,71 @@ export default function Product() {
 
                 <div className={styles.specs}>
                     <Card className={styles.specCard}>
-                        {sections.length > 0 && (
+                        {refreshing ? (
+                            // Reserve the detail card's space while specs stream in
+                            // so the dialog does not reflow under the customer.
+                            <Flex center className={styles.specLoading}>
+                                <Loader size={20} />
+                            </Flex>
+                        ) : (
                             <>
-                                <div className={styles.specLayout}>
-                                    <Flex col gap={2} className={styles.specNav}>
-                                        {sections.map(s => (
-                                            <Button
-                                                key={s.key}
-                                                mode="text"
-                                                icon={s.icon}
-                                                className={classNames(
-                                                    styles.specTab,
-                                                    activeSection?.key === s.key && styles.specTabActive
-                                                )}
-                                                onClick={() => setActiveSpecKey(s.key)}
-                                            >
-                                                <Text size="s" bold={activeSection?.key === s.key}>{s.title}</Text>
-                                            </Button>
-                                        ))}
-                                    </Flex>
-                                    <div className={styles.specContent}>
-                                        {activeSection && <SectionBody section={activeSection} />}
-                                    </div>
-                                </div>
-                                <Flex col gap={8} className={styles.collapses}>
-                                    {sections.map((s, i) => (
-                                        <Collapse
-                                            key={s.key}
-                                            defaultOpen={i === 0}
-                                            title={
-                                                <Flex gap={8} alignItems="center">
-                                                    <Icon name={s.icon} size={16} />
-                                                    <Text size="s" bold>{s.title}</Text>
-                                                </Flex>
-                                            }
-                                        >
-                                            <SectionBody section={s} />
-                                        </Collapse>
-                                    ))}
-                                </Flex>
+                                {sections.length > 0 && (
+                                    <>
+                                        <div className={styles.specLayout}>
+                                            <Flex col gap={2} className={styles.specNav}>
+                                                {sections.map(s => (
+                                                    <Button
+                                                        key={s.key}
+                                                        mode="text"
+                                                        icon={s.icon}
+                                                        className={classNames(
+                                                            styles.specTab,
+                                                            activeSection?.key === s.key && styles.specTabActive
+                                                        )}
+                                                        onClick={() => setActiveSpecKey(s.key)}
+                                                    >
+                                                        <Text size="s" bold={activeSection?.key === s.key}>{s.title}</Text>
+                                                    </Button>
+                                                ))}
+                                            </Flex>
+                                            <div className={styles.specContent}>
+                                                {activeSection && <SectionBody section={activeSection} />}
+                                            </div>
+                                        </div>
+                                        <Flex col gap={8} className={styles.collapses}>
+                                            {sections.map((s, i) => (
+                                                <Collapse
+                                                    key={s.key}
+                                                    defaultOpen={i === 0}
+                                                    title={
+                                                        <Flex gap={8} alignItems="center">
+                                                            <Icon name={s.icon} size={16} />
+                                                            <Text size="s" bold>{s.title}</Text>
+                                                        </Flex>
+                                                    }
+                                                >
+                                                    <SectionBody section={s} />
+                                                </Collapse>
+                                            ))}
+                                        </Flex>
+                                    </>
+                                )}
+                                <Text size="xs" mode="sub" className={styles.disclaimer}>
+                                    product_disclaimer
+                                </Text>
                             </>
                         )}
-                        <Text size="xs" mode="sub" className={styles.disclaimer}>
-                            product_disclaimer
-                        </Text>
                     </Card>
                 </div>
             </div>
 
-            {relatedList.length > 0 && (
-                <div className={styles.related}>
-                    <Text size="h2" bold className={styles.relatedTitle}>related_products</Text>
-                    <HorizontalScroll
-                        className={styles.relatedScroll}
-                        items={relatedList.map(p => {
-                            const psales = (p.saleIds || []).reduce((acc, sId) => {
-                                if (mergedSales[sId]) acc[sId] = mergedSales[sId]
-                                return acc
-                            }, {})
-                            return (
-                                <div key={p.id} className={styles.relatedCard}>
-                                    <ProductCard product={p} sales={psales} size="m" />
-                                </div>
-                            )
-                        })}
-                    />
-                </div>
+            {!refreshing && relatedList.length > 0 && (
+                <ProductRail
+                    title='related_products'
+                    products={relatedList}
+                    sales={mergedSales}
+                    showAllTo={categoryPath ? `/products/${categoryPath}` : '/products'}
+                />
             )}
         </Flex>
     )

@@ -7,7 +7,10 @@ import { IMAGE_SIZES } from './constants.js'
 // width cap — tall portrait sources otherwise keep their full height
 // (e.g. a 500px-wide supplier shot producing a 500x1770 'm').
 export default async function resize(buffer, sizes = IMAGE_SIZES, { serial = false } = {}) {
-    const basePipeline = sharp(buffer)
+    // Cap decoded pixels: the upload/GS1 caps bound compressed bytes, not the
+    // decoded surface (a 20MB PNG can declare 100MP+). 50MP is well above the
+    // largest real source we see (Comax 2560×2560 ≈ 6.6MP).
+    const basePipeline = sharp(buffer, { limitInputPixels: 50_000_000 })
     // A null/0 width means "convert to webp only" (full resolution variant),
     // e.g. the seo.ogImage setting which stores just one large image.
     const runOne = async ([name, width]) => {

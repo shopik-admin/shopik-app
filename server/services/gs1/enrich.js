@@ -1,10 +1,12 @@
 import pLimit from 'p-limit'
+import { mergeRabbinates } from '#common/components/Kashrut/constants.js'
 import { enqueueProcessJobs } from '#server/queues/gs1Queues.js'
 import { bufferProduct, bufferRaw, bufferProgress, flush } from './bulk.js'
 import { stageZip, buildFingerprint, hashFingerprint, countStills, rankStills, bucketHasImage, buildImageSizes, isZipBuffer, zipEntryBasenames, baseName, imageExtFromMagic, wrapSingleImage } from './images.js'
 import { mem } from './memlog.js'
 import { aliasCandidates, aliasEnabled, resolveAlias, aliasMinLen } from './alias.js'
 import log from '#server/utils/log.js'
+import { isUploadMain } from '#server/services/image/sourcePriority.js'
 
 const enrichBatchSize = () => Number(process.env.GS1_ENRICH_BATCH || 500)
 const imageBatchSize = () => Number(process.env.GS1_IMAGE_BATCH || 200)
@@ -61,6 +63,10 @@ async function fetchStagedSource(external, barcode, wantedMain) {
     return { buffer: buf, via: 'media=all' }
 }
 
+// The main entry of a lean product read — one helper so every guard above
+// reads the same field the same way.
+const mainImageOf = product => (product?.images?.product || []).find(img => img?.main)
+
 // Phase 2: enrich products from the local gs1_products collection.
 // Two-pass to bound memory: page barcode-only docs, gate in bulk, then load
 // full raws ONLY for passers. No GS1 calls, no per-doc writes, no images.
@@ -75,43 +81,74 @@ export async function enrichBatch({ DL, external, runId, onlyInStock = true, bar
     if (!force) filter.status = 'fetched'
     const page = await DL.Gs1Product.read(
         filter,
-        { _id: 0, barcode: 1 },
+        { _id: 0, barcode: 1, aliasShort: 1, aliasStatus: 1 },
         { limit: enrichBatchSize(), sort: { barcode: 1 } }
     )
     if (!page?.length) return { done: true, enriched: 0, skipped: 0, total: 0, next: null }
 
     const barcodes = [...new Set(page.map(r => r?.barcode).filter(Boolean))]
+    // Manual mappings (confirmed in the admin UI) may point at a short that is
+    // not a derivable suffix, so load those products explicitly.
+    const manualShortByGtin = new Map()
+    for (const r of page)
+        if (r?.barcode && r?.aliasStatus === 'manual' && r?.aliasShort)
+            manualShortByGtin.set(r.barcode, r.aliasShort)
+    const lookupBarcodes = [...new Set([...barcodes, ...manualShortByGtin.values()])]
+    // kashrut.rabbinates rides along with the existence gate: the GS1 write must
+    // merge over what the product already carries (see mergeRabbinates below).
     const products = await DL.Product.read(
-        { barcode: { $in: barcodes } },
-        { _id: 0, barcode: 1, storeIds: 1 },
+        { barcode: { $in: lookupBarcodes } },
+        { _id: 0, barcode: 1, storeIds: 1, 'kashrut.rabbinates': 1, 'images.product': 1 },
         { limit: 0 }
+    )
+    const rabbinatesByBarcode = new Map(
+        (products || []).filter(p => p?.barcode).map(p => [p.barcode, p?.kashrut?.rabbinates])
     )
     const productSet = new Set((products || []).map(p => p.barcode))
     const inStockSet = new Set((products || []).filter(p => (p.storeIds || []).length).map(p => p.barcode))
+    // Barcodes whose main image is the admin's own upload — GS1 may enrich
+    // every other field but must never clear or replace those images.
+    const uploadedSet = new Set((products || [])
+        .filter(p => p?.barcode && isUploadMain(mainImageOf(p)))
+        .map(p => p.barcode))
 
     let enriched = 0
     let skipped = 0
-    // passing entries are { gtin, short }: gtin keys the gs1_products raw doc,
-    // short keys the Product write. Exact matches have gtin === short.
+    // passing entries are { gtin, short, match }: gtin keys the gs1_products raw
+    // doc, short keys the Product write, match records how it was resolved.
     const passing = []
     const unmatched = []
     for (const barcode of barcodes) {
+        const manualShort = manualShortByGtin.get(barcode)
+        if (manualShort) {
+            if (!productSet.has(manualShort)) {
+                bufferRaw({ barcode, status: 'skipped', skipReason: 'no-product' })
+                skipped++
+            } else if (onlyInStock && !inStockSet.has(manualShort)) {
+                bufferRaw({ barcode, status: 'skipped', skipReason: 'out-of-stock' })
+                skipped++
+            } else {
+                passing.push({ gtin: barcode, short: manualShort, match: 'manual' })
+            }
+            continue
+        }
         if (!productSet.has(barcode)) {
             unmatched.push(barcode)
             continue
         }
         const reason = (onlyInStock && !inStockSet.has(barcode)) ? 'out-of-stock' : null
         if (reason) {
-            bufferRaw({ barcode, status: 'skipped', skipReason: reason })
+            bufferRaw({ barcode, status: 'skipped', skipReason: reason, aliasStatus: '', aliasCandidates: [] })
             skipped++
         } else {
-            passing.push({ gtin: barcode, short: barcode })
+            passing.push({ gtin: barcode, short: barcode, match: 'exact' })
         }
     }
 
     // Alias fallback: GTINs with no exact Product match resolve to a short
-    // internal code (prefix + zeros + short). Product-only gate — no Comax
-    // check. Ambiguous GTINs (2+ distinct shorts) are skipped, never guessed.
+    // internal code — any proper suffix of the GTIN (see alias.js). Product-only
+    // gate, no Comax check. Ambiguous GTINs (2+ distinct shorts) are parked for
+    // manual matching, never guessed.
     if (unmatched.length && aliasEnabled()) {
         const minLen = aliasMinLen()
         const candidates = new Set()
@@ -121,37 +158,43 @@ export async function enrichBatch({ DL, external, runId, onlyInStock = true, bar
         if (candidates.size) {
             const aliasProducts = await DL.Product.read(
                 { barcode: { $in: [...candidates] } },
-                { _id: 0, barcode: 1, storeIds: 1 },
+                { _id: 0, barcode: 1, storeIds: 1, 'kashrut.rabbinates': 1, 'images.product': 1 },
                 { limit: 0 }
             )
             for (const p of aliasProducts || []) {
                 if (!p?.barcode) continue
                 foundSet.add(p.barcode)
+                if (!rabbinatesByBarcode.has(p.barcode))
+                    rabbinatesByBarcode.set(p.barcode, p?.kashrut?.rabbinates)
                 if ((p.storeIds || []).length) inStockSet.add(p.barcode)
+                if (isUploadMain(mainImageOf(p))) uploadedSet.add(p.barcode)
             }
         }
         for (const g of unmatched) {
             const r = resolveAlias(g, foundSet, minLen)
             if (r?.short) {
                 if (onlyInStock && !inStockSet.has(r.short)) {
-                    bufferRaw({ barcode: g, status: 'skipped', skipReason: 'out-of-stock' })
+                    bufferRaw({ barcode: g, status: 'skipped', skipReason: 'out-of-stock', aliasStatus: '', aliasCandidates: [] })
                     skipped++
                 } else {
-                    passing.push({ gtin: g, short: r.short })
+                    passing.push({ gtin: g, short: r.short, match: 'alias' })
                     log.info(`[GS1] Alias ${g} → ${r.short}`)
                 }
             } else if (r?.ambiguous) {
-                bufferRaw({ barcode: g, status: 'skipped', skipReason: 'alias-ambiguous' })
-                log.warn(`[GS1] Ambiguous alias ${g} matches: ${r.ambiguous.join(',')} — skipped`)
+                bufferRaw({
+                    barcode: g, status: 'skipped', skipReason: 'alias-ambiguous',
+                    aliasStatus: 'ambiguous', aliasCandidates: r.ambiguous, aliasUpdatedAt: new Date()
+                })
+                log.warn(`[GS1] Ambiguous alias ${g} matches: ${r.ambiguous.join(',')} — awaiting manual match`)
                 skipped++
             } else {
-                bufferRaw({ barcode: g, status: 'skipped', skipReason: 'no-product' })
+                bufferRaw({ barcode: g, status: 'skipped', skipReason: 'no-product', aliasStatus: '', aliasCandidates: [] })
                 skipped++
             }
         }
     } else {
         for (const g of unmatched) {
-            bufferRaw({ barcode: g, status: 'skipped', skipReason: 'no-product' })
+            bufferRaw({ barcode: g, status: 'skipped', skipReason: 'no-product', aliasStatus: '', aliasCandidates: [] })
             skipped++
         }
     }
@@ -163,7 +206,7 @@ export async function enrichBatch({ DL, external, runId, onlyInStock = true, bar
             { limit: 0 }
         )
         const fullByBarcode = new Map((full || []).map(r => [r?.barcode, r]))
-        for (const { gtin: barcode, short } of passing) {
+        for (const { gtin: barcode, short, match } of passing) {
             const stored = fullByBarcode.get(barcode)
             if (!stored?.raw) {
                 bufferRaw({ barcode, status: 'skipped', skipReason: 'empty-raw' })
@@ -182,6 +225,11 @@ export async function enrichBatch({ DL, external, runId, onlyInStock = true, bar
             // doc, so a GTIN left in mapped.doc would rewrite Product.barcode
             // (or upsert a duplicate product under the GTIN).
             const doc = { ...mapped.doc, barcode: short }
+            // Rabbinates are a set, not a value: whatever the product already
+            // carries (manual load, earlier run) survives the GS1 $set. Only codes
+            // GS1 adds are appended, so repeated nightly runs cannot grow the list.
+            if (doc.kashrut)
+                doc.kashrut.rabbinates = mergeRabbinates(rabbinatesByBarcode.get(short), doc.kashrut.rabbinates)
             // Report-seeded raws are partial: an absent report field maps to '' in the
             // mapper, and a plain $set would blank whatever the product already has.
             // With skipEmptyValues only fields carrying actual content are written.
@@ -195,14 +243,21 @@ export async function enrichBatch({ DL, external, runId, onlyInStock = true, bar
                     if (empty) delete doc[key]
                 }
             }
-            // Supplier removed/unchecked images → clear local images (status untouched).
-            if (mapped.removal.deleted || mapped.removal.unchecked) {
+            // Supplier removed/unchecked images → clear local images (status
+            // untouched). An admin upload outranks the supplier: keep it.
+            if ((mapped.removal.deleted || mapped.removal.unchecked) && !uploadedSet.has(short)) {
                 bufferProduct(short, { ...doc, 'images.product': [] })
                 log.warn(`[GS1] Images cleared for ${barcode} (supplier removal flag)`)
             } else {
                 bufferProduct(short, doc)
             }
-            bufferRaw({ barcode, status: 'enriched' })
+            // Record how the pair resolved so the admin review list stays
+            // accurate after a manual match or a catalog change. A manual
+            // mapping keeps its candidates for audit; auto matches clear them.
+            const aliasAudit = match === 'manual'
+                ? { aliasStatus: 'manual', aliasShort: short, aliasUpdatedAt: new Date() }
+                : { aliasStatus: 'auto', aliasShort: short !== barcode ? short : '', aliasCandidates: [], aliasUpdatedAt: new Date() }
+            bufferRaw({ barcode, status: 'enriched', ...aliasAudit })
             enriched++
         }
     }
@@ -254,14 +309,22 @@ export async function requeueRescued({ DL, onlyInStock = true, barcode = '' }) {
         : { status: 'skipped', skipReason: { $in: RESCUABLE_REASONS } }
     const candidates = await DL.Gs1Product.read(
         match,
-        { _id: 0, barcode: 1 },
+        { _id: 0, barcode: 1, skipReason: 1, aliasShort: 1, aliasStatus: 1 },
         { limit: 0 }
     )
     const barcodes = [...new Set((candidates || []).map(r => r?.barcode).filter(Boolean))]
     if (!barcodes.length) return 0
+    const infoByBarcode = new Map((candidates || []).filter(r => r?.barcode).map(r => [r.barcode, r]))
+
+    // Manual mappings survive catalog churn: include their shorts in the gate.
+    const manualShortByGtin = new Map()
+    for (const r of candidates || [])
+        if (r?.barcode && r?.aliasStatus === 'manual' && r?.aliasShort)
+            manualShortByGtin.set(r.barcode, r.aliasShort)
+    const lookupBarcodes = [...new Set([...barcodes, ...manualShortByGtin.values()])]
 
     const products = await DL.Product.read(
-        { barcode: { $in: barcodes } },
+        { barcode: { $in: lookupBarcodes } },
         { _id: 0, barcode: 1, storeIds: 1 },
         { limit: 0 }
     )
@@ -269,9 +332,10 @@ export async function requeueRescued({ DL, onlyInStock = true, barcode = '' }) {
     const inStockSet = new Set((products || []).filter(p => (p.storeIds || []).length).map(p => p.barcode))
 
     // Alias fallback for GTINs with no exact Product match: product-only gate,
-    // same rule as enrichBatch. Ambiguous GTINs stay skipped.
+    // same rule as enrichBatch. Ambiguous GTINs are flagged for manual matching.
     const aliasShortByGtin = new Map()
-    const unmatched = barcodes.filter(b => !productSet.has(b))
+    const ambiguousByGtin = new Map()
+    const unmatched = barcodes.filter(b => !productSet.has(b) && !manualShortByGtin.has(b))
     if (unmatched.length && aliasEnabled()) {
         const minLen = aliasMinLen()
         const candidates = new Set()
@@ -292,27 +356,66 @@ export async function requeueRescued({ DL, onlyInStock = true, barcode = '' }) {
             for (const g of unmatched) {
                 const r = resolveAlias(g, foundSet, minLen)
                 if (r?.short) aliasShortByGtin.set(g, r.short)
+                else if (r?.ambiguous) ambiguousByGtin.set(g, r.ambiguous)
             }
         }
     }
 
     let rescued = 0
+    let touched = false
     for (const b of barcodes) {
-        const aliasShort = aliasShortByGtin.get(b)
-        if (aliasShort) {
-            if (onlyInStock && !inStockSet.has(aliasShort)) continue
-            bufferRaw({ barcode: b, status: 'fetched' })
+        const info = infoByBarcode.get(b) || {}
+        const manualShort = manualShortByGtin.get(b)
+        const short = manualShort
+            ? (productSet.has(manualShort) ? manualShort : '')
+            : (aliasShortByGtin.get(b) || (productSet.has(b) ? b : ''))
+        if (short) {
+            if (onlyInStock && !inStockSet.has(short)) {
+                // Already parked with the right reason and no stale alias state.
+                if (info.skipReason === 'out-of-stock' && !manualShort && !info.aliasStatus) continue
+                touched = true
+                bufferRaw({
+                    barcode: b, status: 'skipped', skipReason: 'out-of-stock',
+                    ...(manualShort ? {} : { aliasStatus: '', aliasCandidates: [] })
+                })
+                continue
+            }
+            touched = true
+            bufferRaw({
+                barcode: b, status: 'fetched',
+                ...(manualShort
+                    ? { aliasStatus: 'manual', aliasShort: manualShort }
+                    : { aliasStatus: '', aliasCandidates: [] })
+            })
             rescued++
             continue
         }
-        if (!productSet.has(b)) continue
-        if (onlyInStock && !inStockSet.has(b)) continue
-        bufferRaw({ barcode: b, status: 'fetched' })
-        rescued++
+        if (ambiguousByGtin.has(b)) {
+            if (info.skipReason === 'alias-ambiguous' && info.aliasStatus === 'ambiguous') continue
+            touched = true
+            bufferRaw({
+                barcode: b, status: 'skipped', skipReason: 'alias-ambiguous',
+                aliasStatus: 'ambiguous', aliasCandidates: ambiguousByGtin.get(b), aliasUpdatedAt: new Date()
+            })
+            continue
+        }
+        // A manual mapping whose product vanished must survive catalog churn:
+        // keep the admin's decision and only refresh the skip reason.
+        if (manualShort) {
+            if (info.skipReason === 'no-product' && info.aliasStatus === 'manual') continue
+            touched = true
+            bufferRaw({ barcode: b, status: 'skipped', skipReason: 'no-product', aliasStatus: 'manual', aliasShort: manualShort })
+            continue
+        }
+        // Neither exact, unique alias, nor manual: make the reason explicit and
+        // clear any stale ambiguity flag.
+        if (info.skipReason === 'no-product' && !info.aliasStatus) continue
+        touched = true
+        bufferRaw({ barcode: b, status: 'skipped', skipReason: 'no-product', aliasStatus: '', aliasCandidates: [] })
     }
-    if (rescued) {
+    if (touched) {
         await flush()
-        log.info(`[GS1] Rescued ${rescued} previously-skipped docs back to fetched`)
+        if (rescued) log.info(`[GS1] Rescued ${rescued} previously-skipped docs back to fetched`)
     }
     return rescued
 }
@@ -342,7 +445,7 @@ export async function runImages({ DL, external, runId, force = false, limit = 0,
         const raws = await DL.Gs1Product.read(
             force ? { ...baseFilter, assetCount: { $gt: 0 } }
                 : { ...baseFilter, assetCount: { $gt: 0 }, imagesDone: { $ne: true } },
-            { _id: 0, barcode: 1, raw: 1 },
+            { _id: 0, barcode: 1, raw: 1, aliasShort: 1, aliasStatus: 1 },
             { limit: imageBatchSize() }
         )
         if (!raws?.length) break
@@ -352,16 +455,26 @@ export async function runImages({ DL, external, runId, force = false, limit = 0,
         for (const r of fresh) seen.add(r.barcode)
 
         const barcodes = fresh.map(r => r.barcode)
+        // Manual mappings may point at a short that is not a derivable suffix.
+        const manualShortByGtin = new Map()
+        for (const r of fresh)
+            if (r?.aliasStatus === 'manual' && r?.aliasShort) manualShortByGtin.set(r.barcode, r.aliasShort)
+        const lookupBarcodes = [...new Set([...barcodes, ...manualShortByGtin.values()])]
         const products = await DL.Product.read(
-            { barcode: { $in: barcodes } },
+            { barcode: { $in: lookupBarcodes } },
             { _id: 0, id: 1, barcode: 1, images: 1 },
             { limit: 0 }
         )
         const productByBarcode = new Map((products || []).map(p => [p.barcode, p]))
+        for (const [gtin, short] of manualShortByGtin) {
+            const product = productByBarcode.get(short)
+            if (product) productByBarcode.set(gtin, product)
+        }
         // Alias fallback: enriched-via-alias raws are keyed by GTIN, so the
-        // exact lookup above misses — resolve to the short-code product.
+        // exact lookup above misses — resolve to the short-code product. A
+        // manual mapping whose product vanished must not fall back to guessing.
         if (aliasEnabled()) {
-            const missing = barcodes.filter(b => !productByBarcode.has(b))
+            const missing = barcodes.filter(b => !productByBarcode.has(b) && !manualShortByGtin.has(b))
             if (missing.length) {
                 const minLen = aliasMinLen()
                 const candidates = new Set()
@@ -391,6 +504,13 @@ export async function runImages({ DL, external, runId, force = false, limit = 0,
             const product = productByBarcode.get(barcode)
             if (!product) {
                 bufferRaw({ barcode, status: 'skipped', skipReason: 'no-product-images' })
+                totals.skipped++
+                return
+            }
+            // An admin upload outranks supplier media: retire the raw without
+            // touching images, so phase 3 never renders over it.
+            if (isUploadMain(mainImageOf(product))) {
+                bufferRaw({ barcode, imagesDone: true })
                 totals.skipped++
                 return
             }

@@ -9,7 +9,7 @@ import { useState } from 'react'
 
 export default function Button({
     className, text = '', children = text, icon, mode, loading: externalLoading = false,
-    tooltip, onClick, stopPropagation, preventDefault, permission, onError, onPrimary, ...props
+    tooltip, onClick, stopPropagation, preventDefault, permission, onError, onPrimary, badge, ...props
 }) {
     const hasPermission = usePermission(permission || '')
     const [loading, setLoading] = useState(false)
@@ -24,6 +24,7 @@ export default function Button({
                 styles.button,
                 [styles[mode], mode],
                 [styles.onPrimary, onPrimary],
+                [styles.hasBadge, !!badge],
             )}
             onClick={async e => {
                 if (loading || !onClick) return
@@ -45,6 +46,7 @@ export default function Button({
                 {icon && <Icon name={icon} />}
                 {typeof children == 'string' ? <Text size='none'>{children}</Text> : children}
             </>}
+            {badge ? <span className={styles.badge}>{Number(badge) > 99 ? '99+' : badge}</span> : null}
         </button>
     </Tooltip>
 }

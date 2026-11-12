@@ -1,5 +1,8 @@
-import toSlug from '#common/functions/toSlug.js'
 import { MENU_CACHE_KEY } from '#common/constants.js'
+import getUserStore from './getUserStore.js'
+import { scanDel } from './displayBlocks.js'
+
+const CACHE_TTL_SEC = 60 * 60
 
 const baseMenu = [
     {
@@ -9,68 +12,79 @@ const baseMenu = [
     }
 ]
 
-export default async function getMenu({ DL }) {
-    // TODO: add storeId
-    const cached = await DL.redis?.get('menu')
-    if (cached) {
-        return JSON.parse(cached)
+function buildMenu(categories) {
+    const byParent = new Map()
+    for (const category of categories) {
+        const key = category.parentId || null
+        if (!byParent.has(key)) byParent.set(key, [])
+        byParent.get(key).push(category)
     }
-    const categoriesIds = await DL.Product.Model.distinct('category.pathIds', {
-        status: DL.Product.constants.STATUS.ACTIVE
-    })
-    const categories = await DL.Category.read(
-        { id: { $in: categoriesIds }, active: true },
-        { _id: 0, name: 1, slug: 1, parentId: 1, id: 1, icon: 1 },
-        { sort: { name: 1 }, limit: 0 }
-    )
-    const categoriesByParent = categories.reduce((acc, category) => {
-        const parentId = category.parentId || null
-        if (!acc[parentId]) acc[parentId] = []
-        acc[parentId].push(category)
-        return acc
-    }, {})
 
-    // Merge siblings by slug so two categories with the same name (different
-    // ids/codes) produce a single menu entry. Children of merged duplicates
-    // are collected from ALL duplicate ids and merged recursively.
-    function buildBranch(parentIds, prefix = '/products') {
-        const direct = parentIds.flatMap(parentId => categoriesByParent[parentId] || [])
-        const bySlug = new Map()
-        for (const child of direct) {
-            const slug = child.slug || toSlug(child.name)
-            if (!slug) continue
-            let entry = bySlug.get(slug)
-            if (!entry) {
-                entry = { name: child.name, icon: child.icon, ids: [] }
-                bySlug.set(slug, entry)
-            }
-            // Merged duplicates: first non-empty icon wins
-            if (!entry.icon && child.icon) entry.icon = child.icon
-            entry.ids.push(child.id)
-        }
-        return [...bySlug.entries()].map(([slug, { name, icon, ids }]) => {
-            const nodePath = `${prefix}/${slug}`
-            const node = { name, ...(icon ? { icon } : {}) }
-            const children = buildBranch(ids, nodePath)
-            if (children.length > 0) node.children = children
+    function build(parentId) {
+        return (byParent.get(parentId) || []).map(category => {
+            const node = { name: category.name }
+            if (category.path) node.path = `/products/${category.path}`
+            if (category.icon) node.icon = category.icon
+            const children = build(category.id)
+            if (children.length) node.children = children
             return node
         })
     }
 
-    const tree = buildBranch([null])
+    return build(null)
+}
+
+export default async function getMenu({ DL, req, utils, _user }) {
+    // Menu is store-scoped: only categories with an active product in the
+    // resolved store. Guests / users without a store see the union of stores.
+    const storeId = await getUserStore(req, { DL, utils, _user }).catch(() => null)
+    const cacheKey = `${MENU_CACHE_KEY}:${storeId || 'any'}`
+
+    const cached = await DL.redis?.get(cacheKey).catch(() => null)
+    if (cached) return JSON.parse(cached)
+
+    const productFilter = { status: DL.Product.constants.STATUS.ACTIVE }
+    if (storeId) productFilter.storeIds = storeId
+
+    const categoryIds = await DL.Product.Model.distinct('category.pathIds', productFilter)
+    // An empty $in is stripped by the DL filter sanitizer, which would turn this
+    // into "all active categories" — skip the read so an empty store stays empty.
+    const categories = categoryIds.length
+        ? await DL.Category.read(
+            { id: { $in: categoryIds }, active: true },
+            {
+                _id: 0,
+                name: 1,
+                slug: 1,
+                parentId: 1,
+                id: 1,
+                icon: 1,
+                path: 1,
+                sortOrder: 1
+            },
+            { limit: 0, sort: { sortOrder: 1, name: 1 } }
+        )
+        : []
+
     const menu = [
         {
-            name: 'Products',
+            name: 'all_departments',
             path: '/products',
             icon: 'grid',
-            children: tree
+            children: buildMenu(categories || [])
         },
-        ...baseMenu,
+        ...baseMenu
     ]
-    await DL.redis?.set('menu', JSON.stringify(menu), 'EX', 60 * 60)
+
+    await DL.redis?.set(cacheKey, JSON.stringify(menu), 'EX', CACHE_TTL_SEC).catch(() => null)
     return menu
 }
 
+// Menu is cached per store (menu:<storeId|any>), so a plain DEL is not enough.
 export async function invalidateMenu({ DL }) {
-    await DL.redis?.del(MENU_CACHE_KEY)
+    if (!DL.redis) return
+    try {
+        await scanDel(DL.redis, `${MENU_CACHE_KEY}:*`)
+        await DL.redis.del(MENU_CACHE_KEY)
+    } catch { }
 }
