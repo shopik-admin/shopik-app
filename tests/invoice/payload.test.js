@@ -69,11 +69,11 @@ describe('buildDocPayload', () => {
 
     it('shows the item prices the customer actually paid, VAT included', () => {
         const invoice = buildDocPayload({ order, lines, customer })
-        assert.equal(invoice.show_items_including_vat, 'true')
+        assert.equal(invoice.show_items_including_vat, 1)
 
         // The credit note mirrors the invoice presentation.
         const credit = buildDocPayload({ order, lines, customer, docType: DOC_TYPE.CREDIT })
-        assert.equal(credit.show_items_including_vat, 'true')
+        assert.equal(credit.show_items_including_vat, 1)
     })
 
     it('sends the captured total as price_total on a 320 (mandatory field)', () => {
