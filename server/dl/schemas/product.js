@@ -286,11 +286,22 @@ const defaultSort = {
     id: 1,
 }
 
+// Popularity nudge applied to search relevance (see dl/defaults/search.js).
+// Points grow with log10 of sales units, so 10 units → +10, 100 → +20,
+// 1000+ → +30 (capped). The cap keeps a best seller from outranking a
+// name-prefix match; the nudge only breaks close text-relevance decisions.
+const searchBoost = {
+    path: 'totalSalesUnits',
+    multiplier: 10,
+    cap: 30
+}
+
 export const meta = {
     constants,
     defaultSelect,
     defaultSelectOne,
     defaultSort,
+    searchBoost,
     index: [
         { storeIds: 1 },
         { status: 1, 'category.pathIds': 1 },
