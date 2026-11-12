@@ -63,13 +63,11 @@ if (git('branch', '--list', releaseBranch)) {
   fail(`Branch "${releaseBranch}" already exists.`);
 }
 
-console.log(`\nPreparing release ${pkg.version} → ${next} on ${releaseBranch}`);
-git('switch', '--no-track', '-c', releaseBranch);
-
+console.log(`\nBumping main ${pkg.version} → ${next}`);
 try {
   execSync(`npm version ${next} --no-git-tag-version`, { cwd: root, stdio: 'inherit' });
 } catch {
-  fail(`Failed to bump the version. You are still on "${releaseBranch}" with no commit made.`);
+  fail('Failed to bump the version. main has no commit made.');
 }
 
 const files = ['package.json'];
@@ -77,8 +75,14 @@ if (existsSync(lockPath)) files.push('package-lock.json');
 git('add', ...files);
 git('commit', '-m', `chore(release): v${next}`);
 
+console.log(`✔ Bumped main to v${next}`);
+console.log(`Creating ${releaseBranch} at the bump commit`);
+git('switch', '--no-track', '-c', releaseBranch);
+
 console.log(`
-✔ Released v${next} on branch ${releaseBranch}
+✔ Bumped main to v${next} and created ${releaseBranch}
+
+Nothing has been pushed.
 
 Next steps:
   git push -u origin ${releaseBranch}
