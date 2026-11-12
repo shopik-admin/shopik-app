@@ -25,7 +25,8 @@ function monthChunks(from, to, monthsPerChunk = 1) {
 export async function collectProductCodes(external, from, to) {
     const chunkMonths = Number(process.env.GS1_CHUNK_MONTHS || 1)
     const chunks = monthChunks(from, to, chunkMonths)
-    const limit = pLimit(Number(process.env.GS1_CHUNK_CONCURRENCY || 6))
+    // p-limit v7 throws on a non-integer/zero concurrency, so clamp to >= 1.
+    const limit = pLimit(Math.max(1, Math.floor(Number(process.env.GS1_CHUNK_CONCURRENCY) || 6)))
     const codes = new Set()
     await Promise.all(chunks.map(([s, e]) => limit(async () => {
         let messages

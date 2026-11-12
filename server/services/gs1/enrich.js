@@ -8,7 +8,8 @@ import log from '#server/utils/log.js'
 
 const enrichBatchSize = () => Number(process.env.GS1_ENRICH_BATCH || 500)
 const imageBatchSize = () => Number(process.env.GS1_IMAGE_BATCH || 200)
-const zipConcurrency = () => Number(process.env.GS1_ZIP_CONCURRENCY || 2)
+// p-limit v7 throws on a non-integer/zero concurrency, so clamp to >= 1.
+const zipConcurrency = () => Math.max(1, Math.floor(Number(process.env.GS1_ZIP_CONCURRENCY) || 2))
 // GS1 files-endpoint image types (per supplier doc): EL = 360° spin set,
 // PL = planogram, HE = hero, MK = market images. Observed: HE returns the
 // single raw hero bytes (not a zip — wrapped by the fetcher); EL is the

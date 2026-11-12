@@ -3,6 +3,9 @@
   "version": "1.0.1",
   "author": "AYG",
   "type": "module",
+  "engines": {
+    "node": ">=22.22.0"
+  },
   "scripts": {
     "start": "node server",
     "worker": "node server/worker.js",
@@ -17,7 +20,7 @@
     "@dnd-kit/sortable": "10.0.0",
     "@dnd-kit/utilities": "3.2.2",
     "@google-cloud/storage": "8.4.0",
-    "@hebcal/core": "6.15.0",
+    "@hebcal/core": "6.16.0",
     "@maplibre/maplibre-gl-leaflet": "0.1.4",
     "@turf/area": "7.4.0",
     "@turf/intersect": "7.4.0",
@@ -25,21 +28,21 @@
     "@turf/simplify": "7.4.0",
     "@turf/union": "7.4.0",
     "barcode-detector": "3.2.3",
-    "bullmq": "6.7.2",
+    "bullmq": "6.7.5",
     "compression": "1.8.2",
     "cookie-parser": "1.4.7",
     "cors": "2.8.6",
     "exceljs": "^4.4.0",
     "express": "5.3.0",
-    "express-rate-limit": "8.7.3",
+    "express-rate-limit": "8.7.4",
     "fast-xml-parser": "5.12.0",
     "fflate": "^0.8.3",
     "helmet": "8.3.0",
     "ioredis": "6.0.0",
     "leaflet": "1.9.4",
     "leaflet-draw": "1.0.4",
-    "maplibre-gl": "6.17.0",
-    "mongoose": "9.12.0",
+    "maplibre-gl": "6.18.0",
+    "mongoose": "9.12.1",
     "node-cron": "4.6.0",
     "p-limit": "^7.3.3",
     "react": "19.3.1",
@@ -50,8 +53,11 @@
     "sharp": "0.35.5"
   },
   "devDependencies": {
-    "@vitejs/plugin-react": "6.2.1",
-    "vite": "8.3.6"
+    "@vitejs/plugin-react": "6.3.0",
+    "vite": "8.3.8"
+  },
+  "overrides": {
+    "uuid": "^11.1.1"
   },
   "imports": {
     "#package.json": "./package.json",
