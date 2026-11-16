@@ -4,6 +4,7 @@ import comaxFactory from './comax/index.js'
 import hypFactory from './hyp/index.js'
 import gs1Factory from './gs1/index.js'
 import ezcountFactory from './ezcount/index.js'
+import pushFactory from './push/index.js'
 
 export default function externalBuilder({ DL }) {
     const sms = smsFactory({ DL })
@@ -12,6 +13,7 @@ export default function externalBuilder({ DL }) {
     const geocode = geocodeFactory({ DL })
     const gs1 = gs1Factory({ DL })
     const ezcount = ezcountFactory({ DL })
+    const push = pushFactory({ DL })
 
     return {
         sms,
@@ -19,6 +21,7 @@ export default function externalBuilder({ DL }) {
         comax,
         hyp,
         gs1,
-        ezcount
+        ezcount,
+        push
     }
 }

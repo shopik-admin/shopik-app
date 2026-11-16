@@ -91,5 +91,6 @@ export default [
     'api_key:read',
     'api_key:update',
     'api_key:delete',
-    'api_key:id'
+    'api_key:id',
+    'push:send'
 ]

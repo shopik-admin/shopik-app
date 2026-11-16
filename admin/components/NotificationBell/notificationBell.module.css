@@ -1,0 +1,202 @@
+.trigger {
+    width: fit-content;
+}
+
+.bell {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border: none;
+    border-radius: var(--radius-full);
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: background-color .15s, color .15s;
+
+    svg {
+        font-size: 21px;
+        width: 21px;
+        height: 21px;
+    }
+
+    &:hover {
+        background-color: var(--bg-secondary-hover);
+        color: var(--text-primary);
+    }
+}
+
+/* Permission missing / not registered: the bell is not actually reachable. */
+.dot {
+    position: absolute;
+    top: 6px;
+    inset-inline-start: 6px;
+    width: 9px;
+    height: 9px;
+    border-radius: var(--radius-full);
+    background-color: #d92d20;
+    box-shadow: 0 0 0 2px var(--bg-primary, #fff);
+}
+
+/* Unread notifications. */
+.count {
+    position: absolute;
+    top: -2px;
+    inset-inline-end: -2px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 100px;
+    background-color: #d92d20;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 18px;
+    text-align: center;
+    box-shadow: 0 0 0 2px var(--bg-primary, #fff);
+    pointer-events: none;
+}
+
+.content {
+    width: min(380px, calc(100vw - 56px));
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.header {
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-secondary);
+}
+
+.unreadCircle {
+    min-width: 22px;
+    height: 22px;
+    padding: 0 6px;
+    border-radius: var(--radius-full);
+    background-color: var(--bg-brand-primary);
+    color: var(--text-white, #fff);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.permissionBanner {
+    padding: 8px 10px;
+    border-radius: var(--radius-lg, 10px);
+    background-color: var(--bg-warning-secondary);
+    color: var(--fg-warning-primary);
+
+    .bannerIcon {
+        flex-shrink: 0;
+        font-size: 16px;
+        width: 16px;
+        height: 16px;
+    }
+
+    .bannerText {
+        flex: 1;
+        line-height: 1.35;
+    }
+}
+
+.list {
+    display: flex;
+    flex-direction: column;
+    max-height: min(58vh, 420px);
+    overflow-y: auto;
+    margin: 0 -4px;
+    padding: 0 4px;
+}
+
+.state {
+    padding: 26px 0;
+    color: var(--text-quaternary);
+
+    .emptyIcon {
+        font-size: 28px;
+        width: 28px;
+        height: 28px;
+        color: var(--border-secondary);
+    }
+}
+
+.row {
+    padding: 10px 8px;
+    border-radius: var(--radius-lg, 10px);
+    border-bottom: 1px solid var(--border-secondary);
+    cursor: pointer;
+    transition: background-color .15s;
+
+    &:last-child {
+        border-bottom: none;
+    }
+
+    &:hover {
+        background-color: var(--bg-secondary);
+    }
+
+    &.unread {
+        background-color: var(--bg-brand-secondary);
+
+        &:hover {
+            background-color: var(--bg-brand-secondary-hover);
+        }
+    }
+}
+
+.rowIcon {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-full);
+
+    svg {
+        font-size: 16px;
+        width: 16px;
+        height: 16px;
+    }
+}
+
+.levelSuccess {
+    background-color: var(--bg-success-secondary);
+    color: var(--fg-success-primary);
+}
+
+.levelWarning {
+    background-color: var(--bg-warning-secondary);
+    color: var(--fg-warning-primary);
+}
+
+.levelError {
+    background-color: var(--bg-error-secondary);
+    color: var(--fg-error-primary);
+}
+
+.levelInfo {
+    background-color: var(--bg-brand-secondary);
+    color: var(--text-brand);
+}
+
+.orderChip {
+    flex-shrink: 0;
+    padding: 1px 6px;
+    border-radius: 6px;
+    background-color: var(--bg-brand-secondary);
+    color: var(--text-brand);
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.time {
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.footer {
+    margin-top: 2px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-secondary);
+}

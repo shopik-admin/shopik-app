@@ -104,6 +104,12 @@ export default async function pack(payload, { DL, _admin, utils, external }) {
         })
     } catch {}
 
+    // Admin push: this pack may have completed the store's delivery window.
+    // Fail-open — a notification failure must not roll back a successful pack.
+    try {
+        await utils.data.adminPush.notifyWindowReady({ DL, external, order: updated })
+    } catch { }
+
     return withSortedCart(updated)
 }
 

@@ -230,6 +230,12 @@ export default async function callback(payload, info) {
         })
     }
 
+    // Admin push: an order for today paid after 07:00 reaches the store's
+    // pickers/managers. Fail-open — payment success must never wait on this.
+    try {
+        await utils.data.adminPush.notifyNewTodayOrder({ DL, external, order })
+    } catch { }
+
     try {
         const { record } = utils.data.timeline
         await record({

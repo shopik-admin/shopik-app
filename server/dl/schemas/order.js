@@ -421,6 +421,14 @@ const orderSchema = {
             picking: Date,
             shipped: Date,
             done: Date
+        },
+        // Admin push event markers. `newTodayOrderAt` is the atomic guard that
+        // keeps a retried payment callback from notifying twice; the window
+        // signature records which ready-window state was last announced.
+        adminPush: {
+            newTodayOrderAt: Date,
+            windowReadySignature: String,
+            windowReadyAt: Date
         }
     },
     deliveryDetails: {

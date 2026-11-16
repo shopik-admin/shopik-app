@@ -32,6 +32,7 @@ export const permissionGroups = {
     cash_register: 'קופה רושמת',
     report: 'דוחות',
     api_key: 'מפתחות API',
+    push: 'התראות דחיפה',
     bot: 'בוט'
 }
 
@@ -450,6 +451,12 @@ export const permissionMeta = {
     'api_key:id': {
         name: 'צפייה בפרטי מפתח API',
         description: 'פתיחת הכרטיס של מפתח בודד.'
+    },
+
+    // התראות דחיפה
+    'push:send': {
+        name: 'שליחת התראות דחיפה',
+        description: 'שליחת התראת בדיקה למכשיר של המשתמש הנוכחי.'
     },
 
     // בוט (מפתחות API בלבד)
