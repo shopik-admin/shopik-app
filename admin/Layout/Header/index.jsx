@@ -5,6 +5,7 @@ import ThemeToggle from 'components/ThemeToggle'
 import PageTitle from '../PageTitle'
 import Flex from '#common/components/Flex/index.jsx'
 import UserInfo from '../UserInfo'
+import NotificationBell from 'components/NotificationBell'
 
 export default function Header({ }) {
     const { toggle, toggleMini } = useSidebar?.() || {}
@@ -16,6 +17,9 @@ export default function Header({ }) {
             {/*  <Button onClick={toggleMini}>מיני</Button>
             <ThemeToggle /> */}
         </Flex>
-        <UserInfo />
+        <Flex alignItems='center' gap={8}>
+            <NotificationBell />
+            <UserInfo />
+        </Flex>
     </Flex>
 }

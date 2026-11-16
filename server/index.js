@@ -18,6 +18,7 @@ import startHolidaySeed from '#server/cron/holidaySeed.js'
 import startWindowSync from '#server/cron/windowSync.js'
 import startSalesSync from '#server/cron/salesSync.js'
 import startDeliveryDocsSync from '#server/cron/deliveryDocsSync.js'
+import startPushCleanup from '#server/cron/pushCleanup.js'
 import { isComaxDeliveryEnabled } from '#server/external/comax/utils.js'
 import log from '#server/utils/log.js'
 import compression from 'compression'
@@ -127,6 +128,7 @@ try {
         startHolidaySeed(bootData)
         startWindowSync(bootData)
         startSalesSync(bootData)
+        startPushCleanup(bootData)
     }
 } catch (e) {
     log.warn('Jobs not started:', e?.message || e)
