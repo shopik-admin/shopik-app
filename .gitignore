@@ -30,9 +30,7 @@ server/uploads
 
 .env
 .env1
-
-test.*
-
+ 
 admin-build/
 
 build/
