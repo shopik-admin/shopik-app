@@ -15,6 +15,7 @@ const PushContext = createContext({
     permission: 'default',
     subscribed: false,
     needsAttention: false,
+    error: '',
     requestPermission: async () => { },
     subscribe: async () => { },
     unsubscribe: async () => { },
@@ -29,6 +30,18 @@ function serviceWorkerReady(timeoutMs = 8000) {
         navigator.serviceWorker.ready,
         new Promise((_, reject) => setTimeout(() => reject(new Error('service worker not ready')), timeoutMs))
     ])
+}
+
+// Status lookup must not wait for an active worker: `ready` never settles until
+// a registration exists, which would delay the permission prompt by the whole
+// timeout. `getRegistration` resolves immediately (or with undefined).
+async function serviceWorkerRegistration() {
+    if (!('serviceWorker' in navigator)) return null
+    try {
+        return await navigator.serviceWorker.getRegistration()
+    } catch {
+        return null
+    }
 }
 
 function PermissionPrompt({ onAllow, onLater }) {
@@ -81,7 +94,8 @@ export default function Push({ children }) {
         enabled: false,
         permission: 'default',
         subscribed: false,
-        publicKey: ''
+        publicKey: '',
+        error: ''
     })
     const stateRef = useRef(state)
     stateRef.current = state
@@ -91,15 +105,15 @@ export default function Push({ children }) {
 
     const load = useCallback(async () => {
         if (!isPushSupported()) {
-            setState({ ready: true, supported: false, enabled: false, permission: 'default', subscribed: false, publicKey: '' })
+            setState({ ready: true, supported: false, enabled: false, permission: 'default', subscribed: false, publicKey: '', error: '' })
             return
         }
 
         const permission = window.Notification?.permission || 'default'
         let endpoint
         try {
-            const registration = await serviceWorkerReady()
-            const subscription = await registration.pushManager.getSubscription()
+            const registration = await serviceWorkerRegistration()
+            const subscription = await registration?.pushManager?.getSubscription()
             endpoint = subscription?.endpoint
         } catch { }
 
@@ -112,10 +126,11 @@ export default function Push({ children }) {
                 enabled: Boolean(res?.enabled),
                 permission,
                 subscribed: Boolean(res?.subscribed),
-                publicKey: res?.publicKey || ''
+                publicKey: res?.publicKey || '',
+                error: ''
             })
         } catch {
-            setState({ ready: true, supported: true, enabled: false, permission, subscribed: false, publicKey: '' })
+            setState({ ready: true, supported: true, enabled: false, permission, subscribed: false, publicKey: '', error: '' })
         }
     }, [])
 
@@ -124,25 +139,32 @@ export default function Push({ children }) {
         if (!current.supported || !current.enabled) return false
         if (!publicKeyRef.current) throw new Error('push is not configured')
 
-        const registration = await serviceWorkerReady()
-        let subscription = await registration.pushManager.getSubscription()
-        if (!subscription) {
-            subscription = await registration.pushManager.subscribe({
-                userVisibleOnly: true,
-                applicationServerKey: urlBase64ToUint8Array(publicKeyRef.current)
-            })
-        }
+        try {
+            const registration = await serviceWorkerReady()
+            let subscription = await registration.pushManager.getSubscription()
+            if (!subscription) {
+                subscription = await registration.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: urlBase64ToUint8Array(publicKeyRef.current)
+                })
+            }
 
-        const json = subscription.toJSON()
-        await apiReq('push/subscribe', {
-            endpoint: json.endpoint,
-            keys: json.keys,
-            expirationTime: json.expirationTime,
-            userAgent: navigator.userAgent,
-            deviceLabel: navigator.platform || ''
-        })
-        setState(prev => ({ ...prev, subscribed: true, permission: 'granted' }))
-        return true
+            const json = subscription.toJSON()
+            await apiReq('push/subscribe', {
+                endpoint: json.endpoint,
+                keys: json.keys,
+                expirationTime: json.expirationTime,
+                userAgent: navigator.userAgent,
+                deviceLabel: navigator.platform || ''
+            })
+            setState(prev => ({ ...prev, subscribed: true, permission: 'granted', error: '' }))
+            return true
+        } catch (e) {
+            // Keep the reason so the bell can say "not active on this device"
+            // instead of silently showing a red dot forever.
+            setState(prev => ({ ...prev, subscribed: false, error: e?.message || 'subscribe-failed' }))
+            throw e
+        }
     }, [])
 
     const requestPermission = useCallback(async () => {

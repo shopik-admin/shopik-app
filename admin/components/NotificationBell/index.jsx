@@ -120,7 +120,10 @@ export default function NotificationBell() {
 
     const permissionAction = push.permission === 'denied'
         ? push.showPermissionHelp
-        : () => push.requestPermission().catch(() => { })
+        : push.error
+            // Permission is already granted; only the registration failed.
+            ? () => push.subscribe().catch(() => { })
+            : () => push.requestPermission().catch(() => { })
 
     return <Popover
         id='admin-notification-inbox'
@@ -146,9 +149,15 @@ export default function NotificationBell() {
                 <Text size='s' className={styles.bannerText}>
                     {push.permission === 'denied'
                         ? 'ההתראות חסומות בדפדפן. אפשר להפעיל אותן בהגדרות האתר.'
-                        : 'התראות הדפדפן עדיין לא הופעלו במכשיר הזה.'}
+                        : push.error
+                            ? 'ההתראות אושרו בדפדפן אבל לא נרשמו במכשיר. נסו שוב או רעננו את העמוד.'
+                            : 'התראות הדפדפן עדיין לא הופעלו במכשיר הזה.'}
                 </Text>
-                <Button mode='text-brand' text={push.permission === 'denied' ? 'איך מפעילים?' : 'אפשר'} onClick={permissionAction} />
+                <Button
+                    mode='text-brand'
+                    text={push.permission === 'denied' ? 'איך מפעילים?' : push.error ? 'נסה שוב' : 'אפשר'}
+                    onClick={permissionAction}
+                />
             </Flex> : null}
 
             <div className={styles.list}>
