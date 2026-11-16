@@ -6,14 +6,22 @@
  * browser.
  */
 
+/**
+ * Support with a reason, so the UI can explain silence instead of showing
+ * nothing: an insecure origin (plain HTTP test server) and an unsupported
+ * browser look identical from the outside.
+ */
+export function pushSupport(scope = typeof window !== 'undefined' ? window : undefined) {
+    if (!scope) return { supported: false, reason: 'unsupported' }
+    if (scope.isSecureContext === false) return { supported: false, reason: 'insecure-context' }
+    if (!scope.Notification) return { supported: false, reason: 'unsupported' }
+    if (!scope.navigator || !('serviceWorker' in scope.navigator)) return { supported: false, reason: 'unsupported' }
+    if (!('PushManager' in scope)) return { supported: false, reason: 'unsupported' }
+    return { supported: true, reason: 'ok' }
+}
+
 export function isPushSupported(scope = typeof window !== 'undefined' ? window : undefined) {
-    if (!scope) return false
-    return Boolean(
-        scope.Notification &&
-        'serviceWorker' in scope.navigator &&
-        'PushManager' in scope &&
-        scope.isSecureContext !== false
-    )
+    return pushSupport(scope).supported
 }
 
 export function urlBase64ToUint8Array(base64String = '') {
@@ -31,6 +39,24 @@ export function pushNeedsAttention({ supported, enabled, permission, subscribed 
     if (!supported || !enabled) return false
     return permission !== 'granted' || !subscribed
 }
+
+/**
+ * Why push is not active, in a form the UI can explain.
+ * `ok` means the browser is reachable; anything else is actionable or a
+ * deployment problem worth surfacing.
+ */
+export function pushReason({ supported, supportReason, enabled, permission, subscribed, error } = {}) {
+    if (!supported) return supportReason || 'unsupported'
+    if (!enabled) return 'not-configured'
+    if (permission === 'denied') return 'denied'
+    if (error) return 'subscribe-failed'
+    if (permission !== 'granted') return 'permission-required'
+    if (!subscribed) return 'not-subscribed'
+    return 'ok'
+}
+
+/** Reasons the admin cannot fix from the bell — shown to superadmins only. */
+export const PUSH_CONFIG_REASONS = ['unsupported', 'insecure-context', 'not-configured']
 
 /**
  * Relative time in Hebrew, short enough for a notification row.

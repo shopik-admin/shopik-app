@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import apiReq from 'common/functions/apiReq'
-import { isPushSupported, pushNeedsAttention, urlBase64ToUint8Array } from 'common/functions/pushClient'
+import { pushNeedsAttention, pushReason, pushSupport, urlBase64ToUint8Array } from 'common/functions/pushClient'
 import { useModal } from 'common/components/Modal'
 import Flex from 'common/components/Flex'
 import Text from 'common/components/Text'
@@ -11,10 +11,12 @@ import styles from './push.module.css'
 const PushContext = createContext({
     ready: false,
     supported: false,
+    supportReason: 'unsupported',
     enabled: false,
     permission: 'default',
     subscribed: false,
     needsAttention: false,
+    reason: 'unsupported',
     error: '',
     requestPermission: async () => { },
     subscribe: async () => { },
@@ -91,6 +93,7 @@ export default function Push({ children }) {
     const [state, setState] = useState({
         ready: false,
         supported: false,
+        supportReason: 'unsupported',
         enabled: false,
         permission: 'default',
         subscribed: false,
@@ -104,8 +107,21 @@ export default function Push({ children }) {
     const { openModal, closeModal } = useModal()
 
     const load = useCallback(async () => {
-        if (!isPushSupported()) {
-            setState({ ready: true, supported: false, enabled: false, permission: 'default', subscribed: false, publicKey: '', error: '' })
+        const support = pushSupport()
+        if (!support.supported) {
+            // A plain-HTTP test host and an unsupported browser both fail here;
+            // keep the reason so the bell can say which one instead of nothing.
+            console.debug('[push] disabled:', support.reason)
+            setState({
+                ready: true,
+                supported: false,
+                supportReason: support.reason,
+                enabled: false,
+                permission: 'default',
+                subscribed: false,
+                publicKey: '',
+                error: ''
+            })
             return
         }
 
@@ -120,17 +136,29 @@ export default function Push({ children }) {
         try {
             const res = await apiReq('push/status', { endpoint })
             publicKeyRef.current = res?.publicKey || ''
+            if (!res?.enabled) console.debug('[push] server not configured (VAPID)')
             setState({
                 ready: true,
                 supported: true,
+                supportReason: 'ok',
                 enabled: Boolean(res?.enabled),
                 permission,
                 subscribed: Boolean(res?.subscribed),
                 publicKey: res?.publicKey || '',
                 error: ''
             })
-        } catch {
-            setState({ ready: true, supported: true, enabled: false, permission, subscribed: false, publicKey: '', error: '' })
+        } catch (e) {
+            console.debug('[push] status failed:', e?.message || e)
+            setState({
+                ready: true,
+                supported: true,
+                supportReason: 'ok',
+                enabled: false,
+                permission,
+                subscribed: false,
+                publicKey: '',
+                error: ''
+            })
         }
     }, [])
 
@@ -238,10 +266,12 @@ export default function Push({ children }) {
     }, [state.ready, state.supported, state.enabled, state.permission, state.subscribed, subscribe, showPrompt])
 
     const needsAttention = pushNeedsAttention(state)
+    const reason = pushReason(state)
 
     return <PushContext.Provider value={{
         ...state,
         needsAttention,
+        reason,
         requestPermission,
         subscribe,
         unsubscribe,

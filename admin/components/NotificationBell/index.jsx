@@ -9,7 +9,7 @@ import Button from 'common/components/Button'
 import Loader from 'common/components/Loader'
 import classNames from 'common/functions/classNames'
 import usePermission from 'common/permissions/usePermision'
-import { NOTIFICATION_LEVEL_ICONS, relativeTime } from 'common/functions/pushClient'
+import { NOTIFICATION_LEVEL_ICONS, PUSH_CONFIG_REASONS, relativeTime } from 'common/functions/pushClient'
 import { usePush } from 'features/Push'
 import styles from './notificationBell.module.css'
 
@@ -20,10 +20,19 @@ const LEVEL_CLASS = {
     info: styles.levelInfo
 }
 
+// Deployment problems: the admin can do nothing from here, so they are shown
+// as a diagnostic line to superadmins instead of a "grant permission" banner.
+const CONFIG_REASON_TEXT = {
+    'insecure-context': 'התראות דחיפה דורשות חיבור מאובטח (HTTPS).',
+    unsupported: 'הדפדפן הזה לא תומך בהתראות דחיפה.',
+    'not-configured': 'התראות דחיפה לא מוגדרות בשרת (חסרים מפתחות VAPID).'
+}
+
 export default function NotificationBell() {
     const push = usePush()
     const navigate = useNavigate()
     const canSendTest = usePermission('push:send')
+    const isSuperAdmin = usePermission('admin:super')
     const [items, setItems] = useState([])
     const [unread, setUnread] = useState(0)
     const [loading, setLoading] = useState(true)
@@ -125,13 +134,19 @@ export default function NotificationBell() {
             ? () => push.subscribe().catch(() => { })
             : () => push.requestPermission().catch(() => { })
 
+    // A deployment problem cannot be fixed from the bell, so it gets its own
+    // indicator: without it the feature looks like it silently vanished.
+    const configIssue = isSuperAdmin && !push.needsAttention && PUSH_CONFIG_REASONS.includes(push.reason)
+
     return <Popover
         id='admin-notification-inbox'
         overlay
         btnClassName={styles.trigger}
         button={<button type='button' className={styles.bell} aria-label='התראות' onClick={handleBellClick}>
             <Icon name='notifications' />
-            {push.needsAttention ? <span className={styles.dot} /> : null}
+            {push.needsAttention
+                ? <span className={styles.dot} />
+                : configIssue ? <span className={styles.dotWarning} /> : null}
             {unread > 0 ? <span className={styles.count}>{unread > 99 ? '99+' : unread}</span> : null}
         </button>}
     >
@@ -158,6 +173,11 @@ export default function NotificationBell() {
                     text={push.permission === 'denied' ? 'איך מפעילים?' : push.error ? 'נסה שוב' : 'אפשר'}
                     onClick={permissionAction}
                 />
+            </Flex> : null}
+
+            {configIssue ? <Flex alignItems='center' gap={8} className={styles.configBanner}>
+                <Icon name='warning' className={styles.bannerIcon} />
+                <Text size='s' className={styles.bannerText}>{CONFIG_REASON_TEXT[push.reason]}</Text>
             </Flex> : null}
 
             <div className={styles.list}>
@@ -207,6 +227,13 @@ export default function NotificationBell() {
                     />
                 </Flex>
                 : null}
+
+            {isSuperAdmin ? <Flex alignItems='center' gap={6} className={styles.diagnostic} dir='ltr'>
+                <Text size='xs' mode='sub'>push:</Text>
+                <Text size='xs' mode='sub' className={styles.diagnosticValue}>
+                    {`enabled=${push.enabled ? 'yes' : 'no'} permission=${push.permission} subscribed=${push.subscribed ? 'yes' : 'no'} reason=${push.reason}`}
+                </Text>
+            </Flex> : null}
         </div>}
     </Popover>
 }

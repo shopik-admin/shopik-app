@@ -1,6 +1,16 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { pushNeedsAttention, relativeTime, urlBase64ToUint8Array, isPushSupported } from '../../common/functions/pushClient.js'
+import {
+    PUSH_CONFIG_REASONS,
+    isPushSupported,
+    pushNeedsAttention,
+    pushReason,
+    pushSupport,
+    relativeTime,
+    urlBase64ToUint8Array
+} from '../../common/functions/pushClient.js'
+
+const BROWSER = { Notification: {}, navigator: { serviceWorker: {} }, PushManager: () => { }, isSecureContext: true }
 
 describe('push client helpers', () => {
     it('shows the red dot only when push is usable but not active', () => {
@@ -34,5 +44,31 @@ describe('push client helpers', () => {
     it('detects unsupported environments', () => {
         assert.equal(isPushSupported(undefined), false)
         assert.equal(isPushSupported({ Notification: {}, navigator: {}, isSecureContext: true }), false)
+        assert.equal(isPushSupported(BROWSER), true)
+    })
+
+    it('explains why push is unavailable', () => {
+        assert.equal(pushSupport(undefined).reason, 'unsupported')
+        assert.deepEqual(pushSupport({ ...BROWSER, isSecureContext: false }), { supported: false, reason: 'insecure-context' })
+        assert.deepEqual(pushSupport({ ...BROWSER, Notification: undefined }), { supported: false, reason: 'unsupported' })
+        assert.deepEqual(pushSupport(BROWSER), { supported: true, reason: 'ok' })
+    })
+
+    it('derives a single actionable reason', () => {
+        const active = { supported: true, enabled: true, permission: 'granted', subscribed: true }
+        assert.equal(pushReason(active), 'ok')
+        assert.equal(pushReason({ ...active, supportReason: 'insecure-context', supported: false }), 'insecure-context')
+        assert.equal(pushReason({ supported: false }), 'unsupported')
+        assert.equal(pushReason({ ...active, enabled: false }), 'not-configured')
+        assert.equal(pushReason({ ...active, permission: 'denied' }), 'denied')
+        assert.equal(pushReason({ ...active, error: 'boom' }), 'subscribe-failed')
+        assert.equal(pushReason({ ...active, permission: 'default' }), 'permission-required')
+        assert.equal(pushReason({ ...active, subscribed: false }), 'not-subscribed')
+    })
+
+    it('treats only deployment problems as non-actionable', () => {
+        assert.deepEqual(PUSH_CONFIG_REASONS, ['unsupported', 'insecure-context', 'not-configured'])
+        assert.equal(PUSH_CONFIG_REASONS.includes('denied'), false)
+        assert.equal(PUSH_CONFIG_REASONS.includes('not-subscribed'), false)
     })
 })
