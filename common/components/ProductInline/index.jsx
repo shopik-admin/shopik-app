@@ -7,6 +7,7 @@ import Flex from 'common/components/Flex'
 import Text from 'common/components/Text'
 import Icon from 'common/components/Icon'
 import { useState } from 'react'
+import { useText } from 'common/texts/TextProvider'
 import { getProductState } from '#common/functions/productState.js'
 import CartLineTotal from 'common/components/CartLineTotal'
 
@@ -30,13 +31,14 @@ function pickIcon(product = {}) {
 
 // The ordered/supplied pill of an admin pick row.
 export function PickPill({ product = {}, status = pickStatus(product) }) {
+    const { TR } = useText()
     const supplied = product.finalAmount
     return <Flex wrap alignItems="center" justifyContent="space-between" className={classNames(styles.pill, styles[status])}>
-        <Text size="s" bold className={styles.pillText}>הוזמן: {formatAmount(product, product.amount ?? 36)}</Text>
+        <Text size="s" bold className={styles.pillText}>{TR('ops_ordered_amount', { amount: formatAmount(product, product.amount ?? 36) })}</Text>
         {product.missing
-            ? <Text size="s" bold className={classNames(styles[status], styles.missingText)}>חסר במלאי</Text>
+            ? <Text size="s" bold className={classNames(styles[status], styles.missingText)}>{TR('ops_missing_in_stock')}</Text>
             : supplied != null
-                ? <Text size="s" bold className={classNames(styles[status], styles.pillText)}>סופק: {formatAmount(product, supplied)}</Text>
+                ? <Text size="s" bold className={classNames(styles[status], styles.pillText)}>{TR('col_supplied')}: {formatAmount(product, supplied)}</Text>
                 : null}
     </Flex>
 }

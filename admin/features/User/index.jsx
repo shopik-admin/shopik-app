@@ -8,6 +8,7 @@ export default function User({ children, sdUser }) {
     const [user, setUser] = useState(sdUser)
 
     async function logout() {
+        try { sessionStorage.removeItem('adminLangPending') } catch { }
         await apiReq('admin/logout')
         location.reload()
     }

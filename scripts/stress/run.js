@@ -11,6 +11,7 @@ import { measureBaseline, runSequential, runChaos } from './load.js'
 import { runFeedBenchmark } from './feed.js'
 import { printReport, saveReport } from './report.js'
 import { CUSTOMER_PLATFORM } from './payloads.js'
+import { runTranslationStress, printTranslationStress } from './translations.js'
 import { sleep } from './util.js'
 
 const opts = parseArgs()
@@ -147,6 +148,12 @@ try {
             domainId, log
         })
     const durationMs = Date.now() - t0
+
+    if (opts.translations) {
+        log('running translation cache/write scenario')
+        const translationResult = await runTranslationStress({ clients, fixtures, log })
+        printTranslationStress(translationResult)
+    }
 
     printReport({ opts, capabilities, baseline, sequential, chaos, durationMs })
     saveReport({ opts, startedAt, capabilities, baseline, sequential, chaos, durationMs })

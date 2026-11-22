@@ -24,6 +24,7 @@ export function parseArgs(argv = process.argv.slice(2)) {
         slowMs: 20,
         only: null,
         mutations: false,
+        translations: false,
         idNum: null,
         userPhone: null,
         headlessOtp: false,
@@ -47,6 +48,7 @@ export function parseArgs(argv = process.argv.slice(2)) {
         const arg = argv[i]
         switch (arg) {
             case '--mutations': opts.mutations = true; continue
+            case '--translations': opts.translations = true; continue
             case '--headless-otp': opts.headlessOtp = true; continue
             case '--feed-only': opts.feedOnly = true; continue
             case '--help': case '-h': opts.help = true; continue
@@ -139,6 +141,7 @@ Usage:
                           (default 20; use 1 on a short --only run to see every read)
   --only <regex>          only run matching routes (e.g. --only "order/")
   --mutations             include write routes (default off)
+  --translations          run the translation cache/write scenario
   --id-num <n>            admin idNum for login (else prompted)
   --user-phone <phone>    shopper to log in as for the storefront routes; without it a
                           real cart-order-with-store owner is sampled from the stress DB

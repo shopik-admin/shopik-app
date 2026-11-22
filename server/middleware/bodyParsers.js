@@ -17,6 +17,7 @@ export const LARGE_BODY_ROUTES = new Set([
     '/api/product/import_barcode_aliases',
     '/api/display_block/upload_image',
     '/api/comax_product/backfill_catalog',
+    '/api/translation/import',
     '/api/shipment/deliver'
 ])
 

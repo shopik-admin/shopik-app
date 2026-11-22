@@ -1,5 +1,6 @@
 import { round2 } from '../calcOrder/utils.js'
 import { cleanText } from './format.js'
+import invoiceText from './text.js'
 
 // Money tolerance for the document ↔ charge reconciliation (half an agora).
 export const INVOICE_EPS = 0.005
@@ -91,7 +92,7 @@ export function allocateCoupon({ items = [], couponTotal = 0 } = {}) {
  * Shipping is a taxable service line, always separate from the goods and never
  * discounted by the coupon (shipping is computed on the pre-coupon sum).
  */
-export function buildShippingLine(shipping = 0, { name = 'משלוח' } = {}) {
+export function buildShippingLine(shipping = 0, { name = invoiceText('invoice_shipping') } = {}) {
     const amount = round2(Number(shipping) || 0)
     if (!(amount > 0)) return null
     return { productId: '__shipping', barcode: null, name, quantity: 1, gross: amount, price: amount, vat: true, discount: 0 }
@@ -123,7 +124,7 @@ export function computeUnitPrice(gross, quantity) {
  * Rounding adjustment line. Appended when line-level (quantity * price)
  * rounding produces a residual difference against the captured total.
  */
-export function buildRoundingLine(drift = 0, { name = 'הפרשי עיגול' } = {}) {
+export function buildRoundingLine(drift = 0, { name = invoiceText('invoice_rounding') } = {}) {
     const amount = round2(Number(drift) || 0)
     if (!(amount > 0)) return null
     return {
@@ -145,7 +146,7 @@ export function buildRoundingLine(drift = 0, { name = 'הפרשי עיגול' } 
  * the row in the document total and in its VAT bucket, so the item rows keep
  * their shelf prices and the coupon prints as its own line ("-40.00").
  */
-export function buildDiscountLine(amount = 0, { name = 'קופון', vat = true } = {}) {
+export function buildDiscountLine(amount = 0, { name = invoiceText('invoice_coupon'), vat = true } = {}) {
     const value = round2(Number(amount) || 0)
     if (!(value > 0)) return null
     return {
@@ -164,7 +165,9 @@ function couponLabel(coupons = []) {
     const names = [...new Set((coupons || [])
         .map(c => cleanText(c?.name || c?.code || c?.title || c?.couponName, 60))
         .filter(Boolean))]
-    return names.length === 1 ? `קופון ${names[0]}` : 'קופון'
+    return names.length === 1
+        ? invoiceText('invoice_coupon_named', { name: names[0] })
+        : invoiceText('invoice_coupon')
 }
 
 /**
@@ -200,8 +203,8 @@ export function buildInvoiceLines({ order, settings = {} } = {}) {
     const mixedClasses = taxableDiscount > 0 && exemptDiscount > 0
     const label = couponLabel(coupons)
     const discountLines = [
-        buildDiscountLine(taxableDiscount, { name: mixedClasses ? `${label} (חייב)` : label, vat: true }),
-        buildDiscountLine(exemptDiscount, { name: mixedClasses ? `${label} (פטור)` : label, vat: false })
+        buildDiscountLine(taxableDiscount, { name: mixedClasses ? `${label} (${invoiceText('invoice_vat_taxable')})` : label, vat: true }),
+        buildDiscountLine(exemptDiscount, { name: mixedClasses ? `${label} (${invoiceText('invoice_vat_exempt')})` : label, vat: false })
     ].filter(Boolean)
 
     const lineTotalOf = item => round2(Number(item.quantity) * Number(item.price))
@@ -258,10 +261,10 @@ export function buildCreditLines({ refundItems = [], cart = [] } = {}) {
                 productId: item.productId,
                 barcode: item.barcode ?? line?.barcode,
                 name: shipping
-                    ? (item.name || 'משלוח')
+                    ? (item.name || invoiceText('invoice_shipping'))
                     : general
-                        ? 'החזר כללי'
-                        : (item.name || line?.name || 'פריט'),
+                        ? invoiceText('invoice_general_refund')
+                        : (item.name || line?.name || invoiceText('invoice_item_fallback')),
                 quantity: 1,
                 gross: amount,
                 price: amount,

@@ -44,6 +44,28 @@ Two deliberate exceptions to the heuristic:
   same-named write route elsewhere cannot sneak in. `--discover-only` prints them as
   `read*`.
 
+Translation routes are split on purpose: `translation/dictionary`,
+`translation/languages` and `translation/read` are part of the normal sweep,
+while `translation/export`, `translation/import` and the write routes are left
+to the dedicated scenario below. Export generates a file and import carries a
+file payload, so neither is a representative runtime read.
+
+### Translation scenario (`--translations`)
+
+`node scripts/stress/run.js --target local --translations --headless-otp`
+
+It creates a temporary language, warms the dictionary cache, bursts 100
+dictionary reads, fires 50 concurrent single-key writes, imports a 300-row CSV,
+and then checks the stress DB directly:
+
+- every concurrent key survived (no lost updates),
+- there is exactly **one** `translation_dictionaries` document for the language,
+- the document holds all 350 keys,
+- deleting the language removes its dictionary.
+
+Expected output includes `PASS` and `1 dictionary document(s)`. A `FAIL` means
+either a lost key or the dictionary was split into per-key documents.
+
 Deliberately not fired (they do no DB read to rank): `geocode/*`, `address/autocomplete`,
 `address/validate`, `bot/*`, `sms/voice_test`, `cache/reset`, `user/sync_stats`,
 `gs1/status` (BullMQ job counts), `gs1/retention` (GS1 API), `report/download`

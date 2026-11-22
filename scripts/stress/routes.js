@@ -40,7 +40,18 @@ const ALSO_READ = new Set([
     'display_block/categories', // Category.read over every category
     'role/children', // Role.readById + Role.read({ parentIds })
     'payment/refunds', // Order.readById + PaymentTransaction.read
-    'supply_area/lookup' // $geoIntersects over supply_areas
+    'supply_area/lookup', // $geoIntersects over supply_areas
+    'translation/dictionary', // one cached document per language on a miss
+    'translation/languages' // language metadata + per-language key counts
+])
+
+// Translation writes/import/export are handled by scripts/stress/translations.js
+// instead of the generic sweep: export generates a file, import carries a file
+// payload, and the mutation routes must not run with a guessed key.
+const TRANSLATION_READ_ROUTES = new Set([
+    'translation/dictionary',
+    'translation/languages',
+    'translation/read'
 ])
 
 function walk(dir, prefix = '') {
@@ -82,6 +93,7 @@ export async function discoverRoutes({ only = null, mutations = false } = {}) {
         const readOnly = isReadOnlyRoute(route)
         if (!readOnly && !mutations) continue
         if (NEVER_RUN.has(route.split('/').pop())) continue
+        if (route.startsWith('translation/') && !TRANSLATION_READ_ROUTES.has(route)) continue
         if (only && !new RegExp(only).test(route)) continue
         routes.push({
             route,

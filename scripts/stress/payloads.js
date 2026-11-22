@@ -104,6 +104,11 @@ export function payloadFor(route, fixtures) {
         case 'setting/id': return fx.settingId ? { id: fx.settingId } : null
         case 'store/id': return fx.storeIds.length ? { id: fx.storeIds[0] } : null
         case 'store/nearby': return { coordinates: fx.coordinates }
+        // The translation dictionary is keyed by language. A real non-base
+        // language exercises the cache payload; `he` would still be valid.
+        case 'translation/dictionary': return { code: fx.translationLanguageCode || 'he' }
+        case 'translation/read': return {}
+        case 'translation/languages': return {}
         // A point copied from an address a real delivery went to, so the answer is
         // a hit and not a guaranteed miss through the 2dsphere index.
         case 'supply_area/lookup': return fx.geoPoint?.length === 2

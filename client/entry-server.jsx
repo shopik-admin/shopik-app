@@ -1,7 +1,7 @@
 import { StaticRouter, matchPath } from 'react-router'
 import { renderToString } from 'react-dom/server'
 import Head from 'layout/Head'
-import TR from '#common/texts/TR.js'
+import TR, { configureTexts } from '#common/texts/TR.js'
 import { getSettingFileUrl } from '#common/functions/settingFileUrl.js'
 import { buildMeta } from '#common/functions/buildMeta.js'
 import { resolveGlassixConfig } from '#common/functions/glassix.js'
@@ -18,7 +18,8 @@ function colorOf(value, fallback) {
   return typeof color === 'string' && color.trim() ? color.trim() : fallback
 }
 
-export async function render({ url, data, ctx }) {
+export async function render({ url, data = {}, ctx }) {
+  configureTexts(data.translations)
   const pathname = url.split('?')[0]
   const page = pages.find(p => matchPath(p.path, pathname))
   let notFound = !page

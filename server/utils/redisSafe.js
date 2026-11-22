@@ -131,7 +131,8 @@ export const STALE_AFTER_OUTAGE = [
     'user_store:*',
     MENU_CACHE_KEY,
     `${MENU_CACHE_KEY}:*`,
-    'display:*'
+    'display:*',
+    'tr:dict:*'
 ]
 
 export async function purgeStaleCaches(redis, patterns = STALE_AFTER_OUTAGE) {

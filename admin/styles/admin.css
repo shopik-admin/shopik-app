@@ -159,7 +159,7 @@ body .Input_ input,
 body .Input_ textarea {
     border: 1px solid var(--border-secondary);
     border-radius: var(--radius-full);
-    direction: rtl;
+    direction: inherit;
 }
 
 /* multi-line boxes can't use the pill radius — same family, fixed token */

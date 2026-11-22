@@ -1,5 +1,6 @@
 import { round2, round3 } from './calcOrder/utils.js'
 import { groupCart } from './cartReplacements.js'
+import TR from '../texts/TR.js'
 
 // The order screen shows money that was already decided when the order was
 // placed and picked. Everything here is derived from the order document alone:
@@ -33,12 +34,12 @@ function saleLabel(sale, unitPrice) {
     const perUnit = sale.amount > 0 ? sale.totalSum / sale.amount : NaN
 
     if ((kind === 'price' || kind === 'amount') && size > 1 && Number.isFinite(perUnit)) {
-        return `${size} ב-${formatMoney(perUnit * size)}`
+        return `${TR('product_sale_bundle', { amount: size })}${formatMoney(perUnit * size)}`
     }
 
     if (kind === 'percent' && Number.isFinite(unitPrice) && unitPrice > 0 && Number.isFinite(perUnit)) {
         const percent = Math.round((1 - perUnit / unitPrice) * 100)
-        if (percent > 0) return `${percent}% הנחה`
+        if (percent > 0) return TR('product_sale_percent_discount', { percent })
     }
 
     return String(sale.saleName || '').trim()

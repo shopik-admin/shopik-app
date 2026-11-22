@@ -24,12 +24,12 @@ export function getSaleBadgeText(sale) {
     const amount = sale.amount
     const price = sale.price
     const percent = sale.percent
-    if (sale.kind === 'price' && amount > 1 && price != null) return `מבצע ${amount} ב-${price}`
-    if (sale.kind === 'price' && price != null) return `מבצע ב-${price}`
-    if (sale.kind === 'percent' && percent != null) return `${percent}% הנחה`
-    if (amount > 1 && price != null) return `מבצע ${amount} ב-${price}`
-    if (percent != null) return `מבצע ${percent}%`
-    return 'מבצע'
+    if (sale.kind === 'price' && amount > 1 && price != null) return TR('product_sale_price_multi', { amount, price })
+    if (sale.kind === 'price' && price != null) return TR('product_sale_price', { price })
+    if (sale.kind === 'percent' && percent != null) return TR('product_sale_percent_discount', { percent })
+    if (amount > 1 && price != null) return TR('product_sale_price_multi', { amount, price })
+    if (percent != null) return TR('product_sale_percent', { percent })
+    return TR('product_sale')
 }
 
 export function formatPrice(price) {
@@ -58,7 +58,7 @@ export function getInlineSaleBarText(sale, amount) {
     const remaining = getSaleRemaining(sale, amount)
     if (remaining > 0) {
         const formatted = Number.isInteger(remaining) ? String(remaining) : String(Math.round(remaining * 1000) / 1000)
-        return `עוד ${formatted} יח' בשביל לקבל את המבצע`
+        return TR('product_sale_remaining', { amount: formatted })
     }
     return getSaleBadgeText(sale)
 }
@@ -131,13 +131,12 @@ export function getUnitLabel(product) {
     const type = unit.type
     const base = unit.baseUnit
     if (type === 'weight') {
-        if (base === 'kg') return 'ק"ג'
-        if (base === 'g') return 'גרם'
-        return 'ק"ג'
+        if (base === 'g') return TR('unit_gram')
+        return TR('unit_kg')
     }
-    if (base === 'kg') return 'ק"ג'
-    if (base === 'g') return 'גרם'
-    return "יח'"
+    if (base === 'kg') return TR('unit_kg')
+    if (base === 'g') return TR('unit_gram')
+    return TR('unit_unit')
 }
 
 export function formatAmountNumber(amount) {
@@ -204,7 +203,7 @@ export function ProductButton({ product, amount = 0, onUpdateAmount, size = 'm',
     const step = product?.unit?.step || 1
     const max = Number(maxAmount ?? 0) || 0
     const atMax = max > 0 && Number(amount ?? 0) >= max
-    const maxTitle = atMax ? `הגעת למגבלת כמות (${max})` : undefined
+    const maxTitle = atMax ? TR('product_max_reached_with_amount', { max }) : undefined
 
     if (!amount) {
         return <Flex className={classNames(styles.productButton, styles[size])} >
@@ -323,7 +322,7 @@ export function ProductPrice({ product, size = 'm', sales, priceMode = 'unit', s
             const isBundle = saleInfo.isBundle
             const saleText = isBundle
                 ? <Text size='xxl' bold className={styles.salePrice}>
-                    {saleInfo.amount} ב-{CurrencySymbol}{formatPrice(saleInfo.saleTotal)}
+                    {TR('product_sale_bundle', { amount: saleInfo.amount })}{CurrencySymbol}{formatPrice(saleInfo.saleTotal)}
                 </Text>
                 : <Text size='xxl' bold className={styles.salePrice}>{CurrencySymbol}{formatPrice(saleInfo.saleSingle)}</Text>
             return <Flex gap={8} alignItems='center' wrap className={classNames(styles.price, styles[size], styles.sale)}>

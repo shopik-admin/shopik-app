@@ -1,5 +1,6 @@
 import { round2 } from '../calcOrder/utils.js'
 import { cleanText, describeInvoiceLine } from './format.js'
+import invoiceText from './text.js'
 import { orderReference } from './notes.js'
 
 // EZcount document types (see the API docs; configurable in the Setting).
@@ -198,7 +199,7 @@ export function buildPaymentRow({ amount, settings = {}, date = new Date(), card
         const installments = normalizePayments(card?.installments)
         const company = cleanText(card?.company, 40)
         row.cc_type = cardTypeCode(company)
-        row.cc_type_name = company || 'כרטיס אשראי'
+        row.cc_type_name = company || invoiceText('invoice_credit_card')
         // Keep the digits as a string so a leading zero (`0123`) survives.
         row.cc_number = last4
         row.cc_deal_type = installments > 1 ? CARD_DEAL_TYPE.PAYMENTS : CARD_DEAL_TYPE.REGULAR
@@ -209,6 +210,6 @@ export function buildPaymentRow({ amount, settings = {}, date = new Date(), card
     }
 
     row.payment_type = 9
-    row.other_payment_type_name = cleanText(settings.paymentName, 40) || 'כרטיס אשראי'
+    row.other_payment_type_name = cleanText(settings.paymentName, 40) || invoiceText('invoice_credit_card')
     return row
 }
