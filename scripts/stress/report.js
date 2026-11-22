@@ -228,7 +228,7 @@ export function printReport({ opts, capabilities, baseline, sequential, chaos, d
     }
 }
 
-export function saveReport({ opts, startedAt, capabilities, baseline, sequential, chaos, durationMs }) {
+export function saveReport({ opts, startedAt, capabilities, baseline, sequential, chaos, durationMs, flow = null }) {
     fs.mkdirSync(opts.reportDir, { recursive: true })
     const stamp = startedAt.toISOString().replace(/[:.]/g, '-').slice(0, 19)
     const file = path.join(opts.reportDir, `${stamp}-${opts.target}-${opts.mode}.json`)
@@ -241,7 +241,8 @@ export function saveReport({ opts, startedAt, capabilities, baseline, sequential
         capabilities,
         options: {
             mode: opts.mode, calls: opts.calls, concurrency: opts.concurrency, chaosDuration: opts.chaosDuration,
-            probeEvery: opts.probeEvery, gap: opts.gap, baselineSeconds: opts.baselineSeconds, minWindow: opts.minWindow
+            probeEvery: opts.probeEvery, gap: opts.gap, baselineSeconds: opts.baselineSeconds, minWindow: opts.minWindow,
+            flow: opts.flow
         },
         baseline,
         sequential: sequentialRows,
@@ -249,7 +250,8 @@ export function saveReport({ opts, startedAt, capabilities, baseline, sequential
         chaos: chaos && {
             rows: chaosRows,
             db: chaos.find(r => r.route === '__chaos_total__')?.chaosDb
-        }
+        },
+        flow
     }
     fs.writeFileSync(file, JSON.stringify(data, null, 2))
     console.log(`\nreport saved: ${file}`)

@@ -26,6 +26,12 @@ shell running it, and refuses to run with `PRODUCTION` set. Write routes are
 never included unless `--mutations` is passed; login/OTP routes are never
 stress-called at all.
 
+`--flow` is a separate, narrower gate: it writes real documents, so it is
+allowed only with `--target local`, refuses `PRODUCTION`/`NODE_ENV=production`,
+refuses a URI identical to `DB`/`DB_URI`, and requires a localhost database
+(override a disposable remote dev DB explicitly with `--allow-remote-writes`).
+It never runs on the `test` Atlas target.
+
 ## Which routes get fired
 
 `routes.js` mirrors `server/router.js` discovery (223 live route files) and admits
@@ -147,6 +153,49 @@ A shopper whose cart order has no `storeId` gets `order/window/options` skipped 
 that reason — the route returns `[]` before touching mongo, and a row that measures
 nothing would look like a cheap route.
 
+## Order-flow simulation (`--flow`)
+
+After the read sweep, `--flow` runs **one real order through the app's own write
+routes** and asserts it reaches `done`:
+
+1. shopper login — `STRESS_FLOW_PHONE` (default `0500000000`); if the phone does
+   not exist, the OTP doc carries a `payload`, so `user/login` performs the same
+   registration `user/register` would have, without sending an SMS.
+2. delivery method + an address in Jerusalem, Bat Yam or Beitar Illit (sampled
+   from delivered orders first, then a known street), activated so it resolves
+   to a service area and a store.
+3. cart clear, then 10+ products with mixed quantities — weighted (kg) and unit
+   products, both priced for the resolved domain. It keeps adding until the
+   domain's `minSum` is met.
+4. delivery window: an open window from `order/window/options`, or a window
+   created directly for tomorrow when the dump has none.
+5. **simulated payment:** the Hyp page/callback is never called. The flow writes
+   exactly what the callback writes — `status: 'paid'` + the authorization
+   fields — and an `auth` transaction row.
+6. picking: claim, one line marked missing, two lines replaced, every remaining
+   weighted line weighed at ordered amount + 0.001–0.099 kg (clamped to the
+   domain's upward tolerance), every unit line scanned, then `pick_complete`.
+7. packing: the flow first records the CAPTURE transaction with the post-pick
+   total `pack` will recompute (plus one agora of headroom, so even a rounding
+   mismatch cannot fall through to a charge), so `captureOrder` takes its
+   already-paid/delta≤0 path and **no Hyp charge is attempted**.
+8. shipment start and delivery by a super admin (no proof photo needed), then
+   asserts the order status is `done`.
+
+It uses a sampled super-admin session (headless OTP) when the stress admin is
+not one - `--headless-otp` is required for that swap. The capture amount is
+reproduced from the same `shipping`/`pickLimits` settings the server reads, so
+the flow decrypts them: it needs `SECRET` (taken from `.env` when the shell did
+not export it). Side effects are real: a user (if absent), an address, a
+paid/picked/packed/shipped/done order, payment transactions, invoices,
+shipment/history and timeline/log rows, all in the local stress DB. Use a
+disposable restore when you care about the data.
+
+The runner exits non-zero if any flow step fails, and `npm run release` runs
+this flow as part of its gate.
+
+
+
 ## Modes and knobs
 
 - `sequential` (default): each route alone — `--calls` × `--concurrency`, repeated
@@ -241,6 +290,7 @@ scripts/stress/
   fixtures.js  raw-collection sampling from the stress DB (ids, cart, picking order)
   client.js    HTTP client (one platform + one cookie jar per session, envelope parsing)
   auth.js      gate login + admin / picker / shopper logins (interactive or headless OTP)
+  flow.js      full order lifecycle simulation (login → paid → picking → packing → shipping → done)
   observer.js  the DB probe + profiler + serverStatus WT numbers + currentOp
   load.js      sustained sequential bursts + chaos + the HTTP probe loop
   report.js    console ranking + CSV/JSON writer

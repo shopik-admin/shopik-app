@@ -5,6 +5,7 @@ import path from 'node:path';
 import readline from 'node:readline/promises';
 import { fileURLToPath } from 'node:url';
 import { fmtMs } from './stress/util.js';
+import { printFlowReport, flowSummary } from './stress/flow.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const pkgPath = path.join(root, 'package.json');
@@ -28,8 +29,9 @@ function usage() {
   console.log(`
 Usage: npm run release <patch|minor|major|X.Y.Z> [--skip-stress] [--yes]
 
-Runs the test suite, then a stress sweep against the local server, before
-touching the version. Any test failure aborts the release.
+Runs the test suite, then a stress sweep against the local server (read routes,
+then one full simulated order lifecycle), before touching the version. Any test
+failure or stress/flow failure aborts the release.
 
 Examples:
   npm run release patch   # 1.0.5 -> 1.0.6
@@ -46,6 +48,7 @@ Environment:
   STRESS_DB_URI_LOCAL     stress DB (default mongodb://localhost:27017/shopik_stress)
   STRESS_ID_NUM           admin idNum (else prompted; OTP is always headless)
   STRESS_USER_PHONE       shopper for the storefront routes (else sampled from the stress DB)
+  STRESS_FLOW_PHONE       shopper for the order-flow simulation (default 0500000000)
   STRESS_GATE_PASSWORD    site gate password, if the target has one
 `);
 }
@@ -111,6 +114,7 @@ const stressBaseUrl = process.env.STRESS_BASE_URL || 'http://localhost:7777';
 const stressDbUri = process.env.STRESS_DB_URI_LOCAL || 'mongodb://localhost:27017/shopik_stress';
 const stressIdNum = process.env.STRESS_ID_NUM || null;
 const stressUserPhone = process.env.STRESS_USER_PHONE || null;
+const stressFlowPhone = process.env.STRESS_FLOW_PHONE || null;
 const stressGatePassword = process.env.STRESS_GATE_PASSWORD || null;
 const stressReportDir = path.join('reports', 'stress', `release-${next}`);
 
@@ -171,10 +175,16 @@ if (skipStress) {
     '--db-uri', stressDbUri,
     '--base-url', stressBaseUrl,
     '--report-dir', stressReportDir,
-    '--headless-otp'
+    '--headless-otp',
+    // The write half of the gate: one real order through address → cart →
+    // window → simulated paid → picking → packing → shipping → done. The
+    // runner refuses it outside a local DB, so a release can never write to
+    // production (and the release script only ever passes --target local).
+    '--flow'
   ];
   if (stressIdNum) stressArgs.push('--id-num', stressIdNum);
   if (stressUserPhone) stressArgs.push('--user-phone', stressUserPhone);
+  if (stressFlowPhone) stressArgs.push('--flow-phone', stressFlowPhone);
   if (stressGatePassword) stressArgs.push('--gate-password', stressGatePassword);
 
   try {
@@ -202,6 +212,15 @@ if (skipStress) {
       + pad(row.calls ?? '—', 7, true) + '  ' + (row.verdict || '—'));
   });
   console.log(`\nfull report: ${stressReport}`);
+
+  const flow = report.flow;
+  if (flow) {
+    printFlowReport(flow);
+    const summary = flowSummary(flow);
+    if (!summary.ok) fail(`Order flow failed (${summary.failedStep || 'unknown step'}) — release aborted. No version bump was made.`);
+  } else {
+    fail('Stress report has no order-flow result — release aborted.');
+  }
 }
 
 if (!(await confirm(`\nProceed with release v${next}? [y/N] `))) {

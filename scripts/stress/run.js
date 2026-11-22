@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 // Stress runner entry: wire config → fixtures → auth → observer → load → report.
 
+import { readFileSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { parseArgs, guardAgainstProduction, usage } from './config.js'
 import { discoverRoutes } from './routes.js'
 import { loadFixtures } from './fixtures.js'
@@ -9,10 +12,30 @@ import { ensureGate, adminLogin, customerLogin, pinCurrentStore, closePrompt } f
 import { MongoObserver } from './observer.js'
 import { measureBaseline, runSequential, runChaos } from './load.js'
 import { printReport, saveReport } from './report.js'
+import { runOrderFlow, printFlowReport } from './flow.js'
 import { CUSTOMER_PLATFORM } from './payloads.js'
 import { sleep } from './util.js'
 
 const opts = parseArgs()
+
+// The flow reproduces captureOrder's amount by decrypting the same config
+// settings the server reads, which needs SECRET. Take only that one value from
+// .env when the shell did not export it — loading the whole file would change
+// what guardAgainstProduction compares against (DB/DB_URI from the app env).
+if (opts.flow && !process.env.SECRET) {
+    try {
+        const envPath = resolve(dirname(fileURLToPath(import.meta.url)), '../..', '.env')
+        for (const line of readFileSync(envPath, 'utf8').split(/\r?\n/)) {
+            const match = /^\s*SECRET\s*=\s*(.*)$/.exec(line)
+            if (!match) continue
+            process.env.SECRET = match[1].trim().replace(/^["']|["']$/g, '')
+            break
+        }
+    } catch {
+        // No .env — the flow will fail with a clear message if a setting is encrypted.
+    }
+}
+
 if (opts.help) {
     console.log(usage())
     process.exit(0)
@@ -115,8 +138,24 @@ try {
         })
     const durationMs = Date.now() - t0
 
+    // The write simulation runs AFTER the sweep: it mutates products/orders a
+    // read burst would otherwise measure, and it must never share the probe
+    // window. Its failure fails the run (release gates on it).
+    let flow = null
+    if (opts.flow) {
+        log(`order flow: full lifecycle against ${opts.storefrontOrigin} (writes to ${opts.target} DB)`)
+        try {
+            flow = await runOrderFlow({ fixtures, opts, clients, newClient, log })
+        } catch (err) {
+            flow = err.flow || { ok: false, steps: [], error: err.message }
+            log(`order flow failed: ${err.message}`)
+        }
+        printFlowReport(flow)
+    }
+
     printReport({ opts, capabilities, baseline, sequential, chaos, durationMs })
-    saveReport({ opts, startedAt, capabilities, baseline, sequential, chaos, durationMs })
+    saveReport({ opts, startedAt, capabilities, baseline, sequential, chaos, durationMs, flow })
+    if (opts.flow && !flow?.ok) process.exitCode = 1
 } finally {
     closePrompt()
     await observer?.close()

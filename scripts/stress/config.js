@@ -5,8 +5,23 @@
 //   --target test   the test Atlas URI (degraded metrics where Atlas forbids them)
 // The runner refuses any URI identical to the app's own DB/DB_URI env so it can
 // never accidentally hammer production.
+//
+// Write traffic (--flow: the order-lifecycle simulation) is a separate gate on
+// top of that: it is allowed only for a local/dev database, never for the test
+// Atlas target, and never when the shell looks like production.
 
 const DEFAULT_LOCAL_URI = 'mongodb://localhost:27017/shopik_stress'
+const LOOPBACK_HOST_RE = /^(localhost|127(?:\.\d{1,3}){3}|\[?::1\]?)$/i
+
+function mongoHost(uri) {
+    const match = /^mongodb(\+srv)?:\/\/(?:[^/?@]*@)?([^/?]+)/.exec(String(uri || ''))
+    return match ? match[2].split(',')[0].split(':')[0].toLowerCase() : null
+}
+
+function isProductionShell() {
+    return Boolean(process.env.PRODUCTION)
+        || process.env.NODE_ENV === 'production'
+}
 
 export function parseArgs(argv = process.argv.slice(2)) {
     const opts = {
@@ -24,6 +39,9 @@ export function parseArgs(argv = process.argv.slice(2)) {
         slowMs: 20,
         only: null,
         mutations: false,
+        flow: false,
+        flowPhone: process.env.STRESS_FLOW_PHONE || '0500000000',
+        allowRemoteWrites: false,
         idNum: null,
         userPhone: null,
         headlessOtp: false,
@@ -36,12 +54,14 @@ export function parseArgs(argv = process.argv.slice(2)) {
     }
     const flagsWithValues = new Set(['--target', '--mode', '--db-uri', '--base-url', '--calls', '--concurrency',
         '--chaos-duration', '--probe-every', '--gap', '--baseline-seconds', '--min-window', '--slow-ms', '--only',
-        '--id-num', '--user-phone',
+        '--id-num', '--user-phone', '--flow-phone',
         '--gate-password', '--report-dir', '--admin-origin', '--storefront-origin'])
     for (let i = 0; i < argv.length; i++) {
         const arg = argv[i]
         switch (arg) {
             case '--mutations': opts.mutations = true; continue
+            case '--flow': opts.flow = true; continue
+            case '--allow-remote-writes': opts.allowRemoteWrites = true; continue
             case '--headless-otp': opts.headlessOtp = true; continue
             case '--help': case '-h': opts.help = true; continue
             case '--discover-only': opts.discoverOnly = true; continue
@@ -83,7 +103,29 @@ export function parseArgs(argv = process.argv.slice(2)) {
     // Atlas tiers pay for every profiled op.
     opts.profile = opts.target === 'local'
 
+    if (opts.flow) assertFlowAllowed(opts)
+
     return opts
+}
+
+// The order-flow simulation writes real documents (a shopper, an address, a
+// cart, an order, a simulated payment). It is deliberately narrower than the
+// read guard: local target only, no production shell, and a non-loopback host
+// needs an explicit acknowledgement (a dev database that is not on this box).
+export function assertFlowAllowed(opts) {
+    if (isProductionShell())
+        throw new Error('Refusing --flow: PRODUCTION/NODE_ENV=production is set in the stress runner\u2019s environment.')
+    if (opts.target !== 'local')
+        throw new Error('Refusing --flow: order writes are only allowed with --target local (a local/dev restore), never the test Atlas target.')
+    const prodUris = [process.env.DB, process.env.DB_URI].filter(Boolean)
+    const normalize = value => String(value).replace(/\s+/g, '')
+    if (prodUris.some(prod => normalize(prod) === normalize(opts.uri)))
+        throw new Error('Refusing --flow: the stress URI is identical to this environment\u2019s DB/DB_URI (production).')
+    const host = mongoHost(opts.uri)
+    if (!host) throw new Error('Refusing --flow: could not determine the database host from the URI.')
+    if (!LOOPBACK_HOST_RE.test(host) && !opts.allowRemoteWrites)
+        throw new Error(`Refusing --flow: database host "${host}" is not localhost. Pass --allow-remote-writes only for a disposable dev database.`)
+    return host
 }
 
 export function guardAgainstProduction(uri) {
@@ -131,7 +173,15 @@ Usage:
   --slow-ms <ms>          profiler slowms: only operations at/over it are recorded
                           (default 20; use 1 on a short --only run to see every read)
   --only <regex>          only run matching routes (e.g. --only "order/")
-  --mutations             include write routes (default off)
+  --mutations             include write routes in the read sweep (default off)
+  --flow                  after the sweep, simulate one full order lifecycle
+                          (login → address → cart → window → paid → picking →
+                          packing → shipping → done). Writes only; --target
+                          local only, never production.
+  --flow-phone <phone>    shopper phone for --flow (or env STRESS_FLOW_PHONE);
+                          default 0500000000. Logged in headlessly, registered
+                          in place if absent.
+  --allow-remote-writes   allow --flow on a non-localhost dev database
   --id-num <n>            admin idNum for login (else prompted)
   --user-phone <phone>    shopper to log in as for the storefront routes; without it a
                           real cart-order-with-store owner is sampled from the stress DB
@@ -144,5 +194,6 @@ Usage:
 
 Env:
   STRESS_DB_URI_LOCAL / STRESS_DB_URI_TEST / STRESS_BASE_URL / STRESS_GATE_PASSWORD
+  STRESS_FLOW_PHONE
 `
 }
