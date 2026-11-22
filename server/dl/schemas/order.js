@@ -120,6 +120,8 @@ const windowSchema = {
     end: Number,
     reservedGroupId: String,
     reservedAt: Date,
+    holdUntil: Date,
+    holdExtendedAt: Date,
     startTimestamp: Date,
     endTimestamp: Date,
     leadTimestamp: Date
@@ -280,12 +282,12 @@ const orderSchema = {
     window: windowSchema,
     pickBy: Date,
     shipBy: Date,
-    phone: String,
+    phone: { type: String, filter: true },
     secondPhone: String,
     email: String,
     name: {
-        first: String,
-        last: String
+        first: { type: String, filter: true },
+        last: { type: String, filter: true }
     },
     status: {
         type: String,
@@ -593,12 +595,20 @@ const index = [
     { storeId: -1 },
     { userId: -1 },
     { 'window.date': 1 },
-    { status: 1 },
     { deliveryMethod: 1 },
     // The ops queue always asks for one store over a window.date range — the
     // manage views scan more stores over a wider range, so a single-field index
     // on either side makes them pick one and scan the other.
-    { storeId: 1, 'window.date': -1 }
+    { storeId: 1, 'window.date': -1 },
+    // Window-hold expiry scans cart orders by deadline on demand.
+    { status: 1, active: 1, 'window.holdUntil': 1 },
+    // supplier_report matches+sorts by paidAt; without this it is a collscan
+    // plus a blocking sort of every matching order.
+    { paidAt: 1 },
+    // userStatsAggregation $sorts by time over the whole orders history; a
+    // time-ordered scan lets the sort stream from the index instead of
+    // blocking-sorting (and spilling) millions of docs.
+    { time: 1 }
 ]
 
 export const meta = {

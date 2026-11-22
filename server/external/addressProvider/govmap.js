@@ -9,25 +9,25 @@ export async function searchGovmap({ DL, q, city, street, type = 'street', limit
 
     try {
         if (type === 'city') {
-            // distinct cities with prefix
-            const match = query ? { city: new RegExp(`^${escapeRegex(query)}`, 'i') } : {}
-            const docs = await DL.GovAddress.Model.aggregate([
-                { $match: match },
-                { $group: { _id: '$city', city: { $first: '$city' } } },
-                { $sort: { city: 1 } },
-                { $limit: limit }
-            ])
-            return (docs || []).map(c => ({
-                label: c.city, // check why?!
-                city: c.city,
-                source: 'govmap'
-            }))
+            // distinct() rides the (city, street) index; the group/sort aggregate
+            // scanned the whole address collection when the box was empty.
+            const match = query ? { city: new RegExp(`^${escapeRegex(query)}`) } : {}
+            const cities = await DL.GovAddress.Model.distinct('city', match)
+            return (cities || [])
+                .filter(Boolean)
+                .sort((a, b) => String(a).localeCompare(String(b), 'he'))
+                .slice(0, limit)
+                .map(city => ({
+                    label: city,
+                    city,
+                    source: 'govmap'
+                }))
         }
 
         if (type === 'street') {
             if (!city) return []
             const filter = { city }
-            if (query) filter.street = new RegExp(escapeRegex(query), 'i')
+            if (query) filter.street = new RegExp(escapeRegex(query))
             const docs = await DL.GovAddress.Model.aggregate([
                 { $match: filter },
                 { $group: { _id: { city: '$city', street: '$street' }, city: { $first: '$city' }, street: { $first: '$street' } } },

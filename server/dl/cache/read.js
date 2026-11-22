@@ -1,9 +1,14 @@
 import handleSelect from '#server/dl/handleSelect.js'
+import reseedInBackground, { hasVerifiedCache, isCacheSuspect } from '#server/dl/cache/reseed.js'
 import { CACHE_STRATEGIES } from '#common/constants.js'
 import safeJsonParse from '#common/functions/safeJsonParse.js'
 import get from '#common/functions/get.js'
 
 const SCAN_COUNT = 1000
+
+// Cap for exact-mode (readOne) hash scans: big hashes like gov_addresses
+// (150k docs) are not worth paging through for a single indexed findOne.
+const EXACT_MATCH_SCAN_MAX_DOCS = 20_000
 
 export default function (redis, Model) {
     function searchValue(doc, search) {
@@ -68,10 +73,26 @@ export default function (redis, Model) {
         // If Redis is not connected, signal caller to fall back to MongoDB
         if (!redis || redis.status !== 'ready') return null
 
+        // A hash nothing has built in this process must not be read at all:
+        // an empty hash and an empty collection look identical from here.
+        if (isCacheSuspect(Model)) {
+            reseedInBackground(Model)
+            return null
+        }
+
         const { search, sort } = options
         const skip = Number(options.skip) || 0
         const limit = options.limit == null ? 30 : Number(options.limit)
-        const processedFilter = Model.processFilter(filter)
+
+        // exact mode (readOne): the caller pre-validated the raw filter
+        // (whitelisted keys, type-aligned primitive values), so equality must
+        // stay equality — processFilter's string→prefix-regex rewrite is list
+        // semantics, not findOne semantics. A full hash scan only pays for
+        // single-doc answers on small hashes; bigger ones answer "cannot
+        // answer" and the caller uses MongoDB.
+        if (options.exact && await redis.hlen(Model.cacheName) > EXACT_MATCH_SCAN_MAX_DOCS)
+            return null
+        const processedFilter = options.exact ? filter : Model.processFilter(filter)
         const shouldFilter = Object.keys(processedFilter).length > 0
         const searchTerm = search?.length ? search.toLowerCase() : null
         // Without a sort the order is already arbitrary (hash order), so stop
@@ -82,10 +103,21 @@ export default function (redis, Model) {
         // once (150k gov_addresses → ~400MB RSS), HSCAN keeps one page live.
         const matched = []
         let cursor = '0'
+        let pages = 0
+        let unseededHash = false
         try {
             do {
                 const [next, page] = await redis.hscan(Model.cacheName, cursor, 'COUNT', SCAN_COUNT)
                 cursor = next
+                // An empty *first* page means the key is missing. Unless this
+                // process has already reconciled the hash with MongoDB (boot
+                // verify / seed / a rebuild), "empty" cannot be told apart from
+                // "never built": answer from MongoDB and rebuild in the background.
+                if (!pages++ && !page.length && !hasVerifiedCache(Model)) {
+                    unseededHash = true
+                    cursor = '0'
+                    break
+                }
                 // page = [field1, value1, field2, value2, ...]
                 for (let i = 0; i < page.length; i += 2) {
                     const doc = safeJsonParse(page[i + 1])
@@ -97,6 +129,14 @@ export default function (redis, Model) {
                 }
             } while (cursor !== '0')
         } catch {
+            // Redis broke mid-scan: the answer is incomplete either way, so
+            // let the caller use MongoDB and rebuild the hash afterwards.
+            reseedInBackground(Model)
+            return null
+        }
+
+        if (unseededHash) {
+            reseedInBackground(Model)
             return null
         }
 

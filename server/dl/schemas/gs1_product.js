@@ -29,10 +29,14 @@ const gs1ProductSchema = {
     // GTIN and an admin must pick one; 'manual' = aliasShort was confirmed in
     // the admin UI (it wins over suffix guessing); 'auto' = resolved by exact
     // or suffix matching. Empty/absent means no alias state.
+    // filter:'exact' (not true): closed vocabulary queried by full value.
+    // The default prefix treatment rewrote it to /^ambiguous/i — a
+    // case-insensitive regex the {aliasStatus} index cannot serve — so the
+    // gs1/aliases page scanned all 12.6k docs (and their heavy raw payloads)
+    // plus a second scan for the count, to return a 50-row page.
     aliasStatus: {
         type: String,
-        index: true,
-        filter: true
+        filter: 'exact'
     },
     aliasShort: {
         type: String,
@@ -51,6 +55,19 @@ const gs1ProductSchema = {
     }
 }
 
-export const meta = {}
+export const meta = {
+    index: [
+        // gs1/aliases page: {aliasStatus} equality + sort by barcode + limit —
+        // one range serves filter and order (no FETCH, no in-memory sort) and
+        // makes the route's count a covered key-scan of just the status prefix.
+        [{ aliasStatus: 1, barcode: 1 }],
+        // The catalog report reads the `no-gs1-record` rows twice over: the dated
+        // "לא נבדק" answer and the barcodes GS1 does not hold. Unindexed, both were a
+        // COLLSCAN of all 23 449 docs — 7.3 kB each, ~163 MB of disk reads per report
+        // build, and the two top entries of Atlas's index advisor for this collection.
+        // Indexed: 684 docs, 1 ms.
+        { skipReason: 1 }
+    ]
+}
 
 export default gs1ProductSchema

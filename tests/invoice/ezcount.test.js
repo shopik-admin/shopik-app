@@ -223,10 +223,13 @@ describe('issueInvoice', () => {
         assert.equal(payload.price_total, 155)
         assert.equal(payload.payment[0].payment_sum, 155)
         assert.equal(payload.show_items_including_vat, 1)
-        assert.deepEqual(payload.item.map(i => i.vat_type), ['NON', 'INC', 'INC'])
-        assert.deepEqual(payload.item.map(i => i.amount), ['2', '3', '1'])
-        assert.deepEqual(payload.item.map(i => i.price), ['22.50', '30.00', '20.00'])
-        assert.equal(payload.item.length, 3)
+        assert.deepEqual(payload.item.map(i => i.vat_type), ['NON', 'INC', 'INC', 'NON', 'INC', 'INC'])
+        assert.deepEqual(payload.item.map(i => i.amount), ['2', '3', '1', '1', '1', '1'])
+        // Unit prices are the pre-coupon shelf prices.
+        assert.deepEqual(payload.item.map(i => i.price), ['25.00', '33.33', '-10.00', '-5.00', '20.00', '0.01'])
+        // Mixed basket: one coupon row per VAT class.
+        assert.deepEqual(payload.item.filter(i => i.price.startsWith('-')).map(i => i.vat_type), ['INC', 'NON'])
+        assert.equal(payload.item.length, 6)
 
         // Local record + order mirror.
         assert.equal(DL.Invoice.docs.length, 1)
@@ -237,6 +240,28 @@ describe('issueInvoice', () => {
         assert.equal(DL.Order.docs[0].invoice.status, 'issued')
         assert.equal(DL.Order.docs[0].vatBreakdown.total, 155)
         assert.ok(events.some(e => e.eventType === 'invoice_issued'))
+    })
+
+    it('uses one document-level coupon line for an all-taxable basket', async () => {
+        const DL = makeFakeDL({ settings: ENABLED_SETTING })
+        const external = fakeExternal(OK_RESPONSE)
+        const order = orderFixture()
+        order.cart = [
+            { id: '1', barcode: 'T1', name: 'Tomatoes', finalAmount: 2, totalSum: 50, vat: true },
+            { id: '2', barcode: 'M1', name: 'Milk', finalAmount: 3, totalSum: 100, vat: true }
+        ]
+
+        const record = await issueInvoice({ DL, external, utils, order, captured: 155 })
+
+        assert.equal(record.status, 'issued')
+        const payload = external.calls[0].payload
+        // One coupon row instead of a discount on every item.
+        const coupon = payload.item.find(i => i.price === '-15.00')
+        assert.ok(coupon)
+        assert.equal(coupon.details, 'קופון SAVE10')
+        assert.equal(coupon.vat_type, 'INC')
+        assert.deepEqual(payload.item.map(i => i.price), ['25.00', '33.33', '-15.00', '20.00', '0.01'])
+        assert.equal(payload.price_total, 155)
     })
 
     it('does not create a second document for the same order', async () => {
@@ -446,8 +471,13 @@ describe('retrying an existing record', () => {
         assert.equal(stored.request.transaction_id, 'invoice:o1')
         assert.equal(stored.request.price_total, 155)
         assert.equal(stored.request.show_items_including_vat, 1)
-        assert.deepEqual(stored.request.item.map(i => i.vat_type), ['NON', 'INC', 'INC'])
-        assert.equal(stored.items.length, 3)
+        assert.deepEqual(stored.request.item.map(i => i.vat_type), ['NON', 'INC', 'INC', 'NON', 'INC', 'INC'])
+        assert.equal(stored.items.length, 6)
+        // The snapshot records the coupon rows that were sent.
+        assert.deepEqual(
+            stored.items.filter(i => i.productId === '__discount').map(i => i.gross),
+            [-10, -5]
+        )
         assert.equal(stored.amount, 155)
     })
 

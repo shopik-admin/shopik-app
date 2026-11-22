@@ -35,8 +35,8 @@ const productSchema = {
         type: String,
         required: true,
         trim: true,
-        search: 30,
-        searchPrefixBoost: 100,
+        search: 50,
+        searchPrefixBoost: 60,
         searchFuzzy: 3,
         filter: true
     },
@@ -74,7 +74,10 @@ const productSchema = {
         unique: true,
         required: true,
         trim: true,
-        filter: true
+        // 'exact': a barcode is a whole value, and the prefix form processFilter
+        // builds for a plain String filter turns a unique lookup into a scan of the
+        // whole barcode index (see dl/schemas/comax_product.js).
+        filter: 'exact'
     },
     scannableBarcodes: {
         type: [String],
@@ -149,7 +152,7 @@ const productSchema = {
             amount: Number // weight in baseUnit, e.g. 10 (kg)
         }]
     },
-    saleIds: { type: [String], filter: true, index: true },
+    saleIds: { type: [String], filter: true },
     sortOrder: {
         type: Number,
         min: 0,
@@ -159,7 +162,7 @@ const productSchema = {
     limit: Number,
     keywords: {
         type: [{ trim: true, type: String }],
-        search: 2,
+        search: 5,
         filter: true
     },
     googleCategory: String,
@@ -206,14 +209,17 @@ const productSchema = {
         id: { type: String, filter: true },
         title: {
             type: String,
-            search: 5,
+            search: 2,
             filter: true
         },
         pathIds: { type: [String], index: true, filter: true }
     },
     // Raw Comax sub-group code. Kept next to the resolved category so the admin
     // can reassign a whole sub-group with one update and coverage stays cheap.
-    comaxSubGroupCode: { type: String, filter: true },
+    // filter: 'exact' — always looked up by whole code. The prefix form processFilter
+    // builds for a plain String filter made '1370' match '13701', and a
+    // case-insensitive regex can never use the {status, comaxSubGroupCode} index.
+    comaxSubGroupCode: { type: String, filter: 'exact' },
     images: {
         product: [{
             main: Boolean,
@@ -225,7 +231,6 @@ const productSchema = {
     },
     status: {
         type: String,
-        index: true,
         enum: Object.values(constants.STATUS),
         default: constants.STATUS.ACTIVE,
         filter: true
@@ -286,16 +291,38 @@ const defaultSort = {
     id: 1,
 }
 
+// Popularity nudge applied to search relevance (see dl/defaults/search.js).
+// Points grow with log10 of sales units, so 10 units → +10, 100 → +20,
+// 1000+ → +30 (capped). The cap keeps a best seller from outranking a
+// name-prefix match; the nudge only breaks close text-relevance decisions.
+const searchBoost = {
+    path: 'totalSalesUnits',
+    multiplier: 100,
+    cap: 1000
+}
+
 export const meta = {
     constants,
     defaultSelect,
     defaultSelectOne,
     defaultSort,
+    searchBoost,
     index: [
-        { storeIds: 1 },
-        { status: 1, 'category.pathIds': 1 },
+        { storeIds: 1, status: 1 },
+        // Carries defaultSort as its suffix: category pages filter by status +
+        // pathIds and sort by sortOrder/totalSalesUnits/id. With only the two
+        // filter keys the planner picked this index for selectivity and then
+        // blocked on an in-memory sort of every matching doc (823 ms, 694 docs).
+        // The {status, pathIds} prefix still covers distinct() and the menu reads.
+        { status: 1, 'category.pathIds': 1, sortOrder: -1, totalSalesUnits: -1, id: 1 },
         { status: 1, comaxSubGroupCode: 1 },
-        { status: 1, 'prices.domainId': 1 }
+        { status: 1, 'prices.domainId': 1, sortOrder: -1, totalSalesUnits: -1, id: 1 },
+        { status: 1, 'prices.domainId': 1, totalSalesUnits: -1, id: 1 },
+        { status: 1, 'prices.domainId': 1, createdAt: -1, id: 1 },
+        { updatedAt: 1, id: -1 },
+        // sale/sync's stale-saleIds sweep (distinct barcode where saleIds non-empty):
+        // sparse keeps the scan bounded to products that actually carry a sale.
+        [{ saleIds: 1 }, { sparse: true }]
     ]
 }
 

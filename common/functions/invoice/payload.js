@@ -20,9 +20,12 @@ export function vatTypeOf(vat) {
 /**
  * One EZcount item row.
  *
- * `amount` is the actual item quantity (e.g. 2, 3, 1.35) and `price` is the unit price.
+ * `amount` is the actual item quantity (e.g. 2, 3, 1.35) and `price` is the
+ * pre-coupon unit price the customer saw. A coupon is sent as its own
+ * negative-price row (see invoice lines), never baked into the unit price.
+ *
  * Rounding drifts across lines are reconciled with a dedicated rounding line so
- * the sum of `amount * price` matches the charged total exactly.
+ * the sum of line totals matches the charged total exactly.
  */
 export function buildInvoiceItem(line = {}) {
     const qty = Number(line.quantity ?? line.amount ?? 1)
@@ -37,9 +40,14 @@ export function buildInvoiceItem(line = {}) {
     }
 }
 
+export function lineTotalOf(item = {}) {
+    return round2(Number(item.amount ?? 1) * Number(item.price || 0))
+}
+
 export function buildInvoiceItems(lines = []) {
     return (lines || [])
-        .filter(line => line && Number(line.gross) > 0)
+        // Keep negative coupon rows; drop only empty/skipped lines.
+        .filter(line => line && Number(line.gross) !== 0)
         .map(buildInvoiceItem)
 }
 
@@ -85,13 +93,13 @@ export function buildDocPayload({
     payload.show_items_including_vat = 1
 
     // 320 (invoice receipt) rejects the request without `price_total` and a
-    // payment row. Our rows carry the exact charged gross, so their sum is the
-    // captured total — no recalculation, and it matches assertTotalsMatch by
-    // construction. Credit notes (330) must not carry either: price_total is
-    // positive-only and a credit is not a payment.
+    // payment row. Item rows include the negative coupon row(s), so their sum
+    // is the captured total — no recalculation, and it matches
+    // assertTotalsMatch by construction. Credit notes (330) must not carry
+    // either: price_total is positive-only and a credit is not a payment.
     if (docType === DOC_TYPE.INVOICE) {
         if (items.length)
-            payload.price_total = round2(items.reduce((sum, item) => sum + round2(Number(item.amount || 1) * Number(item.price || 0)), 0))
+            payload.price_total = round2(items.reduce((sum, item) => sum + lineTotalOf(item), 0))
         // EZcount recalculates `amount * price` per line with its own rounding,
         // so a line landing on an exact half-cent can disagree with ours by one
         // agora. auto_balance lets the provider absorb that cent as a discount

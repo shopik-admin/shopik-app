@@ -35,6 +35,16 @@ describe('buildInvoiceItems', () => {
         assert.equal(items[1].details, 'Milk 3%')
     })
 
+    it('keeps a negative coupon row and its VAT class', () => {
+        const items = buildInvoiceItems([
+            { name: 'Coffee', gross: 25, quantity: 2, price: 12.5, vat: true },
+            { name: 'קופון first40', gross: -3, quantity: 1, price: -3, vat: false }
+        ])
+        assert.equal(items.length, 2)
+        assert.equal(items[1].price, '-3.00')
+        assert.equal(items[1].vat_type, 'NON')
+    })
+
     it('drops zero-gross lines', () => {
         assert.equal(buildInvoiceItems([{ name: 'Zero', gross: 0 }]).length, 0)
     })
@@ -77,8 +87,16 @@ describe('buildDocPayload', () => {
     })
 
     it('sends the captured total as price_total on a 320 (mandatory field)', () => {
-        const payload = buildDocPayload({ order, lines, customer })
-        assert.equal(payload.price_total, 155)
+        const payload = buildDocPayload({
+            order, customer,
+            lines: [
+                { name: 'Coffee', gross: 25, quantity: 2, price: 12.5, vat: true },
+                { name: 'קופון first40', gross: -3, quantity: 1, price: -3, vat: true },
+                { name: 'Shipping', gross: 20, quantity: 1, price: 20, vat: true }
+            ]
+        })
+        // 2 * 12.50 - 3.00 + 20.00
+        assert.equal(payload.price_total, 42)
     })
 
     it('does not send price_total on a credit note', () => {

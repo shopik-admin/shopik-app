@@ -10,6 +10,7 @@ import { useUser } from 'features/User'
 import { useOrder } from 'features/Order/OrderProvider'
 import { useAppData } from 'App'
 import WindowOptions from 'features/Order/WindowOptions'
+import WindowHoldTimer from 'features/Order/WindowHoldTimer'
 import Addresses, { AddressForm } from 'pages/Account/Addresses'
 import { useText } from 'common/texts/TextProvider'
 import { CouponCollapse } from './CouponSection'
@@ -28,7 +29,7 @@ import {
     LuUserRound
 } from 'react-icons/lu'
 
-export default function OrderSummary({ onPayment, paying, showPayBtn = true, missingFields = [], hasNoService = false, hasElevatorIssue = false, hideSummary = false }) {
+export default function OrderSummary({ onPayment, paying, showPayBtn = true, missingFields = [], hasNoService = false, hasElevatorIssue = false, hideSummary = false, onWindowExpired }) {
     const { order = {}, setOrder } = useOrder()
     const user = useUser()
     const { addresses = [] } = user || {}
@@ -251,9 +252,12 @@ export default function OrderSummary({ onPayment, paying, showPayBtn = true, mis
                                     <div className={styles.iconCircle}>
                                         <LuClock className={styles.rowIcon} />
                                     </div>
-                                    <Text bold size='m' className={styles.rowText}>
-                                        {deliveryTimeText}
-                                    </Text>
+                                    <Flex col gap={2}>
+                                        <Text bold size='m' className={styles.rowText}>
+                                            {deliveryTimeText}
+                                        </Text>
+                                        <WindowHoldTimer window={activeWindow} onExpire={onWindowExpired} />
+                                    </Flex>
                                 </Flex>
                                 <button
                                     type='button'
@@ -284,11 +288,11 @@ export default function OrderSummary({ onPayment, paying, showPayBtn = true, mis
                     <Flex col gap={8} className={styles.breakdown}>
                         <Flex alignItems='center' justifyContent='space-between' className={styles.subtotalRow}>
                             <Text mode='sub' size='m'>
-                                subtotal_text
+                                {TR?.('subtotal_text')}{isBelowMinSum && (
+                                    <Text size='s' style={{ fontWeight: 'normal' }}>{` (${TR?.('minimum_order_sum')} ${render({ type: 'coin', value: minSumThreshold })})`}</Text>
+                                )}
                             </Text>
-                            <Text size='m' bold>
-                                {render({ type: 'coin', value: subtotal })}
-                            </Text>
+                            <Text size='m' bold>{render({ type: 'coin', value: subtotal })}</Text>
                         </Flex>
 
                         <Flex alignItems='center' justifyContent='space-between' className={styles.subtotalRow}>
@@ -329,9 +333,6 @@ export default function OrderSummary({ onPayment, paying, showPayBtn = true, mis
                             </Text>
                         </Flex>
 
-                        {isBelowMinSum && (
-                            <Text size='s' mode='sub' style={{ textAlign: 'center' }}>{TR?.('minimum_order_sum')} {render({ type: 'coin', value: minSumThreshold })}</Text>
-                        )}
                         {/* CTA Pay Button */}
                         {showPayBtn && (
                             <button

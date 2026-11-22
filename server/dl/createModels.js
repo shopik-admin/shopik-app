@@ -2,6 +2,7 @@ import { CACHE_STRATEGIES } from '#common/constants.js'
 import uid from '#common/functions/uid.js'
 import get from '#common/functions/get.js'
 import seedCache from './cache/seed.js'
+import { trustCache } from './cache/reseed.js'
 import { fileURLToPath } from 'url'
 import mongoose from 'mongoose'
 import path from 'path'
@@ -336,6 +337,7 @@ async function createModelFromSchema(schemaPath) {
     if (meta?.defaultSelect) Model.defaultSelect = meta.defaultSelect
     if (meta?.defaultSelectOne) Model.defaultSelectOne = meta.defaultSelectOne
     if (meta?.defaultSort) Model.defaultSort = meta.defaultSort
+    if (meta?.searchBoost) Model.searchBoost = meta.searchBoost
     if (meta?.methods) Model.methods = meta?.methods(Model)
 
     const {
@@ -407,10 +409,16 @@ async function createModelFromSchema(schemaPath) {
         })
 
         if (search?.length && Model.filterFields) {
-            for (const field of Model.filterFields) {
-                if (get(schema, `${field}.type`) === String) {
-                    if (!processed.$or) processed.$or = []
-                    processed.$or.push({ [field]: new RegExp(search) })
+            // Anchored + escaped: an unanchored regex can never use an index, so every
+            // admin list/count search was a collscan; unescaped input could also crash
+            // the query outright (e.g. a lone "(" → invalid RegExp).
+            const escaped = String(search).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+            if (escaped) {
+                for (const field of Model.filterFields) {
+                    if (get(schema, `${field}.type`) === String) {
+                        if (!processed.$or) processed.$or = []
+                        processed.$or.push({ [field]: new RegExp('^' + escaped) })
+                    }
                 }
             }
         }
@@ -454,7 +462,11 @@ export default async function createModels(redis) {
                         log.warn(`Cache init failed for ${model.modelName}:`, cacheInitErr?.message || cacheInitErr)
                     }
                 }
-                if (model.cacheStrategy === CACHE_STRATEGIES.HASHSET && redis?.hlen && model.cache) {
+                // Only seed when Redis is actually reachable. When it is not, the
+                // model stays suspect: reads use MongoDB and the cache is rebuilt
+                // in the background once Redis returns, instead of this process
+                // serving empty hashes until the next deploy.
+                if (model.cacheStrategy === CACHE_STRATEGIES.HASHSET && redis?.status === 'ready' && model.cache) {
                     try {
                         const [
                             currentHashCount,
@@ -470,11 +482,14 @@ export default async function createModels(redis) {
                                 // deleted/renamed docs in the hash forever.
                                 // Chunked so only one seed batch is in memory.
                                 const seeded = await seedCache(redis, model, { clear: true })
+                                trustCache(model)
                                 log.info(`Cache rebuilt for ${model.modelName}: ${seeded} docs`)
                             } catch (e) {
                                 log.error('Cache seeding error:', e)
                             }
-                        }
+                        } else
+                            // Verified against MongoDB — this hash can be trusted.
+                            trustCache(model)
                     } catch (seedErr) {
                         log.warn('Cache check warning:', seedErr?.message || seedErr)
                     }
