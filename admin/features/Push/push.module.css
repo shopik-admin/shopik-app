@@ -1,0 +1,31 @@
+.prompt {
+    width: min(360px, calc(100vw - 72px));
+    padding: 4px 0 2px;
+}
+
+.promptIcon,
+.promptIconWarning {
+    width: 56px;
+    height: 56px;
+    margin: 0 auto;
+    border-radius: var(--radius-full);
+    background-color: var(--bg-brand-secondary);
+    color: var(--text-brand);
+
+    svg {
+        font-size: 26px;
+        width: 26px;
+        height: 26px;
+    }
+}
+
+.promptIconWarning {
+    background-color: var(--bg-warning-secondary);
+    color: var(--fg-warning-primary);
+}
+
+.helpList {
+    padding: 12px;
+    border-radius: var(--radius-lg, 10px);
+    background-color: var(--bg-secondary);
+}

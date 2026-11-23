@@ -20,6 +20,23 @@
         }
     }
 
+    /* The title is the only item that may shrink; the bell, language switcher
+       and avatar keep their size. Without min-width the long page name pushes
+       the header wider than the phone. */
+    .leftGroup {
+        min-width: 0;
+        gap: 20px;
+    }
+
+    @media screen and (max-width: 480px) {
+        padding-left: calc(12px + var(--safeLeft, 0px));
+        padding-right: calc(12px + var(--safeRight, 0px));
+
+        .leftGroup {
+            gap: 12px;
+        }
+    }
+
     @media screen and (min-width: 650px) {
         width: calc(100vw - var(--sidebarWidth) + 10px);
     }

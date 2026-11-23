@@ -1,0 +1,355 @@
+.trigger {
+    width: fit-content;
+}
+
+.bell {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border: none;
+    border-radius: var(--radius-full);
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: background-color .15s, color .15s;
+
+    svg {
+        font-size: 21px;
+        width: 21px;
+        height: 21px;
+    }
+
+    &:hover {
+        background-color: var(--bg-secondary-hover);
+        color: var(--text-primary);
+    }
+}
+
+/* Permission missing / not registered: the bell is not actually reachable. */
+.dot {
+    position: absolute;
+    top: 6px;
+    inset-inline-start: 6px;
+    width: 9px;
+    height: 9px;
+    border-radius: var(--radius-full);
+    background-color: #d92d20;
+    box-shadow: 0 0 0 2px var(--bg-primary, #fff);
+}
+
+/* Deployment problem (HTTP origin, no VAPID keys): not fixable from here. */
+.dotWarning {
+    position: absolute;
+    top: 6px;
+    inset-inline-start: 6px;
+    width: 9px;
+    height: 9px;
+    border-radius: var(--radius-full);
+    background-color: #f79009;
+    box-shadow: 0 0 0 2px var(--bg-primary, #fff);
+}
+
+/* Unread notifications. */
+.count {
+    position: absolute;
+    top: -2px;
+    inset-inline-end: -2px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 100px;
+    background-color: #d92d20;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 18px;
+    text-align: center;
+    box-shadow: 0 0 0 2px var(--bg-primary, #fff);
+    pointer-events: none;
+}
+
+/* The popover dialog itself: never wider/taller than the phone viewport. */
+.dialog {
+    max-width: calc(100dvw - 8px);
+    max-height: calc(100dvh - 16px);
+    overflow-x: hidden;
+}
+
+/* Element + class beats the shared popover padding regardless of stylesheet
+   order (CSS modules make the shared class name unpredictable). */
+@media (max-width: 480px) {
+    dialog.dialog {
+        padding: 12px;
+    }
+}
+
+.content {
+    width: min(380px, calc(100vw - 56px));
+    width: min(380px, calc(100dvw - 48px));
+    max-width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow-x: hidden;
+}
+
+.header {
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-secondary);
+    row-gap: 6px;
+}
+
+.unreadCircle {
+    min-width: 22px;
+    height: 22px;
+    padding: 0 6px;
+    border-radius: var(--radius-full);
+    background-color: var(--bg-brand-primary);
+    color: var(--text-white, #fff);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.permissionBanner {
+    padding: 8px 10px;
+    border-radius: var(--radius-lg, 10px);
+    background-color: var(--bg-warning-secondary);
+    color: var(--fg-warning-primary);
+    row-gap: 6px;
+
+    .bannerIcon {
+        flex-shrink: 0;
+        font-size: 16px;
+        width: 16px;
+        height: 16px;
+    }
+
+    .bannerText {
+        flex: 1;
+        min-width: 0;
+        line-height: 1.35;
+        overflow-wrap: anywhere;
+    }
+}
+
+.configBanner {
+    padding: 8px 10px;
+    border-radius: var(--radius-lg, 10px);
+    background-color: var(--bg-secondary);
+    color: var(--text-secondary);
+
+    .bannerIcon {
+        flex-shrink: 0;
+        font-size: 16px;
+        width: 16px;
+        height: 16px;
+    }
+
+    .bannerText {
+        flex: 1;
+        line-height: 1.35;
+    }
+}
+
+.list {
+    display: flex;
+    flex-direction: column;
+    max-height: min(58vh, 420px);
+    max-height: min(58dvh, 420px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    margin: 0 -4px;
+    padding: 0 4px;
+}
+
+.state {
+    padding: 26px 0;
+    color: var(--text-quaternary);
+
+    .emptyIcon {
+        font-size: 28px;
+        width: 28px;
+        height: 28px;
+        color: var(--border-secondary);
+    }
+}
+
+.row {
+    gap: 12px;
+    padding: 10px 8px;
+    border-radius: var(--radius-lg, 10px);
+    border-bottom: 1px solid var(--border-secondary);
+    cursor: pointer;
+    transition: background-color .15s;
+
+    &:last-child {
+        border-bottom: none;
+    }
+
+    &:hover {
+        background-color: var(--bg-secondary);
+    }
+
+    &.unread {
+        background-color: var(--bg-brand-secondary);
+
+        &:hover {
+            background-color: var(--bg-brand-secondary-hover);
+        }
+    }
+}
+
+/* Flex children default to min-width:auto, which lets a long title push the
+   row wider than the popover and produce horizontal scrolling. */
+.rowContent {
+    min-width: 0;
+}
+
+.titleRow {
+    row-gap: 2px;
+}
+
+.titleGroup {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.title {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.bodyText {
+    overflow-wrap: anywhere;
+}
+
+.rowIcon {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-full);
+
+    svg {
+        font-size: 16px;
+        width: 16px;
+        height: 16px;
+    }
+}
+
+.levelSuccess {
+    background-color: var(--bg-success-secondary);
+    color: var(--fg-success-primary);
+}
+
+.levelWarning {
+    background-color: var(--bg-warning-secondary);
+    color: var(--fg-warning-primary);
+}
+
+.levelError {
+    background-color: var(--bg-error-secondary);
+    color: var(--fg-error-primary);
+}
+
+.levelInfo {
+    background-color: var(--bg-brand-secondary);
+    color: var(--text-brand);
+}
+
+.orderChip {
+    flex-shrink: 0;
+    padding: 1px 6px;
+    border-radius: 6px;
+    background-color: var(--bg-brand-secondary);
+    color: var(--text-brand);
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.time {
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+/* Per-row delete: hidden until the row is hovered, always visible on touch. */
+.deleteButton {
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: none;
+    border-radius: var(--radius-full);
+    background: transparent;
+    color: var(--text-quaternary);
+    cursor: pointer;
+    opacity: 0;
+    transition: background-color .15s, color .15s, opacity .15s;
+
+    svg {
+        font-size: 15px;
+        width: 15px;
+        height: 15px;
+    }
+
+    &:hover {
+        background-color: var(--bg-error-secondary);
+        color: var(--fg-error-primary);
+    }
+}
+
+.row:hover .deleteButton,
+.row:focus-within .deleteButton {
+    opacity: 1;
+}
+
+@media (hover: none) {
+    .deleteButton {
+        opacity: .7;
+    }
+}
+
+/* Narrow phones: tighter row furniture so the text keeps most of the width. */
+@media (max-width: 420px) {
+    .row {
+        gap: 8px;
+        padding: 10px 4px;
+    }
+
+    .rowIcon {
+        width: 26px;
+        height: 26px;
+    }
+
+    .deleteButton {
+        width: 24px;
+        height: 24px;
+    }
+
+    .content {
+        gap: 8px;
+    }
+}
+
+.footer {
+    margin-top: 2px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-secondary);
+}
+
+/* Superadmin-only diagnostic line: the whole push state in one place. */
+.diagnostic {
+    padding-top: 6px;
+    border-top: 1px dashed var(--border-secondary);
+    opacity: .75;
+
+    .diagnosticValue {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        word-break: break-all;
+    }
+}

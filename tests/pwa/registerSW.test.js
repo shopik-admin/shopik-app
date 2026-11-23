@@ -17,7 +17,12 @@ describe('isServiceWorkerAllowed', () => {
 
     it('allows localhost and loopback over HTTP', () => {
         assert.equal(isServiceWorkerAllowed({ protocol: 'http:', hostname: 'localhost' }), true)
+        assert.equal(isServiceWorkerAllowed({ protocol: 'http:', hostname: 'admin.localhost' }), true)
         assert.equal(isServiceWorkerAllowed({ protocol: 'http:', hostname: '127.0.0.1' }), true)
         assert.equal(isServiceWorkerAllowed({ protocol: 'http:', hostname: '[::1]' }), true)
+    })
+
+    it('does not treat a real domain that ends with "localhost" as local', () => {
+        assert.equal(isServiceWorkerAllowed({ protocol: 'http:', hostname: 'notlocalhost' }), false)
     })
 })

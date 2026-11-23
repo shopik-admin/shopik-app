@@ -1,3 +1,9 @@
 .pageTitle {
     transform: translateY(-1px);
+    /* Flex item: allow it to shrink and ellipsize instead of widening the
+       header on narrow screens. */
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }

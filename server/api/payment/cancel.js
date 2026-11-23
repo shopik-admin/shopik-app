@@ -29,6 +29,11 @@ export default async function cancel(payload, info) {
             outcome: { success: true },
             metadata: { source: 'payment/cancel' }
         })
+        // A canceled order can be the last blocker in its window: re-check
+        // whether the remaining delivery orders are now all ready. Fail-open.
+        try {
+            await utils.data.adminPush.notifyWindowReady({ DL, external, order })
+        } catch { }
     }
 
     const slotReleasedOnCancel = order.status === DL.Order.constants.ORDER_STATUS.PAID

@@ -9,6 +9,7 @@ import Lists from 'common/features/Lists'
 import ReactDOM from 'react-dom/client'
 import User from 'features/User'
 import Notifications from 'features/Notifications'
+import Push from 'features/Push'
 import App from './App'
 import { registerServiceWorker } from 'common/functions/registerSW.js'
 
@@ -44,7 +45,9 @@ ReactDOM
                         <User sdUser={sd.user}>
                             <Notifications>
                                 <ModalProvider>
-                                    <App />
+                                    <Push>
+                                        <App />
+                                    </Push>
                                 </ModalProvider>
                             </Notifications>
                         </User>

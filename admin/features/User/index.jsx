@@ -1,5 +1,6 @@
 import { createContext, useContext, useState } from 'react'
 import apiReq from '#common/functions/apiReq.js'
+import { unsubscribeCurrentPush } from 'features/Push/client'
 
 const UserContext = createContext()
 export const useUser = () => useContext(UserContext)
@@ -8,6 +9,7 @@ export default function User({ children, sdUser }) {
     const [user, setUser] = useState(sdUser)
 
     async function logout() {
+        await unsubscribeCurrentPush()
         try { sessionStorage.removeItem('adminLangPending') } catch { }
         await apiReq('admin/logout')
         location.reload()
