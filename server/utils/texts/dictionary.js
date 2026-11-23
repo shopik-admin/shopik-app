@@ -14,6 +14,7 @@ const CACHE_TTL_SECONDS = 60 * 60
 const MEMO_TTL_MS = 5000
 const VERSION_KEY = 'tr:version'
 const CACHE_PREFIX = 'tr:dict'
+const LANGUAGES_CACHE_PREFIX = 'tr:languages'
 // A single Redis key per language is the whole dictionary. Include the app
 // version so a deploy that edits hebrew.json never serves a stale payload.
 const cacheKey = (code, version) => `${CACHE_PREFIX}:v${pkg.version}:${version || '0'}:${code}`
@@ -22,6 +23,9 @@ const cacheKey = (code, version) => `${CACHE_PREFIX}:v${pkg.version}:${version |
 // version in the key makes writes visible across workers; the TTL is only a
 // safety net for the Redis-unavailable path.
 const memo = new Map()
+// Separate memo for the language list + counts: it changes only when a
+// dictionary/language changes, not on every dictionary read.
+let languagesMemo = null
 
 function isObject(value) {
     return !!value && typeof value === 'object' && !Array.isArray(value)
@@ -73,6 +77,23 @@ export async function getLanguages(DL) {
 }
 
 export async function getLanguagesWithCounts(DL) {
+    const version = await versionOf(DL)
+    const now = Date.now()
+    if (languagesMemo && languagesMemo.version === version && languagesMemo.expires > now)
+        return languagesMemo.value
+
+    const key = `${LANGUAGES_CACHE_PREFIX}:v${pkg.version}:${version || '0'}`
+    if (version !== null) {
+        try {
+            const raw = await DL.redis.get(key)
+            if (raw) {
+                const parsed = JSON.parse(raw)
+                languagesMemo = { version, value: parsed, expires: now + MEMO_TTL_MS }
+                return parsed
+            }
+        } catch { }
+    }
+
     const [languages, dictionaries] = await Promise.all([
         getLanguages(DL),
         DL.TranslationDictionary.read({}, { _id: 0, languageCode: 1, texts: 1 }, { limit: 0 }).catch(() => [])
@@ -80,10 +101,18 @@ export async function getLanguagesWithCounts(DL) {
     const counts = new Map(
         (dictionaries || []).map(doc => [doc.languageCode, Object.keys(doc.texts || {}).length])
     )
-    return languages.map(language => ({
+    const result = languages.map(language => ({
         ...language,
         textCount: counts.get(language.code) || 0
     }))
+
+    languagesMemo = { version, value: result, expires: now + MEMO_TTL_MS }
+    if (version !== null) {
+        try {
+            await DL.redis.set(key, JSON.stringify(result), 'EX', CACHE_TTL_SECONDS)
+        } catch { }
+    }
+    return result
 }
 
 async function readTexts(DL, code) {
@@ -157,6 +186,7 @@ export async function getTranslations(DL, requestedCode) {
 
 export async function invalidateTranslations(DL) {
     memo.clear()
+    languagesMemo = null
     if (!redisReady(DL)) return
     try {
         await DL.redis.incr(VERSION_KEY)
