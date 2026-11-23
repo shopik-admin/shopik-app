@@ -4,10 +4,12 @@ import { PUSH_FAILURE_LIMIT } from '#server/external/push/index.js'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 const STALE_SUBSCRIPTION_DAYS = 30
-const NOTIFICATION_RETENTION_DAYS = 60
+// The inbox is a "what happened just now" feed, not an archive: the order
+// itself keeps the full history, so three days is enough for a shift handover.
+const NOTIFICATION_RETENTION_DAYS = 3
 
 /**
- * Nightly hygiene:
+ * Scheduled hygiene, every six hours:
  *  - drop endpoints that have been failing for a month (dead browser installs)
  *  - drop inbox rows older than the retention window
  *
@@ -35,8 +37,9 @@ export async function runPushCleanup({ DL, now = new Date() }) {
 }
 
 export default function startPushCleanup(bootData) {
-    // 03:10 — after the nightly sync jobs, before the working day starts.
-    cron.schedule('10 3 * * *', () => {
+    // Every six hours: with a three-day retention this keeps the real maximum
+    // age close to three days instead of three days plus a nightly gap.
+    cron.schedule('10 */6 * * *', () => {
         runPushCleanup(bootData).catch(e => log.warn('[Push] Cleanup failed:', e?.message || e))
     })
 }

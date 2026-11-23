@@ -129,6 +129,18 @@ export default function NotificationBell() {
         setTimeout(() => setTestState(''), 4000)
     }
 
+    async function removeItem(item) {
+        // Optimistic: the row is gone from the UI immediately, and a failure
+        // resyncs the list rather than leaving a phantom deletion.
+        setItems(prev => prev.filter(row => row.id !== item.id))
+        if (!item.readAt) setUnread(count => Math.max(0, count - 1))
+        try {
+            await apiReq('notifications/delete', { id: item.id })
+        } catch {
+            loadInbox()
+        }
+    }
+
     const permissionAction = push.permission === 'denied'
         ? push.showPermissionHelp
         : push.error
@@ -201,6 +213,8 @@ export default function NotificationBell() {
                     role='button'
                     tabIndex={0}
                     onKeyDown={event => {
+                        // Keyboard events from the delete button bubble here too.
+                        if (event.target !== event.currentTarget) return
                         if (event.key === 'Enter' || event.key === ' ') openItem(item, close)
                     }}
                 >
@@ -217,6 +231,18 @@ export default function NotificationBell() {
                         </Flex>
                         {item.body ? <Text size='s' mode='sub'>{item.body}</Text> : null}
                     </Flex>
+                    <button
+                        type='button'
+                        className={styles.deleteButton}
+                        aria-label={TR('push_delete')}
+                        title={TR('push_delete')}
+                        onClick={event => {
+                            event.stopPropagation()
+                            removeItem(item)
+                        }}
+                    >
+                        <Icon name='trash' />
+                    </button>
                 </Flex>)}
             </div>
 

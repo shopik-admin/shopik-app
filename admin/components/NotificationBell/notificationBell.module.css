@@ -226,6 +226,45 @@
     white-space: nowrap;
 }
 
+/* Per-row delete: hidden until the row is hovered, always visible on touch. */
+.deleteButton {
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: none;
+    border-radius: var(--radius-full);
+    background: transparent;
+    color: var(--text-quaternary);
+    cursor: pointer;
+    opacity: 0;
+    transition: background-color .15s, color .15s, opacity .15s;
+
+    svg {
+        font-size: 15px;
+        width: 15px;
+        height: 15px;
+    }
+
+    &:hover {
+        background-color: var(--bg-error-secondary);
+        color: var(--fg-error-primary);
+    }
+}
+
+.row:hover .deleteButton,
+.row:focus-within .deleteButton {
+    opacity: 1;
+}
+
+@media (hover: none) {
+    .deleteButton {
+        opacity: .7;
+    }
+}
+
 .footer {
     margin-top: 2px;
     padding-top: 8px;
