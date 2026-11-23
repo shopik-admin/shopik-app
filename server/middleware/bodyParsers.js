@@ -18,6 +18,7 @@ export const LARGE_BODY_ROUTES = new Set([
     '/api/display_block/upload_image',
     '/api/comax_product/backfill_catalog',
     '/api/translation/import',
+    '/api/translation/import_preview',
     '/api/shipment/deliver'
 ])
 

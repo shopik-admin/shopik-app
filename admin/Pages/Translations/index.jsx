@@ -287,6 +287,81 @@ function ExportModal({ language, onClose }) {
     </div>
 }
 
+function ImportPreviewModal({ preview, fileBase64, filename, canImport, onClose, onImported }) {
+    const { TR } = useText()
+    const [loading, setLoading] = useState(false)
+    const [error, setError] = useState(null)
+    const canSubmit = canImport && (preview?.updates || 0) > 0
+
+    async function confirm() {
+        if (!canSubmit || loading) return
+        setLoading(true)
+        setError(null)
+        try {
+            const result = await apiReq('translation/import', {
+                fileBase64,
+                filename,
+                languageCode: preview.languageCode
+            })
+            onImported?.(result)
+        } catch (err) {
+            setError(err?.message || TR('translations_import_failed'))
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    return <div className={styles.modalForm}>
+        <Text size='s' className={styles.muted}>{TR('translations_import_summary')}</Text>
+        <div className={styles.previewGrid}>
+            <div className={styles.previewStat}>
+                <Text size='xs' className={styles.muted}>{TR('translations_import_file')}</Text>
+                <strong>{preview?.filename || filename}</strong>
+            </div>
+            <div className={styles.previewStat}>
+                <Text size='xs' className={styles.muted}>{TR('translations_import_target')}</Text>
+                <strong>{preview?.languageName || preview?.languageCode}</strong>
+            </div>
+            <div className={styles.previewStat}>
+                <Text size='xs' className={styles.muted}>{TR('translations_import_rows')}</Text>
+                <strong>{preview?.rows || 0}</strong>
+            </div>
+            <div className={styles.previewStat}>
+                <Text size='xs' className={styles.muted}>{TR('translations_import_updates')}</Text>
+                <strong>{preview?.updates || 0}</strong>
+            </div>
+            <div className={styles.previewStat}>
+                <Text size='xs' className={styles.muted}>{TR('translations_import_skipped')}</Text>
+                <strong>{preview?.skipped || 0}</strong>
+            </div>
+        </div>
+
+        {!!preview?.sample?.length && <>
+            <Text size='s' bold>{TR('translations_import_sample')}</Text>
+            <div className={styles.previewList}>
+                {preview.sample.map(item => <div key={item.key} className={styles.previewRow}>
+                    <span className={styles.previewKey} dir='ltr'>{item.key}</span>
+                    <span className={styles.previewValue} dir='auto'>{item.value}</span>
+                </div>)}
+            </div>
+        </>}
+
+        {!!preview?.errors?.length && <div className={styles.error}>
+            {TR('translations_import_errors', { count: preview.errors.length })}
+            {' — '}
+            {preview.errors.slice(0, 8).map(item => `${item.key || item.row}: ${item.message}`).join('; ')}
+        </div>}
+
+        {!(preview?.updates > 0) && <div className={styles.notice}>{TR('translations_import_nothing')}</div>}
+        {error && <div className={styles.error}>{error}</div>}
+
+        <div className={styles.modalActions}>
+            <Button onClick={onClose} disabled={loading}>{TR('translations_cancel')}</Button>
+            <Button onClick={confirm} loading={loading} disabled={!canSubmit || loading}>{TR('translations_import_confirm')}</Button>
+        </div>
+    </div>
+}
+
 export default function Translations() {
     const { TR, language, languages: contextLanguages, refreshLanguages, setLanguage, reloadLanguage } = useText() || {}
     const { isSuperAdmin, role } = useUser() || {}
@@ -294,6 +369,9 @@ export default function Translations() {
     const [data, setData] = useState({ languages: [], entries: [], stats: [] })
     const [search, setSearch] = useState('')
     const [missingOnly, setMissingOnly] = useState(false)
+    const [viewLanguage, setViewLanguage] = useState(language || BASE_CODE)
+    const [editing, setEditing] = useState(null)
+    const [savingEdit, setSavingEdit] = useState(false)
     const [page, setPage] = useState(1)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
@@ -311,6 +389,15 @@ export default function Translations() {
         || languages.find(item => item.code === BASE_CODE)
         || languages[0]
         || BASE_LANGUAGE
+    const viewValue = viewLanguage === 'all' || languages.some(item => item.code === viewLanguage)
+        ? viewLanguage
+        : BASE_CODE
+    const viewLanguages = viewValue === 'all'
+        ? languages
+        : languages.filter(item => item.code === viewValue)
+    const targetLanguage = languages.find(item => item.code === (viewValue === 'all' ? activeLanguage.code : viewValue))
+        || activeLanguage
+    const previewLanguages = viewLanguages.length ? viewLanguages : [targetLanguage]
 
     async function loadData({ quiet = false } = {}) {
         if (!quiet) setLoading(true)
@@ -335,52 +422,76 @@ export default function Translations() {
 
     useEffect(() => {
         setPage(1)
-    }, [search, missingOnly, language])
+    }, [search, missingOnly, language, viewValue])
 
     const filtered = useMemo(() => {
         const query = search.trim().toLowerCase()
         return (data.entries || []).filter(entry => {
             if (missingOnly) {
-                const missing = languages
-                    .filter(item => item.code !== BASE_CODE)
-                    .some(item => !entry.values?.[item.code])
-                if (!missing) return false
+                const missingLanguages = previewLanguages.filter(item => item.code !== BASE_CODE)
+                if (missingLanguages.length && !missingLanguages.some(item => !entry.values?.[item.code]))
+                    return false
             }
             if (!query) return true
             return entry.key.toLowerCase().includes(query)
-                || Object.values(entry.effective || {}).some(value => String(value).toLowerCase().includes(query))
+                || String(entry.base || '').toLowerCase().includes(query)
+                || String(entry.effective?.[BASE_CODE] || '').toLowerCase().includes(query)
+                || previewLanguages.some(item => String(entry.effective?.[item.code] || '').toLowerCase().includes(query))
         })
-    }, [data.entries, search, missingOnly, languages])
+    }, [data.entries, search, missingOnly, previewLanguages])
 
     const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
     const currentPage = Math.min(page, pageCount)
     const visible = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
-    const selectedStats = data.stats?.find(item => item.code === activeLanguage.code)
+    const selectedStats = data.stats?.find(item => item.code === targetLanguage.code)
 
-    function openText(entry, targetLanguage) {
-        if (!targetLanguage) return
-        const existing = !!entry?.values?.[targetLanguage.code]
-        if (existing ? !canUpdate : !canCreate) return
-        openModal(
-            <TextModal
-                entry={entry}
-                language={targetLanguage}
-                canDelete={canDelete}
-                onClose={closeModal}
-                onSaved={() => {
-                    closeModal()
-                    loadData({ quiet: true })
-                }}
-            />,
-            { title: TR(existing ? 'translations_edit_title' : 'translations_add_title') }
-        )
+    function startEdit(entry, item) {
+        const raw = entry?.values?.[item.code] || ''
+        if (raw ? !canUpdate : !canCreate) return
+        setError(null)
+        setEditing({ entry, language: item, value: raw, raw })
+    }
+
+    function cancelEdit() {
+        setEditing(null)
+        setSavingEdit(false)
+    }
+
+    async function saveEdit() {
+        if (!editing || savingEdit) return
+        const { entry, language: item, value, raw } = editing
+        if (value === raw) {
+            cancelEdit()
+            return
+        }
+
+        setSavingEdit(true)
+        setError(null)
+        try {
+            if (!value.trim()) {
+                if (raw) {
+                    if (!canDelete) throw new Error(TR('translations_delete_failed'))
+                    await apiReq('translation/delete', { languageCode: item.code, key: entry.key })
+                }
+            } else if (raw) {
+                await apiReq('translation/update', { languageCode: item.code, key: entry.key, value })
+            } else {
+                await apiReq('translation/create', { languageCode: item.code, key: entry.key, value })
+            }
+            setEditing(null)
+            await loadData({ quiet: true })
+        } catch (err) {
+            setError(err?.message || TR('translations_save_failed'))
+        } finally {
+            setSavingEdit(false)
+        }
     }
 
     function openAdd() {
         if (!canCreate) return
         openModal(
             <TextModal
-                language={activeLanguage}
+                language={targetLanguage}
                 canDelete={canDelete}
                 onClose={closeModal}
                 onSaved={() => {
@@ -425,7 +536,7 @@ export default function Translations() {
 
     function openExport() {
         openModal(
-            <ExportModal language={activeLanguage} onClose={closeModal} />,
+            <ExportModal language={targetLanguage} onClose={closeModal} />,
             { title: TR('translations_export_title') }
         )
     }
@@ -438,18 +549,31 @@ export default function Translations() {
         setMessage(null)
         try {
             const fileBase64 = await readFileBase64(file)
-            const result = await apiReq('translation/import', {
+            const preview = await apiReq('translation/import_preview', {
                 fileBase64,
                 filename: file.name,
-                languageCode: activeLanguage.code
+                languageCode: targetLanguage.code
             })
-            await loadData({ quiet: true })
-            setMessage(TR('translations_import_done', {
-                updated: result?.updated || 0,
-                skipped: result?.skipped || 0
-            }))
-            if (result?.errors?.length)
-                setError(`${TR('translations_import_errors', { count: result.errors.length })}: ${result.errors.slice(0, 5).map(item => `${item.key}: ${item.message}`).join('; ')}`)
+            openModal(
+                <ImportPreviewModal
+                    preview={preview}
+                    fileBase64={fileBase64}
+                    filename={file.name}
+                    canImport={canImport}
+                    onClose={closeModal}
+                    onImported={async result => {
+                        closeModal()
+                        await loadData({ quiet: true })
+                        setMessage(TR('translations_import_done', {
+                            updated: result?.updated || 0,
+                            skipped: result?.skipped || 0
+                        }))
+                        if (result?.errors?.length)
+                            setError(`${TR('translations_import_errors', { count: result.errors.length })}: ${result.errors.slice(0, 5).map(item => `${item.key}: ${item.message}`).join('; ')}`)
+                    }}
+                />,
+                { title: TR('translations_import_preview_title') }
+            )
         } catch (err) {
             setError(err?.message || TR('translations_import_failed'))
         }
@@ -486,6 +610,16 @@ export default function Translations() {
                 value={search}
                 onChange={event => setSearch(event.target.value)}
             />
+            <Select
+                className={styles.viewLanguage}
+                title={TR('translations_view_language')}
+                value={viewValue}
+                onChange={event => setViewLanguage(event.target.value)}
+                options={[
+                    { value: 'all', text: TR('translations_all_languages') },
+                    ...languages.map(item => ({ value: item.code, text: languageLabel(item) }))
+                ]}
+            />
             <label className={styles.checkboxLabel}>
                 <Checkbox checked={missingOnly} onChange={event => setMissingOnly(event.target.checked)} />
                 <span>{TR('translations_missing_only')}</span>
@@ -494,17 +628,16 @@ export default function Translations() {
 
         <div className={styles.stats}>
             <span className={styles.statBadge}>{TR('translations_total')}: {data.entries?.length || 0}</span>
-            <span className={styles.statBadge}>{languageLabel(activeLanguage)}: {selectedStats?.overrides || 0} {TR('translations_overrides')}</span>
-            {activeLanguage.code !== BASE_CODE && <span className={styles.statBadge}>{TR('translations_missing')}: {selectedStats?.missing || 0}</span>}
+            {viewValue !== 'all' && <span className={styles.statBadge}>{languageLabel(targetLanguage)}: {selectedStats?.overrides || 0} {TR('translations_overrides')}</span>}
+            {viewValue !== 'all' && targetLanguage.code !== BASE_CODE && <span className={styles.statBadge}>{TR('translations_missing')}: {selectedStats?.missing || 0}</span>}
         </div>
 
         {loading ? <div className={styles.empty}>{TR('translations_loading')}</div> : <div className={styles.tableWrap}>
             <table className={styles.table}>
                 <thead>
                     <tr>
-                        <th className={styles.keyCell}>{TR('translations_key')}</th>
-                        <th className={styles.baseCell}>{TR('translations_base')}</th>
-                        {languages.map(item => <th key={item.code} className={styles.valueCell}>
+                        <th className={styles.keyCell} dir='auto'>{TR('translations_key')}</th>
+                        {previewLanguages.map(item => <th key={item.code} className={styles.valueCell} dir={item.direction === 'ltr' ? 'ltr' : 'rtl'}>
                             <div className={styles.languageHeader}>
                                 <span>{languageLabel(item)} <span className={styles.languageCode}>{item.code}</span></span>
                                 {item.code !== BASE_CODE && canUpdate && <Button
@@ -520,27 +653,63 @@ export default function Translations() {
                 </thead>
                 <tbody>
                     {visible.map(entry => <tr key={entry.key}>
-                        <td className={styles.keyCell}><span dir='ltr'>{entry.key}</span>{entry.custom && <span className={styles.missing}> · {TR('translations_custom')}</span>}</td>
-                        <td className={styles.baseCell}>{entry.base || <span className={styles.missing}>{TR('translations_missing')}</span>}</td>
-                        {languages.map(item => {
+                        <td className={styles.keyCell} dir='ltr'>
+                            <span className={styles.keyText}>{entry.key}</span>
+                            {entry.custom && <span className={styles.keyBadge}>{TR('translations_custom')}</span>}
+                        </td>
+                        {previewLanguages.map(item => {
                             const raw = entry.values?.[item.code] || ''
                             const effective = entry.effective?.[item.code] || ''
                             const source = entry.sources?.[item.code]
-                            return <td key={item.code} className={styles.valueCell}>
-                                <button
+                            const isEditing = editing?.entry?.key === entry.key && editing?.language?.code === item.code
+                            // A Hebrew fallback in an English column still displays
+                            // Hebrew, so it must align right; a real English value
+                            // aligns left. The column's target language only drives
+                            // the editor and the header.
+                            const displayDirection = raw
+                                ? item.direction
+                                : effective
+                                    ? 'rtl'
+                                    : item.direction
+                            return <td key={item.code} className={styles.valueCell} dir={isEditing ? item.direction : displayDirection}>
+                                {isEditing ? <div className={styles.inlineEditor}>
+                                    <textarea
+                                        className={styles.inlineTextarea}
+                                        dir={item.direction === 'ltr' ? 'ltr' : 'rtl'}
+                                        value={editing.value}
+                                        placeholder={!raw ? effective : ''}
+                                        title={TR('translations_inline_hint')}
+                                        autoFocus
+                                        onChange={event => setEditing(previous => ({ ...previous, value: event.target.value }))}
+                                        onKeyDown={event => {
+                                            if (event.key === 'Escape') {
+                                                event.preventDefault()
+                                                cancelEdit()
+                                            } else if (event.key === 'Enter' && !event.shiftKey) {
+                                                event.preventDefault()
+                                                saveEdit()
+                                            }
+                                        }}
+                                        disabled={savingEdit}
+                                    />
+                                    <div className={styles.inlineActions}>
+                                        <Button size='s' mode='text' icon='check' tooltip={TR('translations_save')} onClick={saveEdit} loading={savingEdit} disabled={savingEdit} />
+                                        <Button size='s' mode='text' icon='x' tooltip={TR('translations_cancel')} onClick={cancelEdit} disabled={savingEdit} />
+                                    </div>
+                                </div> : <button
                                     type='button'
                                     className={styles.cellButton}
-                                    dir={item.direction === 'ltr' ? 'ltr' : 'rtl'}
-                                    onClick={() => openText(entry, item)}
+                                    dir={displayDirection}
+                                    onClick={() => startEdit(entry, item)}
                                 >
                                     {raw && <span className={styles.overrideDot} />}
                                     {raw
-                                        ? raw
+                                        ? <bdi dir={displayDirection}>{raw}</bdi>
                                         : effective
-                                            ? <span className={styles.fallback}>{effective}</span>
+                                            ? <span className={styles.fallback}><bdi dir={displayDirection}>{effective}</bdi></span>
                                             : <span className={styles.missing}>{TR('translations_missing')}</span>}
                                     {source === 'fallback' && !raw && <span className={styles.missing}> · {TR('translations_fallback')}</span>}
-                                </button>
+                                </button>}
                             </td>
                         })}
                     </tr>)}

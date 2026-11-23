@@ -259,7 +259,10 @@ export async function replaceTranslations(DL, languageCode, updates) {
             { upsert: !existing }
         ).catch(() => null)
 
-        if (result?.matchedCount || result?.upsertedCount || (!existing && result)) {
+        // DL.updateOne returns the updated document (not a Mongo result
+        // object), so a truthy result is the success signal here. A null result
+        // means the updatedAt guard lost a race and the merge must retry.
+        if (result) {
             await invalidateTranslations(DL)
             return { languageCode: code, updated: Object.keys(updates).length }
         }
