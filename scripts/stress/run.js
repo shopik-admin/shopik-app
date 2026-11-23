@@ -5,12 +5,18 @@ import { parseArgs, guardAgainstProduction, usage } from './config.js'
 import { discoverRoutes } from './routes.js'
 import { loadFixtures } from './fixtures.js'
 import { StressClient } from './client.js'
-import { ensureGate, adminLogin, customerLogin, pinCurrentStore, closePrompt } from './auth.js'
+import { ensureGate, adminLogin, customerLogin, pinCurrentStore, closePrompt, promptAdminId } from './auth.js'
 import { MongoObserver } from './observer.js'
 import { measureBaseline, runSequential, runChaos } from './load.js'
+import { runFeedBenchmark } from './feed.js'
 import { printReport, saveReport } from './report.js'
 import { CUSTOMER_PLATFORM } from './payloads.js'
 import { sleep } from './util.js'
+import { loadStressEnv } from './env.js'
+
+// Read STRESS_* (and SECRET) from .env before parsing flags. DB/DB_URI are
+// intentionally not loaded — see env.js.
+loadStressEnv()
 
 const opts = parseArgs()
 if (opts.help) {
@@ -26,9 +32,52 @@ if (opts.discoverOnly) {
     process.exit(0)
 }
 
-guardAgainstProduction(opts.uri)
-
 const log = message => console.log(`[stress] ${message}`)
+
+// Feed-only phase: sitemap + Google Merchant are served per Host and are a
+// Redis hit or a one-off generation, so they are measured on their own (no DB
+// observer, no fixtures, no login unless the server is gated).
+if (opts.feedOnly) {
+    if (!opts.feedHost) {
+        console.error('[stress] --feed-only needs --feed-host <domain> (or STRESS_FEED_HOST)')
+        process.exit(1)
+    }
+    try {
+        let cookie = ''
+        if (opts.gatePassword) {
+            const gate = new StressClient({ baseUrl: opts.baseUrl, origin: `https://${opts.feedHost}` })
+            const ok = await gate.gateLogin(opts.gatePassword)
+            log(`gate login: ${ok ? 'ok' : 'FAILED'}`)
+            cookie = gate.cookieHeader()
+        }
+        await runFeedBenchmark({
+            baseUrl: opts.baseUrl,
+            host: opts.feedHost,
+            calls: opts.feedCalls,
+            concurrency: opts.feedConcurrency,
+            cookie,
+            only: opts.only,
+            log
+        })
+    } catch (error) {
+        console.error(`[stress] feed benchmark failed: ${error?.message || error}`)
+        process.exitCode = 1
+    }
+    process.exit(process.exitCode || 0)
+}
+
+// --headless-otp needs the admin's phone, which comes from the DB row selected
+// by idNum and is loaded with the fixtures. Asking inside adminLogin is too late
+// (fixtures.adminPhone is already null by then), so prompt before the load.
+if (opts.headlessOtp && !opts.idNum) {
+    if (!process.stdin.isTTY)
+        throw new Error('--headless-otp needs the admin idNum before fixtures load: pass --id-num or set STRESS_ID_NUM.')
+    opts.idNum = await promptAdminId()
+    if (!opts.idNum)
+        throw new Error('No admin idNum given.')
+}
+
+guardAgainstProduction(opts.uri)
 
 const fixtures = await loadFixtures(opts.uri, { idNum: opts.idNum, userPhone: opts.userPhone })
 if (opts.userPhone && !fixtures.customerPhone)

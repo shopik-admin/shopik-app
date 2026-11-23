@@ -2,11 +2,10 @@ import helmet from 'helmet'
 import cors from 'cors'
 import { rateLimit } from 'express-rate-limit'
 import { expandOrigins, normalizeHostname } from '#server/utils/normalizeDomain.js'
+import { isProdEnv } from '#server/utils/isProd.js'
 
-export const isProdEnv = () =>
-    process.env.NODE_ENV === 'production' ||
-    process.env.PRODUCTION === 'true' ||
-    Boolean(process.env.PRODUCTION)
+// Re-exported for the modules that already import it from here.
+export { isProdEnv }
 
 const REFRESH_MS = 3_600_000 // 1h — new/disabled domains are rare; restarts reload immediately
 const RATE_WINDOW_MS = 60_000
@@ -52,6 +51,18 @@ export default async function setupSecurity(app, bootData) {
     app.use(helmet({
         contentSecurityPolicy: false,
         crossOriginEmbedderPolicy: false,
+        // helmet defaults to `no-referrer`, which strips the header (and
+        // document.referrer) from every request the page makes. Two real
+        // consumers depend on it:
+        //  - Vee's accessibility toolbar is fetched by an XHR to vee-crm.com and
+        //    their server answers a request without HTTP_REFERER with
+        //    "No referer", so the widget renders an error bar;
+        //  - the Hyp payment page is loaded in an iframe
+        //    (client/pages/Checkout/index.jsx), whose initial request also lost
+        //    its referrer.
+        // Keep the browser default instead: full URL same-origin, origin only
+        // cross-origin — third parties still never see our paths or query.
+        referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
         frameguard: disableFrameguard ? false : undefined
     }))
 

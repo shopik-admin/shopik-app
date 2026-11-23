@@ -20,8 +20,8 @@ describe('getSettingFileSize', () => {
 
 describe('getSettingFileUrl with named sizes', () => {
     it('appends .webp for plain size names', () => {
-        assert.equal(getSettingFileUrl('images/settings/d1/ogImage/v1', 'full'),
-            'https://files.shopik.co.il/images/settings/d1/ogImage/v1/full.webp')
+        assert.equal(getSettingFileUrl('images/settings/d1/ogImage/v1', 'l'),
+            'https://files.shopik.co.il/images/settings/d1/ogImage/v1/l.webp')
     })
 
     it('uses named file sizes as-is (appIcon PNG variants)', () => {

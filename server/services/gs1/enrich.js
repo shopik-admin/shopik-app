@@ -25,12 +25,13 @@ const mediaTypes = () => String(process.env.GS1_MEDIA_TYPES || 'MK,HE')
 // stage the first usable response, else fall back to media=all (today's
 // behavior, caps intact). A hit is either a zip containing our main still
 // or a single raw image (HE returns the hero bytes unarchived — wrapped
-// into a one-entry zip, main only). Per-attempt results are logged — that
-// output is the EL/PL/HE/MK mapping proof per product.
+// into a one-entry zip, main only; media=all answers that same way when the
+// account holds a single still for the product). Per-attempt results are
+// logged — that output is the EL/PL/HE/MK mapping proof per product.
 // Returns { buffer, via } or null when nothing usable came back.
 // rateLimited/transient errors throw (caller retries the batch); anything
 // else on a type= attempt just moves to the next candidate.
-async function fetchStagedSource(external, barcode, wantedMain) {
+export async function fetchStagedSource(external, barcode, wantedMain) {
     if (wantedMain) {
         for (const t of mediaTypes()) {
             let buf = null
@@ -60,12 +61,53 @@ async function fetchStagedSource(external, barcode, wantedMain) {
     }
     const buf = await external.gs1.getMediaZip(barcode)
     if (!buf?.length) return null
+    // media=all answers a single still exactly like type=HE: the raw image
+    // bytes, not a zip. Measured on prod: 88 of the 299 imageless targets
+    // arrive this way, and returning them unwrapped uploaded a JPEG as
+    // application/zip; phase 3 then failed unzipping it on every run, so the
+    // product stayed imageless forever while we paid for the upload each night.
+    const wrapped = wrapSingleImage(buf, wantedMain)
+    if (wrapped) {
+        log.info(`[GS1] media=all for ${barcode}: single image (${buf.length} bytes), wrapped as ${wrapped.name}`)
+        return { buffer: wrapped.buffer, via: 'media=all (single)' }
+    }
     return { buffer: buf, via: 'media=all' }
 }
 
 // The main entry of a lean product read — one helper so every guard above
 // reads the same field the same way.
 const mainImageOf = product => (product?.images?.product || []).find(img => img?.main)
+
+/**
+ * Products that own a family containing any of `barcodes` (i.e. the barcode is
+ * in one of their `scannableBarcodes`). A GTIN for an alias is data about the
+ * owning product — the alias must never become a product of its own, so every
+ * enrichment/imaged lookup resolves to the owner instead of the raw GTIN.
+ */
+async function loadAliasOwners(DL, barcodes = []) {
+    const wanted = [...new Set((barcodes || []).filter(Boolean))]
+    if (!wanted.length || !DL?.Product?.Model?.find) return { byAlias: new Map(), products: [] }
+
+    const owners = await DL.Product.Model.find(
+        { scannableBarcodes: { $in: wanted } },
+        {
+            _id: 0,
+            id: 1,
+            barcode: 1,
+            scannableBarcodes: 1,
+            storeIds: 1,
+            nameLocked: 1,
+            'kashrut.rabbinates': 1,
+            'images.product': 1
+        }
+    ).lean()
+
+    const byAlias = new Map()
+    for (const owner of owners || [])
+        for (const alias of owner.scannableBarcodes || [])
+            if (wanted.includes(alias)) byAlias.set(alias, owner)
+    return { byAlias, products: owners || [] }
+}
 
 // Phase 2: enrich products from the local gs1_products collection.
 // Two-pass to bound memory: page barcode-only docs, gate in bulk, then load
@@ -98,7 +140,7 @@ export async function enrichBatch({ DL, external, runId, onlyInStock = true, bar
     // merge over what the product already carries (see mergeRabbinates below).
     const products = await DL.Product.read(
         { barcode: { $in: lookupBarcodes } },
-        { _id: 0, barcode: 1, storeIds: 1, 'kashrut.rabbinates': 1, 'images.product': 1 },
+        { _id: 0, barcode: 1, storeIds: 1, nameLocked: 1, 'kashrut.rabbinates': 1, 'images.product': 1 },
         { limit: 0 }
     )
     const rabbinatesByBarcode = new Map(
@@ -111,6 +153,21 @@ export async function enrichBatch({ DL, external, runId, onlyInStock = true, bar
     const uploadedSet = new Set((products || [])
         .filter(p => p?.barcode && isUploadMain(mainImageOf(p)))
         .map(p => p.barcode))
+    // A human-chosen name is never overwritten by supplier data.
+    const nameLockedSet = new Set((products || []).filter(p => p?.nameLocked).map(p => p.barcode))
+
+    // GTINs that equal an alias resolve to the owning product. Load those
+    // owners once and merge them into the same gate maps as exact products.
+    const aliasOwners = await loadAliasOwners(DL, [...barcodes, ...manualShortByGtin.values()])
+    const aliasOwnerByBarcode = aliasOwners.byAlias
+    for (const owner of aliasOwners.products) {
+        if (!owner?.barcode) continue
+        if (!rabbinatesByBarcode.has(owner.barcode))
+            rabbinatesByBarcode.set(owner.barcode, owner?.kashrut?.rabbinates)
+        if ((owner.storeIds || []).length) inStockSet.add(owner.barcode)
+        if (isUploadMain(mainImageOf(owner))) uploadedSet.add(owner.barcode)
+        if (owner.nameLocked) nameLockedSet.add(owner.barcode)
+    }
 
     let enriched = 0
     let skipped = 0
@@ -121,18 +178,33 @@ export async function enrichBatch({ DL, external, runId, onlyInStock = true, bar
     for (const barcode of barcodes) {
         const manualShort = manualShortByGtin.get(barcode)
         if (manualShort) {
-            if (!productSet.has(manualShort)) {
+            // A manual mapping whose short is now a family alias belongs to the
+            // owning product; write there so the alias never gets a doc.
+            const short = aliasOwnerByBarcode.get(manualShort)?.barcode || manualShort
+            if (!productSet.has(short) && !aliasOwnerByBarcode.has(manualShort)) {
                 bufferRaw({ barcode, status: 'skipped', skipReason: 'no-product' })
                 skipped++
-            } else if (onlyInStock && !inStockSet.has(manualShort)) {
+            } else if (onlyInStock && !inStockSet.has(short)) {
                 bufferRaw({ barcode, status: 'skipped', skipReason: 'out-of-stock' })
                 skipped++
             } else {
-                passing.push({ gtin: barcode, short: manualShort, match: 'manual' })
+                passing.push({ gtin: barcode, short, match: 'manual' })
             }
             continue
         }
         if (!productSet.has(barcode)) {
+            // Not an exact product: maybe it is a family alias. The owner is
+            // the product; writing under the GTIN would create a duplicate.
+            const owner = aliasOwnerByBarcode.get(barcode)
+            if (owner) {
+                if (onlyInStock && !inStockSet.has(owner.barcode)) {
+                    bufferRaw({ barcode, status: 'skipped', skipReason: 'out-of-stock', aliasStatus: '', aliasCandidates: [] })
+                    skipped++
+                } else {
+                    passing.push({ gtin: barcode, short: owner.barcode, match: 'family' })
+                }
+                continue
+            }
             unmatched.push(barcode)
             continue
         }
@@ -158,7 +230,7 @@ export async function enrichBatch({ DL, external, runId, onlyInStock = true, bar
         if (candidates.size) {
             const aliasProducts = await DL.Product.read(
                 { barcode: { $in: [...candidates] } },
-                { _id: 0, barcode: 1, storeIds: 1, 'kashrut.rabbinates': 1, 'images.product': 1 },
+                { _id: 0, barcode: 1, storeIds: 1, nameLocked: 1, 'kashrut.rabbinates': 1, 'images.product': 1 },
                 { limit: 0 }
             )
             for (const p of aliasProducts || []) {
@@ -168,17 +240,32 @@ export async function enrichBatch({ DL, external, runId, onlyInStock = true, bar
                     rabbinatesByBarcode.set(p.barcode, p?.kashrut?.rabbinates)
                 if ((p.storeIds || []).length) inStockSet.add(p.barcode)
                 if (isUploadMain(mainImageOf(p))) uploadedSet.add(p.barcode)
+                if (p.nameLocked) nameLockedSet.add(p.barcode)
             }
+            // A suffix candidate can itself be a family alias (the old doc was
+            // removed when it was merged). Resolve those to their owner too.
+            const familyOwners = await loadAliasOwners(DL, [...candidates])
+            for (const owner of familyOwners.products) {
+                if (!owner?.barcode) continue
+                if (!rabbinatesByBarcode.has(owner.barcode))
+                    rabbinatesByBarcode.set(owner.barcode, owner?.kashrut?.rabbinates)
+                if ((owner.storeIds || []).length) inStockSet.add(owner.barcode)
+                if (isUploadMain(mainImageOf(owner))) uploadedSet.add(owner.barcode)
+                if (owner.nameLocked) nameLockedSet.add(owner.barcode)
+            }
+            for (const [alias, owner] of familyOwners.byAlias)
+                aliasOwnerByBarcode.set(alias, owner)
         }
         for (const g of unmatched) {
             const r = resolveAlias(g, foundSet, minLen)
             if (r?.short) {
-                if (onlyInStock && !inStockSet.has(r.short)) {
+                const short = aliasOwnerByBarcode.get(r.short)?.barcode || r.short
+                if (onlyInStock && !inStockSet.has(short)) {
                     bufferRaw({ barcode: g, status: 'skipped', skipReason: 'out-of-stock', aliasStatus: '', aliasCandidates: [] })
                     skipped++
                 } else {
-                    passing.push({ gtin: g, short: r.short, match: 'alias' })
-                    log.info(`[GS1] Alias ${g} → ${r.short}`)
+                    passing.push({ gtin: g, short, match: 'alias' })
+                    log.info(`[GS1] Alias ${g} → ${short}`)
                 }
             } else if (r?.ambiguous) {
                 bufferRaw({
@@ -225,6 +312,14 @@ export async function enrichBatch({ DL, external, runId, onlyInStock = true, bar
             // doc, so a GTIN left in mapped.doc would rewrite Product.barcode
             // (or upsert a duplicate product under the GTIN).
             const doc = { ...mapped.doc, barcode: short }
+            // The label is the brand GS1 reports for THIS GTIN. When the GTIN is
+            // an alias (or resolved through one), its brand is not the product's
+            // brand — writing it would put another package's brand on the family.
+            // Only the product's own barcode may set the label.
+            if (barcode !== short) delete doc.label
+            // A locked name was chosen by a human; the supplier may own every
+            // other field but never this one.
+            if (nameLockedSet.has(short)) delete doc.name
             // Rabbinates are a set, not a value: whatever the product already
             // carries (manual load, earlier run) survives the GS1 $set. Only codes
             // GS1 adds are appended, so repeated nightly runs cannot grow the list.
@@ -336,11 +431,21 @@ export async function requeueRescued({ DL, onlyInStock = true, barcode = '' }) {
     const productSet = new Set((products || []).map(p => p.barcode))
     const inStockSet = new Set((products || []).filter(p => (p.storeIds || []).length).map(p => p.barcode))
 
+    // GTINs that are family aliases resolve to the owner product.
+    const aliasOwners = await loadAliasOwners(DL, lookupBarcodes)
+    const aliasOwnerByBarcode = aliasOwners.byAlias
+    for (const owner of aliasOwners.products) {
+        if (!owner?.barcode) continue
+        productSet.add(owner.barcode)
+        if ((owner.storeIds || []).length) inStockSet.add(owner.barcode)
+    }
+
     // Alias fallback for GTINs with no exact Product match: product-only gate,
     // same rule as enrichBatch. Ambiguous GTINs are flagged for manual matching.
     const aliasShortByGtin = new Map()
     const ambiguousByGtin = new Map()
-    const unmatched = barcodes.filter(b => !productSet.has(b) && !manualShortByGtin.has(b))
+    const unmatched = barcodes.filter(b =>
+        !productSet.has(b) && !manualShortByGtin.has(b) && !aliasOwnerByBarcode.has(b))
     if (unmatched.length && aliasEnabled()) {
         const minLen = aliasMinLen()
         const candidates = new Set()
@@ -358,9 +463,20 @@ export async function requeueRescued({ DL, onlyInStock = true, barcode = '' }) {
                 foundSet.add(p.barcode)
                 if ((p.storeIds || []).length) inStockSet.add(p.barcode)
             }
+            // A suffix candidate can be a family alias whose doc was removed.
+            const familyOwners = await loadAliasOwners(DL, [...candidates])
+            for (const owner of familyOwners.products) {
+                if (!owner?.barcode) continue
+                if ((owner.storeIds || []).length) inStockSet.add(owner.barcode)
+            }
+            for (const [alias, owner] of familyOwners.byAlias)
+                aliasOwnerByBarcode.set(alias, owner)
             for (const g of unmatched) {
                 const r = resolveAlias(g, foundSet, minLen)
-                if (r?.short) aliasShortByGtin.set(g, r.short)
+                if (r?.short) {
+                    const short = aliasOwnerByBarcode.get(r.short)?.barcode || r.short
+                    aliasShortByGtin.set(g, short)
+                }
                 else if (r?.ambiguous) ambiguousByGtin.set(g, r.ambiguous)
             }
         }
@@ -371,9 +487,12 @@ export async function requeueRescued({ DL, onlyInStock = true, barcode = '' }) {
     for (const b of barcodes) {
         const info = infoByBarcode.get(b) || {}
         const manualShort = manualShortByGtin.get(b)
+        const manualOwner = manualShort
+            ? (aliasOwnerByBarcode.get(manualShort)?.barcode || manualShort)
+            : ''
         const short = manualShort
-            ? (productSet.has(manualShort) ? manualShort : '')
-            : (aliasShortByGtin.get(b) || (productSet.has(b) ? b : ''))
+            ? (productSet.has(manualOwner) ? manualOwner : '')
+            : (aliasOwnerByBarcode.get(b)?.barcode || aliasShortByGtin.get(b) || (productSet.has(b) ? b : ''))
         if (short) {
             if (onlyInStock && !inStockSet.has(short)) {
                 // Already parked with the right reason and no stale alias state.
@@ -431,10 +550,54 @@ export async function requeueRescued({ DL, onlyInStock = true, barcode = '' }) {
 // (needed to backfill alternates onto pre-alternates mains).
 // limit: max raw docs to take this call (0 = all) — keeps single HTTP calls
 // inside Cloud Run request timeouts; repeat until queued=0.
+const DAY_MS = 24 * 60 * 60 * 1000
+
+// How long a failed attempt parks its doc. Long enough that the batch loop
+// walks the whole catalog instead of re-reading the same failures every run,
+// short enough that media GS1 publishes later gets picked up on its own (a
+// force run ignores the window).
+const imagesRetryDays = () => {
+    const value = Number(process.env.GS1_IMAGES_RETRY_DAYS)
+    return Number.isFinite(value) && value > 0 ? value : 14
+}
+
+/**
+ * Which gs1_products docs the images phase takes. Exported for tests: this
+ * filter is the whole parking mechanism, and getting it wrong silently stops
+ * the phase (prod sat at 8,313 never-imaged docs behind exactly that).
+ *
+ * force   — ignore imagesDone and the park window (manual backfill)
+ * barcode — single-product probe: ignores the park window, so the answer is
+ *           about GS1, not about when we last asked.
+ */
+export function imagesEligibility({ barcode = '', force = false, retryDays = imagesRetryDays(), now = Date.now() } = {}) {
+    const base = barcode ? { status: 'enriched', barcode } : { status: 'enriched' }
+    if (force) return { ...base, assetCount: { $gt: 0 } }
+    const filter = { ...base, assetCount: { $gt: 0 }, imagesDone: { $ne: true } }
+    if (!barcode) {
+        filter.$or = [
+            { imagesRetriedAt: { $exists: false } },
+            { imagesRetriedAt: { $lte: new Date(now - retryDays * DAY_MS) } }
+        ]
+        // 'no-account' means GS1 does not expose this product's media to us at
+        // all: permanent for the barcode, so it is never retried automatically.
+        filter.imagesRetryReason = { $ne: 'no-account' }
+    }
+    return filter
+}
+
+// Why a doc was parked. GS1's 400 ("pcode is cannot be null") is a per-account
+// visibility answer, not a failure — retrying it is pure waste.
+export const parkReason = e => (e?.notFound ? 'no-account' : 'no-zip')
+
+const formatParkReasons = reasons => Object.entries(reasons)
+    .map(([reason, n]) => `${reason} ${n}`).join(', ') || 'none'
+
 export async function runImages({ DL, external, runId, force = false, limit = 0, barcode = '' }) {
     const cap = Number(limit || process.env.GS1_IMAGE_LIMIT || 0)
     const limitZip = pLimit(zipConcurrency())
-    const totals = { queued: 0, noZip: 0, skipped: 0, reused: 0 }
+    const totals = { queued: 0, skipped: 0, reused: 0, parked: 0, parkReasons: {} }
+    const parkedSamples = []
     let taken = 0
     // Barcodes already handled this call. The loop pages the collection, but
     // a still-eligible doc (force runs ignore imagesDone; a queued doc's
@@ -444,18 +607,15 @@ export async function runImages({ DL, external, runId, force = false, limit = 0,
     const seen = new Set()
     for (; ;) {
         if (cap && taken >= cap) break
-        const baseFilter = barcode
-            ? { status: 'enriched', barcode }
-            : { status: 'enriched' }
         const raws = await DL.Gs1Product.read(
-            force ? { ...baseFilter, assetCount: { $gt: 0 } }
-                : { ...baseFilter, assetCount: { $gt: 0 }, imagesDone: { $ne: true } },
+            imagesEligibility({ barcode, force }),
             { _id: 0, barcode: 1, raw: 1, aliasShort: 1, aliasStatus: 1 },
             { limit: imageBatchSize() }
         )
         if (!raws?.length) break
         const fresh = raws.filter(r => r?.barcode && !seen.has(r.barcode))
-        // Whole batch already handled → no forward progress possible.
+        // Nothing here is new to this call: every doc in the page was handled
+        // above or is parked, so the eligible set is drained.
         if (!fresh.length) break
         for (const r of fresh) seen.add(r.barcode)
 
@@ -475,6 +635,18 @@ export async function runImages({ DL, external, runId, force = false, limit = 0,
             const product = productByBarcode.get(short)
             if (product) productByBarcode.set(gtin, product)
         }
+        // A GTIN that is a family alias is keyed by the GTIN in the raw, but the
+        // images belong to the owning product. Explicit aliases resolve even
+        // with suffix guessing disabled.
+        const missingAlias = barcodes.filter(b => !productByBarcode.has(b) && !manualShortByGtin.has(b))
+        if (missingAlias.length) {
+            const familyOwners = await loadAliasOwners(DL, missingAlias)
+            const ownerByBarcode = new Map((familyOwners.products || []).map(p => [p.barcode, p]))
+            for (const [alias, owner] of familyOwners.byAlias) {
+                const product = ownerByBarcode.get(owner.barcode)
+                if (product) productByBarcode.set(alias, product)
+            }
+        }
         // Alias fallback: enriched-via-alias raws are keyed by GTIN, so the
         // exact lookup above misses — resolve to the short-code product. A
         // manual mapping whose product vanished must not fall back to guessing.
@@ -493,6 +665,13 @@ export async function runImages({ DL, external, runId, force = false, limit = 0,
                     )
                     const foundSet = new Set((aliasProducts || []).map(p => p.barcode))
                     const shortByBarcode = new Map((aliasProducts || []).map(p => [p.barcode, p]))
+                    // A suffix candidate may be a family alias instead of a doc.
+                    const familyOwners = await loadAliasOwners(DL, [...candidates])
+                    const ownerByBarcode = new Map((familyOwners.products || []).map(p => [p.barcode, p]))
+                    for (const [alias, owner] of familyOwners.byAlias) {
+                        const product = ownerByBarcode.get(owner.barcode)
+                        if (product) shortByBarcode.set(alias, product)
+                    }
                     for (const g of missing) {
                         const r = resolveAlias(g, foundSet, minLen)
                         if (r?.short) {
@@ -506,6 +685,15 @@ export async function runImages({ DL, external, runId, force = false, limit = 0,
 
         await Promise.all(raws.map(stored => limitZip(async () => {
             const barcode = stored.barcode
+            // A failed attempt leaves a dated park so the phase advances: the
+            // doc drops out of imagesEligibility() until the window passes,
+            // instead of being re-fetched at the head of every batch.
+            const park = reason => {
+                bufferRaw({ barcode, imagesRetriedAt: new Date(), imagesRetryReason: reason })
+                totals.parked++
+                totals.parkReasons[reason] = (totals.parkReasons[reason] || 0) + 1
+                if (parkedSamples.length < 20) parkedSamples.push(`${barcode}(${reason})`)
+            }
             const product = productByBarcode.get(barcode)
             if (!product) {
                 bufferRaw({ barcode, status: 'skipped', skipReason: 'no-product-images' })
@@ -595,12 +783,16 @@ export async function runImages({ DL, external, runId, force = false, limit = 0,
                     return
                 }
                 log.warn(`[GS1] Zip failed for ${barcode}:`, e?.message || e)
-                totals.noZip++
-                return
+                return park(parkReason(e))
             }
-            if (!zip) {
-                totals.noZip++
-                return
+            if (!zip) return park('no-zip')
+            // Only a zip may be staged: the pipeline unzips it in phase 3, so
+            // anything else (a JSON error body, HTML, an image we could not
+            // wrap) would be uploaded, queued, and fail there — after paying for
+            // the upload, leaving a stagingPath to an object phase 3 deleted.
+            if (!isZipBuffer(zip)) {
+                log.warn(`[GS1] Not a zip for ${barcode} (${zip.length} bytes, via=${via}) — not staging`)
+                return park('unwrappable')
             }
             mem(`zip-downloaded gtin=${barcode} via=${via} bytes=${zip.length}`)
             const stagingPath = await stageZip(barcode, zip)
@@ -621,10 +813,15 @@ export async function runImages({ DL, external, runId, force = false, limit = 0,
         bufferProgress(runId, { processed: raws.length })
         await flush()
         taken += raws.length
-        mem(`images-batch taken=${taken} queued=${totals.queued} reused=${totals.reused} noZip=${totals.noZip}`)
+        mem(`images-batch taken=${taken} queued=${totals.queued} reused=${totals.reused} parked=${totals.parked}`)
     }
     await flush()
-    log.success(`[GS1] Images launch done: ${totals.queued} queued, ${totals.reused} reused, ${totals.noZip} no-zip, ${totals.skipped} skipped`)
+    log.success(`[GS1] Images launch done: ${totals.queued} queued, ${totals.reused} reused, `
+        + `${totals.parked} parked (${formatParkReasons(totals.parkReasons)}), ${totals.skipped} skipped`)
+    // Bounded sample: the full list is in gs1_products (imagesRetryReason /
+    // imagesRetriedAt), and the log is the only place a run says what went wrong.
+    if (parkedSamples.length)
+        log.info(`[GS1] Parked: ${parkedSamples.join(', ')}${totals.parked > parkedSamples.length ? ', …' : ''}`)
     return totals
 }
 

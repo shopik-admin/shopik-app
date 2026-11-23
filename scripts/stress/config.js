@@ -24,10 +24,14 @@ export function parseArgs(argv = process.argv.slice(2)) {
         slowMs: 20,
         only: null,
         mutations: false,
-        idNum: null,
+        idNum: process.env.STRESS_ID_NUM || null,
         userPhone: null,
         headlessOtp: false,
         gatePassword: process.env.STRESS_GATE_PASSWORD || null,
+        feedOnly: false,
+        feedHost: process.env.STRESS_FEED_HOST || null,
+        feedCalls: 10,
+        feedConcurrency: 2,
         adminOrigin: null,
         storefrontOrigin: null,
         reportDir: 'reports/stress',
@@ -37,12 +41,14 @@ export function parseArgs(argv = process.argv.slice(2)) {
     const flagsWithValues = new Set(['--target', '--mode', '--db-uri', '--base-url', '--calls', '--concurrency',
         '--chaos-duration', '--probe-every', '--gap', '--baseline-seconds', '--min-window', '--slow-ms', '--only',
         '--id-num', '--user-phone',
-        '--gate-password', '--report-dir', '--admin-origin', '--storefront-origin'])
+        '--gate-password', '--report-dir', '--admin-origin', '--storefront-origin',
+        '--feed-host', '--feed-calls', '--feed-concurrency'])
     for (let i = 0; i < argv.length; i++) {
         const arg = argv[i]
         switch (arg) {
             case '--mutations': opts.mutations = true; continue
             case '--headless-otp': opts.headlessOtp = true; continue
+            case '--feed-only': opts.feedOnly = true; continue
             case '--help': case '-h': opts.help = true; continue
             case '--discover-only': opts.discoverOnly = true; continue
         }
@@ -52,6 +58,7 @@ export function parseArgs(argv = process.argv.slice(2)) {
             const key = arg.slice(2).replace(/-([a-z])/g, (_, c) => c.toUpperCase())
             opts[key] = key === 'calls' || key === 'concurrency' || key === 'chaosDuration' || key === 'probeEvery'
                 || key === 'gap' || key === 'baselineSeconds' || key === 'minWindow' || key === 'slowMs'
+                || key === 'feedCalls' || key === 'feedConcurrency'
                 ? Number(value)
                 : value
             continue
@@ -59,7 +66,7 @@ export function parseArgs(argv = process.argv.slice(2)) {
         throw new Error(`Unknown argument: ${arg}`)
     }
 
-    if (!opts.help && !opts.discoverOnly) {
+    if (!opts.help && !opts.discoverOnly && !opts.feedOnly) {
         if (!['local', 'test'].includes(opts.target))
             throw new Error('--target must be local or test')
         if (!['sequential', 'chaos', 'both'].includes(opts.mode))
@@ -68,7 +75,7 @@ export function parseArgs(argv = process.argv.slice(2)) {
 
     opts.uri = opts.dbUri
         || (opts.target === 'local' ? (process.env.STRESS_DB_URI_LOCAL || DEFAULT_LOCAL_URI) : process.env.STRESS_DB_URI_TEST)
-    if (!opts.help && !opts.discoverOnly && opts.target === 'test' && !opts.dbUri && !process.env.STRESS_DB_URI_TEST)
+    if (!opts.help && !opts.discoverOnly && !opts.feedOnly && opts.target === 'test' && !opts.dbUri && !process.env.STRESS_DB_URI_TEST)
         throw new Error('--target test needs STRESS_DB_URI_TEST (or --db-uri)')
 
     if (!opts.adminOrigin) {
@@ -132,7 +139,8 @@ Usage:
                           (default 20; use 1 on a short --only run to see every read)
   --only <regex>          only run matching routes (e.g. --only "order/")
   --mutations             include write routes (default off)
-  --id-num <n>            admin idNum for login (else prompted)
+  --id-num <n>            admin idNum for login (or env STRESS_ID_NUM; required
+                          before start-up with --headless-otp)
   --user-phone <phone>    shopper to log in as for the storefront routes; without it a
                           real cart-order-with-store owner is sampled from the stress DB
   --storefront-origin <url> Origin header for storefront calls (domain resolution),
@@ -141,8 +149,14 @@ Usage:
   --gate-password <p>     SITE_GATE_PASSWORD of the target server (or env STRESS_GATE_PASSWORD)
   --report-dir <dir>      default reports/stress
   --discover-only         print the discovered route table and exit (no server/DB needed)
+  --feed-only             benchmark ONLY the sitemap + Google feed documents (no DB,
+                          no fixtures, no login); needs --feed-host and --base-url
+  --feed-host <domain>    Host header to send; the storefront domain the feed resolves
+                          (or env STRESS_FEED_HOST)
+  --feed-calls <n>        warm calls per feed endpoint in --feed-only (default 10)
+  --feed-concurrency <c>  inflight requests in --feed-only (default 2)
 
 Env:
-  STRESS_DB_URI_LOCAL / STRESS_DB_URI_TEST / STRESS_BASE_URL / STRESS_GATE_PASSWORD
+  STRESS_DB_URI_LOCAL / STRESS_DB_URI_TEST / STRESS_BASE_URL / STRESS_GATE_PASSWORD / STRESS_FEED_HOST
 `
 }

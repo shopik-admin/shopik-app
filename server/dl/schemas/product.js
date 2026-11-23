@@ -40,6 +40,10 @@ const productSchema = {
         searchFuzzy: 3,
         filter: true
     },
+    // Set when a human chose the name (admin edit or the barcode-alias import).
+    // Comax and GS1 keep enriching every other field but never overwrite a
+    // locked name — supplier copy changes the catalog without asking.
+    nameLocked: { type: Boolean, default: false },
     description: String,
     regulatoryInfo: String,
     prices: {
@@ -319,6 +323,12 @@ export const meta = {
         { status: 1, 'prices.domainId': 1, sortOrder: -1, totalSalesUnits: -1, id: 1 },
         { status: 1, 'prices.domainId': 1, totalSalesUnits: -1, id: 1 },
         { status: 1, 'prices.domainId': 1, createdAt: -1, id: 1 },
+        // Feed scans: equality on status + domain price, ordered by the unique
+        // id so the cursor streams from the index with no blocking sort.
+        { status: 1, 'prices.domainId': 1, id: 1 },
+        // Feed signature: max(updatedAt) for one domain, answered by one index
+        // seek instead of a collection scan on every freshness check.
+        { status: 1, 'prices.domainId': 1, updatedAt: -1 },
         { updatedAt: 1, id: -1 },
         // sale/sync's stale-saleIds sweep (distinct barcode where saleIds non-empty):
         // sparse keeps the scan bounded to products that actually carry a sale.
