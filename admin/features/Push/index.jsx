@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import apiReq from 'common/functions/apiReq'
+import { useText } from 'common/texts/TextProvider'
 import { pushNeedsAttention, pushReason, pushSupport, urlBase64ToUint8Array } from 'common/functions/pushClient'
 import { useModal } from 'common/components/Modal'
 import Flex from 'common/components/Flex'
@@ -47,6 +48,7 @@ async function serviceWorkerRegistration() {
 }
 
 function PermissionPrompt({ onAllow, onLater }) {
+    const { TR } = useText()
     const [loading, setLoading] = useState(false)
 
     async function allow() {
@@ -60,31 +62,28 @@ function PermissionPrompt({ onAllow, onLater }) {
 
     return <Flex col gap={16} className={styles.prompt}>
         <Flex center className={styles.promptIcon}><Icon name='notifications' /></Flex>
-        <Text bold size='l' center>הפעלת התראות</Text>
-        <Text size='m' mode='sub' center>
-            קבלו התראה על הזמנה חדשה להיום ועל חלון הזמנות שמוכן לאיסוף — גם כשהמערכת סגורה.
-        </Text>
+        <Text bold size='l' center>{TR('push_prompt_title')}</Text>
+        <Text size='m' mode='sub' center>{TR('push_prompt_body')}</Text>
         <Flex gap={8} justifyContent='center' wrap>
-            <Button onClick={allow} loading={loading}>אפשר התראות</Button>
-            <Button mode='outline' onClick={onLater}>לא עכשיו</Button>
+            <Button onClick={allow} loading={loading}>{TR('push_prompt_allow')}</Button>
+            <Button mode='outline' onClick={onLater}>{TR('push_prompt_later')}</Button>
         </Flex>
     </Flex>
 }
 
 function PermissionHelp({ onClose }) {
+    const { TR } = useText()
     return <Flex col gap={14} className={styles.prompt}>
         <Flex center className={styles.promptIconWarning}><Icon name='warning' /></Flex>
-        <Text bold size='l' center>ההתראות חסומות בדפדפן</Text>
-        <Text size='m' mode='sub'>
-            בעבר נחסמה האפשרות לקבל התראות מהאתר. כדי להפעיל מחדש:
-        </Text>
+        <Text bold size='l' center>{TR('push_help_title')}</Text>
+        <Text size='m' mode='sub'>{TR('push_help_intro')}</Text>
         <Flex col gap={6} className={styles.helpList}>
-            <Text size='m'>1. לוחצים על סמל המנעול ליד כתובת האתר.</Text>
-            <Text size='m'>2. בוחרים "הגדרות אתר" ← "התראות".</Text>
-            <Text size='m'>3. משנים ל"אפשר" ומרעננים את העמוד.</Text>
+            <Text size='m'>{TR('push_help_step1')}</Text>
+            <Text size='m'>{TR('push_help_step2')}</Text>
+            <Text size='m'>{TR('push_help_step3')}</Text>
         </Flex>
         <Flex justifyContent='center'>
-            <Button onClick={onClose}>הבנתי</Button>
+            <Button onClick={onClose}>{TR('push_help_ok')}</Button>
         </Flex>
     </Flex>
 }

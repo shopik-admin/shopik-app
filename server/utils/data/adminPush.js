@@ -1,5 +1,6 @@
 import crypto from 'node:crypto'
 import storeScope from '#server/utils/data/storeScope.js'
+import { baseDictionary, getTranslations } from '#server/utils/texts/dictionary.js'
 import log from '#server/utils/log.js'
 
 // Admin push events.
@@ -87,7 +88,7 @@ export async function resolveAdminRecipients({ DL, domainId, storeId, permission
     // filter would silently return no admins whenever Redis is warm.
     const admins = await DL.Admin.read(
         { roleId: { $in: matchingRoleIds } },
-        { id: 1, name: 1, roleId: 1, storeIds: 1, currentStoreId: 1, domainIds: 1, active: 1 },
+        { id: 1, name: 1, roleId: 1, storeIds: 1, currentStoreId: 1, domainIds: 1, active: 1, languageCode: 1 },
         { limit: 0 }
     )
 
@@ -112,23 +113,88 @@ export async function resolveAdminRecipients({ DL, domainId, storeId, permission
     })
 }
 
+// Notification copy follows the recipient's own admin language. The dictionary
+// read is cached by the text layer (5s memo + Redis per language); this small
+// map only avoids a second read while one event notifies several recipients
+// that share a language. Falls back to the Hebrew base dictionary, so a missing
+// translation can never produce an empty notification.
+const TEXT_CACHE_TTL_MS = 60 * 1000
+const textLayersCache = new Map()
+
+export function clearPushTextCache() {
+    textLayersCache.clear()
+}
+
+function interpolate(value, params) {
+    if (!params) return value
+    return String(value).replace(/\[(\w+)\]/g, (_, name) =>
+        params[name] !== undefined && params[name] !== null ? String(params[name]) : `[${name}]`
+    )
+}
+
+async function textLayers(DL, languageCode) {
+    const code = languageCode || 'he'
+    const cached = textLayersCache.get(code)
+    if (cached && cached.expiresAt > Date.now()) return cached
+
+    let payload = null
+    try {
+        payload = await getTranslations(DL, code)
+    } catch {
+        // No dictionary (or a broken one) is not a reason to skip the event.
+    }
+
+    const layers = {
+        texts: payload?.texts || {},
+        fallback: payload?.fallback || {},
+        expiresAt: Date.now() + TEXT_CACHE_TTL_MS
+    }
+    textLayersCache.set(code, layers)
+    return layers
+}
+
+function translator(layers) {
+    const base = baseDictionary()
+    return (key, params) => {
+        const value = layers?.texts?.[key] ?? layers?.fallback?.[key] ?? base?.[key] ?? key
+        return interpolate(value, params)
+    }
+}
+
+/** Translate one notification string for a specific language. */
+export async function pushText({ DL, languageCode, key, params } = {}) {
+    return translator(await textLayers(DL, languageCode))(key, params)
+}
+
 /**
  * Create one inbox row per recipient. Returns only the rows that were actually
  * inserted, so a retried event never re-sends a push for a row that already
  * exists (the unique adminId+dedupeKey index is the final guard).
+ *
+ * `notification.titleKey` / `notification.body(TR)` are translated per admin,
+ * because the inbox row itself is what the bell later shows.
  */
 export async function createInboxNotifications({ DL, recipients, notification }) {
     const created = []
+    const layersByLanguage = new Map()
+
     for (const admin of recipients) {
         try {
+            const code = admin.languageCode || 'he'
+            if (!layersByLanguage.has(code))
+                layersByLanguage.set(code, await textLayers(DL, code))
+            const TR = translator(layersByLanguage.get(code))
+
             const row = await DL.AdminNotification.create({
                 adminId: admin.id,
                 domainId: notification.domainId,
                 storeId: notification.storeId,
                 type: notification.type,
                 level: notification.level,
-                title: notification.title,
-                body: notification.body,
+                title: notification.titleKey ? TR(notification.titleKey) : (notification.title || ''),
+                body: typeof notification.body === 'function'
+                    ? notification.body(TR)
+                    : (notification.body || ''),
                 url: notification.url,
                 orderId: notification.orderId,
                 orderNumber: notification.orderNumber,
@@ -165,38 +231,52 @@ async function storeName(DL, storeId) {
     }
 }
 
-async function deliver({ DL, external, created, payload, options }) {
+async function deliver({ DL, external, created, options }) {
     if (!created.length) return { created: 0, sent: 0 }
-    const adminIds = created.map(({ admin }) => admin.id)
-    let pushResult = { sent: 0 }
+
+    // One payload per language: a recipient must get the same text that was
+    // written into their inbox row, and never another language's copy.
+    const groups = new Map()
+    for (const item of created) {
+        const code = item.admin.languageCode || 'he'
+        if (!groups.has(code)) groups.set(code, [])
+        groups.get(code).push(item)
+    }
+
+    let sent = 0
     try {
-        pushResult = await external?.push?.sendToAdmins({
-            domainId: payload.domainId,
-            adminIds,
-            payload: {
-                title: payload.title,
-                body: payload.body,
-                url: payload.url,
-                tag: payload.dedupeKey,
-                icon: '/icons/icon-192.png',
-                badge: '/icons/icon-192.png'
-            },
-            options
-        })
+        for (const items of groups.values()) {
+            const { row } = items[0]
+            const pushResult = await external?.push?.sendToAdmins({
+                domainId: row.domainId,
+                adminIds: items.map(item => item.admin.id),
+                payload: {
+                    title: row.title,
+                    body: row.body || '',
+                    url: row.url,
+                    tag: row.dedupeKey,
+                    icon: '/icons/icon-192.png',
+                    badge: '/icons/icon-192.png'
+                },
+                options
+            })
+            const groupSent = pushResult?.sent || 0
+            sent += groupSent
+
+            if (groupSent) {
+                await Promise.all(items.map(item =>
+                    DL.AdminNotification.updateOne(
+                        { id: item.row.id },
+                        { $set: { pushedAt: new Date() } }
+                    ).catch(() => { })
+                ))
+            }
+        }
     } catch (e) {
         log.warn('[Push] Send failed:', e?.message || e)
     }
 
-    if (pushResult?.sent) {
-        await Promise.all(created.map(({ row }) =>
-            DL.AdminNotification.updateOne(
-                { id: row.id },
-                { $set: { pushedAt: new Date() } }
-            ).catch(() => { })
-        ))
-    }
-
-    return { created: created.length, sent: pushResult?.sent || 0 }
+    return { created: created.length, sent }
 }
 
 /**
@@ -226,8 +306,6 @@ export async function notifyNewTodayOrder({ DL, external, order, now = new Date(
 
         const store = await storeName(DL, order.storeId)
         const range = formatWindowRange(order.window)
-        const title = 'הזמנה חדשה להיום'
-        const body = joinParts([orderNumberText(order), range, store])
         const url = `/ops-order/${order.id}`
 
         const created = await createInboxNotifications({
@@ -238,8 +316,9 @@ export async function notifyNewTodayOrder({ DL, external, order, now = new Date(
                 storeId: order.storeId,
                 type: 'new_today_order',
                 level: 'info',
-                title,
-                body,
+                titleKey: 'push_new_order_title',
+                // Order number, window range and store name are data, not copy.
+                body: TR => joinParts([orderNumberText(order), range, store]),
                 url,
                 orderId: order.id,
                 orderNumber: order.number != null ? String(order.number) : undefined,
@@ -252,13 +331,6 @@ export async function notifyNewTodayOrder({ DL, external, order, now = new Date(
             DL,
             external,
             created,
-            payload: {
-                domainId: order.domainId,
-                title,
-                body,
-                url,
-                dedupeKey: `new-today-order:${order.id}`
-            },
             options: { ttl: 60 * 60, urgency: 'high' }
         })
     } catch (e) {
@@ -336,8 +408,6 @@ export async function notifyWindowReady({ DL, external, order, now = new Date() 
 
         const store = await storeName(DL, order.storeId)
         const range = formatWindowRange(window)
-        const title = 'חלון מוכן לאיסוף'
-        const body = joinParts([store, range, `${active.length} הזמנות מוכנות`])
         const url = '/ops'
 
         const created = await createInboxNotifications({
@@ -348,8 +418,8 @@ export async function notifyWindowReady({ DL, external, order, now = new Date() 
                 storeId: order.storeId,
                 type: 'window_ready',
                 level: 'success',
-                title,
-                body,
+                titleKey: 'push_window_ready_title',
+                body: TR => joinParts([store, range, TR('push_window_ready_count', { count: active.length })]),
                 url,
                 window,
                 dedupeKey
@@ -360,7 +430,6 @@ export async function notifyWindowReady({ DL, external, order, now = new Date() 
             DL,
             external,
             created,
-            payload: { domainId: order.domainId, title, body, url, dedupeKey },
             options: { ttl: 6 * 60 * 60, urgency: 'normal' }
         })
     } catch (e) {

@@ -9,6 +9,7 @@ import Button from 'common/components/Button'
 import Loader from 'common/components/Loader'
 import classNames from 'common/functions/classNames'
 import usePermission from 'common/permissions/usePermision'
+import { useText } from 'common/texts/TextProvider'
 import { NOTIFICATION_LEVEL_ICONS, PUSH_CONFIG_REASONS, relativeTime } from 'common/functions/pushClient'
 import { usePush } from 'features/Push'
 import styles from './notificationBell.module.css'
@@ -23,13 +24,14 @@ const LEVEL_CLASS = {
 // Deployment problems: the admin can do nothing from here, so they are shown
 // as a diagnostic line to superadmins instead of a "grant permission" banner.
 const CONFIG_REASON_TEXT = {
-    'insecure-context': 'התראות דחיפה דורשות חיבור מאובטח (HTTPS).',
-    unsupported: 'הדפדפן הזה לא תומך בהתראות דחיפה.',
-    'not-configured': 'התראות דחיפה לא מוגדרות בשרת (חסרים מפתחות VAPID).'
+    'insecure-context': 'push_config_insecure',
+    unsupported: 'push_config_unsupported',
+    'not-configured': 'push_config_not_configured'
 }
 
 export default function NotificationBell() {
     const push = usePush()
+    const { TR } = useText()
     const navigate = useNavigate()
     const canSendTest = usePermission('push:send')
     const isSuperAdmin = usePermission('admin:super')
@@ -142,7 +144,7 @@ export default function NotificationBell() {
         id='admin-notification-inbox'
         overlay
         btnClassName={styles.trigger}
-        button={<button type='button' className={styles.bell} aria-label='התראות' onClick={handleBellClick}>
+        button={<button type='button' className={styles.bell} aria-label={TR('push_bell_label')} onClick={handleBellClick}>
             <Icon name='notifications' />
             {push.needsAttention
                 ? <span className={styles.dot} />
@@ -153,31 +155,33 @@ export default function NotificationBell() {
         {({ close }) => <div className={styles.content}>
             <Flex alignItems='center' justifyContent='space-between' className={styles.header}>
                 <Flex alignItems='center' gap={8}>
-                    <Text bold size='l'>תיבת הודעות</Text>
+                    <Text bold size='l'>{TR('push_inbox_title')}</Text>
                     {unread > 0 ? <Flex center className={styles.unreadCircle}>{unread > 99 ? '99+' : unread}</Flex> : null}
                 </Flex>
-                {unread > 0 ? <Button mode='text-brand' text='סמן הכל כנקרא' onClick={markAllRead} loading={marking} /> : null}
+                {unread > 0 ? <Button mode='text-brand' text={TR('push_mark_all_read')} onClick={markAllRead} loading={marking} /> : null}
             </Flex>
 
             {push.needsAttention ? <Flex alignItems='center' gap={8} className={styles.permissionBanner}>
                 <Icon name='warning' className={styles.bannerIcon} />
                 <Text size='s' className={styles.bannerText}>
                     {push.permission === 'denied'
-                        ? 'ההתראות חסומות בדפדפן. אפשר להפעיל אותן בהגדרות האתר.'
+                        ? TR('push_banner_denied')
                         : push.error
-                            ? 'ההתראות אושרו בדפדפן אבל לא נרשמו במכשיר. נסו שוב או רעננו את העמוד.'
-                            : 'התראות הדפדפן עדיין לא הופעלו במכשיר הזה.'}
+                            ? TR('push_banner_not_registered')
+                            : TR('push_banner_not_active')}
                 </Text>
                 <Button
                     mode='text-brand'
-                    text={push.permission === 'denied' ? 'איך מפעילים?' : push.error ? 'נסה שוב' : 'אפשר'}
+                    text={push.permission === 'denied'
+                        ? TR('push_action_how')
+                        : push.error ? TR('push_action_retry') : TR('push_action_enable')}
                     onClick={permissionAction}
                 />
             </Flex> : null}
 
             {configIssue ? <Flex alignItems='center' gap={8} className={styles.configBanner}>
                 <Icon name='warning' className={styles.bannerIcon} />
-                <Text size='s' className={styles.bannerText}>{CONFIG_REASON_TEXT[push.reason]}</Text>
+                <Text size='s' className={styles.bannerText}>{TR(CONFIG_REASON_TEXT[push.reason])}</Text>
             </Flex> : null}
 
             <div className={styles.list}>
@@ -185,7 +189,7 @@ export default function NotificationBell() {
 
                 {!loading && !items.length ? <Flex col center gap={8} className={styles.state}>
                     <Icon name='notifications' className={styles.emptyIcon} />
-                    <Text size='s' mode='sub'>אין הודעות חדשות</Text>
+                    <Text size='s' mode='sub'>{TR('push_empty')}</Text>
                 </Flex> : null}
 
                 {!loading && items.map(item => <Flex
@@ -218,10 +222,12 @@ export default function NotificationBell() {
 
             {push.supported && push.enabled && !push.needsAttention && canSendTest
                 ? <Flex alignItems='center' justifyContent='space-between' className={styles.footer}>
-                    <Text size='xs' mode='sub'>ההתראות פעילות במכשיר הזה</Text>
+                    <Text size='xs' mode='sub'>{TR('push_active_on_device')}</Text>
                     <Button
                         mode='text-brand'
-                        text={testState === 'loading' ? 'שולח...' : testState === 'ok' ? 'נשלחה' : 'שלח בדיקה'}
+                        text={testState === 'loading'
+                            ? TR('push_sending')
+                            : testState === 'ok' ? TR('push_sent') : TR('push_send_test')}
                         onClick={sendTest}
                         disabled={testState === 'loading'}
                     />

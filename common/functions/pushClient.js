@@ -2,9 +2,10 @@
  * Client-side Web Push helpers.
  *
  * Pure functions only, so the tricky parts (base64 key decoding, when the bell
- * must show the red dot, Hebrew relative time) can be unit-tested without a
- * browser.
+ * must show the red dot, relative time) can be unit-tested without a browser.
  */
+
+import TR from '../texts/TR.js'
 
 /**
  * Support with a reason, so the UI can explain silence instead of showing
@@ -59,7 +60,7 @@ export function pushReason({ supported, supportReason, enabled, permission, subs
 export const PUSH_CONFIG_REASONS = ['unsupported', 'insecure-context', 'not-configured']
 
 /**
- * Relative time in Hebrew, short enough for a notification row.
+ * Relative time in the active language, short enough for a notification row.
  * `now` is injectable so the output is deterministic in tests.
  */
 export function relativeTime(value, now = Date.now()) {
@@ -68,20 +69,21 @@ export function relativeTime(value, now = Date.now()) {
     if (!Number.isFinite(then)) return ''
 
     const seconds = Math.max(0, Math.floor((now - then) / 1000))
-    if (seconds < 60) return 'עכשיו'
+    if (seconds < 60) return TR('push_time_now')
 
     const minutes = Math.floor(seconds / 60)
     if (minutes < 60)
-        return minutes === 1 ? 'לפני דקה' : `לפני ${minutes} דקות`
+        return minutes === 1 ? TR('push_time_minute') : TR('push_time_minutes', { count: minutes })
 
     const hours = Math.floor(minutes / 60)
     if (hours < 24)
-        return hours === 1 ? 'לפני שעה' : `לפני ${hours} שעות`
+        return hours === 1 ? TR('push_time_hour') : TR('push_time_hours', { count: hours })
 
     const days = Math.floor(hours / 24)
-    if (days === 1) return 'אתמול'
-    if (days < 7) return `לפני ${days} ימים`
+    if (days === 1) return TR('push_time_yesterday')
+    if (days < 7) return TR('push_time_days', { count: days })
 
+    // Dates are formatted, not phrased: dd.mm.yyyy stays numeric in every language.
     const date = new Date(then)
     const day = String(date.getDate()).padStart(2, '0')
     const month = String(date.getMonth() + 1).padStart(2, '0')

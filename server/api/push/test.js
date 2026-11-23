@@ -1,13 +1,21 @@
+import { pushText } from '#server/utils/data/adminPush.js'
+
 export default async function test(payload, { DL, _admin, external }) {
     if (!external?.push?.enabled)
         throw { status: 400, message: 'push is not configured' }
+
+    // The test notification is for the admin who asked for it, so it speaks
+    // their language — same rule as every other push.
+    const languageCode = _admin.languageCode || 'he'
+    const title = await pushText({ DL, languageCode, key: 'push_test_title' })
+    const body = await pushText({ DL, languageCode, key: 'push_test_body' })
 
     const result = await external.push.sendToAdmins({
         domainId: payload.domainId,
         adminIds: [_admin.id],
         payload: {
-            title: 'התראת בדיקה',
-            body: 'ההתראות מוגדרות כראוי.',
+            title,
+            body,
             url: '/ops',
             tag: `push-test-${Date.now()}`,
             icon: '/icons/icon-192.png',

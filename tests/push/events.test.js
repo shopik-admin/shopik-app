@@ -1,9 +1,11 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import {
+    clearPushTextCache,
     isNewTodayOrderEligible,
     jerusalemDate,
     jerusalemHour,
+    pushText,
     windowReadySignature,
     resolveAdminRecipients,
     notifyNewTodayOrder,
@@ -144,6 +146,62 @@ describe('admin push event helpers', () => {
         assert.equal(pushes[0].payload.url, '/ops-order/order-1')
         // No customer personal data in the payload.
         assert.equal(/phone|address|customer/i.test(pushes[0].payload.body), false)
+    })
+
+    it('writes and pushes each recipient language', async () => {
+        clearPushTextCache()
+        const inbox = makeInbox()
+        const admins = [
+            { id: 'picker-en', roleId: 'role-picker', currentStoreId: 's1', domainIds: ['d1'], languageCode: 'en' },
+            { id: 'picker-he', roleId: 'role-picker', currentStoreId: 's1', domainIds: ['d1'] }
+        ]
+        const DL = {
+            ...recipientDL(admins),
+            TranslationLanguage: {
+                readOne: async ({ code }) => code === 'en'
+                    ? { code: 'en', name: 'english', nativeName: 'English', direction: 'ltr' }
+                    : null
+            },
+            TranslationDictionary: {
+                readOne: async ({ languageCode }) => ({
+                    texts: languageCode === 'en'
+                        ? { push_new_order_title: 'New order today' }
+                        : {}
+                })
+            },
+            Order: { updateOne: async () => baseOrder() },
+            Store: { readById: async () => ({ id: 's1', name: 'Center' }) },
+            AdminNotification: inbox
+        }
+        const pushes = []
+        const external = { push: { sendToAdmins: async args => { pushes.push(args); return { sent: 1 } } } }
+
+        await notifyNewTodayOrder({ DL, external, order: baseOrder(), now: AFTER_SEVEN })
+
+        assert.equal(inbox.rows.length, 2)
+        assert.equal(inbox.rows.find(row => row.adminId === 'picker-en').title, 'New order today')
+        assert.equal(inbox.rows.find(row => row.adminId === 'picker-he').title, 'הזמנה חדשה להיום')
+
+        // One payload per language, never the same admin twice.
+        assert.equal(pushes.length, 2)
+        const titles = pushes.map(push => push.payload.title).sort()
+        assert.deepEqual(titles, ['New order today', 'הזמנה חדשה להיום'].sort())
+        assert.deepEqual(
+            pushes.flatMap(push => push.adminIds).sort(),
+            ['picker-en', 'picker-he']
+        )
+        clearPushTextCache()
+    })
+
+    it('falls back to the Hebrew copy when a translation is missing', async () => {
+        clearPushTextCache()
+        // No dictionary models at all: an unknown language must still notify.
+        assert.equal(
+            await pushText({ DL: {}, languageCode: 'fr', key: 'push_new_order_title' }),
+            'הזמנה חדשה להיום'
+        )
+        assert.equal(await pushText({ DL: {}, languageCode: 'fr', key: 'push_missing_key' }), 'push_missing_key')
+        clearPushTextCache()
     })
 
     it('does not notify twice for the same order', async () => {

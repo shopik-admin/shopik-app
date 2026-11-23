@@ -1,5 +1,6 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
+import { configureTexts, getTextConfig } from '../../common/texts/TR.js'
 import {
     PUSH_CONFIG_REASONS,
     isPushSupported,
@@ -70,5 +71,24 @@ describe('push client helpers', () => {
         assert.deepEqual(PUSH_CONFIG_REASONS, ['unsupported', 'insecure-context', 'not-configured'])
         assert.equal(PUSH_CONFIG_REASONS.includes('denied'), false)
         assert.equal(PUSH_CONFIG_REASONS.includes('not-subscribed'), false)
+    })
+
+    it('formats relative time in the active language', () => {
+        const previous = getTextConfig()
+        try {
+            configureTexts({
+                code: 'en',
+                direction: 'ltr',
+                texts: { push_time_now: 'now', push_time_minutes: '[count] minutes ago' },
+                fallback: {}
+            })
+            const now = new Date('2026-11-16T12:00:00Z').getTime()
+            assert.equal(relativeTime(new Date(now - 5_000), now), 'now')
+            assert.equal(relativeTime(new Date(now - 5 * 60_000), now), '5 minutes ago')
+            // A key the layer does not override keeps the Hebrew base.
+            assert.equal(relativeTime(new Date(now - 24 * 60 * 60_000), now), 'אתמול')
+        } finally {
+            configureTexts(previous)
+        }
     })
 })
