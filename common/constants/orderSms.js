@@ -1,3 +1,9 @@
+import hebrewTexts from '../texts/hebrew.json' with { type: 'json' }
+
+// Customer-facing copy: the recipient's language, not the admin's UI language.
+// At this stage it is always Hebrew.
+const texts = hebrewTexts.texts || {}
+
 export const ORDER_SMS_CATEGORY = 'notifications'
 export const ORDER_SMS_SUB_CATEGORY = 'order-sms'
 
@@ -40,16 +46,16 @@ export const ORDER_SMS_VARIABLES = [
 
 export const DEFAULT_ORDER_SMS_TEMPLATES = {
     delivery: {
-        paid: `{{customer_first_name}}, ההזמנה שלך נקלטה בהצלחה! מספר הזמנה: {{order_number}}. מועד אספקה: {{delivery_date}} בין {{delivery_window_start}} ל-{{delivery_window_end}}. תודה שקנית בשפע קליק!`,
-        picking: `{{customer_first_name}}, ההזמנה שלך בהכנה! מספר הזמנה: {{order_number}}. מועד אספקה: {{delivery_date}} בין {{delivery_window_start}} ל-{{delivery_window_end}}.`,
-        shipped: `{{customer_first_name}}, ההזמנה שלך בדרך אליך! מספר הזמנה: {{order_number}}. מועד אספקה: {{delivery_date}} בין {{delivery_window_start}} ל-{{delivery_window_end}}.`,
-        done: `{{customer_first_name}}, ההזמנה שלך נמסרה בהצלחה! מספר הזמנה: {{order_number}}. תודה שקנית בשפע קליק! לכל שאלה ניתן לפנות אלינו בוואטסאפ: 0552903627.`
+        paid: texts.order_sms_default_paid_delivery,
+        picking: texts.order_sms_default_picking_delivery,
+        shipped: texts.order_sms_default_shipped_delivery,
+        done: texts.order_sms_default_done_delivery
     },
     pickup: {
-        paid: `{{customer_first_name}}, ההזמנה שלך נקלטה בהצלחה! מספר הזמנה: {{order_number}}. האיסוף מתוכנן ליום {{delivery_date}} בין {{delivery_window_start}} ל-{{delivery_window_end}} בשפע קליק - {{pickup_store_name}}.`,
-        picking: `{{customer_first_name}}, ההזמנה שלך בהכנה! מספר הזמנה: {{order_number}}. האיסוף מתוכנן ליום {{delivery_date}} בין {{delivery_window_start}} ל-{{delivery_window_end}} בשפע קליק - {{pickup_store_name}}.`,
-        shipped: `{{customer_first_name}}, ההזמנה שלך מוכנה לאיסוף! מספר הזמנה: {{order_number}}. ניתן לאסוף ביום {{delivery_date}} בין {{delivery_window_start}} ל-{{delivery_window_end}} בשפע קליק - {{pickup_store_name}}.`,
-        done: `{{customer_first_name}}, ההזמנה שלך נמסרה בהצלחה! מספר הזמנה: {{order_number}}. תודה שקנית בשפע קליק! לכל שאלה ניתן לפנות אלינו בוואטסאפ: 0552903627.`
+        paid: texts.order_sms_default_paid_pickup,
+        picking: texts.order_sms_default_picking_pickup,
+        shipped: texts.order_sms_default_shipped_pickup,
+        done: texts.order_sms_default_done_pickup
     }
 }
 

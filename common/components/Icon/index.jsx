@@ -1,4 +1,5 @@
 import classNames from 'common/functions/classNames'
+import { useText } from 'common/texts/TextProvider'
 import styles from './icon.module.css'
 import {
     LuPlus, LuPencil, LuTrash2, LuChevronLeft, LuChevronRight, LuChevronUp, LuChevronDown,
@@ -17,7 +18,7 @@ import {
     LuMilk, LuSprayCan, LuCroissant, LuCigarette, LuBeef, LuShoppingBasket, LuApple, LuBaby, LuSparkles,
     LuCupSoda, LuCircleUserRound, LuScrollText, LuMaximize, LuMinimize, LuCombine,
     LuLeaf, LuCandyOff, LuWheatOff, LuMilkOff, LuSalad, LuVegan, LuDrumstick, LuGripVertical,
-    LuTriangleAlert, LuCircleX
+    LuTriangleAlert, LuCircleX, LuLanguages
 } from 'react-icons/lu'
 import { BsFileEarmarkExcel } from 'react-icons/bs'
 import { TbHeartPlus } from 'react-icons/tb'
@@ -32,6 +33,7 @@ const iconsList = {
     right: LuChevronRight,
     download: LuDownload,
     settings: LuSettings,
+    language: LuLanguages,
     menu: LuAlignLeft,// LuMenu,
     search: LuSearch,
     options: LuEllipsis,
@@ -189,7 +191,10 @@ const iconsList = {
  * @returns {JSX.Element|null}
  */
 export default function Icon({ className, name, fallback = false, ...props }) {
-    let I = iconsList[name]
+    const { direction } = useText?.() || {}
+    // `back` is authored for RTL; in LTR it has to point the other way.
+    const resolvedName = name === 'back' && direction === 'ltr' ? 'left' : name
+    let I = iconsList[resolvedName]
     if (!I && fallback) I = iconsList.fallback
 
     return I ? <I

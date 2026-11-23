@@ -75,6 +75,11 @@ export async function loadFixtures(uri, { idNum = null, userPhone = null } = {})
     const shipment = await col('shipments').findOne({}, { projection: { _id: 0, id: 1 } })
     const user = await col('users').findOne({}, { projection: { _id: 0, id: 1 } })
     const address = await col('gov_addresses').findOne({}, { projection: { city: 1, street: 1 } })
+    // A real non-base language makes translation/dictionary do useful work. If
+    // the stress copy has no extra language yet, the route still runs with he.
+    const translationLanguage = await col('translation_languages')
+        .findOne({ code: { $ne: 'he' } }, { projection: { _id: 0, code: 1 } })
+        .catch(() => null)
 
     let admin = null
     if (idNum)
@@ -200,6 +205,7 @@ export async function loadFixtures(uri, { idNum = null, userPhone = null } = {})
         subGroupCode,
         refundOrderId: refundTxn?.orderId || null,
         parentRoleId: parentRole?.id || null,
+        translationLanguageCode: translationLanguage?.code || 'he',
         productBarcodes: products.map(p => p.barcode).filter(Boolean),
         productIds: products.map(p => p.id).filter(Boolean),
         categoryIds: categories.map(c => c.id).filter(Boolean),

@@ -35,7 +35,9 @@ const ALSO_READ = new Set([
     'display_block/categories', // Category.read over every category
     'role/children', // Role.readById + Role.read({ parentIds })
     'payment/refunds', // Order.readById + PaymentTransaction.read
-    'supply_area/lookup' // $geoIntersects over supply_areas
+    'supply_area/lookup', // $geoIntersects over supply_areas
+    'translation/dictionary', // one cached document per language on a miss
+    'translation/languages' // language metadata + per-language key counts
 ])
 export { ALSO_READ }
 

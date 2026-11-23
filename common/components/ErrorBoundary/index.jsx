@@ -1,4 +1,5 @@
 import { Component, useState } from 'react'
+import TR from 'common/texts/TR.js'
 import styles from './errorBoundary.module.css'
 
 const isDev = (() => {
@@ -31,7 +32,7 @@ export default class ErrorBoundary extends Component {
 
         return <div className={styles.boundary} role='alert'>
             <div className={styles.box}>
-                <div className={styles.title}>משהו השתבש</div>
+                <div className={styles.title}>{TR('error_boundary_title')}</div>
                 <div className={styles.message}>{error.message || String(error)}</div>
                 {isDev && error.stack && <code className={styles.details}>
                     <summary className={styles.stackHead}>
@@ -40,7 +41,7 @@ export default class ErrorBoundary extends Component {
                     </summary>
                     <pre className={styles.stack} dir='ltr'>{error.stack}</pre>
                 </code>}
-                <button type='button' className={styles.refresh} onClick={this.refresh}>טעינה מחדש</button>
+                <button type='button' className={styles.refresh} onClick={this.refresh}>{TR('error_boundary_reload')}</button>
             </div>
         </div>
     }
@@ -71,5 +72,5 @@ function CopyButton({ text }) {
         }
     }
 
-    return <button type='button' className={styles.copy} onClick={onCopy}>{copied ? 'הועתק' : 'העתק'}</button>
+    return <button type='button' className={styles.copy} onClick={onCopy}>{copied ? TR('error_boundary_copied') : TR('error_boundary_copy')}</button>
 }

@@ -14,6 +14,7 @@ export const permissionGroups = {
     category: 'תפריט וקטגוריות',
     domain: 'מתחמים',
     setting: 'הגדרות',
+    text: 'טקסטים ותרגומים',
     log: 'לוגים',
     user: 'משתמשים',
     store: 'חנויות',
@@ -147,6 +148,24 @@ export const permissionMeta = {
     'setting:delete': {
         name: 'מחיקת הגדרה',
         description: 'הסרת הגדרה מהמערכת.'
+    },
+
+    // טקסטים ותרגומים
+    'text:read': {
+        name: 'צפייה בטקסטים',
+        description: 'צפייה בשפות ובטקסטים של המערכת וייצוא שלהם.'
+    },
+    'text:create': {
+        name: 'הוספת טקסט',
+        description: 'יצירת שפה חדשה, טקסט חדש או דריסה.'
+    },
+    'text:update': {
+        name: 'עריכת טקסט',
+        description: 'עדכון תרגומים, שמות שפות וכיוון כתיבה.'
+    },
+    'text:delete': {
+        name: 'מחיקת טקסט',
+        description: 'מחיקת שפות, טקסטים ודריסות.'
     },
 
     // לוגים

@@ -59,12 +59,12 @@ function OrderCard({ order = {} }) {
                 <ProgressGauge value={total ? (handled / total) * 100 : 0} />
                 <Flex col gap={5}>
                     <Text bold size='xl'>{handled}/{total}</Text>
-                    <Text size='s' mode='sub'>מוצרים שטופלו</Text>
+                    <Text size='s' mode='sub'>ops_handled_products</Text>
                 </Flex>
             </Flex>
             {status != 'done' && <Flex col gap={5} center>
                 <RemainingTime bold size='xl' window={order.window} />
-                <Text size='s' mode='sub'>לסיום ליקוט</Text>
+                <Text size='s' mode='sub'>ops_pick_end</Text>
             </Flex>}
         </Flex>
         <Flex className={styles.row} alignItems='center' justifyContent='space-between'>

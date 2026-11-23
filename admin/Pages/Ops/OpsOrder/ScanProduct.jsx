@@ -11,8 +11,10 @@ import classNames from 'common/functions/classNames'
 import { isWeightProduct, getUnitLabel, formatAmount } from 'common/components/Product'
 import { getPickRange, isPickInRange, DEFAULT_PICK_LIMITS } from 'common/functions/pickLimits'
 import limitDecimalInput from 'common/functions/decimalInput'
+import { useText } from 'common/texts/TextProvider'
 
 export default function ScanProduct({ product = {}, orderId, onClose, onPicked, initialPhase, initialSupplied, initialBarcode, onReplace, resettable = false }) {
+    const { TR } = useText()
     const videoRef = useRef(null)
     const streamRef = useRef(null)
     const rafRef = useRef(null)
@@ -59,7 +61,7 @@ export default function ScanProduct({ product = {}, orderId, onClose, onPicked, 
     const rangeLabel = pickRange
         ? (weight
             ? `${formatAmount(product, Math.round(pickRange.min * 1000) / 1000)} – ${formatAmount(product, Math.round(pickRange.max * 1000) / 1000)}`
-            : `עד ${formatAmount(product, pickRange.max)}`)
+            : TR('ops_up_to', { amount: formatAmount(product, pickRange.max) }))
         : ''
     const isMatch = isSuppliedValid && suppliedNum === ordered
     const isWarning = isSuppliedValid && !outOfRange && !isMatch
@@ -72,7 +74,7 @@ export default function ScanProduct({ product = {}, orderId, onClose, onPicked, 
         // safety: never trust the scanned value as the item identifier —
         // always pick by the expected product barcode, send scanned for server audit
         if (!weight && scannedBarcode && !isBarcodeMatch(scannedBarcode)) {
-            setError(`הברקוד שנסרק (${scannedBarcode}) אינו תואם למוצר (${product.barcode || ''})`)
+            setError(TR('ops_barcode_mismatch_expected', { scanned: scannedBarcode, expected: product.barcode || '' }))
             return
         }
         setLoading(true)
@@ -113,7 +115,7 @@ export default function ScanProduct({ product = {}, orderId, onClose, onPicked, 
             // wrong product — stay in scanning phase, show mismatch
             stopCamera()
             setMismatch(val)
-            setError(`הברקוד שנסרק (${val}) אינו תואם למוצר המבוקש (${product.barcode || ''}). נסו שוב.`)
+            setError(TR('ops_barcode_mismatch_retry', { scanned: val, expected: product.barcode || '' }))
             return
         }
         // correct product
@@ -188,7 +190,7 @@ export default function ScanProduct({ product = {}, orderId, onClose, onPicked, 
                 setManualMode(true)
             }
         } catch (err) {
-            setError(err.message || 'לא ניתן להפעיל מצלמה')
+            setError(err.message || TR('ops_camera_error'))
             setManualMode(true)
         }
     }
@@ -251,7 +253,7 @@ export default function ScanProduct({ product = {}, orderId, onClose, onPicked, 
         const isWeightPhase = weight || phase === 'weight'
         return <Flex col className={styles.scanProduct}>
             <Flex center className={styles.header}>
-                <Text size="m" bold>{isWeightPhase ? 'שקילת מוצר' : 'סריקת מוצר'}</Text>
+                <Text size="m" bold>{TR(isWeightPhase ? 'ops_weigh_product_title' : 'ops_scan_product_title')}</Text>
             </Flex>
 
             <Flex col className={styles.productSummary}>
@@ -267,16 +269,16 @@ export default function ScanProduct({ product = {}, orderId, onClose, onPicked, 
 
             <Flex col center gap={6} className={styles.successBlock}>
                 <Flex alignItems="center" gap={8}>
-                    <Text size="m" bold className={styles.successText}>{isWeightPhase ? 'נא לשקול את המוצר' : 'מוצר נסרק בהצלחה!'}</Text>
+                    <Text size="m" bold className={styles.successText}>{TR(isWeightPhase ? 'ops_please_weigh' : 'ops_scan_success')}</Text>
                     <span className={styles.checkCircle}><Icon name="check" size={14} /></span>
                 </Flex>
-                <Text size="s" mode="sub">{isWeightPhase ? `נא להזין משקל שסופק (${unitLabel})` : 'נא להזין כמות שסופקה'}</Text>
+                <Text size="s" mode="sub">{isWeightPhase ? TR('ops_enter_weight_supplied', { unit: unitLabel }) : TR('ops_enter_amount_supplied')}</Text>
             </Flex>
 
             <Flex className={styles.amountRow} alignItems="stretch">
                 <Flex col center className={styles.orderedBox}>
                     <Text size="m" bold>{orderedLabel}</Text>
-                    <Text size="xs" mode="sub">הוזמן</Text>
+                    <Text size="xs" mode="sub">{TR('col_ordered')}</Text>
                 </Flex>
                 <Flex col center className={classNames(styles.suppliedBox, [styles.empty, isSuppliedEmpty], [styles.match, isMatch], [styles.warning, isWarning], [styles.error, isError])}>
                     <input
@@ -287,7 +289,7 @@ export default function ScanProduct({ product = {}, orderId, onClose, onPicked, 
                         inputMode={weight ? 'decimal' : 'numeric'}
                         autoFocus
                     />
-                    <Text size="xs" mode="sub">סופק{weight ? ` (${unitLabel})` : ''}</Text>
+                    <Text size="xs" mode="sub">{TR('col_supplied')}{weight ? ` (${unitLabel})` : ''}</Text>
                 </Flex>
             </Flex>
 
@@ -295,26 +297,26 @@ export default function ScanProduct({ product = {}, orderId, onClose, onPicked, 
                 <Flex col center gap={4} className={styles.warningBlock}>
                     <Flex alignItems="center" gap={6} className={styles.warningText}>
                         <span className={styles.warnIcon}>⚠️</span>
-                        <Text size="s" bold className={styles.warningYellow}>הכמות שהוזנה שונה מהכמות שהוזמנה</Text>
+                        <Text size="s" bold className={styles.warningYellow}>{TR('ops_amount_differs')}</Text>
                         <Icon name="bulb" size={18} className={styles.warnIconYellow} />
                     </Flex>
-                    <Text size="xs" mode="sub">נא לוודא לפני המשך הליקוט</Text>
+                    <Text size="xs" mode="sub">{TR('ops_verify_before_continue')}</Text>
                 </Flex>
             )}
             {isError && (
                 <Flex col center gap={4} className={styles.warningBlock}>
                     <Flex alignItems="center" gap={6} className={styles.warningText}>
-                        <Text size="s" bold className={styles.warningRed}>הכמות שהוזנה חורגת מהמותר</Text>
+                        <Text size="s" bold className={styles.warningRed}>{TR('ops_amount_exceeds_allowed')}</Text>
                         <span className={styles.errorIcon}>!</span>
                     </Flex>
-                    {rangeLabel && <Text size="xs" mode="sub">מותר: {rangeLabel}</Text>}
-                    <Text size="xs" mode="sub">נא לתקן לפני המשך ליקוט</Text>
+                    {rangeLabel && <Text size="xs" mode="sub">{TR('ops_allowed_prefix', { amount: rangeLabel })}</Text>}
+                    <Text size="xs" mode="sub">{TR('ops_fix_before_continue')}</Text>
                 </Flex>
             )}
 
             <Flex center col gap={20} className={styles.actions}>
                 {error && <Flex center><Text size="s" mode="error">{error}</Text></Flex>}
-                <Button disabled={!canContinue} loading={loading} onClick={proceedWithFinalAmount} className={styles.continueBtn}>המשך ליקוט</Button>
+                <Button disabled={!canContinue} loading={loading} onClick={proceedWithFinalAmount} className={styles.continueBtn}>{TR('ops_continue_picking')}</Button>
                 {resettable && <Button mode='text-brand' loading={resetLoading} onClick={handleReturnToPick}>ops_return_to_pick</Button>}
             </Flex>
         </Flex>
@@ -322,7 +324,7 @@ export default function ScanProduct({ product = {}, orderId, onClose, onPicked, 
 
     return <Flex col className={styles.scanProduct}>
         <Flex center className={styles.header}>
-            <Text size="m" bold>סריקת מוצר</Text>
+            <Text size="m" bold>{TR('ops_scan_product_title')}</Text>
         </Flex>
 
         <Flex col className={styles.productSummary}>
@@ -337,22 +339,22 @@ export default function ScanProduct({ product = {}, orderId, onClose, onPicked, 
         </Flex>
 
         <Flex justifyContent="space-between" alignItems="center" className={styles.notScannedRow}>
-            <Text size="s" bold>מוצר לא נסרק?</Text>
-            <Button mode="text" size="s" onClick={() => setManualMode(m => !m)}>{manualMode ? 'מצלמה' : 'הזנה ידנית'}</Button>
+            <Text size="s" bold>{TR('ops_product_not_scanned')}</Text>
+            <Button mode="text" size="s" onClick={() => setManualMode(m => !m)}>{TR(manualMode ? 'ops_camera' : 'ops_manual_entry')}</Button>
         </Flex>
         {product.barcode && (
             <Flex center className={styles.notScannedRow}>
-                <Text size="xs" mode="sub">ברקוד מצופה: {product.barcode}</Text>
+                <Text size="xs" mode="sub">{TR('ops_expected_barcode', { barcode: product.barcode })}</Text>
             </Flex>
         )}
         {mismatch && (
             <Flex col center gap={8} className={styles.warningBlock}>
                 <Flex alignItems="center" gap={6} className={styles.warningText}>
                     <span className={styles.errorIcon}>!</span>
-                    <Text size="s" bold className={styles.warningRed}>הברקוד שנסרק אינו תואם למוצר</Text>
+                    <Text size="s" bold className={styles.warningRed}>{TR('ops_barcode_mismatch')}</Text>
                 </Flex>
-                <Text size="xs" mode="sub">נסרק: {mismatch} • מצופה: {product.barcode || '—'}</Text>
-                <Button size="s" onClick={handleRetryScan}>סרוק שוב</Button>
+                <Text size="xs" mode="sub">{TR('ops_scanned_expected', { scanned: mismatch, expected: product.barcode || '—' })}</Text>
+                <Button size="s" onClick={handleRetryScan}>{TR('ops_scan_again')}</Button>
             </Flex>
         )}
 
@@ -363,7 +365,7 @@ export default function ScanProduct({ product = {}, orderId, onClose, onPicked, 
                 <span className={styles.corner + ' ' + styles.tr} />
                 <span className={styles.corner + ' ' + styles.bl} />
                 <span className={styles.corner + ' ' + styles.br} />
-                {!scanning && <Flex center className={styles.scanningBadge}><Text size="s">סורק...</Text></Flex>}
+                {!scanning && <Flex center className={styles.scanningBadge}><Text size="s">{TR('ops_scanning')}</Text></Flex>}
             </div>
             {error && <Flex center className={styles.errorOverlay}><Text size="s" mode="error">{error}</Text></Flex>}
             {manualMode && (
@@ -371,17 +373,17 @@ export default function ScanProduct({ product = {}, orderId, onClose, onPicked, 
                     <input
                         value={manualBarcode}
                         onChange={e => setManualBarcode(e.target.value)}
-                        placeholder="הקלד ברקוד"
+                        placeholder={TR('ops_enter_barcode')}
                         className={styles.manualInput}
                         autoFocus
                     />
-                    <Button type="submit" loading={loading} className={styles.manualBtn}>אישור</Button>
+                    <Button type="submit" loading={loading} className={styles.manualBtn}>{TR('confirm')}</Button>
                 </Flex>
             )}
         </Flex>
 
         <Flex col gap={10} className={styles.actions}>
-            <Button mode="outline" loading={loading} onClick={onReplace || handleMissing} className={styles.missingBtn}>מוצר חסר</Button>
+            <Button mode="outline" loading={loading} onClick={onReplace || handleMissing} className={styles.missingBtn}>{TR('ops_missing_product')}</Button>
         </Flex>
     </Flex>
 }

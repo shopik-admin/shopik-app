@@ -1,0 +1,20 @@
+.switcher {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.iconButton {
+    padding: 7px;
+    border-radius: var(--radius-full);
+
+    svg {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+    }
+}
+
+.login {
+    margin-top: 0.75rem;
+}

@@ -5,6 +5,8 @@ import 'common/styles/global.css'
 import '../styles/admin.css'
 
 import TextProvider from 'common/texts/TextProvider.jsx'
+import { applyTextDirection, configureTexts } from 'common/texts/TR.js'
+import { setCookie } from 'common/functions/cookies.js'
 import ErrorBoundary from 'common/components/ErrorBoundary'
 import DigitsInput from 'common/components/DigitsInput'
 import ThemeToggle from 'components/ThemeToggle'
@@ -18,17 +20,38 @@ import Flex from 'common/components/Flex'
 import { useState } from 'react'
 import Logo from '#common/components/Logo/index.jsx'
 import { registerServiceWorker } from 'common/functions/registerSW.js'
+import LanguageSwitcher from 'Layout/LanguageSwitcher'
 
 registerServiceWorker()
 
-try {
-    window.__ENV__ = (typeof __SD__ !== 'undefined' && __SD__?.env) || {}
-} catch { window.__ENV__ = {} }
+const sd = (typeof __SD__ !== 'undefined' && __SD__) || {}
+window.__ENV__ = sd.env || {}
 try { delete window.__SD__ } catch { }
+
+configureTexts(sd.translations)
+applyTextDirection(sd.translations)
+
+function persistLoginLanguage(code) {
+    setCookie('adminLang', code)
+    try { sessionStorage.setItem('adminLangPending', code) } catch { }
+}
+
+function pendingLanguage() {
+    try { return sessionStorage.getItem('adminLangPending') } catch { return null }
+}
+
+function clearPendingLanguage() {
+    try { sessionStorage.removeItem('adminLangPending') } catch { }
+}
 
 ReactDOM
     .createRoot(document.getElementById('root'))
-    .render(<TextProvider>
+    .render(<TextProvider
+        translations={sd.translations}
+        languages={sd.languages}
+        allowSwitch
+        onLanguageChange={persistLoginLanguage}
+    >
         <ErrorBoundary>
             <Login />
         </ErrorBoundary>
@@ -40,15 +63,26 @@ export default function Login() {
         [formState, setFormState] = useState({}),
         [idNum, setIdNum] = useState()
 
+    async function finishLogin() {
+        // A language chosen on the login screen is an explicit request to make
+        // it the account's language. Without it, the account preference wins.
+        const pending = pendingLanguage()
+        if (pending) {
+            try { await apiReq('admin/set_language', { languageCode: pending }) } catch { }
+            clearPendingLanguage()
+        }
+        location.reload()
+    }
+
     function submit(vals) {
         setFormState({ loading: true })
 
         if (idNum) vals = { ...vals, ...idNum }
 
         apiReq(`admin/login${idNum ? '' : '_otp'}`, vals)
-            .then(({ token }) => {
+            .then(async ({ token }) => {
                 if (idNum) {
-                    location.reload()
+                    await finishLogin()
                 }
                 else {
                     setIdNum({ otpToken: token, idNum: vals.idNum })
@@ -91,6 +125,7 @@ export default function Login() {
                 }
             </Form>
         </Card>
+        <LanguageSwitcher placement='login' />
         <Logo noLink />
         <ThemeToggle />
     </Flex>

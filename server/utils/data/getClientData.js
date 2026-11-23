@@ -21,6 +21,7 @@ export default async function getClientData(req, bootData) {
         utils.data.getMenu({ ...bootData, req, _user: user }),
         utils.data.getPickupStores(bootData),
         getSmsConfig(bootData.DL, domainId).then(cfg => cfg.voice.enabled).catch(() => false),
+        utils.data.getTranslations(bootData, 'he'),
     ]
 
     if (user) {
@@ -33,6 +34,7 @@ export default async function getClientData(req, bootData) {
         menuResult,
         pickupStoresResult,
         voiceOtpResult,
+        translationsResult,
         orderResult,
         favoritesResult
     ] = await Promise.allSettled(promises)
@@ -51,6 +53,7 @@ export default async function getClientData(req, bootData) {
         pickupStores: pickupStoresResult.status === 'fulfilled' ? pickupStoresResult.value : undefined,
         settings: settingsResult.status === 'fulfilled' ? settingsResult.value : undefined,
         menu: menuResult.status === 'fulfilled' ? menuResult.value : undefined,
+        translations: translationsResult.status === 'fulfilled' ? translationsResult.value : undefined,
         features: {
             // 019 voice-call OTP is a paid per-domain option (sms:019 VOICE.enabled).
             voiceOtp: voiceOtpResult.status === 'fulfilled' && voiceOtpResult.value === true,

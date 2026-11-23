@@ -8,6 +8,7 @@ import ConfirmButton from 'common/components/ConfirmButton'
 import Input from 'common/components/Input'
 import Select from 'common/components/Select'
 import apiReq from 'common/functions/apiReq'
+import TR from 'common/texts/TR.js'
 
 const VOICE_TYPE_OPTIONS = [
     { value: '4', text: '4 — call only (any number)' },
@@ -57,7 +58,7 @@ export default function DevTools() {
     const [holidaySyncError, setHolidaySyncError] = useState(null)
     const [holidaySyncing, setHolidaySyncing] = useState(false)
     const [voicePhone, setVoicePhone] = useState('')
-    const [voiceMessage, setVoiceMessage] = useState('קוד האימות שלך הוא 123456. הקוד תקף ל-10 דקות.')
+    const [voiceMessage, setVoiceMessage] = useState(() => TR('dev_voice_sample'))
     const [voiceType, setVoiceType] = useState('4')
     const [voiceVoice, setVoiceVoice] = useState('ymMale')
     const [voiceRepeat, setVoiceRepeat] = useState('2')

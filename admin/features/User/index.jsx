@@ -10,6 +10,7 @@ export default function User({ children, sdUser }) {
 
     async function logout() {
         await unsubscribeCurrentPush()
+        try { sessionStorage.removeItem('adminLangPending') } catch { }
         await apiReq('admin/logout')
         location.reload()
     }

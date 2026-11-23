@@ -1,6 +1,7 @@
 import classNames from 'common/functions/classNames'
 import isValidIsraeliId from 'common/functions/isValidIsraeliId'
 import { useText } from 'common/texts/TextProvider'
+import translate from 'common/texts/TR.js'
 import styles from './input.module.css'
 import Checkbox from '../Checkbox'
 import { useState, useRef, useImperativeHandle } from 'react'
@@ -149,7 +150,7 @@ function getInputInvalidError(value, props) {
     // -------------------- Required Field Check --------------------
     if ((typeof value === 'undefined' || value == null) || value.length === 0) {
         if (props.required)
-            return 'שדה חובה' // "Field is required" in Hebrew
+            return translate('field_required')
         else
             return
     }
