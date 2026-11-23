@@ -220,7 +220,7 @@ export default function Select({
                                 ))
                             ) : (
                                 <Text ellipsis="1" className={styles.placeholder}>
-                                    {placeholderText || TR?.('choose') || 'בחירה'}
+                                    {placeholderText || TR?.('choose') || ''}
                                 </Text>
                             )}
                         </Flex>
@@ -237,7 +237,7 @@ export default function Select({
                                     type="search"
                                     value={search}
                                     autoComplete="off"
-                                    placeholder={TR?.('search') || 'חיפוש..'}
+                                    placeholder={TR?.('search') || ''}
                                     onChange={e => { setSearch(e.target.value); setActiveIndex(-1) }}
                                 />
                             </div>

@@ -1,4 +1,5 @@
 import { round2 } from '../calcOrder/utils.js'
+import invoiceText from './text.js'
 
 // Invoice descriptions and notes are free text inside a legal document: keep
 // them single-line, control-character free and short enough for EZcount.
@@ -25,15 +26,15 @@ export function formatQuantity(amount, unit) {
     if (!Number.isFinite(n) || n <= 0) return ''
     const num = formatNumber(n)
     const base = unit?.baseUnit
-    if (base === 'kg') return `${num} ק"ג`
-    if (base === 'g') return `${num} ג'`
-    return `${num} יח'`
+    if (base === 'kg') return `${num} ${invoiceText('unit_kg')}`
+    if (base === 'g') return `${num} ${invoiceText('invoice_unit_g')}`
+    return `${num} ${invoiceText('unit_unit')}`
 }
 
 export function describeInvoiceLine(line = {}) {
-    const name = cleanText(line.name, 160) || 'פריט'
+    const name = cleanText(line.name, 160) || invoiceText('invoice_item_fallback')
     const base = line.unit?.baseUnit
-    if (base === 'kg') return `${name} (ק"ג)`
-    if (base === 'g') return `${name} (ג')`
+    if (base === 'kg') return `${name} (${invoiceText('unit_kg')})`
+    if (base === 'g') return `${name} (${invoiceText('invoice_unit_g')})`
     return name
 }

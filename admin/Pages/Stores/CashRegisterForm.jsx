@@ -34,11 +34,11 @@ export default function CashRegisterForm({ storeId }) {
     if (loading) return <Flex justifyContent='center' style={{ padding: 24 }}><Loader /></Flex>
 
     return <Flex col gap={16} style={{ minWidth: 360 }}>
-        <Form key={key} className={styles.form} action={handleSubmit} submitText='שמור'>
+        <Form key={key} className={styles.form} action={handleSubmit} submitText='save'>
             <Input name='StockStoreID' label='StockStoreID' defaultValue={existing?.data?.StockStoreID || ''} />
             <Input name='OrderStoreID' label='OrderStoreID' defaultValue={existing?.data?.OrderStoreID || ''} />
             <Input name='DeliveryCustomerID' label='DeliveryCustomerID' defaultValue={existing?.data?.DeliveryCustomerID || ''} />
-            <Input name='active' label='פעיל' type='checkbox' defaultValue={existing ? existing.active : false} />
+            <Input name='active' label='active' type='checkbox' defaultValue={existing ? existing.active : false} />
         </Form>
     </Flex>
 }

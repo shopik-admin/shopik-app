@@ -10,6 +10,15 @@ import { isReadOnlyRoute, ALSO_READ, NEVER_RUN } from '#server/utils/routeKind.j
 
 const API_DIR = path.resolve(import.meta.dirname, '../../server/api')
 
+// Translation writes/import/export are handled by scripts/stress/translations.js
+// instead of the generic sweep: export generates a file, import carries a file
+// payload, and the mutation routes must not run with a guessed key.
+const TRANSLATION_READ_ROUTES = new Set([
+    'translation/dictionary',
+    'translation/languages',
+    'translation/read'
+])
+
 function walk(dir, prefix = '') {
     const out = []
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -36,6 +45,7 @@ export async function discoverRoutes({ only = null, mutations = false } = {}) {
         const readOnly = isReadOnlyRoute(route)
         if (!readOnly && !mutations) continue
         if (NEVER_RUN.has(route.split('/').pop())) continue
+        if (route.startsWith('translation/') && !TRANSLATION_READ_ROUTES.has(route)) continue
         if (only && !new RegExp(only).test(route)) continue
         routes.push({
             route,

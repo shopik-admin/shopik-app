@@ -16,7 +16,7 @@ const BODY_FONT = { name: 'Arial', size: 10 }
 const THIN = { style: 'thin', color: { argb: 'FFD9D9D9' } }
 const BORDER = { top: THIN, left: THIN, bottom: THIN, right: THIN }
 
-export default async function buildXlsx({ columns, rows, sheetName }) {
+export default async function buildXlsx({ columns, rows, sheetName, rtl = true }) {
     const output = new PassThrough()
     const chunks = []
     const finished = new Promise((resolve, reject) => {
@@ -32,7 +32,7 @@ export default async function buildXlsx({ columns, rows, sheetName }) {
     })
 
     const sheet = workbook.addWorksheet(sheetName, {
-        views: [{ rightToLeft: true, state: 'frozen', ySplit: 1 }]
+        views: [{ rightToLeft: rtl !== false, state: 'frozen', ySplit: 1 }]
     })
 
     // Column widths and the filter must be declared before the first row is

@@ -11,10 +11,19 @@ export default async function getAdmin(req, { DL, utils }) {
     const cacheId = `admin_auth:${id}`
     let admin
     const cached = await redisGet(DL.redis, cacheId)
-    if (cached)
+    if (cached) {
         admin = safeJsonParse(cached)
+        // Payloads cached before languageCode existed are still valid; fill the
+        // field once so the next admin page uses the saved language instead of
+        // waiting for the cache to expire.
+        if (admin && !('languageCode' in admin)) {
+            const prefs = await DL.Admin.Model.findOne({ id }, { _id: 0, languageCode: 1 }).lean()
+            admin.languageCode = prefs?.languageCode || null
+            await redisSet(DL.redis, cacheId, JSON.stringify(admin), 'EX', 60 * 60 * 24)
+        }
+    }
     else {
-        admin = await DL.Admin.Model.findOne({ id }, { _id: 0, id: 1, roleId: 1, tokens: 1, name: 1, storeIds: 1, currentStoreId: 1 }).lean()
+        admin = await DL.Admin.Model.findOne({ id }, { _id: 0, id: 1, roleId: 1, tokens: 1, name: 1, storeIds: 1, currentStoreId: 1, languageCode: 1 }).lean()
         await redisSet(DL.redis, `admin_auth:${id}`, JSON.stringify(admin), 'EX', 60 * 60 * 24)
     }
     if (!admin)

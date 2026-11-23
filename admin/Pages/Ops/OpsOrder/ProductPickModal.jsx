@@ -9,6 +9,7 @@ import Image from 'common/components/Image'
 import styles from './productPickModal.module.css'
 import { isWeightProduct, formatAmount, getUnitLabel, getUnitInfoText, ProductUnitInfo } from 'common/components/Product'
 import { getProductImageUrls } from 'common/functions/productImageUrl.js'
+import { useText } from 'common/texts/TextProvider'
 
 export default function ProductPickModal({ product = {}, orderId, cart = [], onClose, onPicked }) {
     const weight = isWeightProduct(product)
@@ -66,6 +67,7 @@ export default function ProductPickModal({ product = {}, orderId, cart = [], onC
 }
 
 function ProductDetails({ product = {}, orderId, onClose, onPicked, onScan, onReplace }) {
+    const { TR } = useText()
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
     const [imgIdx, setImgIdx] = useState(0)
@@ -118,39 +120,17 @@ function ProductDetails({ product = {}, orderId, onClose, onPicked, onScan, onRe
                 <Icon name="barcode" size={12} />
                 <Text size="xs" mode="sub">{barcode}</Text>
             </Flex>}
-            <Text bold size="m" className={styles.productName}>{product.name || 'מוצר'}</Text>
+            <Text bold size="m" className={styles.productName}>{product.name || TR('ops_product_name_fallback')}</Text>
             <Text size="xs" mode="sub">
                 {unitInfo ? <><ProductUnitInfo product={product} /> • </> : ''}
-                הוזמן: {orderedLabel}
+                {TR('ops_ordered_amount', { amount: orderedLabel })}
             </Text>
-
-            {/*  <Flex col gap={8} className={styles.infoRows}>
-                <Flex gap={8} alignItems="center">
-                    <Icon name="location" size={16} className={styles.rowIcon} />
-                    <Text size="xs">{isCold ? 'אזור קירור • מעבר 16 • מדף 4' : 'אזור רגיל • מעבר 16 • מדף 4'}</Text>
-                </Flex>
-                {recommendations ? (
-                    <Flex gap={8} alignItems="center">
-                        <Icon name="note" size={16} className={styles.rowIcon} />
-                        <Text size="xs">{recommendations}</Text>
-                    </Flex>
-                ) : (
-                    <Flex gap={8} alignItems="center">
-                        <Icon name="note" size={16} className={styles.rowIcon} />
-                        <Text size="xs">יש לבדוק תוקף ולוודא אריזה תקינה</Text>
-                    </Flex>
-                )}
-                <Flex gap={8} alignItems="center">
-                    <Icon name={isCold ? 'snow' : 'stock'} size={16} className={styles.rowIcon} />
-                    <Text size="xs">{isCold ? 'לשמור בקירור, לאחסן בנפרד' : 'פלסטיק צריך לקשור, צורה בר הבחנה'}</Text>
-                </Flex>
-            </Flex> */}
 
             {error && <Text size="s" mode="error">{error}</Text>}
 
             <Flex col gap={10} className={styles.actions}>
-                <Button loading={loading} onClick={onScan} className={styles.scanBtn}>{weight ? 'הזן משקל' : 'סריקה מוצר'}</Button>
-                <Button mode="outline" loading={loading} onClick={onReplace || onScan} className={styles.missingBtn}>מוצר חסר</Button>
+                <Button loading={loading} onClick={onScan} className={styles.scanBtn}>{TR(weight ? 'ops_enter_weight' : 'ops_scan_product_action')}</Button>
+                <Button mode="outline" loading={loading} onClick={onReplace || onScan} className={styles.missingBtn}>{TR('ops_missing_product')}</Button>
             </Flex>
         </Flex>
     </Flex>

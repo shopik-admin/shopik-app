@@ -57,7 +57,7 @@ export default function App({ data = {} }) {
     return <AppDataContext value={{ ...appData, refreshMenu }}>
         <GlassixWidget />
         <VeeAccessibility />
-        <TextProvider>
+        <TextProvider translations={appData.translations}>
             <Lists sdLists={appData.lists}>
                 <OrderProvider>
                     <User sdUser={appData.user}>

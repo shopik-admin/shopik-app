@@ -12,8 +12,8 @@ export const DEFAULT_NOTE_LENGTH = 500
 // point left (`←`) — `→` reads as the swap happening backwards.
 const texts = hebrewTexts.texts || {}
 
-function text(key, fallback, params) {
-    const template = texts[key] || fallback
+function text(key, params) {
+    const template = texts[key] || key
     if (!params) return template
     return String(template).replace(/\[(\w+)\]/g, (_, name) =>
         params[name] !== undefined && params[name] !== null ? String(params[name]) : `[${name}]`
@@ -25,13 +25,13 @@ function replacementEntry(cart, line) {
     if (!replacement) return null
     const from = [cleanText(line.name, 120), formatQuantity(line.amount, line.unit)].filter(Boolean).join(' ')
     const to = [cleanText(replacement.name, 120), formatQuantity(replacement.finalAmount ?? replacement.amount, replacement.unit)].filter(Boolean).join(' ')
-    return text('invoice_note_replaced', 'הוחלף: [from] ← [to]', { from, to })
+    return text('invoice_note_replaced', { from, to })
 }
 
 function missingEntry(line) {
     const name = cleanText(line.name, 120)
     const qty = formatQuantity(line.amount, line.unit)
-    return text('invoice_note_missing', 'לא סופק: [name]', { name: [name, qty].filter(Boolean).join(' ') })
+    return text('invoice_note_missing', { name: [name, qty].filter(Boolean).join(' ') })
 }
 
 function couponEntries(coupons) {
@@ -41,8 +41,8 @@ function couponEntries(coupons) {
             const name = cleanText(c.name || c.code || c.title || c.couponName, 80)
             const amount = round2(Number(c.discount)).toFixed(2)
             return name
-                ? text('invoice_note_coupon', 'קופון [name]: -[amount]', { name, amount })
-                : text('invoice_note_coupon_plain', 'קופון: -[amount]', { amount })
+                ? text('invoice_note_coupon', { name, amount })
+                : text('invoice_note_coupon_plain', { amount })
         })
 }
 
@@ -57,7 +57,7 @@ function couponEntries(coupons) {
 export function orderReference(orderNumber) {
     const number = orderNumber == null ? '' : String(orderNumber).trim()
     if (!number) return ''
-    return text('invoice_note_order', 'הזמנה [number]', { number })
+    return text('invoice_note_order', { number })
 }
 
 /**

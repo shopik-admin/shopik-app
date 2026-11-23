@@ -55,6 +55,12 @@ const adminSchema = {
         }
     },
     tokens: { type: {}, select: false },
+    languageCode: {
+        type: String,
+        lowercase: true,
+        trim: true,
+        filter: 'exact'
+    },
     lastLogin: Date,
     lastLogout: Date,
     lastLocation: {

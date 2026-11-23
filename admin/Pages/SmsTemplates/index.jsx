@@ -27,15 +27,15 @@ import {
 } from 'common/constants/otpSms.js'
 import styles from './smsTemplates.module.css'
 
-const SAMPLE_VALUES = {
-    customer_first_name: 'דוד',
+const sampleValues = TR => ({
+    customer_first_name: TR('sms_sample_customer_name'),
     order_number: '100245',
     delivery_date: '22/10/2026',
     delivery_window_start: '14:00',
     delivery_window_end: '16:00',
     order_link: 'https://shefa.click/account/orders',
-    pickup_store_name: 'סניף ירושלים'
-}
+    pickup_store_name: TR('sms_sample_store_name')
+})
 
 const OTP_SAMPLE_VALUES = { code: '123456' }
 
@@ -150,7 +150,7 @@ export default function SmsTemplates() {
         ? OTP_SMS_VARIABLES
         : ORDER_SMS_VARIABLES.filter(variable =>
             variable.key !== 'pickup_store_name' || selectedMethod?.key === 'pickup')
-    const previewValues = isOtp ? OTP_SAMPLE_VALUES : SAMPLE_VALUES
+    const previewValues = isOtp ? OTP_SAMPLE_VALUES : sampleValues(t)
     const previewText = renderSmsTemplate(selectedValue, previewValues)
     const previewSegments = otpSmsSegments(previewText)
 

@@ -12,8 +12,10 @@ import { isWeightProduct, getUnitLabel, ProductUnitInfo, formatAmount, ProductIm
 import { getPickRange, isPickInRange, DEFAULT_PICK_LIMITS } from 'common/functions/pickLimits'
 import limitDecimalInput from 'common/functions/decimalInput'
 import { isProductInCart } from 'common/functions/cartReplacements'
+import { useText } from 'common/texts/TextProvider'
 
 export default function ReplaceProduct({ product = {}, orderId, cart = [], onClose, onPicked }) {
+    const { TR } = useText()
     const [phase, setPhase] = useState('list') // list | scanning | amount
     const [query, setQuery] = useState('')
     const [results, setResults] = useState([])
@@ -50,7 +52,7 @@ export default function ReplaceProduct({ product = {}, orderId, cart = [], onClo
     const repRangeLabel = repPickRange
         ? (repWeight
             ? `${formatAmount(selected, Math.round(repPickRange.min * 1000) / 1000)} – ${formatAmount(selected, Math.round(repPickRange.max * 1000) / 1000)}`
-            : `עד ${formatAmount(selected, repPickRange.max)}`)
+            : TR('ops_up_to', { amount: formatAmount(selected, repPickRange.max) }))
         : ''
     const canContinue = isSuppliedValid && !!selected && !repOutOfRange
 
@@ -159,7 +161,7 @@ export default function ReplaceProduct({ product = {}, orderId, cart = [], onClo
         const val = String(raw ?? '').trim()
         if (!val) return
         if (val === origBarcode) {
-            setScanError('זהו הברקוד של המוצר המקורי — סרקו מוצר תחליפי')
+            setScanError(TR('ops_scan_original_barcode'))
             return
         }
         setSearching(true)
@@ -172,11 +174,11 @@ export default function ReplaceProduct({ product = {}, orderId, cart = [], onClo
             }
             const found = res?.products?.[0]
             if (!found) {
-                setScanError(`מוצר ${val} לא נמצא`)
+                setScanError(TR('ops_product_not_found', { barcode: val }))
                 return
             }
             if (isProductInCart(found, cart)) {
-                setScanError('מוצר זה כבר בעגלה — לא ניתן לבחור בו כתחליף')
+                setScanError(TR('ops_product_already_in_cart'))
                 return
             }
             stopCamera()
@@ -241,7 +243,7 @@ export default function ReplaceProduct({ product = {}, orderId, cart = [], onClo
                 setManualMode(true)
             }
         } catch (err) {
-            setScanError(err.message || 'לא ניתן להפעיל מצלמה')
+            setScanError(err.message || TR('ops_camera_error'))
             setManualMode(true)
         }
     }
@@ -273,14 +275,14 @@ export default function ReplaceProduct({ product = {}, orderId, cart = [], onClo
         const repIsCold = selected.storageType === 'cold' || selected.storageType === 'freeze'
         return <Flex col className={styles.replaceProduct}>
             <Flex alignItems="center" className={styles.header}>
-                <Button mode="text" size="s" onClick={() => setPhase('list')} className={styles.backBtn}>חזרה</Button>
-                <Text size="m" bold>אישור תחליף</Text>
+                <Button mode="text" size="s" onClick={() => setPhase('list')} className={styles.backBtn}>{TR('back')}</Button>
+                <Text size="m" bold>{TR('ops_replacement_confirm_title')}</Text>
                 <Button mode="text" size="s" onClick={onClose} className={styles.closeBtn}>✕</Button>
             </Flex>
 
             <Flex col className={styles.linkedCard}>
-                <Text size="xs" mode="sub">מוצר מקורי • הוזמן: {orderedLabel}</Text>
-                <Text size="s" bold>{product.name || 'מוצר'}</Text>
+                <Text size="xs" mode="sub">{TR('ops_original_product_ordered', { amount: orderedLabel })}</Text>
+                <Text size="s" bold>{product.name || TR('ops_product_name_fallback')}</Text>
                 {origBarcode && <Text size="xs" mode="sub">{origBarcode}</Text>}
             </Flex>
 
@@ -297,17 +299,17 @@ export default function ReplaceProduct({ product = {}, orderId, cart = [], onClo
                         {repBarcode && <Text size="xs" mode="sub">{repBarcode}</Text>}
                     </Flex>
                 </Flex>
-                {selected.saleIds?.length ? <Text size="xs" className={styles.saleTag}>משתתף במבצע</Text> : null}
+                {selected.saleIds?.length ? <Text size="xs" className={styles.saleTag}>{TR('ops_sale_participating')}</Text> : null}
             </Flex>
 
             <Flex center>
-                <Text size="m" bold>הזן כמות תחליף</Text>
+                <Text size="m" bold>{TR('ops_enter_replacement_amount')}</Text>
             </Flex>
 
             <Flex className={styles.amountRow} alignItems="stretch">
                 <Flex col center className={styles.orderedBox}>
                     <Text size="m" bold>{orderedLabel}</Text>
-                    <Text size="xs" mode="sub">הוזמן</Text>
+                    <Text size="xs" mode="sub">{TR('col_ordered')}</Text>
                 </Flex>
                 <Flex col center className={classNames(styles.suppliedBox, [styles.empty, supplied === ''], [styles.match, isSuppliedValid && suppliedNum === ordered], [styles.warning, isSuppliedValid && suppliedNum !== ordered])}>
                     <input
@@ -318,20 +320,20 @@ export default function ReplaceProduct({ product = {}, orderId, cart = [], onClo
                         inputMode={repWeight ? 'decimal' : 'numeric'}
                         autoFocus
                     />
-                    <Text size="xs" mode="sub">סופק{repWeight ? ` (${repUnitLabel})` : ''}</Text>
+                    <Text size="xs" mode="sub">{TR('col_supplied')}{repWeight ? ` (${repUnitLabel})` : ''}</Text>
                 </Flex>
             </Flex>
 
             {error && <Flex center><Text size="s" mode="error">{error}</Text></Flex>}
             {repOutOfRange && (
                 <Flex col center gap={4}>
-                    <Text size="s" bold mode="error">הכמות שהוזנה חורגת מהמותר</Text>
-                    {repRangeLabel && <Text size="xs" mode="sub">מותר: {repRangeLabel}</Text>}
+                    <Text size="s" bold mode="error">{TR('ops_amount_exceeds_allowed')}</Text>
+                    {repRangeLabel && <Text size="xs" mode="sub">{TR('ops_allowed_prefix', { amount: repRangeLabel })}</Text>}
                 </Flex>
             )}
 
             <Flex col gap={10} className={styles.stickyFooter}>
-                <Button disabled={!canContinue} loading={loading} onClick={handleConfirm} className={styles.confirmBtn}>אשר תחליף</Button>
+                <Button disabled={!canContinue} loading={loading} onClick={handleConfirm} className={styles.confirmBtn}>{TR('ops_confirm_replacement')}</Button>
             </Flex>
         </Flex>
     }
@@ -339,7 +341,7 @@ export default function ReplaceProduct({ product = {}, orderId, cart = [], onClo
     if (phase === 'scanning') {
         return <Flex col className={styles.replaceProduct}>
             <Flex alignItems="center" className={styles.header}>
-                <Text size="m" bold>החלפת מוצר</Text>
+                <Text size="m" bold>{TR('ops_replacement_title')}</Text>
                 <Button mode="text" size="s" onClick={onClose} className={styles.closeBtn}>✕</Button>
             </Flex>
 
@@ -352,12 +354,12 @@ export default function ReplaceProduct({ product = {}, orderId, cart = [], onClo
                 <input
                     value={query}
                     onChange={e => setQuery(e.target.value)}
-                    placeholder="סרוק מוצר תחליפי"
+                    placeholder={TR('ops_scan_replacement')}
                     className={styles.searchInput}
                 />
                 <Icon name="barcode" size={18} />
             </Flex>
-            <Button mode="text" size="s" onClick={goToList} className={styles.backBtn}>חזרה לרשימה</Button>
+            <Button mode="text" size="s" onClick={goToList} className={styles.backBtn}>{TR('ops_back_to_list')}</Button>
 
             <Flex col className={styles.cameraWrap}>
                 <video ref={videoRef} autoPlay playsInline muted className={styles.video} />
@@ -373,24 +375,24 @@ export default function ReplaceProduct({ product = {}, orderId, cart = [], onClo
                         <input
                             value={manualBarcode}
                             onChange={e => setManualBarcode(e.target.value)}
-                            placeholder="הקלד ברקוד תחליפי"
+                            placeholder={TR('ops_enter_replacement_barcode')}
                             className={styles.manualInput}
                             autoFocus
                         />
-                        <Button type="submit" loading={searching}>אישור</Button>
+                        <Button type="submit" loading={searching}>{TR('confirm')}</Button>
                     </Flex>
                 )}
             </Flex>
 
             <Flex col gap={10} className={styles.stickyFooter}>
-                <Button mode="outline" loading={loading} onClick={handleMissing} className={styles.missingBtn}>מוצר חסר</Button>
+                <Button mode="outline" loading={loading} onClick={handleMissing} className={styles.missingBtn}>{TR('ops_missing_product')}</Button>
             </Flex>
         </Flex>
     }
 
     return <Flex col className={styles.replaceProduct}>
         <Flex alignItems="center" className={styles.header}>
-            <Text size="m" bold>החלפת מוצר</Text>
+            <Text size="m" bold>{TR('ops_replacement_title')}</Text>
             <Button mode="text" size="s" onClick={onClose} className={styles.closeBtn}>✕</Button>
         </Flex>
 
@@ -403,17 +405,17 @@ export default function ReplaceProduct({ product = {}, orderId, cart = [], onClo
             <input
                 value={query}
                 onChange={e => setQuery(e.target.value)}
-                placeholder="חפש מוצר תחליפי או בחר מרשימה"
+                placeholder={TR('ops_search_replacement')}
                 className={styles.searchInput}
             />
-            <Button mode="text" size="s" onClick={goToScanning} className={styles.iconBtn}>סרוק</Button>
+            <Button mode="text" size="s" onClick={goToScanning} className={styles.iconBtn}>{TR('ops_scan')}</Button>
         </Flex>
 
         {error && <Flex center><Text size="s" mode="error">{error}</Text></Flex>}
 
         <Flex col className={styles.list}>
-            {searching && !results.length ? <Flex center><Text size="s" mode="sub">מחפש...</Text></Flex> : null}
-            {!searching && !results.length ? <Flex center><Text size="s" mode="sub">לא נמצאו מוצרים תחליפיים</Text></Flex> : null}
+            {searching && !results.length ? <Flex center><Text size="s" mode="sub">{TR('ops_searching')}</Text></Flex> : null}
+            {!searching && !results.length ? <Flex center><Text size="s" mode="sub">{TR('ops_no_replacements')}</Text></Flex> : null}
             {results.map(p => {
                 const price = p.price ?? p.prices?.[0]?.price
                 const isCold = p.storageType === 'cold' || p.storageType === 'freeze'
@@ -433,14 +435,14 @@ export default function ReplaceProduct({ product = {}, orderId, cart = [], onClo
                             </Flex>}
                         </Flex>
                     </Flex>
-                    {p.saleIds?.length ? <Text size="xs" className={styles.saleTag}>משתתף במבצע</Text> : null}
-                    <Button onClick={() => chooseCandidate(p)} className={styles.selectBtn}>בחר כתחליף</Button>
+                    {p.saleIds?.length ? <Text size="xs" className={styles.saleTag}>{TR('ops_sale_participating')}</Text> : null}
+                    <Button onClick={() => chooseCandidate(p)} className={styles.selectBtn}>{TR('ops_choose_replacement')}</Button>
                 </Flex>
             })}
         </Flex>
 
         <Flex col gap={10} className={styles.stickyFooter}>
-            <Button mode="outline" loading={loading} onClick={handleMissing} className={styles.missingBtn}>מוצר חסר</Button>
+            <Button mode="outline" loading={loading} onClick={handleMissing} className={styles.missingBtn}>{TR('ops_missing_product')}</Button>
         </Flex>
     </Flex>
 }

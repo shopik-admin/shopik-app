@@ -23,6 +23,18 @@ function injectTemplate(template, { head = '', html = '', data = {} }) {
         .replace('<!--server-data-->', () => `<script>window.__SD__=${safeJson}</script>`)
 }
 
+function applyHtmlLanguage(template, translations) {
+    if (!translations) return template
+    const code = /^[a-z]{2,3}(-[a-z0-9]{2,8})?$/i.test(translations.code || '')
+        ? translations.code
+        : 'he'
+    const direction = translations.direction === 'ltr' ? 'ltr' : 'rtl'
+    return template.replace(
+        /<html\s+lang="[^"]*"\s+dir="[^"]*"/,
+        `<html lang="${code}" dir="${direction}"`
+    )
+}
+
 function inlineCss(html, buildDir) {
     return html.replace(
         /<link\s+rel="stylesheet"[^>]*href="\/(assets\/[^"]+\.css)"[^>]*>/g,
@@ -106,7 +118,7 @@ export default async function (app, bootData) {
 
         try {
             const data = await utils.data.getAdminData(req, bootData)
-            const template = await getAdminTemplate(req, Boolean(data?.user?.id))
+            const template = applyHtmlLanguage(await getAdminTemplate(req, Boolean(data?.user?.id)), data?.translations)
             return res.status(200).set('Cache-Control', 'no-store').type('html').end(injectTemplate(template, { data }))
         } catch (error) {
             console.error('Admin SSR Error:', error)
@@ -129,13 +141,14 @@ export default async function (app, bootData) {
             }
             const { template, renderFn } = await getClientContext(req)
             const { html = '', head = '', status = 200 } = await renderFn({ url: req.originalUrl, data, ctx })
+            const localizedTemplate = applyHtmlLanguage(template, data?.translations)
 
             // Personalized HTML (user/order embedded in window.__SD__) must
             // never sit in shared caches: no-cache alone still allows storage.
             const cacheControl = data?.user?.id
                 ? 'private, no-store, no-cache, must-revalidate'
                 : 'no-cache'
-            return res.status(status).set('Cache-Control', cacheControl).type('html').end(injectTemplate(template, { head, html, data }))
+            return res.status(status).set('Cache-Control', cacheControl).type('html').end(injectTemplate(localizedTemplate, { head, html, data }))
         } catch (error) {
             console.error('Client SSR Error:', error)
             return res.status(500).send('Internal Server Error')

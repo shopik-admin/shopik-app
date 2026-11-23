@@ -1,3 +1,9 @@
+import hebrewTexts from '../texts/hebrew.json' with { type: 'json' }
+
+// Customer-facing copy: the recipient's language, not the admin's UI language.
+// At this stage it is always Hebrew.
+const texts = hebrewTexts.texts || {}
+
 export const OTP_SMS_CATEGORY = 'notifications'
 export const OTP_SMS_SUB_CATEGORY = 'otp-sms'
 export const OTP_SMS_SETTING_KEY = 'otp_sms_template'
@@ -11,8 +17,7 @@ export const OTP_SMS_VARIABLES = [
  * phones and as the spoken text for kosher phones.
  * {{code}} is rendered as space-separated digits so TTS reads them one by one.
  */
-export const DEFAULT_OTP_SMS_TEMPLATE =
-    'קוד האימות שלך הוא {{code}}. הקוד תקף ל-10 דקות.'
+export const DEFAULT_OTP_SMS_TEMPLATE = texts.otp_sms_default
 
 // SMS length limits (UCS-2, Hebrew): 70 chars in one message, 67 per part when
 // concatenated. Used for the admin editor counter only.

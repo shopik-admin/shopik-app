@@ -24,6 +24,7 @@ export function parseArgs(argv = process.argv.slice(2)) {
         slowMs: 20,
         only: null,
         mutations: false,
+        translations: false,
         idNum: process.env.STRESS_ID_NUM || null,
         userPhone: null,
         headlessOtp: false,
@@ -47,6 +48,7 @@ export function parseArgs(argv = process.argv.slice(2)) {
         const arg = argv[i]
         switch (arg) {
             case '--mutations': opts.mutations = true; continue
+            case '--translations': opts.translations = true; continue
             case '--headless-otp': opts.headlessOtp = true; continue
             case '--feed-only': opts.feedOnly = true; continue
             case '--help': case '-h': opts.help = true; continue
@@ -141,6 +143,7 @@ Usage:
   --mutations             include write routes (default off)
   --id-num <n>            admin idNum for login (or env STRESS_ID_NUM; required
                           before start-up with --headless-otp)
+  --translations          run the translation cache/write scenario
   --user-phone <phone>    shopper to log in as for the storefront routes; without it a
                           real cart-order-with-store owner is sampled from the stress DB
   --storefront-origin <url> Origin header for storefront calls (domain resolution),
