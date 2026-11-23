@@ -26,9 +26,9 @@ export default async function delivery_check(payload, { DL }) {
         DL,
         city,
         street,
-        building: building || street
+        building: building || null
     })
-    if (!validated?.location) throw { status: 404, message: 'address not found' }
+    if (!validated?.location) throw { status: 404, code: 'ADDRESS_NOT_FOUND', message: 'address not found' }
 
     const area = await findByLocation(DL, validated.location).catch(() => null)
     const hasService = !!area

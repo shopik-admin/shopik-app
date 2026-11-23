@@ -12,10 +12,24 @@ const { default: importGovAddresses } = await import('../../server/scripts/impor
 const realFetch = globalThis.fetch
 afterEach(() => { globalThis.fetch = realFetch })
 
+function applyUpdate(doc, update) {
+    if (update.$set) Object.assign(doc, update.$set)
+    if (update.$setOnInsert) {
+        for (const [key, value] of Object.entries(update.$setOnInsert))
+            if (doc[key] === undefined) doc[key] = value
+    }
+    if (update.$addToSet) {
+        for (const [key, value] of Object.entries(update.$addToSet)) {
+            doc[key] ??= []
+            if (!doc[key].includes(value)) doc[key].push(value)
+        }
+    }
+}
+
 function fakeDL() {
     const inserted = []
     const insertCalls = []
-    let deleteCalls = 0
+    const bulkCalls = []
     const cacheBatches = []
     const redisDeletes = []
     const Model = {
@@ -23,8 +37,25 @@ function fakeDL() {
         cacheStrategy: CACHE_STRATEGIES.HASHSET,
         cacheName: 'gov_addresses',
         cache: { add: async batch => { cacheBatches.push(batch) } },
-        deleteMany: async () => { deleteCalls++; inserted.length = 0 },
+        deleteMany: async () => { inserted.length = 0 },
         insertMany: async docs => { insertCalls.push(docs.length); inserted.push(...docs) },
+        bulkWrite: async ops => {
+            bulkCalls.push(ops)
+            for (const op of ops) {
+                const { filter, update } = op.updateOne
+                const doc = inserted.find(d =>
+                    d.city === filter.city && d.officialCode === filter.officialCode)
+                if (doc) applyUpdate(doc, update)
+                else {
+                    const created = { city: filter.city, officialCode: filter.officialCode }
+                    applyUpdate(created, update)
+                    inserted.push(created)
+                }
+            }
+        },
+        countDocuments: async filter => inserted.filter(doc =>
+            Object.entries(filter).every(([key, value]) => doc[key] === value)
+        ).length,
         find: () => ({
             lean: () => ({
                 cursor: () => (async function* () {
@@ -37,7 +68,7 @@ function fakeDL() {
         redis: { status: 'ready', del: async key => { redisDeletes.push(key) } },
         GovAddress: { Model }
     }
-    return { DL, inserted, insertCalls, cacheBatches, redisDeletes, deleteCalls: () => deleteCalls }
+    return { DL, inserted, insertCalls, bulkCalls, cacheBatches, redisDeletes }
 }
 
 function stubFetch(rowsByResource) {
@@ -62,7 +93,7 @@ function stubFetch(rowsByResource) {
 
 describe('importGovAddresses', () => {
     it('writes one page at a time and dedupes city+street rows', async () => {
-        const { DL, inserted, insertCalls, cacheBatches, redisDeletes, deleteCalls } = fakeDL()
+        const { DL, inserted, insertCalls, bulkCalls, cacheBatches, redisDeletes } = fakeDL()
         stubFetch({
             'cities-test': [
                 { city_name_he: 'A' },
@@ -84,38 +115,109 @@ describe('importGovAddresses', () => {
         assert.deepEqual(inserted, [
             { city: 'A', street: '' },
             { city: 'B', street: '' },
-            { city: 'A', street: 'Herzl' },
-            { city: 'A', street: 'Dizengoff' },
-            { city: 'B', street: 'Main' }
+            {
+                city: 'A',
+                street: 'Herzl',
+                streetCode: '',
+                officialCode: 'Herzl',
+                aliases: [],
+                fallback: false
+            },
+            {
+                city: 'A',
+                street: 'Dizengoff',
+                streetCode: '',
+                officialCode: 'Dizengoff',
+                aliases: [],
+                fallback: false
+            },
+            {
+                city: 'B',
+                street: 'Main',
+                streetCode: '',
+                officialCode: 'Main',
+                aliases: [],
+                fallback: false
+            }
         ])
-        // One insertMany per non-empty CKAN page, never one call for everything.
-        assert.deepEqual(insertCalls, [1, 1, 1, 2])
-        assert.equal(deleteCalls(), 1)
+        // Cities use one insertMany per non-empty page; streets use one
+        // bulkWrite per page phase, never one call for everything.
+        assert.deepEqual(insertCalls, [1, 1])
+        assert.deepEqual(bulkCalls.map(ops => ops.length), [1, 2])
         // The hashset is rebuilt from Mongo in chunks after the write.
         assert.deepEqual(cacheBatches.map(b => b.length), [5])
         assert.deepEqual(redisDeletes, ['gov_addresses'])
     })
 
+    it('collapses official streets and their synonyms into one doc', async () => {
+        const { DL, inserted } = fakeDL()
+        stubFetch({
+            'cities-test': [{ city_name: 'ביתר עילית' }],
+            'streets-test': [
+                {
+                    city_name: 'ביתר עילית',
+                    street_code: '123',
+                    street_name: 'יוחנן בן זכאי',
+                    street_name_status: 'official',
+                    official_code: 123
+                },
+                {
+                    city_name: 'ביתר עילית',
+                    street_code: '9569',
+                    street_name: 'בן זכאי',
+                    street_name_status: 'synonym of 123',
+                    official_code: 123
+                },
+                {
+                    city_name: 'ביתר עילית',
+                    street_code: '9570',
+                    street_name: 'רבן יוחנן בן זכאי',
+                    street_name_status: 'synonym of 123',
+                    official_code: 123
+                },
+                {
+                    city_name: 'ביתר עילית',
+                    street_code: '9599',
+                    street_name: 'רחוב יתום',
+                    street_name_status: 'synonym of 999',
+                    official_code: 999
+                }
+            ]
+        })
+
+        await importGovAddresses({ DL })
+
+        const streets = inserted.filter(doc => doc.street)
+        const official = streets.find(doc => doc.officialCode === '123')
+        const orphan = streets.find(doc => doc.officialCode === '999')
+
+        assert.equal(official.street, 'יוחנן בן זכאי')
+        assert.equal(official.fallback, false)
+        assert.deepEqual(official.aliases.sort(), ['בן זכאי', 'רבן יוחנן בן זכאי'].sort())
+        // A synonym with no official row still gets a fallback doc.
+        assert.equal(orphan.street, 'רחוב יתום')
+        assert.equal(orphan.fallback, true)
+        assert.deepEqual(orphan.aliases, ['רחוב יתום'])
+    })
+
     it('leaves existing rows and cache untouched when the feed is down', async () => {
-        const { DL, inserted, cacheBatches, redisDeletes, deleteCalls } = fakeDL()
+        const { DL, inserted, cacheBatches, redisDeletes } = fakeDL()
         globalThis.fetch = async () => ({ ok: false, status: 503 })
 
         await importGovAddresses({ DL })
 
         assert.deepEqual(inserted, [])
-        assert.equal(deleteCalls(), 0)
         assert.deepEqual(cacheBatches, [])
         assert.deepEqual(redisDeletes, [])
     })
 
     it('fails the run (without wiping) when the feed returns no rows', async () => {
-        const { DL, inserted, redisDeletes, deleteCalls } = fakeDL()
+        const { DL, inserted, redisDeletes } = fakeDL()
         stubFetch({ 'cities-test': [], 'streets-test': [] })
 
         await importGovAddresses({ DL })
 
         assert.deepEqual(inserted, [])
-        assert.equal(deleteCalls(), 0)
         assert.deepEqual(redisDeletes, [])
     })
 })

@@ -101,6 +101,84 @@ describe('address service activation', () => {
     })
 })
 
+describe('address geocoding guard', () => {
+    const noLocation = {
+        geocode: {
+            address: async address => ({
+                city: address.city,
+                street: address.street,
+                building: address.building
+            })
+        }
+    }
+
+    it('rejects saving an address without a trustworthy point', async () => {
+        await assert.rejects(
+            () => addAddress({
+                DL: makeDL(true),
+                external: noLocation,
+                user: { addresses: [] },
+                address
+            }),
+            err => err.code === 'ADDRESS_NOT_FOUND' && err.status === 422
+        )
+    })
+
+    it('keeps the old point when an unchanged address cannot be re-geocoded', async () => {
+        const existing = {
+            addressId: 'a',
+            active: true,
+            ...address,
+            location
+        }
+        const { geocoded } = await editAddress({
+            DL: makeDL(true),
+            external: noLocation,
+            user: { addresses: [existing] },
+            addressId: 'a',
+            address
+        })
+
+        assert.deepEqual(geocoded.location, location)
+    })
+
+    it('rejects editing an address into a new location that cannot be geocoded', async () => {
+        const existing = {
+            addressId: 'a',
+            active: true,
+            city: 'city',
+            street: 'street',
+            building: 1,
+            location
+        }
+        await assert.rejects(
+            () => editAddress({
+                DL: makeDL(true),
+                external: noLocation,
+                user: { addresses: [existing] },
+                addressId: 'a',
+                address: { city: 'city', street: 'other street', building: 2 }
+            }),
+            err => err.code === 'ADDRESS_NOT_FOUND'
+        )
+    })
+
+    it('persists the geocoding source next to the point', async () => {
+        const geocoded = await addAddress({
+            DL: makeDL(true),
+            external: {
+                geocode: {
+                    address: async address => ({ ...address, location, source: 'govmap' })
+                }
+            },
+            user: { addresses: [] },
+            address
+        })
+
+        assert.equal(geocoded.geocodeSource, 'govmap')
+    })
+})
+
 describe('elevator requirement', () => {
     it('requires an elevator above the fourth floor when hasElevator is false', () => {
         assert.equal(isElevatorRequired({ floor: '5', hasElevator: false }), true)

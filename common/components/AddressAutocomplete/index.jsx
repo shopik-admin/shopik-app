@@ -29,6 +29,25 @@ export default function AddressAutocomplete({ value = {}, onChange, required, ci
         setBuilding(value.building || '')
     }, [value.city, value.street, value.building])
 
+    // Addresses saved before the synonym import may carry a street name that is
+    // now an alias ("בן זכאי"). Replace it with the official name so editing does
+    // not require re-selecting the street; keep the building/apartment intact.
+    useEffect(() => {
+        if (!city || !street) return
+        let cancelled = false
+        apiReq('address/autocomplete', { q: street, city, type: 'street' })
+            .then(list => {
+                if (cancelled || !Array.isArray(list)) return
+                if (list.some(r => r.street === street)) return
+                const alias = list.find(r => r.hint === street && r.street)
+                if (!alias) return
+                setStreet(alias.street)
+                emit({ city, street: alias.street, building })
+            })
+            .catch(() => { })
+        return () => { cancelled = true }
+    }, [city, street])
+
     function emit(next) {
         onChange?.(next)
     }

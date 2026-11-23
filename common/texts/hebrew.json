@@ -56,6 +56,7 @@
         "elevator_yes": "יש מעלית",
         "elevator_no": "אין מעלית",
         "address_elevator_required": "לא ניתן להזמין לכתובת בקומה 5 ומעלה ללא מעלית",
+        "address_not_found": "לא הצלחנו לאתר את הכתובת המדויקת. בדקו את מספר הבית ונסו שוב",
         "apartment": "דירה",
         "floor": "קומה",
         "entrance": "כניסה",

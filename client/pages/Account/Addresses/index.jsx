@@ -61,7 +61,10 @@ export function AddressForm({ initialData, onDone, cityRef }) {
                 onDone?.(res)
             })
             .catch(error => {
-                setFormState({ error: error?.message || String(error), loading: false })
+                const message = error?.code === 'ADDRESS_NOT_FOUND'
+                    ? TR?.('address_not_found') || error?.message
+                    : error?.message || String(error)
+                setFormState({ error: message, loading: false })
             })
     }
 

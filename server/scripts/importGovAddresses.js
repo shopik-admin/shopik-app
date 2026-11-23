@@ -3,19 +3,27 @@
  * Sources (CC-BY 4.0, monthly updated):
  *  - Cities: https://data.gov.il/dataset/cities
  *  - Streets: https://data.gov.il/dataset/streets
- *  - Buildings: https://data.gov.il/dataset/addresses
- * Usage: node server/scripts/importGovAddresses.js
- * Env: MONGODB_URI, GOV_DATA_DIR (optional local CSV dir), GOV_PAGE_SIZE
- * Cron: add to server/cron/nightlySync.js weekly
+ * Usage: node server/scripts/runGovImport.js
+ * Env: MONGODB_URI, GOV_PAGE_SIZE
+ * Cron: server/cron/nightlySync.js weekly (Sunday 03:00)
+ *
+ * The streets feed is 152k rows but only ~64k official streets: the rest are
+ * synonyms ("בן זכאי" → "יוחנן בן זכאי"). Importing them as separate streets is
+ * what made autocomplete offer names Google does not know. This import collapses
+ * every city+official_code into one document and keeps the synonyms in
+ * `aliases`, so autocomplete shows the official name and still searches the
+ * aliases.
  *
  * Streams one CKAN page at a time and writes it before fetching the next, so
- * the ~150k rows never sit in memory together. The old version concatenated
- * every page into `all`, built a Map + a 153k `docs` array, then handed the
- * whole array to `cache.add` (one JSON string per doc before the first HSET):
- * ~300MB of heap on a 512MB box. The cache is now rebuilt by the shared
- * chunked `seedCache` after the DB write, so the peak stays flat.
+ * the rows never sit in memory together. Officials are upserted with $set, then
+ * aliases with $addToSet; both write only the rows of the current page.
  */
 import seedCache from '#server/dl/cache/seed.js'
+import {
+    buildAliasRecord,
+    buildCityDoc,
+    buildOfficialStreetDoc
+} from './govAddressData.js'
 
 // Official data.gov.il resource IDs (from @il-address/data, CC-BY 4.0)
 // 10k rows/page keeps the parsed page small (the feed is ~152k rows) while
@@ -29,10 +37,9 @@ const DATASETS = {
     },
     streets: {
         resourceId: process.env.GOV_STREETS_RESOURCE_ID || 'bf185c7f-1a4e-4662-88c5-fa118a244bda',
-        fields: 'city_name,street_name',
+        fields: 'city_name,street_code,street_name,street_name_status,official_code',
         limit: PAGE_SIZE
     }
-    // Buildings are not in a single open dataset — building numbers are validated via OSM/Google fallback
 }
 
 const PAGE_DELAY_MS = 200
@@ -54,62 +61,61 @@ async function importGovAddresses({ DL } = {}) {
     console.log('[govmap] Import done')
 }
 
-const cityOf = r => (r.city_name_he ?? r.city_name ?? '').toString().trim()
-
-// One city-only doc per city for city autocomplete (street='' sentinel).
-function buildCityDoc(r, seen) {
-    const city = cityOf(r)
-    if (!city) return null
-    const key = `${city}::`
-    if (seen.has(key)) return null
-    seen.add(key)
-    return { city, street: '' }
-}
-
-// One doc per unique city+street (the raw feed repeats rows via synonyms).
-function buildStreetDoc(r, seen) {
-    const city = cityOf(r)
-    const street = (r.street_name ?? '').toString().trim()
-    if (!city || !street) return null
-    const key = `${city}::${street}`
-    if (seen.has(key)) return null
-    seen.add(key)
-    return { city, street }
-}
-
 async function importFromApi(DL) {
     const Model = DL.GovAddress?.Model || DL.GovAddress
     if (!Model) throw new Error('GovAddress model not found')
 
-    const seen = new Set()
-    let cleared = false
     // Clear only once the API actually returned rows, so a failed fetch leaves
     // the previous month's data (and cache) intact instead of an empty table.
-    const insertPage = async docs => {
-        if (!docs.length) return 0
-        if (!cleared) {
-            await Model.deleteMany({})
-            cleared = true
-        }
-        await Model.insertMany(docs, { ordered: false })
-        return docs.length
+    let cleared = false
+    const clearOnce = async () => {
+        if (cleared) return
+        await Model.deleteMany({})
+        cleared = true
     }
 
-    const importDataset = (dataset, buildDoc) =>
-        streamRecords(dataset, async records => {
-            const docs = []
-            for (const r of records) {
-                const doc = buildDoc(r, seen)
-                if (doc) docs.push(doc)
-            }
-            return insertPage(docs)
-        })
+    const citySeen = new Set()
+    const cities = await streamRecords(DATASETS.cities, async records => {
+        const docs = []
+        for (const record of records) {
+            const doc = buildCityDoc(record, citySeen)
+            if (doc) docs.push(doc)
+        }
+        if (!docs.length) return 0
+        await clearOnce()
+        await Model.insertMany(docs, { ordered: false })
+        return docs.length
+    })
 
-    const cities = await importDataset(DATASETS.cities, buildCityDoc)
-    const streets = await importDataset(DATASETS.streets, buildStreetDoc)
+    let officialCount = 0
+    let aliasCount = 0
+    const streets = await streamRecords(DATASETS.streets, async records => {
+        const officialSeen = new Set()
+        const aliasSeen = new Set()
+        const officials = []
+        const aliases = []
+
+        for (const record of records) {
+            const doc = buildOfficialStreetDoc(record, officialSeen)
+            if (doc) {
+                officials.push(doc)
+                continue
+            }
+            const alias = buildAliasRecord(record, aliasSeen)
+            if (alias) aliases.push(alias)
+        }
+
+        if (!officials.length && !aliases.length) return 0
+        await clearOnce()
+        officialCount += await writeOfficials(Model, officials)
+        aliasCount += await writeAliases(Model, aliases)
+        return officials.length + aliases.length
+    })
+
     if (!cleared) throw new Error('data.gov.il returned no records')
 
-    console.log(`[govmap] Inserted ${streets} street rows + ${cities} city rows`)
+    const orphans = await countOrphans(Model)
+    console.log(`[govmap] Imported ${officialCount} official streets + ${aliasCount} aliases (${cities} cities, ${streets} street rows, ${orphans} orphan aliases)`)
 
     // The cache is keyed by doc content, not _id, so the fresh insert is a
     // full replacement: drop the old hash and stream the collection back in.
@@ -119,6 +125,67 @@ async function importFromApi(DL) {
         console.log(`[govmap] Seeded ${seeded} gov_address docs into the hashset`)
     } else {
         console.warn('[govmap] Redis unavailable — cache refresh deferred to the next boot seed')
+    }
+}
+
+// Official rows are authoritative: $set the name so a fallback doc created by
+// an earlier alias page is corrected when its official row arrives.
+function writeOfficials(Model, docs) {
+    if (!docs.length) return 0
+    return Model.bulkWrite(docs.map(doc => ({
+        updateOne: {
+            filter: { city: doc.city, officialCode: doc.officialCode },
+            update: {
+                $set: { street: doc.street, streetCode: doc.streetCode, fallback: false },
+                $setOnInsert: { aliases: [] }
+            },
+            upsert: true
+        }
+    })), { ordered: false })
+        .then(res => {
+            warnWriteErrors('official', res)
+            return docs.length
+        })
+}
+
+// A synonym whose official row has not been imported (yet) still needs a home:
+// the upsert creates a fallback doc with the alias as its display name.
+function writeAliases(Model, aliases) {
+    if (!aliases.length) return 0
+    return Model.bulkWrite(aliases.map(doc => ({
+        updateOne: {
+            filter: { city: doc.city, officialCode: doc.officialCode },
+            update: {
+                $setOnInsert: {
+                    city: doc.city,
+                    officialCode: doc.officialCode,
+                    street: doc.alias,
+                    streetCode: doc.streetCode,
+                    fallback: true
+                },
+                $addToSet: { aliases: doc.alias }
+            },
+            upsert: true
+        }
+    })), { ordered: false })
+        .then(res => {
+            warnWriteErrors('alias', res)
+            return aliases.length
+        })
+}
+
+function warnWriteErrors(kind, res) {
+    const errors = res?.writeErrors?.length || 0
+    if (errors) console.warn(`[govmap] ${kind} bulk write reported ${errors} write error(s)`)
+}
+
+async function countOrphans(Model) {
+    try {
+        return typeof Model.countDocuments === 'function'
+            ? await Model.countDocuments({ fallback: true })
+            : 0
+    } catch {
+        return 0
     }
 }
 

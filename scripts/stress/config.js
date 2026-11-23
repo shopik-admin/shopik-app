@@ -25,6 +25,9 @@ export function parseArgs(argv = process.argv.slice(2)) {
         only: null,
         mutations: false,
         translations: false,
+        address: false,
+        addressColdCities: 10,
+        addressColdGeocode: 0,
         idNum: process.env.STRESS_ID_NUM || null,
         userPhone: null,
         headlessOtp: false,
@@ -43,12 +46,14 @@ export function parseArgs(argv = process.argv.slice(2)) {
         '--chaos-duration', '--probe-every', '--gap', '--baseline-seconds', '--min-window', '--slow-ms', '--only',
         '--id-num', '--user-phone',
         '--gate-password', '--report-dir', '--admin-origin', '--storefront-origin',
-        '--feed-host', '--feed-calls', '--feed-concurrency'])
+        '--feed-host', '--feed-calls', '--feed-concurrency',
+        '--address-cold-cities', '--address-cold-geocode'])
     for (let i = 0; i < argv.length; i++) {
         const arg = argv[i]
         switch (arg) {
             case '--mutations': opts.mutations = true; continue
             case '--translations': opts.translations = true; continue
+            case '--address': opts.address = true; continue
             case '--headless-otp': opts.headlessOtp = true; continue
             case '--feed-only': opts.feedOnly = true; continue
             case '--help': case '-h': opts.help = true; continue
@@ -61,6 +66,7 @@ export function parseArgs(argv = process.argv.slice(2)) {
             opts[key] = key === 'calls' || key === 'concurrency' || key === 'chaosDuration' || key === 'probeEvery'
                 || key === 'gap' || key === 'baselineSeconds' || key === 'minWindow' || key === 'slowMs'
                 || key === 'feedCalls' || key === 'feedConcurrency'
+                || key === 'addressColdCities' || key === 'addressColdGeocode'
                 ? Number(value)
                 : value
             continue
@@ -144,6 +150,11 @@ Usage:
   --id-num <n>            admin idNum for login (or env STRESS_ID_NUM; required
                           before start-up with --headless-otp)
   --translations          run the translation cache/write scenario
+  --address               run the address autocomplete/geocode scenario (in-memory
+                          street index + GeocodeCache; expects 0 gov_addresses ops)
+  --address-cold-cities <n>  cities hit cold in the address scenario (default 10)
+  --address-cold-geocode <n> uncached address/validate calls, real GovMap/Google
+                          traffic, use sparingly (default 0)
   --user-phone <phone>    shopper to log in as for the storefront routes; without it a
                           real cart-order-with-store owner is sampled from the stress DB
   --storefront-origin <url> Origin header for storefront calls (domain resolution),

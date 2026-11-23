@@ -3,7 +3,8 @@ import { searchAddress } from '#server/external/addressProvider/index.js'
 /**
  * POST /api/address/autocomplete
  * payload: { q, city, street, type: 'city'|'street'|'building', limit }
- * chain: govmap (DB) -> osm -> google, configured via ADDRESS_PROVIDER env
+ * city/street are answered from the in-memory GovAddress index (official names
+ * + aliases); building may fall through osm/google.
  */
 export default async function autocomplete(payload, { DL }) {
     const { q = '', city, street, type = 'street', limit = 10 } = payload
@@ -16,4 +17,4 @@ export default async function autocomplete(payload, { DL }) {
     return res
 }
 
-autocomplete.config = { auth: 'lax' }
+autocomplete.config = { auth: 'lax', log: false }

@@ -12,6 +12,7 @@ import { runFeedBenchmark } from './feed.js'
 import { printReport, saveReport } from './report.js'
 import { CUSTOMER_PLATFORM } from './payloads.js'
 import { runTranslationStress, printTranslationStress } from './translations.js'
+import { runAddressStress, printAddressStress } from './address.js'
 import { sleep } from './util.js'
 import { loadStressEnv } from './env.js'
 
@@ -169,6 +170,12 @@ try {
         log('running translation cache/write scenario')
         const translationResult = await runTranslationStress({ clients, fixtures, log })
         printTranslationStress(translationResult)
+    }
+
+    if (opts.address) {
+        log('running address autocomplete/geocode scenario')
+        const addressResult = await runAddressStress({ clients, observer, opts, log })
+        printAddressStress(addressResult, { target: opts.target })
     }
 
     printReport({ opts, capabilities, baseline, sequential, chaos, durationMs })

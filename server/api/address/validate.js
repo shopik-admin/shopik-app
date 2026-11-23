@@ -11,7 +11,7 @@ export default async function validate(payload, { DL }) {
     if (!city || !street || !building) throw { status: 400, message: 'city, street, building required' }
 
     const validated = await validateAddress({ DL, city, street, building })
-    if (!validated?.location) throw { status: 404, message: 'address not found' }
+    if (!validated?.location) throw { status: 422, code: 'ADDRESS_NOT_FOUND', message: 'address_not_found' }
 
     // Check service area
     let hasService = false

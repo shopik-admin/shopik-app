@@ -1,6 +1,7 @@
 import { ADDRESS_PROVIDERS, ADDRESS_PROVIDER_CHAIN } from '#common/constants.js'
+import { resolveAddress } from '#server/external/geocode.js'
 import { searchGovmap } from './govmap.js'
-import { searchGoogle, geocodeGoogle } from './google.js'
+import { searchGoogle } from './google.js'
 import { searchOsm } from './osm.js'
 
 const providers = {
@@ -15,9 +16,10 @@ function getChain() {
 }
 
 export async function searchAddress({ DL, q, city, street, type, limit }) {
-    // Per user request: Redis (govmap) contains only serviceable cities/streets.
-    // For city/street we return only govmap results — outside areas show "no service" (empty).
-    // For building we allow fallback chain (govmap -> osm -> google) for numbers not in DB.
+    // City/street suggestions come from the local GovAddress index only: the
+    // import is the national registry (official names + aliases), so no paid
+    // provider is involved. Building suggestions (unused by the form today) may
+    // still fall through govmap -> osm -> google.
     const isBuilding = type === 'building'
     const chain = isBuilding ? getChain() : [ADDRESS_PROVIDERS.GOVMAP]
     for (const name of chain) {
@@ -29,12 +31,11 @@ export async function searchAddress({ DL, q, city, street, type, limit }) {
     return []
 }
 
+/**
+ * Resolves city+street+building to coordinates through the shared chain:
+ * cache -> GovMap exact house -> Google (anchored/validated) -> GovMap street.
+ * Returns null when no trustworthy point exists.
+ */
 export async function validateAddress({ DL, city, street, building }) {
-    // Try govmap building exact match first (single collection)
-    if (DL?.GovAddress) {
-        const found = await DL.GovAddress.readOne({ city, street, building: String(building) }, { _id: 0, location: 1 })
-        if (found?.location) return { ...found, source: 'govmap', city, street, building }
-    }
-    // Fallback to Google geocode (read-through geocode cache) for coordinates/hasService
-    return geocodeGoogle({ DL, city, street, building })
+    return resolveAddress({ DL, city, street, building })
 }
