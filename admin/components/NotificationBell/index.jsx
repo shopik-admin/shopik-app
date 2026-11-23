@@ -155,6 +155,7 @@ export default function NotificationBell() {
     return <Popover
         id='admin-notification-inbox'
         overlay
+        className={styles.dialog}
         btnClassName={styles.trigger}
         button={<button type='button' className={styles.bell} aria-label={TR('push_bell_label')} onClick={handleBellClick}>
             <Icon name='notifications' />
@@ -165,7 +166,7 @@ export default function NotificationBell() {
         </button>}
     >
         {({ close }) => <div className={styles.content}>
-            <Flex alignItems='center' justifyContent='space-between' className={styles.header}>
+            <Flex alignItems='center' justifyContent='space-between' gap={8} wrap className={styles.header}>
                 <Flex alignItems='center' gap={8}>
                     <Text bold size='l'>{TR('push_inbox_title')}</Text>
                     {unread > 0 ? <Flex center className={styles.unreadCircle}>{unread > 99 ? '99+' : unread}</Flex> : null}
@@ -173,7 +174,7 @@ export default function NotificationBell() {
                 {unread > 0 ? <Button mode='text-brand' text={TR('push_mark_all_read')} onClick={markAllRead} loading={marking} /> : null}
             </Flex>
 
-            {push.needsAttention ? <Flex alignItems='center' gap={8} className={styles.permissionBanner}>
+            {push.needsAttention ? <Flex alignItems='center' gap={8} wrap className={styles.permissionBanner}>
                 <Icon name='warning' className={styles.bannerIcon} />
                 <Text size='s' className={styles.bannerText}>
                     {push.permission === 'denied'
@@ -207,7 +208,6 @@ export default function NotificationBell() {
                 {!loading && items.map(item => <Flex
                     key={item.id}
                     alignItems='start'
-                    gap={10}
                     className={classNames(styles.row, !item.readAt && styles.unread)}
                     onClick={() => openItem(item, close)}
                     role='button'
@@ -221,15 +221,15 @@ export default function NotificationBell() {
                     <Flex center className={classNames(styles.rowIcon, LEVEL_CLASS[item.level] || LEVEL_CLASS.info)}>
                         <Icon name={NOTIFICATION_LEVEL_ICONS[item.level] || 'info'} />
                     </Flex>
-                    <Flex col gap={4} grow={1}>
-                        <Flex alignItems='center' justifyContent='space-between' gap={8}>
-                            <Flex alignItems='center' gap={6}>
-                                <Text bold={!item.readAt} size='m'>{item.title}</Text>
+                    <Flex col gap={4} grow={1} className={styles.rowContent}>
+                        <Flex alignItems='center' justifyContent='space-between' gap={8} wrap className={styles.titleRow}>
+                            <Flex alignItems='center' gap={6} className={styles.titleGroup}>
+                                <Text bold={!item.readAt} size='m' className={styles.title}>{item.title}</Text>
                                 {item.orderNumber ? <span className={styles.orderChip}>#{item.orderNumber}</span> : null}
                             </Flex>
                             <Text size='xs' mode='sub' className={styles.time}>{relativeTime(item.createdAt)}</Text>
                         </Flex>
-                        {item.body ? <Text size='s' mode='sub'>{item.body}</Text> : null}
+                        {item.body ? <Text size='s' mode='sub' className={styles.bodyText}>{item.body}</Text> : null}
                     </Flex>
                     <button
                         type='button'
@@ -247,7 +247,7 @@ export default function NotificationBell() {
             </div>
 
             {push.supported && push.enabled && !push.needsAttention && canSendTest
-                ? <Flex alignItems='center' justifyContent='space-between' className={styles.footer}>
+                ? <Flex alignItems='center' justifyContent='space-between' gap={8} wrap className={styles.footer}>
                     <Text size='xs' mode='sub'>{TR('push_active_on_device')}</Text>
                     <Button
                         mode='text-brand'

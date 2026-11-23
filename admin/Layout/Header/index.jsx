@@ -11,7 +11,7 @@ export default function Header({ }) {
     const { toggle } = useSidebar?.() || {}
 
     return <Flex tag='header' className={styles.header} alignItems='center' justifyContent='space-between'>
-        <Flex alignItems='center' gap={20}>
+        <Flex alignItems='center' className={styles.leftGroup}>
             <Button icon='menu' onClick={toggle} mode='text' className={styles.menuButton} />
             <PageTitle />
         </Flex>
