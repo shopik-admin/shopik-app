@@ -1,5 +1,7 @@
 import crypto from 'node:crypto'
 import storeScope from '#server/utils/data/storeScope.js'
+import getSettings from '#server/utils/data/getSettings.js'
+import { getPwaIconUrl, PWA_ICON_FILES } from '#common/functions/pwaIconUrl.js'
 import { baseDictionary, getTranslations } from '#server/utils/texts/dictionary.js'
 import log from '#server/utils/log.js'
 
@@ -12,6 +14,31 @@ import log from '#server/utils/log.js'
 
 export const JERUSALEM_TZ = 'Asia/Jerusalem'
 export const NEW_ORDER_CUTOFF_HOUR = 7
+
+// Notification icons. `icon` mirrors the site icon: the domain's uploaded app
+// icon (same file the manifest uses, served from storage). `badge` is the
+// favicon rasterised to a small PNG by /icons/app/badge-96.png — Android uses
+// its alpha channel as the status-bar silhouette.
+export const PUSH_ICONS = {
+    icon: '/icons/app/192.png',
+    badge: '/icons/app/badge-96.png'
+}
+
+/** The notification icon for one domain: storage app icon, else the bundle. */
+export async function pushIconsFor({ DL, domainId } = {}) {
+    let appIcon = ''
+    try {
+        const settings = await getSettings({ DL, domainId })
+        appIcon = settings?.appearance?.appIcon || ''
+    } catch {
+        // Settings unavailable is not a reason to drop the notification.
+    }
+
+    return {
+        icon: getPwaIconUrl(appIcon, PWA_ICON_FILES.icon192) || PUSH_ICONS.icon,
+        badge: PUSH_ICONS.badge
+    }
+}
 const WINDOW_READY_TTL_SECONDS = 7 * 24 * 60 * 60
 const READY_STATUSES = ['packed', 'shipped', 'done']
 const INACTIVE_STATUSES = ['cart', 'canceled', 'failed']
@@ -245,6 +272,7 @@ async function deliver({ DL, external, created, options }) {
 
     let sent = 0
     try {
+        const icons = await pushIconsFor({ DL, domainId: created[0].row.domainId })
         for (const items of groups.values()) {
             const { row } = items[0]
             const pushResult = await external?.push?.sendToAdmins({
@@ -255,8 +283,7 @@ async function deliver({ DL, external, created, options }) {
                     body: row.body || '',
                     url: row.url,
                     tag: row.dedupeKey,
-                    icon: '/icons/icon-192.png',
-                    badge: '/icons/icon-192.png'
+                    ...icons
                 },
                 options
             })

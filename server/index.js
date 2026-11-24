@@ -4,6 +4,7 @@ import path from 'path'
 import router from './router.js'
 import bodyParsers from './middleware/bodyParsers.js'
 import registerManifestRoute from './routes/manifest.js'
+import registerAppIconRoute from './routes/appIcon.js'
 import registerFeedRoutes from './routes/feed.js'
 import boot from './boot.js'
 import ssr from './ssr.js'
@@ -108,6 +109,7 @@ app.use(parseUrlencoded)
 app.use(compression())
 
 registerManifestRoute(app, bootData)
+registerAppIconRoute(app, bootData)
 registerFeedRoutes(app, bootData)
 router(app, bootData)
 
