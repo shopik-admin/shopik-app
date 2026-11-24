@@ -4,7 +4,7 @@ import { readFileSync, existsSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import sharp from 'sharp'
-import { PUSH_ICONS } from '../../server/utils/data/adminPush.js'
+import { PUSH_ICONS, pushIconsFor } from '../../server/utils/data/adminPush.js'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const ADMIN_PUBLIC = path.join(ROOT, 'admin', 'public')
@@ -24,6 +24,27 @@ describe('push notification icons', () => {
         const stats = await sharp(file).stats()
         assert.equal(stats.channels[3].min, 0)
         assert.equal(stats.channels[3].max, 255)
+    })
+
+    it('uses the uploaded app icon from storage when the domain has one', async () => {
+        const DL = {
+            Setting: {
+                read: async () => [
+                    { category: 'appearance', key: 'appIcon', value: 'images/settings/d1/appIcon/v7' }
+                ]
+            }
+        }
+        const icons = await pushIconsFor({ DL, domainId: 'd1' })
+
+        assert.match(icons.icon, /images\/settings\/d1\/appIcon\/v7\/192\.png$/)
+        assert.equal(icons.badge, PUSH_ICONS.badge)
+    })
+
+    it('falls back to the bundled same-origin icon', async () => {
+        const icons = await pushIconsFor({ DL: {}, domainId: 'd1' })
+
+        assert.equal(icons.icon, '/icons/app/192.png')
+        assert.equal(icons.badge, '/icons/badge-96.png')
     })
 
     it('serves the app icon from the app origin', () => {

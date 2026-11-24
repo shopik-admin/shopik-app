@@ -1,4 +1,4 @@
-import { PUSH_ICONS, pushText } from '#server/utils/data/adminPush.js'
+import { pushIconsFor, pushText } from '#server/utils/data/adminPush.js'
 
 export default async function test(payload, { DL, _admin, external }) {
     if (!external?.push?.enabled)
@@ -9,6 +9,7 @@ export default async function test(payload, { DL, _admin, external }) {
     const languageCode = _admin.languageCode || 'he'
     const title = await pushText({ DL, languageCode, key: 'push_test_title' })
     const body = await pushText({ DL, languageCode, key: 'push_test_body' })
+    const icons = await pushIconsFor({ DL, domainId: payload.domainId })
 
     const result = await external.push.sendToAdmins({
         domainId: payload.domainId,
@@ -18,7 +19,7 @@ export default async function test(payload, { DL, _admin, external }) {
             body,
             url: '/ops',
             tag: `push-test-${Date.now()}`,
-            ...PUSH_ICONS
+            ...icons
         },
         options: { ttl: 5 * 60, urgency: 'normal' }
     })
