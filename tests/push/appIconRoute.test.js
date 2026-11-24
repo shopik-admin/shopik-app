@@ -93,7 +93,7 @@ describe('app icon route', () => {
                 ok: true,
                 arrayBuffer: async () => Buffer.from(FAVICON_SVG)
             })
-            await handler({ params: { file: 'badge.png' } }, res)
+            await handler({ params: { file: 'badge-96.png' } }, res)
         } finally {
             globalThis.fetch = originalFetch
         }
@@ -115,7 +115,7 @@ describe('app icon route', () => {
         const handler = mount({ appearance: { favicon: '' } })
         const res = makeRes()
 
-        await handler({ params: { file: 'badge.png' } }, res)
+        await handler({ params: { file: 'badge-96.png' } }, res)
 
         assert.deepEqual(res.redirectedTo, { code: 302, url: '/icons/badge-96.png' })
     })
@@ -129,7 +129,7 @@ describe('app icon route', () => {
 
         try {
             globalThis.fetch = async () => ({ ok: false, status: 404 })
-            await handler({ params: { file: 'badge.png' } }, res)
+            await handler({ params: { file: 'badge-96.png' } }, res)
         } finally {
             globalThis.fetch = originalFetch
         }

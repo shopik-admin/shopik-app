@@ -17,7 +17,7 @@ const VARIANTS = {
 // Android's status-bar badge. It is fetched/rasterised here because the
 // favicon setting is often an SVG on the files host, and a notification badge
 // has to be a small PNG that the system can tint (it uses the alpha channel).
-const BADGE = 'badge.png'
+const BADGE = 'badge-96.png'
 const BADGE_SIZE = 96
 const BADGE_FALLBACK = '/icons/badge-96.png'
 

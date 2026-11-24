@@ -17,11 +17,11 @@ export const NEW_ORDER_CUTOFF_HOUR = 7
 
 // Notification icons. `icon` mirrors the site icon: the domain's uploaded app
 // icon (same file the manifest uses, served from storage). `badge` is the
-// favicon rasterised to a small PNG by /icons/app/badge.png — Android uses its
-// alpha channel as the status-bar silhouette.
+// favicon rasterised to a small PNG by /icons/app/badge-96.png — Android uses
+// its alpha channel as the status-bar silhouette.
 export const PUSH_ICONS = {
     icon: '/icons/app/192.png',
-    badge: '/icons/app/badge.png'
+    badge: '/icons/app/badge-96.png'
 }
 
 /** The notification icon for one domain: storage app icon, else the bundle. */

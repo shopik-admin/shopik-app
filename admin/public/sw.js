@@ -18,7 +18,7 @@ self.addEventListener('activate', (event) => {
 // rasterised to a badge PNG: Android draws the status-bar icon from the badge's
 // alpha channel, so it must be small and transparent.
 const DEFAULT_ICON = '/icons/app/192.png'
-const DEFAULT_BADGE = '/icons/app/badge.png'
+const DEFAULT_BADGE = '/icons/app/badge-96.png'
 
 // Payload is JSON built by the server. The notification is plain text only —
 // no HTML is ever rendered from the message.
