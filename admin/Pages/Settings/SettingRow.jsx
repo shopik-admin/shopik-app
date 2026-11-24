@@ -19,6 +19,7 @@ export default function SettingRow({
     setting,
     children,
     footer,
+    controlClassName,
     expanded = false,
     busy = false,
     error = null,
@@ -123,7 +124,7 @@ export default function SettingRow({
                 {error && <p className={styles.rowError}>{error}</p>}
             </div>
 
-            <div className={styles.rowControl}>{children}</div>
+            <div className={classNames(styles.rowControl, controlClassName)}>{children}</div>
 
             {options.length > 0 && (
                 <div className={styles.rowMenu}>

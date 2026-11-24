@@ -225,7 +225,7 @@ export default function Setting({ setting, onUpdate, onEditFull, onDelete }) {
         const { light, dark } = normalizeColor(displayVal)
         const hasDual = displayVal && typeof displayVal === 'object' && !Array.isArray(displayVal) && ('light' in displayVal || 'dark' in displayVal)
 
-        return <SettingRow {...rowActions}>
+        return <SettingRow {...rowActions} controlClassName={styles.colorControl}>
             {isEditing ? (
                 <div className={styles.colorEditor}>
                     <label className={styles.colorField}>

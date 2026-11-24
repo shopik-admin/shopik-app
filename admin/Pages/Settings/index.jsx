@@ -13,12 +13,9 @@ import styles from './settings.module.css'
 import Setting from './Setting.jsx'
 import SettingModal from './SettingModal.jsx'
 import {
-    categoryHint,
     categoryLabel,
     settingHint,
-    settingLabel,
-    subCategoryHint,
-    subCategoryLabel
+    settingLabel
 } from './settingsKeys'
 
 const EMPTY_DOMAINS = []
@@ -63,11 +60,6 @@ export default function Settings() {
             const first = def ?? domains[0]
             setSelectedDomain(first?.value ?? first)
         }
-    }, [domains, selectedDomain])
-
-    const selectedDomainName = useMemo(() => {
-        const found = domains.find((d) => (d?.value ?? d) === selectedDomain)
-        return found?.text || found?.name || selectedDomain
     }, [domains, selectedDomain])
 
     function domainNameOf(id) {
@@ -281,19 +273,10 @@ export default function Settings() {
         )
     }
 
-    // Settings for current active category grouped by subCategory
+    // Settings for the current active category, in data order
     const activeCategorySettings = useMemo(() => {
-        if (!selectedCategory) return {}
-        const list = categoryMap.get(selectedCategory) || []
-        const grouped = {}
-        list.forEach((setting) => {
-            const sub = setting.subCategory || 'general'
-            if (!grouped[sub]) {
-                grouped[sub] = []
-            }
-            grouped[sub].push(setting)
-        })
-        return grouped
+        if (!selectedCategory) return []
+        return categoryMap.get(selectedCategory) || []
     }, [selectedCategory, categoryMap])
 
     function renderSetting(setting) {
@@ -306,73 +289,24 @@ export default function Settings() {
         />
     }
 
-    function renderGroup(subCat, subCatSettings) {
-        const last = subCatSettings[subCatSettings.length - 1]
-        const isConfigGroup = last?.formType === 'config' || last?.renderType === 'config'
-        const canAddHere = isConfigGroup ? isSuperAdmin : canCreateSetting
-        return <section key={subCat} className={styles.group}>
-            <div className={styles.groupHeader}>
-                <div className={styles.groupTitleWrap}>
-                    <h3 className={styles.groupTitle}>{subCategoryLabel(TR, subCat)}</h3>
-                    {subCategoryHint(TR, subCat) && <p className={styles.groupHint}>{subCategoryHint(TR, subCat)}</p>}
-                </div>
-                <div className={styles.groupActions}>
-                    {canAddHere && (
-                        <Button
-                            icon="add"
-                            mode="text"
-                            onClick={() => handleAddModal(selectedCategory, subCat, last?.formType, last?.renderType)}
-                            tooltip={isConfigGroup ? TR('settings_add_config') : TR('settings_add_to', { name: subCategoryLabel(TR, subCat) })}
-                        />
-                    )}
-                    <ContextMenu
-                        iconOnStart
-                        options={[{
-                            text: 'settings_export_sub',
-                            icon: 'download',
-                            mode: 'text',
-                            onClick: () => handleExport({ category: selectedCategory, subCategory: subCat })
-                        }]}
-                    />
-                </div>
-            </div>
-            <div className={styles.card}>
-                {subCatSettings.map(renderSetting)}
-            </div>
-        </section>
-    }
-
     const pageMenuOptions = [
-        { text: 'settings_export_all', icon: 'download', mode: 'text', onClick: () => handleExport({}) },
+        selectedCategory && {
+            text: 'settings_export_category',
+            icon: 'download',
+            mode: 'text',
+            onClick: () => handleExport({ category: selectedCategory })
+        },
+        {
+            text: 'settings_export_all',
+            icon: 'download',
+            mode: 'text',
+            separator: !!selectedCategory,
+            onClick: () => handleExport({})
+        },
         canImport && { text: 'settings_import', icon: 'upload', mode: 'text', separator: true, onClick: handleImportClick }
     ].filter(Boolean)
 
     return <div className={styles.page}>
-        <header className={styles.pageHeader}>
-            <div className={styles.headerText}>
-                <h1 className={styles.pageTitle}>{TR('settings')}</h1>
-                <p className={styles.pageHint}>{TR('settings_page_hint')}</p>
-            </div>
-            <div className={styles.headerActions}>
-                <div className={styles.domainField}>
-                    <span className={styles.domainLabel}>{TR('settings_domain')}</span>
-                    <Select
-                        options="domains"
-                        value={selectedDomain}
-                        onChange={handleDomainChange}
-                        name="domainId"
-                        placeholder={TR('settings_domain')}
-                    />
-                </div>
-                {canCreateSetting && (
-                    <Button icon="add" onClick={() => handleAddModal()} tooltip={TR('settings_add')}>
-                        {TR('settings_add')}
-                    </Button>
-                )}
-                <ContextMenu iconOnStart options={pageMenuOptions} />
-            </div>
-        </header>
-
         <div className={`${styles.layout} ${mobileView === 'sidebar' ? styles.viewSidebar : styles.viewContent}`}>
             <nav className={`${styles.nav} ${isSearching ? styles.navSearching : ''}`} aria-label={TR('settings')}>
                 <div className={styles.searchBox}>
@@ -427,8 +361,30 @@ export default function Settings() {
                     </div>
                 )}
 
-                <p className={styles.navHint}>{TR('settings_domain_hint', { name: selectedDomainName })}</p>
-                <input ref={fileInputRef} type="file" accept=".json,application/json" onChange={handleImportFile} style={{ display: 'none' }} />
+                <div className={styles.navFooter}>
+                    <div className={styles.domainField}>
+                        <span className={styles.domainLabel}>{TR('settings_domain')}</span>
+                        <Select
+                            options="domains"
+                            value={selectedDomain}
+                            onChange={handleDomainChange}
+                            name="domainId"
+                            placeholder={TR('settings_domain')}
+                        />
+                    </div>
+                    <div className={styles.navActions}>
+                        {canCreateSetting && (
+                            <Button
+                                className={styles.addBtn}
+                                icon="add"
+                                onClick={() => handleAddModal()}
+                                tooltip={TR('settings_add')}
+                            />
+                        )}
+                        <ContextMenu iconOnStart options={pageMenuOptions} />
+                    </div>
+                    <input ref={fileInputRef} type="file" accept=".json,application/json" onChange={handleImportFile} style={{ display: 'none' }} />
+                </div>
             </nav>
 
             <main className={styles.content}>
@@ -439,10 +395,7 @@ export default function Settings() {
                 {isSearching ? (
                     <section className={styles.results}>
                         <div className={styles.contentHeader}>
-                            <div className={styles.contentTitleWrap}>
-                                <h2 className={styles.contentTitle}>{TR('settings_search_results', { count: searchMatches.length })}</h2>
-                                <p className={styles.contentHint}>{TR('settings_search_hint', { query: search.trim() })}</p>
-                            </div>
+                            <h2 className={styles.contentTitle}>{TR('settings_search_results', { count: searchMatches.length })}</h2>
                         </div>
                         {searchGroups.length === 0 ? (
                             <div className={styles.empty}>
@@ -468,35 +421,18 @@ export default function Settings() {
                 ) : selectedCategory ? (
                     <>
                         <div className={styles.contentHeader}>
-                            <div className={styles.contentTitleWrap}>
-                                <h2 className={styles.contentTitle}>{categoryLabel(TR, selectedCategory)}</h2>
-                                {categoryHint(TR, selectedCategory) && <p className={styles.contentHint}>{categoryHint(TR, selectedCategory)}</p>}
-                            </div>
-                            <div className={styles.contentActions}>
-                                <ContextMenu
-                                    iconOnStart
-                                    options={[
-                                        {
-                                            text: 'settings_export_category',
-                                            icon: 'download',
-                                            mode: 'text',
-                                            onClick: () => handleExport({ category: selectedCategory })
-                                        },
-                                        canImport && { text: 'settings_import', icon: 'upload', mode: 'text', separator: true, onClick: handleImportClick }
-                                    ].filter(Boolean)}
-                                />
-                            </div>
+                            <h2 className={styles.contentTitle}>{categoryLabel(TR, selectedCategory)}</h2>
                         </div>
 
-                        {Object.keys(activeCategorySettings).length === 0 ? (
+                        {activeCategorySettings.length === 0 ? (
                             <div className={styles.empty}>
                                 <Icon name="settings" className={styles.emptyIcon} />
                                 <p className={styles.emptyTitle}>{TR('settings_empty_title')}</p>
                                 <p className={styles.emptyHint}>{TR('settings_empty_hint')}</p>
                             </div>
                         ) : (
-                            <div className={styles.groups}>
-                                {Object.entries(activeCategorySettings).map(([subCat, subCatSettings]) => renderGroup(subCat, subCatSettings))}
+                            <div className={styles.card}>
+                                {activeCategorySettings.map(renderSetting)}
                             </div>
                         )}
                     </>
