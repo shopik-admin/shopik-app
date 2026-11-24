@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import Input from 'common/components/Input'
 import Button from 'common/components/Button'
+import { useText } from 'common/texts/TextProvider'
 import styles from './settings.module.css'
 
 function toEntries(value) {
@@ -17,6 +18,7 @@ function fromEntries(entries) {
 }
 
 export default function ConfigEditor({ value, onChange, disabled, canEditKeys = true, canEditValues = true }) {
+    const { TR } = useText()
     const [entries, setEntries] = useState(() => toEntries(value))
     const [newKey, setNewKey] = useState('')
     const [newVal, setNewVal] = useState('')
@@ -60,27 +62,27 @@ export default function ConfigEditor({ value, onChange, disabled, canEditKeys = 
     const isReadonlyKeys = !canEditKeys
     return (
         <div className={`${styles.configEditor} ${isReadonlyKeys ? styles.configEditorReadonly : ''}`}>
-            {entries.length === 0 && <div className={styles.emptyValue}>No keys — {canAddRemove ? 'add below' : 'none'}</div>}
+            {entries.length === 0 && <div className={styles.emptyValue}>{TR('settings_config_empty')}</div>}
             {entries.map((e, idx) => (
                 <div key={idx} className={`${styles.configRow} ${!canEditKeys ? styles.configRowReadonly : ''}`}>
                     {canEditKeys ? (
                         <Input
                             value={e.key}
                             onChange={(ev) => updateEntry(idx, 'key', ev.target.value)}
-                            placeholder="key"
+                            placeholder={TR('settings_config_key')}
                             disabled={disabled}
                         />
                     ) : (
-                        <span className={styles.configKeyLabel} title="Key editing restricted to superAdmin">{e.key}:</span>
+                        <span className={styles.configKeyLabel} title={TR('settings_config_keys_readonly')}>{e.key}:</span>
                     )}
                     <Input
                         value={e.value}
                         onChange={(ev) => updateEntry(idx, 'value', ev.target.value)}
-                        placeholder="value"
+                        placeholder={TR('settings_config_value')}
                         disabled={valDisabled}
                     />
                     {canAddRemove ? (
-                        <Button icon="trash" mode="text" onClick={() => removeEntry(idx)} disabled={disabled} title="Remove" />
+                        <Button icon="trash" mode="text" onClick={() => removeEntry(idx)} disabled={disabled} tooltip={TR('settings_config_remove')} />
                     ) : (
                         <span style={{ width: 36 }} />
                     )}
@@ -88,9 +90,9 @@ export default function ConfigEditor({ value, onChange, disabled, canEditKeys = 
             ))}
             {canAddRemove && (
                 <div className={styles.configRow}>
-                    <Input value={newKey} onChange={(e) => setNewKey(e.target.value)} placeholder="new key" disabled={disabled} />
-                    <Input value={newVal} onChange={(e) => setNewVal(e.target.value)} placeholder="new value" disabled={disabled} />
-                    <Button icon="add" size="s" onClick={addEntry} disabled={disabled || !newKey.trim()} />
+                    <Input value={newKey} onChange={(e) => setNewKey(e.target.value)} placeholder={TR('settings_config_new_key')} disabled={disabled} />
+                    <Input value={newVal} onChange={(e) => setNewVal(e.target.value)} placeholder={TR('settings_config_new_value')} disabled={disabled} />
+                    <Button icon="add" size="s" onClick={addEntry} disabled={disabled || !newKey.trim()} tooltip={TR('settings_config_add')} />
                 </div>
             )}
         </div>
