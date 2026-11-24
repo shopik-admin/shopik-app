@@ -12,6 +12,14 @@ import log from '#server/utils/log.js'
 
 export const JERUSALEM_TZ = 'Asia/Jerusalem'
 export const NEW_ORDER_CUTOFF_HOUR = 7
+
+// Notification icons. `icon` is the app icon on the app origin — the route
+// resolves a domain's uploaded icon, falling back to the shipped one — while
+// `badge` must be a monochrome silhouette for the Android status bar.
+export const PUSH_ICONS = {
+    icon: '/icons/app/192.png',
+    badge: '/icons/badge-96.png'
+}
 const WINDOW_READY_TTL_SECONDS = 7 * 24 * 60 * 60
 const READY_STATUSES = ['packed', 'shipped', 'done']
 const INACTIVE_STATUSES = ['cart', 'canceled', 'failed']
@@ -255,8 +263,7 @@ async function deliver({ DL, external, created, options }) {
                     body: row.body || '',
                     url: row.url,
                     tag: row.dedupeKey,
-                    icon: '/icons/icon-192.png',
-                    badge: '/icons/icon-192.png'
+                    ...PUSH_ICONS
                 },
                 options
             })

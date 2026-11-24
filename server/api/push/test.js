@@ -1,4 +1,4 @@
-import { pushText } from '#server/utils/data/adminPush.js'
+import { PUSH_ICONS, pushText } from '#server/utils/data/adminPush.js'
 
 export default async function test(payload, { DL, _admin, external }) {
     if (!external?.push?.enabled)
@@ -18,8 +18,7 @@ export default async function test(payload, { DL, _admin, external }) {
             body,
             url: '/ops',
             tag: `push-test-${Date.now()}`,
-            icon: '/icons/icon-192.png',
-            badge: '/icons/icon-192.png'
+            ...PUSH_ICONS
         },
         options: { ttl: 5 * 60, urgency: 'normal' }
     })
