@@ -79,10 +79,10 @@ describe('product status ladder', () => {
         assert.deepEqual(result.reasons, [STATUS_REASON.CATEGORY_INACTIVE])
     })
 
-    it('hides an item in a sub-group marked hide on site', () => {
-        const result = explain({ flags: { showOnSite: false } })
+    it('hides an item whose Comax category setting is hidden', () => {
+        const result = explain({ flags: { hidden: true } })
         assert.equal(result.status, STATUS.HIDDEN)
-        assert.deepEqual(result.reasons, [STATUS_REASON.SUBGROUP_HIDDEN])
+        assert.deepEqual(result.reasons, [STATUS_REASON.CATEGORY_SETTING_HIDDEN])
     })
 
     it('hides an item in a kashrut-required sub-group with invalid kashrut', () => {

@@ -65,6 +65,10 @@ export function mapItem(item, { deliveryPriceListId } = {}) {
         price,
         supplierPrice: Number(item.SupplierPrice) || undefined,
         buyingPrice: extractBuyingPrice(item, deliveryPriceListId),
+        // The per-store feed is the only caller that can trust these as an
+        // on-hand figure; the import uses them when the balance call is absent.
+        quantity: Number(item.Quantity) || undefined,
+        balance: Number(item.Balance) || undefined,
 
         // Deposit reference only. The import resolves it to the deposit product
         // and then adds trailingItemPrice / trailingPrice / priceWithTrailing;
@@ -149,6 +153,8 @@ export function mapSalesWindowItem(item) {
         barcode: item.Barcode != null ? String(item.Barcode).trim() : null,
         departmentCode: item.DepartmentKod != null ? String(item.DepartmentKod) : null,
         superDepartmentCode: item.SuperDepartmentKod != null ? String(item.SuperDepartmentKod) : null,
+        groupCode: item.GroupKod != null ? String(item.GroupKod) : null,
+        subGroupCode: item.Sub_GroupKod != null ? String(item.Sub_GroupKod) : null,
         lastSaleDate: parseComaxDateTime(item.LastSaleDate),
         salesLastDays: Number(item.SalesLastDays) || 0,
         balance: Number(item.Balance) || 0

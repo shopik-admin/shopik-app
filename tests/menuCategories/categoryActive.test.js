@@ -18,7 +18,7 @@ describe('category active cascade', () => {
         assert.deepEqual(descendantIds(categories, 'd'), ['d'])
     })
 
-    it('hides a product whose category is inactive, independently of showOnSite', () => {
+    it('hides a product whose category is inactive, independently of the category hidden setting', () => {
         const status = { ACTIVE: 'active', HIDDEN: 'hidden', ARCHIVED: 'archived' }
         const comax = { price: 10, showInWeb: true, storeIds: ['s1'] }
         const existing = { images: { product: [{ main: true }] } }
@@ -26,22 +26,22 @@ describe('category active cascade', () => {
         assert.equal(deriveStatus({
             comax,
             existing,
-            flags: { categoryActive: false, showOnSite: true, requireKashrut: false },
+            flags: { categoryActive: false, hidden: false, requireKashrut: false },
             status
         }), status.HIDDEN)
 
         assert.equal(deriveStatus({
             comax,
             existing,
-            flags: { categoryActive: true, showOnSite: true, requireKashrut: false },
+            flags: { categoryActive: true, hidden: false, requireKashrut: false },
             status
         }), status.ACTIVE)
 
-        // Re-activating the category must not override Comax's own hide flag.
+        // Re-activating the category must not override an explicit hide.
         assert.equal(deriveStatus({
             comax,
             existing,
-            flags: { categoryActive: true, showOnSite: false, requireKashrut: false },
+            flags: { categoryActive: true, hidden: true, requireKashrut: false },
             status
         }), status.HIDDEN)
     })
@@ -128,13 +128,20 @@ describe('mirrorCategoryActive', () => {
 describe('category/update active checkbox', () => {
     const STATUS = { ACTIVE: 'active', HIDDEN: 'hidden', ARCHIVED: 'archived' }
 
-    function fakeDL() {
+    function fakeDL({ settings = [] } = {}) {
         const categories = [
             { id: 'p', parentId: null, parentIds: [], name: 'Parent', active: true },
             { id: 'c', parentId: 'p', parentIds: ['p'], name: 'Child', active: true }
         ]
         const rows = [
-            { subGroupCode: '100', categoryId: 'c', showOnSite: true, requireKashrut: false }
+            {
+                subGroupCode: '100',
+                categoryId: 'c',
+                superDepartmentCode: '3',
+                departmentCode: '13',
+                groupCode: '4',
+                requireKashrut: false
+            }
         ]
         const products = [{
             barcode: '1',
@@ -149,7 +156,11 @@ describe('category/update active checkbox', () => {
             archived: false,
             price: 10,
             showInWeb: true,
-            storeIds: ['s1']
+            storeIds: ['s1'],
+            subGroupCode: '100',
+            superDepartmentCode: '3',
+            departmentCode: '13',
+            groupCode: '4'
         }]
 
         const DL = {
@@ -193,6 +204,9 @@ describe('category/update active checkbox', () => {
             ComaxProduct: {
                 count: async () => 0,
                 read: async () => comax
+            },
+            ComaxCategorySetting: {
+                read: async () => settings
             }
         }
 
@@ -210,7 +224,7 @@ describe('category/update active checkbox', () => {
         assert.equal(products[0].status, STATUS.HIDDEN)
     })
 
-    it('brings the branch and its products back without touching showOnSite', async () => {
+    it('brings the branch and its products back without touching the category hidden setting', async () => {
         const { DL, categories, rows, products } = fakeDL()
         await updateCategory({ id: 'p', active: false }, { DL })
 
@@ -219,20 +233,19 @@ describe('category/update active checkbox', () => {
         assert.equal(categories.find(category => category.id === 'p').active, true)
         assert.equal(categories.find(category => category.id === 'c').active, true)
         assert.equal(rows[0].categoryActive, true)
-        assert.equal(rows[0].showOnSite, true)
         assert.equal(products[0].status, STATUS.ACTIVE)
     })
 
     it('leaves a permanently hidden sub-group hidden after reactivation', async () => {
-        const { DL, categories, rows, products } = fakeDL()
-        rows[0].showOnSite = false
+        const { DL, categories, rows, products } = fakeDL({
+            settings: [{ path: '3/13/4/100', level: 'subGroup', hidden: true }]
+        })
 
         await updateCategory({ id: 'p', active: false }, { DL })
         await updateCategory({ id: 'p', active: true }, { DL })
 
         assert.equal(categories.find(category => category.id === 'c').active, true)
         assert.equal(rows[0].categoryActive, true)
-        assert.equal(rows[0].showOnSite, false)
         assert.equal(products[0].status, STATUS.HIDDEN)
     })
 })

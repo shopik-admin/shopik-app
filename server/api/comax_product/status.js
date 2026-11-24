@@ -19,7 +19,7 @@ export const STATUS_REASON = {
     NO_STORES: 'NO_STORES',
     NOT_IN_WEB: 'NOT_IN_WEB',
     CATEGORY_INACTIVE: 'CATEGORY_INACTIVE',
-    SUBGROUP_HIDDEN: 'SUBGROUP_HIDDEN',
+    CATEGORY_SETTING_HIDDEN: 'CATEGORY_SETTING_HIDDEN',
     KASHRUT_MISSING: 'KASHRUT_MISSING'
 }
 
@@ -32,12 +32,12 @@ export const STATUS_REASON = {
  *   no image / in stock nowhere            -> hidden
  *   comax showInWeb off                    -> hidden
  *   category (or an ancestor) inactive     -> hidden
- *   sub-group showOnSite false             -> hidden
+ *   category setting hidden                -> hidden
  *   sub-group requires kashrut, no valid   -> hidden
  *   otherwise                              -> active
  *
- * `flags` is the product's category_map row
- * ({ categoryActive, showOnSite, requireKashrut }); missing flags mean active,
+ * `flags` is the product's category_map row plus the resolved category setting
+ * ({ categoryActive, hidden, requireKashrut }); missing flags mean active,
  * shown and no kashrut requirement.
  *
  * Returns the first (most severe) failing status plus EVERY rule it violates,
@@ -69,7 +69,9 @@ export function explainStatus({ comax, existing, flags, status, enforceBuyingPri
     if (!comax.showInWeb) hide(STATUS_REASON.NOT_IN_WEB)
 
     if (flags?.categoryActive === false) hide(STATUS_REASON.CATEGORY_INACTIVE)
-    if (flags?.showOnSite === false) hide(STATUS_REASON.SUBGROUP_HIDDEN)
+    // Admin hide from the Comax category settings page. A deeper explicit
+    // `hidden: false` already resolved to false before it reaches here.
+    if (flags?.hidden === true) hide(STATUS_REASON.CATEGORY_SETTING_HIDDEN)
     if (flags?.requireKashrut === true && !hasValidKashrut(existing?.kashrut))
         hide(STATUS_REASON.KASHRUT_MISSING)
 

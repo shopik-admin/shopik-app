@@ -11,7 +11,8 @@ describe('isReadOnlyRoute', () => {
     it('recognises reads used by the request-log sampler', () => {
         for (const route of [
             'product/get', 'product/search', 'menu/get', 'category/tree',
-            'category/export', 'display_block/carousel', 'comax_product/sales_window',
+            'category/export', 'display_block/carousel', 'comax_category/tree',
+            'comax_category/products',
             'order/mine', 'notifications/counts'
         ]) assert.equal(isReadOnlyRoute(route), true, route)
     })

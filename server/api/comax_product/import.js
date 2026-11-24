@@ -2,9 +2,11 @@ import mem, { collectGarbage } from '#server/utils/mem.js'
 import { round2 } from '#common/functions/calcOrder/utils.js'
 import { PRODUCTS, completeRun } from './watermark.js'
 import { resolveFreshDepartments } from './freshDepartments.js'
-import { resolveSalesWindow, buildDepartmentWindows, buildKeptBarcodes, sumSalesUnits } from './salesWindow.js'
+import { buildCategoryWindows, buildKeptBarcodesWithRules, sumSalesUnits } from './salesWindow.js'
+import { loadRuleLookup } from '#server/services/comaxCategorySettings/index.js'
 
 const REGISTER_FILTER = { active: true, type: 'comax' }
+const norm = barcode => String(barcode ?? '').trim()
 
 function chunk(array, size) {
     if (!array.length) return []
@@ -76,6 +78,7 @@ export default async function importComaxProducts(payload, { DL, external }) {
     }
 
     const storeIds = [...new Set(registers.map(r => r.storeId).filter(Boolean))]
+    const ruleLookup = await loadRuleLookup(DL)
     const feeds = {}
     const results = []
     const errors = []
@@ -127,7 +130,34 @@ export default async function importComaxProducts(payload, { DL, external }) {
     const TRAILING_FIELDS = ['trailingItemId', 'trailingItemQuantity', 'trailingItemPrice', 'trailingPrice', 'priceWithTrailing']
     const RESOLVED_TRAILING_FIELDS = ['trailingItemPrice', 'trailingPrice', 'priceWithTrailing']
 
-    const writeBatch = async (docs, addStoreIds) => {
+    // Per-store balance snapshot. `balance` is the on-hand figure the minimum
+    // stock gate compares against; `balanceAvailable` (Comax's spelling) is the
+    // fallback. A store whose balance call fails simply has no quantities, and
+    // the gate fails open there instead of hiding the catalog.
+    const balanceByStore = new Map()
+    if (typeof external.comax?.getBalance === 'function') {
+        for (const reg of registers) {
+            const comaxStoreId = String(reg.data?.StockStoreID ?? '').trim()
+            if (!comaxStoreId) continue
+            try {
+                const rows = await external.comax.getBalance({ storeId: comaxStoreId, changesAfter: '' })
+                const byBarcode = new Map()
+                for (const row of rows || []) {
+                    const barcode = norm(row?.barcode)
+                    if (!barcode || row.error) continue
+                    const quantity = row.balance ?? row.balanceAvailable
+                    if (quantity == null || !Number.isFinite(Number(quantity))) continue
+                    byBarcode.set(barcode, Number(quantity))
+                }
+                balanceByStore.set(reg.storeId, byBarcode)
+                console.log(`[Comax Import] store ${reg.storeId}: ${byBarcode.size} balance row(s)`)
+            } catch (e) {
+                console.warn(`[Comax Import] store ${reg.storeId}: balance feed failed — min stock will fail open:`, e?.message || e)
+            }
+        }
+    }
+
+    const writeBatch = async (docs, { storeId = null, addStoreIds = [], balanceByBarcode = null } = {}) => {
         await DL.ComaxProduct.bulkWrite({
             docs,
             getFilter: p => ({ barcode: p.barcode }),
@@ -146,7 +176,7 @@ export default async function importComaxProducts(payload, { DL, external }) {
             getUpdate: p => {
                 // storeIds is owned by $addToSet, never by $set — a feed only
                 // asserts "in stock here", it never replaces other stores.
-                const { storeIds: _storeIds, ...fields } = p
+                const { storeIds: _storeIds, balance: _balance, quantity: _quantity, ...fields } = p
                 let $unset
 
                 if (!p.trailingItemId) {
@@ -162,9 +192,21 @@ export default async function importComaxProducts(payload, { DL, external }) {
                     $unset = { priceWithTrailing: '' }
                 }
 
-                const $addToSet = addStoreIds.length
-                    ? { storeIds: addStoreIds.length === 1 ? addStoreIds[0] : { $each: addStoreIds } }
+                // The raw in-stock assertion stays unfiltered; the minimum-stock
+                // gate is applied when the Product copy is written, so a later
+                // settings change can be re-evaluated without another import.
+                const ids = storeId ? [storeId] : addStoreIds
+                const $addToSet = ids.length
+                    ? { storeIds: ids.length === 1 ? ids[0] : { $each: ids } }
                     : null
+
+                if (storeId) {
+                    const fromFeed = balanceByBarcode?.get(norm(p.barcode))
+                    const raw = fromFeed ?? p.balance ?? p.quantity
+                    const quantity = Number(raw)
+                    if (Number.isFinite(quantity)) fields[`stockByStore.${storeId}`] = quantity
+                }
+
                 return {
                     $set: fields,
                     ...($unset ? { $unset } : {}),
@@ -178,7 +220,7 @@ export default async function importComaxProducts(payload, { DL, external }) {
      * Stream one feed into comax_products and report how trustworthy its
      * "absent = out of stock" reading is.
      */
-    const runFeed = async ({ key, label, addStoreIds, stream, gate }) => {
+    const runFeed = async ({ key, label, addStoreIds, storeId = null, balanceByBarcode = null, stream, gate }) => {
         const stats = { blocks: 0, kept: 0, unparsed: 0 }
         const barcodes = new Set()
         let batch = []
@@ -194,7 +236,7 @@ export default async function importComaxProducts(payload, { DL, external }) {
             batch = []
             batchNo++
             try {
-                await writeBatch(docs, addStoreIds)
+                await writeBatch(docs, { storeId, addStoreIds, balanceByBarcode })
             } catch (e) {
                 failed += docs.length
                 console.error(`[Comax Import] ${label} batch ${batchNo} failed:`, e?.message || e)
@@ -282,7 +324,7 @@ export default async function importComaxProducts(payload, { DL, external }) {
     // is fixable.
     let soldWithoutRow = 0
     let windows = null
-    // Per register: the barcodes that sold inside their department's window.
+    // Per register: the barcodes that sold inside their category's window.
     const soldPerRegister = []
     // Every barcode that sold somewhere in the window, across all stores.
     const soldBarcodes = new Set()
@@ -293,16 +335,36 @@ export default async function importComaxProducts(payload, { DL, external }) {
     const salesUnitsByBarcode = new Map()
     let salesUnitsComplete = true
 
-    const salesWindow = await resolveSalesWindow(DL)
+    windows = buildCategoryWindows(ruleLookup)
 
-    if (!salesWindow.enabled) {
-        console.log('[Comax Import] Sales window disabled (no positive window configured)')
+    if (!windows.enabled) {
+        console.log('[Comax Import] Sales window disabled (no category has a positive window)')
     } else if (typeof external.comax?.streamSalesWindow !== 'function') {
         console.warn('[Comax Import] Sales window unavailable in this Comax client — skipping')
     } else {
-        windows = buildDepartmentWindows(salesWindow)
-        console.log(`[Comax Import] Sales window: default ${windows.defaultDays}d, ` +
-            `${windows.byDepartment.size} department override(s), querying ${windows.maxDays}d`)
+        console.log(`[Comax Import] Sales window: querying ${windows.maxDays}d`)
+
+        // The balance feed's rows carry department/super-department only. The
+        // per-category window needs the group and sub-group too, so fill the
+        // missing codes from the catalog row of the same barcode.
+        const barcodeMeta = new Map()
+        if (windows.maxDays > 0 && typeof DL.ComaxProduct.Model.find === 'function') {
+            const metaRows = await DL.ComaxProduct.Model.find(
+                {},
+                {
+                    _id: 0,
+                    barcode: 1,
+                    superDepartmentCode: 1,
+                    departmentCode: 1,
+                    groupCode: 1,
+                    subGroupCode: 1
+                }
+            ).lean()
+            for (const row of metaRows || []) {
+                const barcode = norm(row.barcode)
+                if (barcode) barcodeMeta.set(barcode, row)
+            }
+        }
 
         for (const reg of registers) {
             const comaxStoreId = String(reg.data?.StockStoreID ?? '').trim()
@@ -328,7 +390,19 @@ export default async function importComaxProducts(payload, { DL, external }) {
                 errors.push({ key: `salesWindow:${reg.storeId}`, message: errored })
             }
 
-            const { kept, lastSale, unknownDates } = buildKeptBarcodes(rows, windows)
+            // Fill only the codes the balance feed left empty; an explicit value
+            // on the row always wins.
+            for (const row of rows) {
+                const meta = barcodeMeta.get(norm(row.barcode))
+                if (!meta) continue
+                for (const field of ['superDepartmentCode', 'departmentCode', 'groupCode', 'subGroupCode']) {
+                    const current = row[field]
+                    if (current == null || String(current).trim() === '' || String(current) === '0')
+                        row[field] = meta[field]
+                }
+            }
+
+            const { kept, lastSale, unknownDates } = buildKeptBarcodesWithRules(rows, ruleLookup)
             for (const [barcode, date] of lastSale) {
                 const previous = lastSaleByBarcode.get(barcode)
                 if (!previous || date > previous) lastSaleByBarcode.set(barcode, date)
@@ -363,7 +437,7 @@ export default async function importComaxProducts(payload, { DL, external }) {
             }
 
             soldPerRegister.push({ reg, kept })
-            for (const barcode of kept) soldBarcodes.add(barcode)
+            for (const barcode of lastSale.keys()) soldBarcodes.add(barcode)
             sumSalesUnits(rows, salesUnitsByBarcode)
 
             if (unknownDates)
@@ -374,7 +448,6 @@ export default async function importComaxProducts(payload, { DL, external }) {
     // Barcodes that already have a row are never gated: the catalog backfill (the
     // CSV on the Comax products page) and the buying price CSV own those rows, and
     // the import has to keep refreshing one even in a month the item sells nothing.
-    const norm = barcode => String(barcode ?? '').trim()
     const existingBarcodes = new Set(((await DL.ComaxProduct.Model.distinct('barcode', {})) || []).map(norm))
     // What makes a price-less department item worth a row: it sold inside its window,
     // it already has a row, or Comax prices it for buying (it buys the item and has
@@ -415,6 +488,8 @@ export default async function importComaxProducts(payload, { DL, external }) {
             key: `store:${reg.storeId}`,
             label: `store ${reg.storeId} (Comax ${comaxStoreId})`,
             addStoreIds: [reg.storeId],
+            storeId: reg.storeId,
+            balanceByBarcode: balanceByStore.get(reg.storeId) || null,
             stream: stats => external.comax.streamStoreProducts({
                 storeId: comaxStoreId,
                 timeoutMs: STREAM_TIMEOUT_MS,
@@ -455,7 +530,7 @@ export default async function importComaxProducts(payload, { DL, external }) {
         .map(trailing => ({ ...trailing, isTrailingItem: true, lastImportedAt: startedAt }))
     if (trailingDocs.length) {
         try {
-            await writeBatch(trailingDocs, [])
+            await writeBatch(trailingDocs, { addStoreIds: [] })
             written += trailingDocs.length
             console.log(`[Comax Import] ${trailingDocs.length} trailing item(s): ${trailingDocs.map(t => t.barcode).join(', ')}`)
         } catch (e) {
@@ -492,7 +567,10 @@ export default async function importComaxProducts(payload, { DL, external }) {
             for (const part of chunk(stale, PULL_CHUNK)) {
                 const res = await DL.ComaxProduct.Model.updateMany(
                     { barcode: { $in: part }, storeIds: reg.storeId },
-                    { $pull: { storeIds: reg.storeId } }
+                    {
+                        $pull: { storeIds: reg.storeId },
+                        $unset: { [`stockByStore.${reg.storeId}`]: '' }
+                    }
                 )
                 removed += res?.modifiedCount || 0
             }
@@ -517,10 +595,34 @@ export default async function importComaxProducts(payload, { DL, external }) {
     // 4. Sales window writes. The Comax calls for this step ran before the feeds
     // (step 0); only the writes are here, because a store id exists solely because
     // a feed asserted one and the removals must read the state the feeds just wrote.
-    if (windows) {
+    //
+    // A store that is checked but not in saleStoreIds did not sell inside its
+    // category's window. The physical storeIds are left alone: the stock gate and
+    // the sale gate are applied together when the Product copy is written, so a
+    // category with saleEnabled=false still passes.
+    if (windows?.enabled) {
         for (const { reg, kept } of soldPerRegister) {
-            const current = await DL.ComaxProduct.Model.distinct('barcode', { storeIds: reg.storeId })
-            const stale = (current || []).filter(barcode => !kept.has(barcode))
+            const current = (await DL.ComaxProduct.Model.distinct('barcode', { storeIds: reg.storeId })) || []
+            if (!current.length) continue
+
+            // Mark the whole store as checked first. A product that never sold
+            // then has an explicit empty saleStoreIds, not a missing one.
+            for (const part of chunk(current, PULL_CHUNK)) {
+                await DL.ComaxProduct.Model.updateMany(
+                    { barcode: { $in: part } },
+                    { $addToSet: { saleCheckedStores: reg.storeId } }
+                )
+            }
+
+            const keptCurrent = current.filter(barcode => kept.has(barcode))
+            for (const part of chunk(keptCurrent, PULL_CHUNK)) {
+                await DL.ComaxProduct.Model.updateMany(
+                    { barcode: { $in: part } },
+                    { $addToSet: { saleStoreIds: reg.storeId } }
+                )
+            }
+
+            const stale = current.filter(barcode => !kept.has(barcode))
             if (!stale.length) {
                 console.log(`[Comax Import] store ${reg.storeId}: every in-stock item sold inside its window`)
                 continue
@@ -528,12 +630,12 @@ export default async function importComaxProducts(payload, { DL, external }) {
 
             for (const part of chunk(stale, PULL_CHUNK)) {
                 const res = await DL.ComaxProduct.Model.updateMany(
-                    { barcode: { $in: part }, storeIds: reg.storeId },
-                    { $pull: { storeIds: reg.storeId } }
+                    { barcode: { $in: part } },
+                    { $pull: { saleStoreIds: reg.storeId } }
                 )
                 windowRemoved += res?.modifiedCount || 0
             }
-            console.log(`[Comax Import] store ${reg.storeId}: ${stale.length} item(s) not sold inside their window`)
+            console.log(`[Comax Import] store ${reg.storeId}: ${stale.length} item(s) not sold inside their category window`)
         }
 
         // A sold barcode with no comax_products row cannot appear in the catalog

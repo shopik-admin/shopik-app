@@ -148,16 +148,14 @@ describe('comax sync rules', () => {
         assert.equal(await hideStorelessProducts({ DL }), 0)
     })
 
-    it('hides active products in sub-groups marked hide on site or in an inactive category', async () => {
+    it('hides active products in hidden sub-groups or in an inactive category', async () => {
         const calls = []
         const filters = []
         const DL = {
             CategoryMap: {
                 read: async (filter, select) => {
                     filters.push({ filter, select })
-                    return filter.showOnSite === false
-                        ? [{ subGroupCode: '1' }, { subGroupCode: 2 }]
-                        : [{ subGroupCode: '3' }]
+                    return [{ subGroupCode: '2' }]
                 }
             },
             Product: {
@@ -169,15 +167,17 @@ describe('comax sync rules', () => {
             }
         }
 
-        const hidden = await hideCategoryFlaggedProducts({ DL })
+        const hidden = await hideCategoryFlaggedProducts({
+            DL,
+            ruleLookup: { bySubGroupCode: new Map([['1', { hidden: true }]]) }
+        })
 
         assert.equal(hidden, 3)
         assert.deepEqual(filters, [
-            { filter: { showOnSite: false }, select: { _id: 0, subGroupCode: 1 } },
             { filter: { categoryActive: false }, select: { _id: 0, subGroupCode: 1 } }
         ])
         assert.deepEqual(calls, [{
-            filter: { status: 'active', comaxSubGroupCode: { $in: ['1', '2', '3'] } },
+            filter: { status: 'active', comaxSubGroupCode: { $in: ['2', '1'] } },
             update: { status: 'hidden' }
         }])
     })
@@ -185,12 +185,6 @@ describe('comax sync rules', () => {
     it('hides active products in kashrut-required sub-groups without a valid code', async () => {
         const calls = []
         const DL = {
-            CategoryMap: {
-                read: async filter => {
-                    assert.deepEqual(filter, { requireKashrut: true })
-                    return [{ subGroupCode: '90200' }]
-                }
-            },
             Product: {
                 constants: { STATUS },
                 update: async (filter, update) => {
@@ -200,7 +194,10 @@ describe('comax sync rules', () => {
             }
         }
 
-        const hidden = await hideKashrutMissingProducts({ DL })
+        const hidden = await hideKashrutMissingProducts({
+            DL,
+            ruleLookup: { bySubGroupCode: new Map([['90200', { requireKashrut: true }]]) }
+        })
 
         assert.equal(hidden, 2)
         assert.deepEqual(calls, [{
@@ -223,6 +220,9 @@ describe('comax sync rules', () => {
         }
 
         assert.equal(await hideCategoryFlaggedProducts({ DL }), 0)
-        assert.equal(await hideKashrutMissingProducts({ DL }), 0)
+        assert.equal(await hideKashrutMissingProducts({
+            DL,
+            ruleLookup: { bySubGroupCode: new Map() }
+        }), 0)
     })
 })

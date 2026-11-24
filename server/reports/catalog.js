@@ -1,7 +1,13 @@
 import { selectKashrutStamps, getSupervisionLabel, hasValidKashrut } from '#common/components/Kashrut/constants.js'
 import { mapKashrut } from '#server/external/gs1/mapper.js'
 import { explainStatus, STATUS_REASON } from '#server/api/comax_product/status.js'
-import { resolveSalesWindow, buildDepartmentWindows, daysForDepartment, isWithinWindow } from '#server/api/comax_product/salesWindow.js'
+import { isWithinWindow } from '#server/api/comax_product/salesWindow.js'
+import {
+    effectiveStoreIds,
+    loadRuleLookup,
+    pathsForComax,
+    resolveRulesForComax
+} from '#server/services/comaxCategorySettings/index.js'
 import { shouldEnforceBuyingPrice } from '#server/api/comax_product/syncRules.js'
 
 /**
@@ -97,7 +103,7 @@ const REASON_TEXT = {
     [STATUS_REASON.NO_STORES]: 'לא קיים באף סניף',
     [STATUS_REASON.NOT_IN_WEB]: 'לא מוצג באתר בקומקס',
     [STATUS_REASON.CATEGORY_INACTIVE]: 'הקטגוריה לא פעילה באתר',
-    [STATUS_REASON.SUBGROUP_HIDDEN]: 'תת הקטגוריה מוסתרת באתר',
+    [STATUS_REASON.CATEGORY_SETTING_HIDDEN]: 'הקטגוריה מוסתרת בהגדרות קטגוריות קומקס',
     [STATUS_REASON.KASHRUT_MISSING]: 'חסרה כשרות מתאימה'
 }
 
@@ -149,13 +155,15 @@ function reasonText(reason, item) {
 }
 
 /**
- * Why the item is outside its department's sale window, or null when it sold
- * inside it. `0` days means the window is disabled. This is informational: the
- * mechanical rule that hides the product is the empty storeIds list, but the
- * sales date is what explains it to the team.
+ * Why the item is outside its category's sale gate, or null when it sold inside
+ * it. A disabled gate means the window does not apply. This is informational:
+ * the mechanical rule that hides the product is the effective store list, but
+ * the sales date is what explains it to the team.
  */
-function staleSalesText(item, windows, now) {
-    const days = daysForDepartment(windows, item.departmentCode)
+function staleSalesText(item, ruleLookup, now) {
+    const rule = ruleLookup?.ruleFor?.(item)
+    if (rule?.saleEnabled === false) return null
+    const days = Number(rule?.saleDays) || 0
     if (!(days > 0)) return null
 
     const lastSale = toDate(item.lastSaleDate)
@@ -208,9 +216,12 @@ async function readGs1Fallback(DL, keys) {
 
 // The GS1 Kashrut block is not the shape Product stores, and every renderer here
 // expects the Product shape — the same mapper the enrich pipeline uses.
-const gs1FallbackKashrut = row => row?.raw?.product_info?.Kashrut
-    ? mapKashrut(row.raw.product_info.Kashrut).kashrut || null
-    : null
+const gs1FallbackKashrut = row => {
+    // The report's readGs1Fallback keeps the whole `raw` path; the category
+    // preview's aggregation projects the block alone as `kashrut`.
+    const block = row?.kashrut ?? row?.raw?.product_info?.Kashrut
+    return block ? mapKashrut(block).kashrut || null : null
+}
 
 async function build(DL) {
     const [
@@ -222,7 +233,7 @@ async function build(DL) {
         gs1EveryBarcode,
         gs1NoRecord,
         enforceBuyingPrice,
-        salesWindow
+        ruleLookup
     ] = await Promise.all([
         DL.Domain.readOne({ isDefault: true, active: true }, { _id: 0, id: 1 }),
         DL.Store.Model.find({ active: { $ne: false } }, { _id: 0, id: 1, name: 1 }).sort({ createdAt: 1 }).lean(),
@@ -231,8 +242,8 @@ async function build(DL) {
             {
                 _id: 0, barcode: 1, name: 1, supplier: 1, price: 1, priceWithTrailing: 1, buyingPrice: 1,
                 vat: 1, archived: 1, showInWeb: 1, lastSaleDate: 1, salesLastDays: 1,
-                superDepartment: 1, department: 1, departmentCode: 1, group: 1, subGroup: 1,
-                subGroupCode: 1, storeIds: 1, picUrl: 1
+                superDepartment: 1, superDepartmentCode: 1, department: 1, departmentCode: 1,
+                group: 1, groupCode: 1, subGroup: 1, subGroupCode: 1, storeIds: 1, picUrl: 1
             }
         ).lean(),
         DL.Product.Model.find(
@@ -241,7 +252,7 @@ async function build(DL) {
         ).lean(),
         DL.CategoryMap.read(
             {},
-            { _id: 0, subGroupCode: 1, showOnSite: 1, requireKashrut: 1, categoryActive: 1 },
+            { _id: 0, subGroupCode: 1, categoryActive: 1 },
             { limit: 0 }
         ),
         // "Has GS1 data" means a stored raw payload: a gs1_products doc is created only
@@ -262,10 +273,9 @@ async function build(DL) {
             { _id: 0, barcode: 1, syncedAt: 1, updatedAt: 1, raw: 1 }
         ).lean(),
         shouldEnforceBuyingPrice(DL),
-        // The resolved config is the raw { defaultDays, rules }; the report asks
-        // "which window applies to this department", which needs the lookup the
-        // nightly import builds from the same config.
-        resolveSalesWindow(DL).then(buildDepartmentWindows)
+        // The resolved category rules explain the sale/stale result per item;
+        // they are the same rules the import and sync decide with.
+        loadRuleLookup(DL)
     ])
 
     const productByBarcode = new Map()
@@ -333,10 +343,16 @@ async function build(DL) {
         const product = productForBarcode(key)
         const subGroupCode = String(item.subGroupCode ?? '').trim()
         const flags = flagsBySubGroup.get(subGroupCode)
+        const rules = ruleLookup?.ruleFor?.(item) || null
+        const effectiveFlags = {
+            ...(flags || {}),
+            hidden: rules?.hidden === true,
+            requireKashrut: rules?.requireKashrut === true
+        }
         const explained = explainStatus({
             comax: item,
             existing: product,
-            flags,
+            flags: effectiveFlags,
             status,
             enforceBuyingPrice
         })
@@ -346,7 +362,7 @@ async function build(DL) {
         // A row that is already on site keeps an empty reason even if its last
         // sale is old; the date column still shows the staleness.
         if (!existsOnSite) {
-            const staleSales = staleSalesText(item, salesWindow, now)
+            const staleSales = staleSalesText(item, ruleLookup, now)
             if (staleSales) reasons.push(staleSales)
         }
 
@@ -360,8 +376,8 @@ async function build(DL) {
             department: item.department || '',
             group: item.group || '',
             subGroup: item.subGroup || '',
-            categoryShown: flags ? yesNo(flags.showOnSite !== false) : '',
-            categoryRequires: flags ? yesNo(flags.requireKashrut === true) : '',
+            categoryShown: flags ? yesNo(rules?.hidden !== true) : '',
+            categoryRequires: flags ? yesNo(rules?.requireKashrut === true) : '',
             barcode: String(item.barcode ?? ''),
             name: product?.name || item.name || '',
             supplier: item.supplier || '',
@@ -429,6 +445,369 @@ async function build(DL) {
             row.reason,
             ...row.stores
         ])
+    }
+}
+
+/**
+ * Scoped product preview for the Comax category settings page.
+ *
+ * It is the catalog report's row logic without the report's full-catalog
+ * reads: only the products under the selected hierarchy node are loaded, and
+ * only their barcodes are looked up in Product/GS1. The status ladder and the
+ * reason strings are the same ones the nightly sync and the report use, so the
+ * card answers "why is this product not on the site" with the real answer.
+ */
+export async function buildCategoryProducts({
+    DL,
+    scope = {},
+    limit = 25,
+    offset = 0,
+    search = '',
+    storeIds = [],
+    minSales = null,
+    maxSales = null,
+    minSalePrice = null,
+    maxSalePrice = null,
+    minBuyingPrice = null,
+    maxBuyingPrice = null,
+    siteStatuses = [],
+    hasImage = '',
+    inGs1 = '',
+    kashrutValid = '',
+    sort = 'sales',
+    dir = -1
+}) {
+    const take = Math.min(Math.max(Number(limit) || 25, 1), 100)
+    const skip = Math.max(Number(offset) || 0, 0)
+    const clean = value => (value == null ? '' : String(value).trim())
+    const many = value => (Array.isArray(value) ? value : String(value ?? '').split(','))
+        .map(clean)
+        .filter(Boolean)
+
+    const filter = {
+        active: { $ne: false },
+        isTrailingItem: { $ne: true },
+        archived: { $ne: true }
+    }
+
+    const level = clean(scope.level)
+    if (level === 'subGroup' && clean(scope.subGroupCode)) {
+        filter.subGroupCode = clean(scope.subGroupCode)
+    } else if (level === 'group' && clean(scope.groupCode)) {
+        filter.groupCode = clean(scope.groupCode)
+        if (clean(scope.departmentCode)) filter.departmentCode = clean(scope.departmentCode)
+        if (clean(scope.superDepartmentCode)) filter.superDepartmentCode = clean(scope.superDepartmentCode)
+    } else if (level === 'department' && clean(scope.departmentCode)) {
+        filter.departmentCode = clean(scope.departmentCode)
+        if (clean(scope.superDepartmentCode)) filter.superDepartmentCode = clean(scope.superDepartmentCode)
+    } else if (level === 'superDepartment' && clean(scope.superDepartmentCode)) {
+        filter.superDepartmentCode = clean(scope.superDepartmentCode)
+    }
+
+    const term = clean(search)
+    if (term.length >= 2) {
+        // Anchored on purpose: both barcode and name are indexed, and a
+        // non-anchored regex would turn every search into a collection scan.
+        const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+        if (/^\d+$/.test(term)) filter.barcode = { $regex: `^${escaped}` }
+        else filter.name = { $regex: `^${escaped}` }
+    }
+
+    // Multi-select filters are OR within the field. One value stays a scalar so
+    // the query keeps the plain compound index path; more become an $in.
+    const storeFilter = many(storeIds)
+    if (storeFilter.length === 1) filter.storeIds = storeFilter[0]
+    else if (storeFilter.length > 1) filter.storeIds = { $in: storeFilter }
+
+    const addRange = (field, min, max) => {
+        const range = {}
+        const low = min === null || min === undefined || min === '' ? NaN : Number(min)
+        const high = max === null || max === undefined || max === '' ? NaN : Number(max)
+        if (Number.isFinite(low)) range.$gte = low
+        if (Number.isFinite(high)) range.$lte = high
+        if (Object.keys(range).length) filter[field] = range
+    }
+    addRange('salesLastDays', minSales, maxSales)
+    addRange('price', minSalePrice, maxSalePrice)
+    addRange('buyingPrice', minBuyingPrice, maxBuyingPrice)
+
+    const statusFilter = many(siteStatuses)
+        .filter(value => ['active', 'hidden', 'archived'].includes(value))
+    if (statusFilter.length === 1) filter.siteStatus = statusFilter[0]
+    else if (statusFilter.length > 1) filter.siteStatus = { $in: statusFilter }
+
+    const parseBool = value => {
+        if (value === true || value === 'true' || value === 1) return true
+        if (value === false || value === 'false' || value === 0) return false
+        return null
+    }
+    for (const [field, value] of [
+        ['hasImage', hasImage],
+        ['inGs1', inGs1],
+        ['kashrutValid', kashrutValid]
+    ]) {
+        const parsed = parseBool(value)
+        if (parsed !== null) filter[field] = parsed
+    }
+
+    const direction = Number(dir) === -1 ? -1 : 1
+    // The barcode tie-breaker follows the primary direction on purpose: an
+    // all-ascending {subGroupCode, field, barcode} index then serves both
+    // directions (Mongo scans it backwards), which keeps the page stable
+    // without a blocking sort. Mixed directions forced a COLLSCAN.
+    const sortBy = field => ({ [field]: direction, barcode: direction })
+    const sortSpec = sort === 'barcode'
+        ? { barcode: direction }
+        : sort === 'sales'
+            ? sortBy('salesLastDays')
+            : sort === 'salePrice'
+                ? sortBy('price')
+                : sort === 'buyingPrice'
+                    ? sortBy('buyingPrice')
+                    : sort === 'status'
+                        ? sortBy('siteStatus')
+                        : sort === 'hasImage'
+                            ? sortBy('hasImage')
+                            : sort === 'inGs1'
+                                ? sortBy('inGs1')
+                                : sort === 'kashrutValid'
+                                    ? sortBy('kashrutValid')
+                                    : sortBy('name')
+
+    const projection = {
+        _id: 0,
+        barcode: 1,
+        name: 1,
+        supplier: 1,
+        price: 1,
+        priceWithTrailing: 1,
+        buyingPrice: 1,
+        vat: 1,
+        archived: 1,
+        showInWeb: 1,
+        lastSaleDate: 1,
+        salesLastDays: 1,
+        superDepartment: 1,
+        superDepartmentCode: 1,
+        department: 1,
+        departmentCode: 1,
+        group: 1,
+        groupCode: 1,
+        subGroup: 1,
+        subGroupCode: 1,
+        storeIds: 1,
+        picUrl: 1
+    }
+
+    const [total, items] = await Promise.all([
+        DL.ComaxProduct.Model.countDocuments(filter),
+        DL.ComaxProduct.Model.find(filter, projection)
+            .sort(sortSpec)
+            .skip(skip)
+            .limit(take)
+            .lean()
+    ])
+
+    if (!items?.length) {
+        // Still answer the active store list: the filter dropdown must not
+        // collapse just because the current search/filter returned zero rows.
+        const stores = await DL.Store.Model
+            .find({ active: { $ne: false } }, { _id: 0, id: 1, name: 1 })
+            .sort({ createdAt: 1 })
+            .lean()
+            .catch(() => [])
+        return {
+            total: total || 0,
+            limit: take,
+            offset: skip,
+            stores: (stores || []).map(store => ({ id: store.id, name: store.name })),
+            rows: []
+        }
+    }
+
+    const barcodes = [...new Set(items.map(item => clean(item.barcode)).filter(Boolean))]
+    const subGroupCodes = [...new Set(items.map(item => clean(item.subGroupCode)).filter(Boolean))]
+    // Only the setting rows on this page's paths: the collection grows with
+    // every override and loading all of it cost ~12 ms per request.
+    const settingPaths = [...new Set(items.flatMap(item => pathsForComax(item)))]
+
+    const barcodeVariants = new Set()
+    for (const barcode of barcodes) {
+        barcodeVariants.add(barcode)
+        if (/^\d{12}$/.test(barcode)) barcodeVariants.add(`0${barcode}`)
+        else if (/^\d{13}$/.test(barcode) && barcode[0] === '0') barcodeVariants.add(barcode.slice(1))
+    }
+
+    const [defaultDomain, stores, products, categoryFlags, enforceBuyingPrice, settingRows, gs1Rows] = await Promise.all([
+        DL.Domain.readOne({ isDefault: true, active: true }, { _id: 0, id: 1 }),
+        DL.Store.Model.find({ active: { $ne: false } }, { _id: 0, id: 1, name: 1 }).sort({ createdAt: 1 }).lean(),
+        DL.Product.Model.find(
+            {
+                $or: [
+                    { barcode: { $in: barcodes } },
+                    { scannableBarcodes: { $in: barcodes } }
+                ]
+            },
+            {
+                _id: 0,
+                barcode: 1,
+                scannableBarcodes: 1,
+                name: 1,
+                prices: 1,
+                kashrut: 1,
+                'images.product': 1,
+                gs1SyncedAt: 1
+            }
+        ).lean(),
+        subGroupCodes.length
+            ? DL.CategoryMap.read(
+                { subGroupCode: { $in: subGroupCodes } },
+                { _id: 0, subGroupCode: 1, categoryActive: 1 },
+                { limit: 0 }
+            )
+            : [],
+        shouldEnforceBuyingPrice(DL),
+        // Preview resolves rules for its ~25 rows, not for the whole catalog:
+        // loadRuleLookup() read the map and resolved every sub-group, and a full
+        // settings read was ~12 ms per request. Both were per-page work.
+        settingPaths.length
+            ? DL.ComaxCategorySetting.read(
+                { path: { $in: settingPaths } },
+                { _id: 0 },
+                { limit: 0 }
+            ).catch(() => [])
+            : [],
+        barcodeVariants.size
+            ? DL.Gs1Product.Model.aggregate([
+                { $match: { barcode: { $in: [...barcodeVariants] } } },
+                {
+                    $project: {
+                        _id: 0,
+                        barcode: 1,
+                        skipReason: 1,
+                        syncedAt: 1,
+                        updatedAt: 1,
+                        assetCount: 1,
+                        // Projecting `raw` and a path inside it together makes
+                        // MongoDB reject the projection ("path collision").
+                        // The preview only needs existence plus the kashrut block.
+                        hasRaw: {
+                            $ne: [{ $ifNull: ['$raw', null] }, null]
+                        },
+                        kashrut: '$raw.product_info.Kashrut'
+                    }
+                }
+            ])
+            : []
+    ])
+
+    const settingsByPath = new Map((settingRows || []).map(row => [String(row.path), row]))
+    const ruleLookup = { ruleFor: item => resolveRulesForComax(settingsByPath, item) }
+
+    const productByBarcode = new Map()
+    const ownerByAlias = new Map()
+    for (const product of products || []) {
+        if (product.barcode == null) continue
+        const key = normBarcode(product.barcode)
+        if (!productByBarcode.has(key)) productByBarcode.set(key, product)
+        for (const alias of product.scannableBarcodes || []) {
+            const aliasKey = normBarcode(alias)
+            if (aliasKey) ownerByAlias.set(aliasKey, key)
+        }
+    }
+    const productForBarcode = key =>
+        productByBarcode.get(key) || productByBarcode.get(ownerByAlias.get(key))
+
+    const flagsBySubGroup = new Map((categoryFlags || [])
+        .map(row => [String(row.subGroupCode ?? ''), row]))
+
+    const gs1ByKey = new Map()
+    for (const row of gs1Rows || []) {
+        const key = normBarcode(row.barcode)
+        if (!key) continue
+        const previous = gs1ByKey.get(key)
+        if (!previous || (!previous.hasRaw && row.hasRaw)) gs1ByKey.set(key, row)
+    }
+
+    const status = DL.Product.constants.STATUS
+    const statusText = {
+        [status.ACTIVE]: 'פעיל',
+        [status.HIDDEN]: 'מוסתר',
+        [status.ARCHIVED]: 'ארכיון באתר'
+    }
+    const now = new Date()
+    const activeStoreIds = (stores || []).map(store => store.id)
+
+    const rows = (items || []).map(item => {
+        const key = normBarcode(item.barcode)
+        const product = productForBarcode(key)
+        const subGroupCode = String(item.subGroupCode ?? '').trim()
+        const rules = ruleLookup?.ruleFor?.(item) || null
+        const flags = {
+            ...(flagsBySubGroup.get(subGroupCode) || {}),
+            hidden: rules?.hidden === true,
+            requireKashrut: rules?.requireKashrut === true
+        }
+        // The settings page must answer the same question the sync does, so the
+        // preview applies the category's sale/min-stock gates too. The report's
+        // own store columns remain physical; this card's are "sellable here".
+        const storeIds = effectiveStoreIds(item, rules, activeStoreIds)
+        const explained = explainStatus({
+            comax: storeIds ? { ...item, storeIds } : item,
+            existing: product,
+            flags,
+            status,
+            enforceBuyingPrice
+        })
+        const existsOnSite = explained.status === status.ACTIVE
+        const reasons = explained.reasons.map(reason => reasonText(reason, item))
+
+        if (!existsOnSite) {
+            const staleSales = staleSalesText(item, ruleLookup, now)
+            if (staleSales) reasons.push(staleSales)
+        }
+
+        const gs1 = gs1ByKey.get(key)
+        const fallback = product ? null : gs1
+        const kashrut = product?.kashrut ?? gs1FallbackKashrut(gs1)
+        const inGs1 = !!gs1?.hasRaw || !!product?.gs1SyncedAt
+        const checkedAt = !inGs1 && gs1?.skipReason === 'no-gs1-record'
+            ? toDate(gs1.updatedAt || gs1.syncedAt)
+            : null
+        const salePrice = product?.prices?.find(price => price?.domainId === defaultDomain?.id)?.price ?? item.price
+        const sellableStores = new Set(storeIds || [])
+
+        return {
+            barcode: String(item.barcode ?? ''),
+            name: product?.name || item.name || '',
+            supplier: item.supplier || '',
+            status: explained.status,
+            statusText: statusText[explained.status] || explained.status,
+            existsOnSite,
+            reason: reasons.join(' · '),
+            stores: (stores || []).map(store => ({
+                id: store.id,
+                name: store.name,
+                inStock: sellableStores.has(store.id)
+            })),
+            hasImage: (product?.images?.product || []).length > 0 || !!item.picUrl || (fallback?.assetCount > 0),
+            inGs1,
+            gs1CheckedAt: formatDate(checkedAt),
+            kashrutValid: hasValidKashrut(kashrut),
+            noComaxPrice: !(item.price > 0),
+            unitsSold: Number.isFinite(item.salesLastDays) ? item.salesLastDays : null,
+            lastSaleDate: formatDate(item.lastSaleDate),
+            salePrice: moneyOrNull(salePrice),
+            buyingPrice: moneyOrNull(item.buyingPrice)
+        }
+    })
+
+    return {
+        total: total || 0,
+        limit: take,
+        offset: skip,
+        stores: (stores || []).map(store => ({ id: store.id, name: store.name })),
+        rows
     }
 }
 

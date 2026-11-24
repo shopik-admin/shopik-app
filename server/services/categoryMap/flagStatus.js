@@ -1,5 +1,10 @@
 import { hasValidKashrut } from '#common/components/Kashrut/constants.js'
 import { deriveStatus } from '#server/api/comax_product/status.js'
+import {
+    effectiveStoreIds,
+    loadRuleLookup,
+    readActiveStoreIds
+} from '#server/services/comaxCategorySettings/index.js'
 
 // The un-hide pass joins every candidate to its Comax row, exactly like the
 // nightly sync does, so a status is never re-derived from less information than
@@ -16,7 +21,14 @@ const COMAX_SELECT = {
     priceWithTrailing: 1,
     buyingPrice: 1,
     showInWeb: 1,
-    storeIds: 1
+    storeIds: 1,
+    stockByStore: 1,
+    saleStoreIds: 1,
+    saleCheckedStores: 1,
+    superDepartmentCode: 1,
+    departmentCode: 1,
+    groupCode: 1,
+    subGroupCode: 1
 }
 
 // The Comax rows the sync loop actually visits. Only the conditions the DL
@@ -35,29 +47,45 @@ const inSyncScope = comax =>
  *           permissive, re-derived through the full status ladder so nothing
  *           comes back for a reason the ladder would ignore.
  *
- * The flags are the Comax showOnSite / requireKashrut pair plus the mirrored
- * `categoryActive` state of the mapped category. `relaxCodes` is the sub-group
- * codes that just relaxed (any of the three), whatever changed them. Without it
- * the sweep stays hide-only; `relaxCodes: 'all'` reconciles the whole catalog
- * (the CLI repair run). ARCHIVED products are never candidates, and a candidate
- * with no usable Comax row is left alone — only the nightly sync resurrects
- * that.
+ * The flags are the category setting `hidden` plus `requireKashrut` and the
+ * mirrored `categoryActive` state of the mapped category. `relaxCodes` is the
+ * sub-group codes that just relaxed (any of them), whatever changed them.
+ * Without it the sweep stays hide-only; `relaxCodes: 'all'` reconciles the whole
+ * catalog (the CLI repair run). ARCHIVED products are never candidates, and a
+ * candidate with no usable Comax row is left alone — only the nightly sync
+ * resurrects that.
  *
  * `updates` is returned so the caller can write a rollback file.
  */
 export async function applyCategoryFlagStatuses({
-    DL, dryRun = false, limit = 0, relaxCodes = null
+    DL, dryRun = false, limit = 0, relaxCodes = null,
+    ruleLookup = null, activeStoreIds = null
 }) {
     const status = DL.Product.constants.STATUS
     const { ACTIVE, HIDDEN } = status
     const cap = Number(limit) || 0
 
-    const rows = await DL.CategoryMap.read(
-        {},
-        { _id: 0, subGroupCode: 1, showOnSite: 1, requireKashrut: 1, categoryActive: 1 },
-        { limit: 0 }
-    )
-    const flagsByCode = new Map((rows || []).map(row => [String(row.subGroupCode), row]))
+    const [rows, resolvedRules, resolvedStores] = await Promise.all([
+        DL.CategoryMap.read(
+            {},
+            { _id: 0, subGroupCode: 1, categoryActive: 1 },
+            { limit: 0 }
+        ),
+        ruleLookup ? Promise.resolve(ruleLookup) : loadRuleLookup(DL),
+        activeStoreIds ? Promise.resolve(activeStoreIds) : readActiveStoreIds(DL)
+    ])
+    const flagsByCode = new Map()
+    for (const row of rows || []) {
+        const code = String(row.subGroupCode)
+        const rules = resolvedRules?.bySubGroupCode?.get(code) || null
+        flagsByCode.set(code, {
+            ...row,
+            // The resolved rule is authoritative; the row's own fields are only
+            // a test/legacy fallback when no resolved rule was available.
+            hidden: rules ? rules.hidden === true : row.hidden === true,
+            requireKashrut: rules ? rules.requireKashrut === true : row.requireKashrut === true
+        })
+    }
 
     // ---- hide: every active product that violates today's flags ----
     const products = await DL.Product.Model.find(
@@ -65,9 +93,8 @@ export async function applyCategoryFlagStatuses({
         { _id: 0, barcode: 1, comaxSubGroupCode: 1, 'kashrut.rabbinates': 1 }
     ).lean()
 
-    // `category` is the sub-group showOnSite flag; `both` counts products that
-    // violate more than one rule (whichever they are).
-    const reasons = { category: 0, categoryActive: 0, kashrut: 0, both: 0 }
+    // `both` counts products that violate more than one rule (whichever they are).
+    const reasons = { categoryActive: 0, kashrut: 0, hidden: 0, both: 0 }
     const toHide = []
 
     for (const product of products) {
@@ -76,7 +103,7 @@ export async function applyCategoryFlagStatuses({
 
         const violated = []
         if (flags.categoryActive === false) violated.push('categoryActive')
-        if (flags.showOnSite === false) violated.push('category')
+        if (flags.hidden === true) violated.push('hidden')
         if (flags.requireKashrut === true && !hasValidKashrut(product.kashrut)) violated.push('kashrut')
         if (!violated.length) continue
 
@@ -132,10 +159,13 @@ export async function applyCategoryFlagStatuses({
                         continue
                     }
 
+                    const flags = flagsByCode.get(String(product.comaxSubGroupCode ?? ''))
+                    const rules = resolvedRules?.ruleFor?.(comax) || null
+                    const storeIds = effectiveStoreIds(comax, rules, resolvedStores)
                     const derived = deriveStatus({
-                        comax,
+                        comax: storeIds ? { ...comax, storeIds } : comax,
                         existing: product,
-                        flags: flagsByCode.get(String(product.comaxSubGroupCode ?? '')),
+                        flags,
                         status,
                         enforceBuyingPrice
                     })
@@ -153,7 +183,7 @@ export async function applyCategoryFlagStatuses({
                         // Writing the stores too: hideStorelessProducts hides any
                         // ACTIVE product whose doc has no storeIds, so an
                         // un-hidden product would be hidden again tonight.
-                        storeIds: Array.isArray(comax.storeIds) && comax.storeIds.length ? comax.storeIds : null
+                        storeIds
                     })
                 }
             }
@@ -168,11 +198,21 @@ export async function applyCategoryFlagStatuses({
             getFilter: doc => ({ barcode: doc.barcode }),
             getUpsert: () => false,
             getUpdate: doc => ({
-                $set: doc.storeIds?.length
+                $set: Array.isArray(doc.storeIds)
                     ? { status: doc.status, storeIds: doc.storeIds }
                     : { status: doc.status }
             })
         })
+
+        // Keep the denormalised filter field in step with the product status.
+        if (typeof DL.ComaxProduct?.Model?.bulkWrite === 'function') {
+            await DL.ComaxProduct.Model.bulkWrite(updates.map(doc => ({
+                updateOne: {
+                    filter: { barcode: doc.barcode },
+                    update: { $set: { siteStatus: doc.status } }
+                }
+            })), { ordered: false })
+        }
     }
 
     return {

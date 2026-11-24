@@ -122,7 +122,7 @@ function makeDL({ orders = [], guestCarts = [] }) {
             },
             Category: { read: async () => [{ id: 'nc:206:2027', name: 'ביצים', parentIds: ['nc:206'] }] },
             CategoryMap: {
-                read: async () => [{ subGroupCode: '10110', categoryId: 'nc:206:2027', showOnSite: true, requireKashrut: false, categoryActive: true }]
+                read: async () => [{ subGroupCode: '10110', categoryId: 'nc:206:2027', requireKashrut: false, categoryActive: true }]
             },
             Domain: { readOne: async () => ({ id: 'dom' }) },
             Order: { Model: cartModelFor(orders) },

@@ -10,11 +10,34 @@ function fakeDL() {
         { id: 'nc:1:2', level: 2, parentId: 'nc:1', name: 'פירות' }
     ]
     const mapDocs = [
-        // Both flags on: shown as hidden + kashrut in the admin.
-        { subGroupCode: '100', categoryId: 'nc:1:2', showOnSite: false, requireKashrut: true, categoryActive: false },
-        { subGroupCode: '101', categoryId: 'nc:1:2', showOnSite: true, requireKashrut: false },
-        // Imported before the flags file: no flag fields means show + no rule.
-        { subGroupCode: '102', categoryId: 'nc:1:2' }
+        // 100 is hidden on the new category settings page and requires kashrut.
+        {
+            subGroupCode: '100',
+            categoryId: 'nc:1:2',
+            superDepartmentCode: '3',
+            departmentCode: '13',
+            groupCode: '4',
+            categoryActive: false
+        },
+        {
+            subGroupCode: '101',
+            categoryId: 'nc:1:2',
+            superDepartmentCode: '3',
+            departmentCode: '13',
+            groupCode: '4'
+        },
+        // Imported before the flags file: no flag fields means shown + no rule.
+        {
+            subGroupCode: '102',
+            categoryId: 'nc:1:2',
+            superDepartmentCode: '3',
+            departmentCode: '13',
+            groupCode: '4'
+        }
+    ]
+    const settings = [
+        { path: '3/13/4/100', level: 'subGroup', hidden: true, requireKashrut: true },
+        { path: '3/13/4/101', level: 'subGroup', hidden: false }
     ]
     const counts = [
         { _id: '100', count: 2 },
@@ -34,6 +57,7 @@ function fakeDL() {
         },
         Category: { read: async () => categories },
         CategoryMap: { read: async () => mapDocs },
+        ComaxCategorySetting: { read: async () => settings },
         ComaxProduct: {
             Model: { find: () => ({ lean: async () => [] }) }
         }
@@ -45,14 +69,14 @@ describe('category tree flags', () => {
         const { assigned } = await tree({}, { DL: fakeDL() })
         const byCode = new Map(assigned.map(entry => [entry.code, entry]))
 
-        assert.equal(byCode.get('100').showOnSite, false)
+        assert.equal(byCode.get('100').hidden, true)
         assert.equal(byCode.get('100').requireKashrut, true)
         assert.equal(byCode.get('100').categoryActive, false)
-        assert.equal(byCode.get('101').showOnSite, true)
+        assert.equal(byCode.get('101').hidden, false)
         assert.equal(byCode.get('101').requireKashrut, false)
         assert.equal(byCode.get('101').categoryActive, true)
         // Missing flags must keep the old behaviour: shown, no kashrut rule.
-        assert.equal(byCode.get('102').showOnSite, true)
+        assert.equal(byCode.get('102').hidden, false)
         assert.equal(byCode.get('102').requireKashrut, false)
         assert.equal(byCode.get('102').categoryActive, true)
     })
@@ -61,7 +85,7 @@ describe('category tree flags', () => {
         const { unassigned } = await tree({}, { DL: fakeDL() })
         const entry = unassigned.find(row => row.code === '103')
 
-        assert.equal(entry.showOnSite, true)
+        assert.equal(entry.hidden, false)
         assert.equal(entry.requireKashrut, false)
         assert.equal(entry.categoryActive, true)
     })

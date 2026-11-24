@@ -16,6 +16,7 @@ import Coupons from 'Pages/Coupons'
 import DisplayBlocks from 'Pages/DisplayBlocks'
 import MenuCategories from 'Pages/MenuCategories'
 import ComaxProducts from 'Pages/ComaxProducts'
+import ComaxCategories from 'Pages/ComaxCategories'
 import SupplyAreas from 'Pages/SupplyAreas'
 import ComaxSales from 'Pages/ComaxSales'
 import Reports from 'Pages/Reports'
@@ -52,6 +53,7 @@ const pages = [
     { key: 'ops-order', name: ' ', path: '/ops-order/:orderId', section: 'operations', icon: 'orders', component: OpsOrder, permission: ['order:read', 'order:pick', 'order:ship', 'order:pick:manage', 'order:ship:manage'], notInMenu: true },
 
     { key: 'comax-products', name: 'Comax Products', path: '/comax-products', section: 'comax', icon: 'products', component: ComaxProducts, permission: 'comax_product:read' },
+    { key: 'comax-categories', name: 'comax_category_settings_nav', path: '/comax-categories', section: 'comax', icon: 'grid', component: ComaxCategories, permission: 'comax_product:read' },
     { key: 'comax-sales', name: 'Comax Sales', path: '/comax-sales', section: 'comax', icon: 'sale', component: ComaxSales, permission: 'comax_sale:read' },
 
 

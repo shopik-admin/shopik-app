@@ -47,8 +47,9 @@ export default async function update({ id, icon, active }, { DL }) {
     if (!category) throw { status: 404, message: 'category not found' }
 
     // Mirror the new state onto this branch's sub-groups, then sweep product
-    // statuses in both directions. `showOnSite` stays untouched, so a sub-group
-    // Comax hid permanently is never resurrected by reactivating a category.
+    // statuses in both directions. The category setting `hidden` stays
+    // untouched, so a sub-group hidden on the category settings page is never
+    // resurrected by reactivating a site category.
     let status = null
     if (hasActive) {
         const mirror = await mirrorCategoryActive({ DL, categoryIds: ids })

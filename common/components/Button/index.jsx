@@ -9,14 +9,14 @@ import { useState } from 'react'
 
 export default function Button({
     className, text = '', children = text, icon, mode, loading: externalLoading = false,
-    tooltip, onClick, stopPropagation, preventDefault, permission, onError, onPrimary, badge, ...props
+    tooltip, tooltipPosition = 'top', tooltipAlign = 'center', onClick, stopPropagation, preventDefault, permission, onError, onPrimary, badge, ...props
 }) {
     const hasPermission = usePermission(permission || '')
     const [loading, setLoading] = useState(false)
 
     if (permission && !hasPermission) return null
 
-    return <Tooltip text={tooltip}>
+    return <Tooltip text={tooltip} position={tooltipPosition} align={tooltipAlign}>
         <button
             aria-label={tooltip}
             className={classNames(

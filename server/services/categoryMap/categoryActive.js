@@ -3,8 +3,9 @@
 // The admin checkbox edits one category, but a branch is a unit: deactivating a
 // parent deactivates every category below it too (and reactivating brings the
 // branch back). Products are hidden through the mirrored `categoryActive` flag
-// on category_map, never by rewriting `showOnSite`: a sub-group Comax marked
-// hidden stays hidden whatever the admin does to the category.
+// on category_map, never by rewriting the category setting `hidden`: a
+// sub-group hidden on the category settings page stays hidden whatever the
+// admin does to the site category.
 
 /**
  * Every category id in the subtree rooted at `id` (the id itself included).

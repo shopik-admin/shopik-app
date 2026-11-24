@@ -16,6 +16,7 @@ function fakeDL({
     products = [],
     gs1 = [],
     categoryFlags = [],
+    categorySettings = [],
     salesWindow = { defaultDays: 30, rules: [] },
     buyingPriceRows = 1
 } = {}) {
@@ -49,6 +50,11 @@ function fakeDL({
             constants: { STATUS }
         },
         CategoryMap: { read: async () => categoryFlags },
+        ComaxCategorySetting: {
+            read: async () => categorySettings,
+            updateOne: async () => ({}),
+            create: async () => ({})
+        },
         Gs1Product: {
             Model: {
                 distinct: async (field, filter = {}) => matching(gs1Docs, filter).map(doc => doc[field]),
@@ -68,9 +74,11 @@ const comaxRow = (overrides = {}) => ({
     vat: true,
     showInWeb: true,
     superDepartment: 'מזון',
+    superDepartmentCode: '3',
     department: 'שימורים',
     departmentCode: '30',
     group: 'שימורים',
+    groupCode: '301',
     subGroup: 'שימורים',
     storeIds: ['store-bat-yam'],
     picUrl: null,
@@ -272,38 +280,46 @@ describe('catalog report', () => {
         assert.equal(row(none).kashrutValid, 'לא')
     })
 
-    it('reads קטגוריה דורשת כשרות from the sub-group requireKashrut flag', async () => {
-        const built = async categoryFlags => (await catalog.build(fakeDL({
+    it('reads קטגוריה דורשת כשרות from the category kashrut setting', async () => {
+        const built = async (categoryFlags, categorySettings = []) => (await catalog.build(fakeDL({
             comax: [comaxRow({ subGroupCode: '90200' })],
-            categoryFlags
+            categoryFlags,
+            categorySettings
         }))).rows[0][5]
 
-        assert.equal(await built([{ subGroupCode: '90200', requireKashrut: true }]), 'כן')
-        assert.equal(await built([{ subGroupCode: '90200', requireKashrut: false }]), 'לא')
+        const required = [{ path: '3/30/301/90200', level: 'subGroup', requireKashrut: true }]
+        const notRequired = [{ path: '3/30/301/90200', level: 'subGroup', requireKashrut: false }]
+
+        assert.equal(await built([{ subGroupCode: '90200' }], required), 'כן')
+        assert.equal(await built([{ subGroupCode: '90200' }], notRequired), 'לא')
         // A category_map row the flags file never set means no requirement,
         // like the status ladder treats it.
         assert.equal(await built([{ subGroupCode: '90200' }]), 'לא')
         // A sub-group with no category_map row is unknown, like a Comax row
         // without a sub-group code at all.
-        assert.equal(await built([{ subGroupCode: '90201', requireKashrut: true }]), '')
+        assert.equal(await built([{ subGroupCode: '90201' }], required), '')
         assert.equal(await built([]), '')
         assert.equal((await catalog.build(fakeDL({ comax: [comaxRow()] }))).rows[0][5], '')
     })
 
-    it('reads קטגוריה מוצגת באתר from the sub-group showOnSite flag', async () => {
-        const built = async categoryFlags => (await catalog.build(fakeDL({
+    it('reads קטגוריה מוצגת באתר from the category hidden setting', async () => {
+        const built = async (categoryFlags, categorySettings = []) => (await catalog.build(fakeDL({
             comax: [comaxRow({ subGroupCode: '90200' })],
-            categoryFlags
+            categoryFlags,
+            categorySettings
         }))).rows[0][4]
 
-        assert.equal(await built([{ subGroupCode: '90200', showOnSite: false }]), 'לא')
-        assert.equal(await built([{ subGroupCode: '90200', showOnSite: true }]), 'כן')
+        const hidden = [{ path: '3/30/301/90200', level: 'subGroup', hidden: true }]
+        const shown = [{ path: '3/30/301/90200', level: 'subGroup', hidden: false }]
+
+        assert.equal(await built([{ subGroupCode: '90200' }], hidden), 'לא')
+        assert.equal(await built([{ subGroupCode: '90200' }], shown), 'כן')
         // A category_map row the flags file never set defaults to show, like
         // the status ladder treats it.
         assert.equal(await built([{ subGroupCode: '90200' }]), 'כן')
         // A sub-group with no category_map row is unknown, like a Comax row
         // without a sub-group code at all.
-        assert.equal(await built([{ subGroupCode: '90201', showOnSite: false }]), '')
+        assert.equal(await built([{ subGroupCode: '90201' }], hidden), '')
         assert.equal(await built([]), '')
         assert.equal((await catalog.build(fakeDL({ comax: [comaxRow()] }))).rows[0][4], '')
     })
@@ -485,14 +501,16 @@ describe('catalog report', () => {
         const hiddenSubGroup = (await catalog.build(fakeDL({
             comax: [comaxRow({ subGroupCode: '90200' })],
             products: [productRow()],
-            categoryFlags: [{ subGroupCode: '90200', showOnSite: false }]
+            categoryFlags: [{ subGroupCode: '90200' }],
+            categorySettings: [{ path: '3/30/301/90200', level: 'subGroup', hidden: true }]
         }))).rows[0]
-        assert.match(row(hiddenSubGroup).reason, /תת הקטגוריה מוסתרת באתר/)
+        assert.match(row(hiddenSubGroup).reason, /הקטגוריה מוסתרת בהגדרות קטגוריות קומקס/)
 
         const noKashrut = (await catalog.build(fakeDL({
             comax: [comaxRow({ subGroupCode: '90200' })],
             products: [productRow({ kashrut: undefined })],
-            categoryFlags: [{ subGroupCode: '90200', requireKashrut: true }]
+            categoryFlags: [{ subGroupCode: '90200' }],
+            categorySettings: [{ path: '3/30/301/90200', level: 'subGroup', requireKashrut: true }]
         }))).rows[0]
         assert.match(row(noKashrut).reason, /חסרה כשרות מתאימה/)
     })
@@ -545,13 +563,18 @@ describe('catalog report', () => {
         const tenDaysAgo = new Date(Date.now() - 10 * DAY)
         const staleWith5Days = (await catalog.build(fakeDL({
             comax: [comaxRow({ departmentCode: '30', lastSaleDate: tenDaysAgo })],
-            salesWindow: { defaultDays: 30, rules: [{ days: 5, departments: ['30'] }] }
+            categorySettings: [
+                { path: 'global', level: 'global', saleEnabled: true, saleDays: 30 },
+                { path: '3/30', level: 'department', saleEnabled: true, saleDays: 5 }
+            ]
         }))).rows[0]
         assert.match(row(staleWith5Days).reason, /לא נמכר מאז /)
 
         const freshWith30Days = (await catalog.build(fakeDL({
             comax: [comaxRow({ departmentCode: '30', lastSaleDate: tenDaysAgo })],
-            salesWindow: { defaultDays: 30, rules: [] }
+            categorySettings: [
+                { path: 'global', level: 'global', saleEnabled: true, saleDays: 30 }
+            ]
         }))).rows[0]
         assert.doesNotMatch(row(freshWith30Days).reason, /לא נמכר/)
     })

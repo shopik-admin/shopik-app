@@ -31,8 +31,8 @@ function existingProduct(overrides = {}) {
     }
 }
 
-const build = (comax = {}, existing = existingProduct(), enforceBuyingPrice = false, lookup) =>
-    buildProduct(comaxProduct(comax), DL, 'default', existing, enforceBuyingPrice, lookup)
+const build = (comax = {}, existing = existingProduct(), enforceBuyingPrice = false, lookup, ruleLookup, activeStoreIds) =>
+    buildProduct(comaxProduct(comax), DL, 'default', existing, enforceBuyingPrice, lookup, ruleLookup, activeStoreIds)
 
 describe('comax product build', () => {
     it('hides an item that is in stock in no store', () => {
@@ -54,6 +54,52 @@ describe('comax product build', () => {
 
         assert.equal(product.status, STATUS.ACTIVE)
         assert.equal('storeIds' in product, false)
+    })
+
+    it('filters stores below the category minimum stock', () => {
+        const ruleLookup = {
+            ruleFor: () => ({
+                saleEnabled: false,
+                saleDays: 0,
+                stockEnabled: true,
+                minStock: 5,
+                hidden: false
+            })
+        }
+        const product = build(
+            { storeIds: ['store-a', 'store-b'], stockByStore: { 'store-a': 2, 'store-b': 9 } },
+            existingProduct(),
+            false,
+            null,
+            ruleLookup,
+            ['store-a', 'store-b']
+        )
+
+        assert.deepEqual(product.storeIds, ['store-b'])
+        assert.equal(product.status, STATUS.ACTIVE)
+    })
+
+    it('shows a stock-disabled category in every active store', () => {
+        const ruleLookup = {
+            ruleFor: () => ({
+                saleEnabled: false,
+                saleDays: 0,
+                stockEnabled: false,
+                minStock: 0,
+                hidden: false
+            })
+        }
+        const product = build(
+            { storeIds: [], stockByStore: {} },
+            existingProduct(),
+            false,
+            null,
+            ruleLookup,
+            ['store-a', 'store-b']
+        )
+
+        assert.deepEqual(product.storeIds, ['store-a', 'store-b'])
+        assert.equal(product.status, STATUS.ACTIVE)
     })
 
     it('copies the summed sales units onto the product', () => {
@@ -144,12 +190,22 @@ describe('comax product build', () => {
             categoriesById: new Map()
         })
 
-        it('hides an item in a sub-group marked hide on site', () => {
+        it('hides an item in a sub-group marked hidden', () => {
+            const ruleLookup = {
+                ruleFor: () => ({
+                    saleEnabled: false,
+                    saleDays: 0,
+                    stockEnabled: true,
+                    minStock: 0,
+                    hidden: true
+                })
+            }
             const product = build(
                 { subGroupCode: '100', storeIds: ['store-a'] },
                 existingProduct(),
                 false,
-                lookupWith({ showOnSite: false, requireKashrut: false })
+                lookupWith({ requireKashrut: false }),
+                ruleLookup
             )
 
             assert.equal(product.status, STATUS.HIDDEN)
@@ -160,7 +216,7 @@ describe('comax product build', () => {
                 { subGroupCode: '100', storeIds: ['store-a'] },
                 existingProduct(),
                 false,
-                lookupWith({ categoryActive: false, showOnSite: true, requireKashrut: false })
+                lookupWith({ categoryActive: false, requireKashrut: false })
             )
 
             assert.equal(product.status, STATUS.HIDDEN)
@@ -171,7 +227,7 @@ describe('comax product build', () => {
                 { subGroupCode: '100', storeIds: ['store-a'] },
                 existingProduct(),
                 false,
-                lookupWith({ showOnSite: true, requireKashrut: true })
+                lookupWith({ requireKashrut: true })
             )
 
             assert.equal(product.status, STATUS.HIDDEN)
@@ -182,7 +238,7 @@ describe('comax product build', () => {
                 { subGroupCode: '100', storeIds: ['store-a'] },
                 existingProduct({ kashrut: { rabbinates: [{ code: '67011', name: 'הרבנות הראשית' }] } }),
                 false,
-                lookupWith({ showOnSite: true, requireKashrut: true })
+                lookupWith({ requireKashrut: true })
             )
 
             assert.equal(product.status, STATUS.HIDDEN)
@@ -193,7 +249,7 @@ describe('comax product build', () => {
                 { subGroupCode: '100', storeIds: ['store-a'] },
                 existingProduct({ kashrut: { rabbinates: [{ code: '67085' }] } }),
                 false,
-                lookupWith({ showOnSite: true, requireKashrut: true })
+                lookupWith({ requireKashrut: true })
             )
 
             assert.equal(product.status, STATUS.ACTIVE)
@@ -204,7 +260,7 @@ describe('comax product build', () => {
                 { archived: true, subGroupCode: '100', storeIds: ['store-a'] },
                 existingProduct({ kashrut: { rabbinates: [{ code: '67085' }] } }),
                 false,
-                lookupWith({ showOnSite: true, requireKashrut: true })
+                lookupWith({ requireKashrut: true })
             )
 
             assert.equal(product.status, STATUS.ARCHIVED)

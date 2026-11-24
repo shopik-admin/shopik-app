@@ -44,6 +44,8 @@ export default function Select({
     multiple,
     name,
     placeholder,
+    summary,
+    toggleSelected,
     noTabs = true,
     noSearch,
     disabled,
@@ -94,6 +96,13 @@ export default function Select({
         return TR?.(t) ?? t
     }
 
+    // Multi selects with a `summary` fall back to one pill ("4 stores") instead
+    // of growing the box when several values are picked. The pill's X clears
+    // them all; the dropdown below still toggles each value off.
+    const summaryText = isMultiple && summary && selectedValues.length > 1
+        ? summary(selectedValues.map(displayText), selectedValues)
+        : ''
+
     function emit(next) {
         if (value === undefined) setInner(next)
         const nextArr = isMultiple ? next : [next ?? '']
@@ -117,6 +126,9 @@ export default function Select({
             return // keep open for multi
         }
         if (singleValue === opt.value) {
+            // Opt-in: a filter picker clears itself when the picked value is
+            // clicked again, instead of closing with the value still applied.
+            if (toggleSelected && !disabled) emit('')
             close?.()
             return
         }
@@ -203,7 +215,26 @@ export default function Select({
                         onKeyDown={openFromKeyboard}
                     >
                         <Flex alignItems="center" gap={5} wrap className={styles.tags}>
-                            {selectedValues.length ? (
+                            {summaryText ? (
+                                <span
+                                    className={styles.tag}
+                                    title={selectedValues.map(displayText).join(', ')}
+                                >
+                                    <Text size="none" ellipsis="1">{summaryText}</Text>
+                                    <span
+                                        role="button"
+                                        aria-label="remove"
+                                        tabIndex={-1}
+                                        className={styles.tagX}
+                                        onClick={e => {
+                                            e.stopPropagation()
+                                            if (!disabled) emit([])
+                                        }}
+                                    >
+                                        <Icon name="x" />
+                                    </span>
+                                </span>
+                            ) : selectedValues.length ? (
                                 selectedValues.map(v => (
                                     <span key={v} className={styles.tag} title={displayText(v)}>
                                         <Text size="none" ellipsis="1">{displayText(v)}</Text>

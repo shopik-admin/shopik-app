@@ -8,6 +8,16 @@ import {
 } from './syncRules.js'
 import { deriveStatus, retailPrice } from './status.js'
 import { loadCategoryLookup, productCategoryFor } from '#server/services/categoryMap/index.js'
+import {
+    effectiveStoreIds,
+    loadRuleLookup,
+    readActiveStoreIds
+} from '#server/services/comaxCategorySettings/index.js'
+import {
+    computePreviewFlags,
+    loadGs1Flags,
+    normBarcode
+} from '#server/services/comaxCategorySettings/preview.js'
 import { buildFamilyUpdate, familyBarcodes, readAliasIndex, readDeletedLabels, readFamilyOwners } from '#server/services/productFamily.js'
 import { invalidateMenu } from '#server/utils/data/getMenu.js'
 import enqueueChangedImages from '#server/services/image/enqueue.js'
@@ -43,7 +53,7 @@ function buildUnit(comax, DL) {
     }
 }
 
-export function buildProduct(comax, DL, defaultDomainId, existing, enforceBuyingPrice, categoryLookup) {
+export function buildProduct(comax, DL, defaultDomainId, existing, enforceBuyingPrice, categoryLookup, ruleLookup, activeStoreIds) {
     const subGroupCode = comax.subGroupCode == null ? null : String(comax.subGroupCode)
     const resolvedCategory = productCategoryFor(subGroupCode, categoryLookup)
     // Before the first category-map import there is no map at all; keep the
@@ -52,18 +62,30 @@ export function buildProduct(comax, DL, defaultDomainId, existing, enforceBuying
     const category = categoryLookup?.hasMap
         ? (resolvedCategory || {})
         : (existing?.category || {})
+    const rules = ruleLookup?.ruleFor?.(comax) || null
+    const categoryFlags = subGroupCode ? categoryLookup?.flagsByCode?.get(subGroupCode) : null
+    const flags = rules
+        ? {
+            ...(categoryFlags || {}),
+            hidden: rules.hidden,
+            requireKashrut: rules.requireKashrut
+        }
+        : categoryFlags
+    // The stock/sale gates are applied to the copy the site uses. The Comax row
+    // keeps the raw in-stock set so a settings change can be re-evaluated
+    // without waiting for another import.
+    const storeIds = effectiveStoreIds(comax, rules, activeStoreIds)
     // Status is re-derived every sync (see deriveStatus): an image, a valid
     // kashrut or a flag change flips it back on its own. The category flags
     // come from the same lookup used for the category itself.
     const status = deriveStatus({
-        comax,
+        comax: storeIds ? { ...comax, storeIds } : comax,
         existing,
-        flags: subGroupCode ? categoryLookup?.flagsByCode?.get(subGroupCode) : null,
+        flags,
         status: DL.Product.constants.STATUS,
         enforceBuyingPrice
     })
     const price = retailPrice(comax)
-    const storeIds = Array.isArray(comax.storeIds) ? comax.storeIds : null
 
     return {
         barcode: comax.barcode,
@@ -117,6 +139,8 @@ export async function syncProductFamilies({
     select,
     defaultDomainId,
     categoryLookup,
+    ruleLookup,
+    activeStoreIds,
     enforceBuyingPrice,
     batchSize
 }) {
@@ -152,6 +176,8 @@ export async function syncProductFamilies({
                 owner,
                 rows: familyRows,
                 categoryLookup,
+                ruleLookup,
+                activeStoreIds,
                 defaultDomainId,
                 enforceBuyingPrice,
                 statuses: DL.Product.constants.STATUS,
@@ -209,6 +235,11 @@ export default async function syncComax(payload, { DL }) {
         archived: 1,
         // Written by the import's per-store feeds; copied onto products below.
         storeIds: 1,
+        // Per-store balance and the sale-window result, used to apply the
+        // category gates when the product's storeIds are written.
+        stockByStore: 1,
+        saleStoreIds: 1,
+        saleCheckedStores: 1,
         // Units over the sales window, summed across stores by the import.
         salesLastDays: 1,
         Size: 1,
@@ -218,6 +249,7 @@ export default async function syncComax(payload, { DL }) {
         ContentMeasure: 1
     }
 
+    const ruleLookup = await loadRuleLookup(DL)
     const total = await DL.ComaxProduct.count(filter)
     const hiddenInactive = await hideInactiveProducts({ DL })
     if (hiddenInactive)
@@ -226,8 +258,8 @@ export default async function syncComax(payload, { DL }) {
     if (!total) {
         // Still sweep: the catalog can hold products whose Comax row is gone.
         const hiddenNoStock = await hideStorelessProducts({ DL })
-        const hiddenFlagged = await hideCategoryFlaggedProducts({ DL })
-        const hiddenKashrut = await hideKashrutMissingProducts({ DL })
+        const hiddenFlagged = await hideCategoryFlaggedProducts({ DL, ruleLookup })
+        const hiddenKashrut = await hideKashrutMissingProducts({ DL, ruleLookup })
         if (hiddenInactive || hiddenNoStock || hiddenFlagged || hiddenKashrut)
             await invalidateMenu({ DL })
         console.log(`[Comax Sync] No products to sync${hiddenNoStock ? ` — hid ${hiddenNoStock} storeless product(s)` : ''}`)
@@ -245,7 +277,10 @@ export default async function syncComax(payload, { DL }) {
     const defaultDomain = await DL.Domain.readOne({ isDefault: true, active: true }, { _id: 0, id: 1 })
     if (!defaultDomain?.id) throw { status: 500, message: 'no default domain configured' }
 
-    const categoryLookup = await loadCategoryLookup(DL)
+    const [categoryLookup, activeStoreIds] = await Promise.all([
+        loadCategoryLookup(DL),
+        readActiveStoreIds(DL)
+    ])
 
     // Alias barcodes are catalog scan aliases, not catalog items: Comax may
     // still report them, but creating a doc for one would duplicate the product
@@ -296,12 +331,12 @@ export default async function syncComax(payload, { DL }) {
             // replacing the array, and hides products with no image file
             const existingProducts = await DL.Product.read(
                 { barcode: { $in: batchProducts.map(c => c.barcode) } },
-                { _id: 0, barcode: 1, prices: 1, images: 1, 'kashrut.rabbinates': 1, nameLocked: 1 },
+                { _id: 0, barcode: 1, prices: 1, images: 1, 'kashrut.rabbinates': 1, nameLocked: 1, gs1SyncedAt: 1 },
                 { limit: 0 }
             )
             const existingByBarcode = new Map((existingProducts || []).map(p => [p.barcode, p]))
 
-            const productsToSync = batchProducts.map(c => buildProduct(c, DL, defaultDomain.id, existingByBarcode.get(c.barcode), enforceBuyingPrice, categoryLookup))
+            const productsToSync = batchProducts.map(c => buildProduct(c, DL, defaultDomain.id, existingByBarcode.get(c.barcode), enforceBuyingPrice, categoryLookup, ruleLookup, activeStoreIds))
             hiddenNoImage += productsToSync.filter(p =>
                 p.status === DL.Product.constants.STATUS.HIDDEN &&
                 (existingByBarcode.get(p.barcode)?.images?.product || []).length === 0
@@ -327,6 +362,42 @@ export default async function syncComax(payload, { DL }) {
             })
             created += result.upsertedCount ?? result.insertedCount ?? 0
             updated += result.modifiedCount ?? 0
+
+            // Denormalised flags for the category-settings product table. The
+            // sync already has the Product docs and the category rules; GS1 is
+            // the only extra lookup, once per page of barcodes.
+            const gs1ByKey = await loadGs1Flags(DL, batchProducts.map(c => c.barcode))
+            const previewUpdates = batchProducts.map(c => {
+                const product = existingByBarcode.get(c.barcode) || null
+                return {
+                    barcode: c.barcode,
+                    ...computePreviewFlags({
+                        comax: c,
+                        product,
+                        gs1: gs1ByKey.get(normBarcode(c.barcode)),
+                        categoryLookup,
+                        rules: ruleLookup.ruleFor(c),
+                        status: DL.Product.constants.STATUS,
+                        enforceBuyingPrice,
+                        activeStoreIds
+                    })
+                }
+            })
+            if (previewUpdates.length && typeof DL.ComaxProduct.Model?.bulkWrite === 'function') {
+                await DL.ComaxProduct.Model.bulkWrite(previewUpdates.map(doc => ({
+                    updateOne: {
+                        filter: { barcode: doc.barcode },
+                        update: {
+                            $set: {
+                                siteStatus: doc.siteStatus,
+                                hasImage: doc.hasImage,
+                                inGs1: doc.inGs1,
+                                kashrutValid: doc.kashrutValid
+                            }
+                        }
+                    }
+                })), { ordered: false })
+            }
         }
 
         await DL.ComaxProduct.update(
@@ -355,6 +426,8 @@ export default async function syncComax(payload, { DL }) {
         select,
         defaultDomainId: defaultDomain.id,
         categoryLookup,
+        ruleLookup,
+        activeStoreIds,
         enforceBuyingPrice,
         batchSize: BATCH
     })
@@ -362,8 +435,8 @@ export default async function syncComax(payload, { DL }) {
     // Backstop for products the loop never visits: no Comax row (or one the
     // sync filter excludes) means their status would never be re-evaluated.
     const hiddenNoStock = await hideStorelessProducts({ DL })
-    const hiddenFlagged = await hideCategoryFlaggedProducts({ DL })
-    const hiddenKashrut = await hideKashrutMissingProducts({ DL })
+    const hiddenFlagged = await hideCategoryFlaggedProducts({ DL, ruleLookup })
+    const hiddenKashrut = await hideKashrutMissingProducts({ DL, ruleLookup })
 
     console.log(`[Comax Sync] Created ${created}, updated ${updated}, aliases skipped: ${aliasesSkipped}, family owners: ${families.owners} (updated ${families.updated}), hidden (no image): ${hiddenNoImage}, hidden (no stock): ${hiddenNoStock}, hidden (flag): ${hiddenFlagged}, hidden (kashrut): ${hiddenKashrut}, archived (no price): ${archivedNoPrice}, hidden (inactive): ${hiddenInactive}`)
 
