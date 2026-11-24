@@ -1,5 +1,6 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
+import { unzipSync, zipSync } from 'fflate'
 import { buildTranslationFile, parseTranslationFile } from '../../server/utils/texts/spreadsheet.js'
 
 const languages = [
@@ -21,6 +22,23 @@ const entries = [
         effective: { he: 'שורה\nשנייה', en: 'Line one,\nline two' }
     }
 ]
+
+// Rewrites an xlsx so every SpreadsheetML tag carries an "x:" namespace
+// prefix, the way some third-party exporters write workbooks.
+function prefixNamespaces(buffer) {
+    const namespace = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main'
+    const files = unzipSync(new Uint8Array(buffer))
+
+    for (const name of Object.keys(files)) {
+        if (!/^xl\/(workbook|styles|worksheets\/sheet\d+)\.xml$/.test(name)) continue
+        let xml = new TextDecoder().decode(files[name])
+        xml = xml.replace(/<(\/?)([A-Za-z_][\w.-]*)(?=[\s/>])/g, '<$1x:$2')
+        xml = xml.replace(/<x:([A-Za-z_][\w.-]*)/, `<x:$1 xmlns:x="${namespace}"`)
+        files[name] = new TextEncoder().encode(xml)
+    }
+
+    return Buffer.from(zipSync(files))
+}
 
 async function roundTrip(format) {
     const file = await buildTranslationFile({
@@ -48,6 +66,25 @@ describe('translation spreadsheet', () => {
 
     it('exports and imports xlsx', async () => {
         const parsed = await roundTrip('xlsx')
+        assert.equal(parsed.errors.length, 0)
+        assert.equal(parsed.updates.hello, 'Hi')
+        assert.equal(parsed.updates.multi, 'Line one,\nline two')
+    })
+
+    it('imports workbooks whose XML uses a namespace prefix', async () => {
+        const file = await buildTranslationFile({
+            entries,
+            languages,
+            code: 'en',
+            allLanguages: false,
+            format: 'xlsx'
+        })
+        const parsed = await parseTranslationFile({
+            buffer: prefixNamespaces(file.buffer),
+            filename: 'texts.xlsx',
+            languageCode: 'en',
+            languages
+        })
         assert.equal(parsed.errors.length, 0)
         assert.equal(parsed.updates.hello, 'Hi')
         assert.equal(parsed.updates.multi, 'Line one,\nline two')

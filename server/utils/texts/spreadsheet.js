@@ -1,5 +1,6 @@
 import ExcelJS from 'exceljs'
 import { Readable } from 'node:stream'
+import { unzipSync, zipSync } from 'fflate'
 import buildXlsx from '#server/reports/xlsx.js'
 import { BASE_LANGUAGE_CODE } from '#common/constants/translations.js'
 import { translationKey, translationValue } from '#server/utils/texts/validate.js'
@@ -163,6 +164,71 @@ function decodeTextFile(buffer) {
     }
 }
 
+const MAIN_NAMESPACES = new Set([
+    'http://schemas.openxmlformats.org/spreadsheetml/2006/main',
+    'http://purl.oclc.org/ooxml/spreadsheetml/main'
+])
+
+function mainPrefixes(xml) {
+    const prefixes = []
+    const declaration = /\sxmlns:([A-Za-z_][\w.-]*)\s*=\s*"([^"]*)"/g
+    let match
+    while ((match = declaration.exec(xml))) {
+        if (MAIN_NAMESPACES.has(match[2]) && !prefixes.includes(match[1]))
+            prefixes.push(match[1])
+    }
+    return prefixes
+}
+
+function stripElementPrefixes(xml, prefixes) {
+    return prefixes.reduce((text, prefix) => {
+        const escaped = prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+        return text.replace(new RegExp(`<(/?)(?:${escaped}):`, 'g'), '<$1')
+    }, xml)
+}
+
+// Some writers (Google-style exporters, several PHP/Go libraries) emit the
+// SpreadsheetML parts with a namespace prefix, e.g. <x:worksheet>. ExcelJS
+// parses tags literally, so such a workbook looks like it has no sheets and
+// crashes with "Cannot read properties of undefined (reading 'sheets')".
+// Strip the spreadsheetml prefix (tags only, never cell text) before loading.
+function normalizeWorkbookNamespaces(buffer) {
+    let workbookXml
+    try {
+        const probe = unzipSync(new Uint8Array(buffer), { filter: file => file.name === 'xl/workbook.xml' })
+        const entry = probe['xl/workbook.xml']
+        if (!entry) return buffer
+        workbookXml = new TextDecoder().decode(entry)
+    } catch {
+        return buffer
+    }
+    if (!mainPrefixes(workbookXml).length) return buffer
+
+    let files
+    try {
+        files = unzipSync(new Uint8Array(buffer))
+    } catch {
+        return buffer
+    }
+
+    const decoder = new TextDecoder()
+    const encoder = new TextEncoder()
+    let changed = false
+
+    for (const name of Object.keys(files)) {
+        if (!/\.(xml|rels)$/i.test(name)) continue
+        const xml = decoder.decode(files[name])
+        const prefixes = mainPrefixes(xml)
+        if (!prefixes.length) continue
+        const stripped = stripElementPrefixes(xml, prefixes)
+        if (stripped === xml) continue
+        files[name] = encoder.encode(stripped)
+        changed = true
+    }
+
+    return changed ? Buffer.from(zipSync(files)) : buffer
+}
+
 export async function parseTranslationFile({ buffer, filename, languageCode, languages = [] }) {
     if (!Buffer.isBuffer(buffer) || !buffer.length)
         throw { status: 400, message: 'empty file' }
@@ -177,7 +243,7 @@ export async function parseTranslationFile({ buffer, filename, languageCode, lan
 
     if (format === 'xlsx') {
         try {
-            await workbook.xlsx.load(buffer)
+            await workbook.xlsx.load(normalizeWorkbookNamespaces(buffer))
         } catch {
             // ExcelJS throws internals such as "Cannot read properties of
             // undefined (reading 'sheets')" for zips that are not workbooks.
