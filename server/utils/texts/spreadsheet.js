@@ -125,24 +125,76 @@ function targetColumn(headers, languageCode, languages) {
     return null
 }
 
+const ZIP_SIGNATURE = [0x50, 0x4b]
+const OLE_SIGNATURE = [0xd0, 0xcf, 0x11, 0xe0]
+const UTF16LE_BOM = [0xff, 0xfe]
+const UTF16BE_BOM = [0xfe, 0xff]
+
+function startsWith(buffer, bytes) {
+    return bytes.every((byte, index) => buffer[index] === byte)
+}
+
+// The extension is not reliable: browsers and mail clients rename downloads,
+// and users often save an xlsx export as ".csv" (or the other way around).
+// Sniffing the signature avoids feeding one format to the wrong parser.
+function detectFormat(buffer) {
+    if (startsWith(buffer, ZIP_SIGNATURE)) return 'xlsx'
+    if (startsWith(buffer, OLE_SIGNATURE)) return 'xls'
+    return 'text'
+}
+
+function decodeTextFile(buffer) {
+    if (startsWith(buffer, UTF16LE_BOM))
+        return new TextDecoder('utf-16le').decode(buffer.subarray(2))
+    if (startsWith(buffer, UTF16BE_BOM))
+        return new TextDecoder('utf-16be').decode(buffer.subarray(2))
+
+    if (buffer.subarray(0, 512).includes(0))
+        throw { status: 400, message: 'the file is not a supported spreadsheet; use .xlsx or .csv' }
+
+    const text = buffer.toString('utf8').replace(/^\uFEFF/, '')
+    if (!text.includes('\uFFFD')) return text
+
+    // Excel on a Hebrew Windows still saves plain "CSV" as windows-1255.
+    try {
+        return new TextDecoder('windows-1255').decode(buffer)
+    } catch {
+        return text
+    }
+}
+
 export async function parseTranslationFile({ buffer, filename, languageCode, languages = [] }) {
     if (!Buffer.isBuffer(buffer) || !buffer.length)
         throw { status: 400, message: 'empty file' }
     if (buffer.length > MAX_FILE_BYTES)
         throw { status: 400, message: 'file is larger than 5MB' }
 
-    const workbook = new ExcelJS.Workbook()
-    const isCsv = /\.csv$/i.test(filename || '')
+    const format = detectFormat(buffer)
+    if (format === 'xls')
+        throw { status: 400, message: 'legacy .xls files are not supported; save the file as .xlsx or .csv' }
 
-    if (isCsv) {
-        const text = buffer.toString('utf8').replace(/^\uFEFF/, '')
-        await workbook.csv.read(Readable.from([text]))
+    const workbook = new ExcelJS.Workbook()
+
+    if (format === 'xlsx') {
+        try {
+            await workbook.xlsx.load(buffer)
+        } catch {
+            // ExcelJS throws internals such as "Cannot read properties of
+            // undefined (reading 'sheets')" for zips that are not workbooks.
+            throw { status: 400, message: `"${filename || 'file'}" is not a valid .xlsx workbook; save it again as .xlsx or .csv` }
+        }
     } else {
-        await workbook.xlsx.load(buffer)
+        try {
+            await workbook.csv.read(Readable.from([decodeTextFile(buffer)]))
+        } catch (error) {
+            if (error?.status) throw error
+            throw { status: 400, message: `"${filename || 'file'}" is not a valid .csv file` }
+        }
     }
 
     const sheet = workbook.worksheets[0]
-    if (!sheet) throw { status: 400, message: 'the file has no worksheet' }
+    if (!sheet)
+        throw { status: 400, message: `"${filename || 'file'}" has no worksheet; expected a sheet whose first row has a "key" column` }
 
     const headerRow = sheet.getRow(1)
     const headers = headerIndex(headerRow)
