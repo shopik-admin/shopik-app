@@ -1,13 +1,15 @@
 import Checkbox from 'common/components/Checkbox'
 import Button from 'common/components/Button'
-import ConfirmButton from 'common/components/ConfirmButton'
+import Icon from 'common/components/Icon'
 import render from 'common/functions/render'
 import apiReq from 'common/functions/apiReq'
 import { getSettingFileUrl, getSettingFileSize } from 'common/functions/settingFileUrl'
 import { useState, useEffect, useRef } from 'react'
+import { useText } from 'common/texts/TextProvider'
 import { useUser } from 'features/User'
-import styles from './settings.module.css'
+import SettingRow from './SettingRow.jsx'
 import ConfigEditor from './ConfigEditor.jsx'
+import styles from './settings.module.css'
 
 const MAX_UPLOAD_BYTES = 8 * 1024 * 1024
 const IMAGE_ACCEPT = 'image/png,image/jpeg,image/webp,.svg,.ico'
@@ -17,17 +19,18 @@ const RASTER_ACCEPT = 'image/png,image/jpeg,image/webp'
 
 export default function Setting({ setting, onUpdate, onEditFull, onDelete }) {
     const { id, key, value: initialValue, renderType, formType, category, public: isPublic } = setting
+    const { TR } = useText()
     const [isEditing, setIsEditing] = useState(false)
     const [value, setValue] = useState(initialValue ?? '')
     const [editValue, setEditValue] = useState(initialValue ?? '')
     const [saving, setSaving] = useState(false)
+    const [saved, setSaved] = useState(false)
     const [error, setError] = useState(null)
-    const [copied, setCopied] = useState(false)
     const [expanded, setExpanded] = useState(false)
     const [uploading, setUploading] = useState(false)
+    const [copiedVar, setCopiedVar] = useState(false)
     const fileInputRef = useRef(null)
-    const lightRef = useRef(null)
-    const darkRef = useRef(null)
+    const savedTimer = useRef(null)
     const { isSuperAdmin, role: adminRole } = useUser() || {}
     const canEditValues = isSuperAdmin || adminRole?.permissions?.includes('setting:update')
     const canEditKeys = !!isSuperAdmin
@@ -36,6 +39,14 @@ export default function Setting({ setting, onUpdate, onEditFull, onDelete }) {
         setValue(initialValue ?? '')
         setEditValue(initialValue ?? '')
     }, [initialValue])
+
+    useEffect(() => () => clearTimeout(savedTimer.current), [])
+
+    function markSaved() {
+        setSaved(true)
+        clearTimeout(savedTimer.current)
+        savedTimer.current = setTimeout(() => setSaved(false), 1800)
+    }
 
     async function handleSave(newValue) {
         const valToSave = newValue !== undefined ? newValue : editValue
@@ -47,9 +58,10 @@ export default function Setting({ setting, onUpdate, onEditFull, onDelete }) {
             setValue(finalVal)
             setEditValue(finalVal)
             setIsEditing(false)
+            markSaved()
             onUpdate?.(updated || { ...setting, value: finalVal })
         } catch (err) {
-            setError(err?.message || 'Failed to save setting')
+            setError(err?.message || TR('settings_save_failed'))
         } finally {
             setSaving(false)
         }
@@ -81,12 +93,12 @@ export default function Setting({ setting, onUpdate, onEditFull, onDelete }) {
     const isColor = formType === 'color' || renderType === 'color' || renderType === 'color-boolean'
     const isThemeColor = category === 'theme' && isColor
 
-    async function handleCopy(e) {
+    async function handleCopyVar(e) {
         if (e) e.stopPropagation()
         try {
             await navigator.clipboard.writeText(`var(--${key})`)
-            setCopied(true)
-            setTimeout(() => setCopied(false), 1200)
+            setCopiedVar(true)
+            setTimeout(() => setCopiedVar(false), 1500)
         } catch { }
     }
 
@@ -103,53 +115,45 @@ export default function Setting({ setting, onUpdate, onEditFull, onDelete }) {
             await apiReq('setting/delete', { id })
             onDelete?.(id)
         } catch (err) {
-            setError(err?.message || 'Failed to delete setting')
-        } finally {
+            setError(err?.message || TR('settings_delete_failed'))
             setSaving(false)
         }
     }
 
-    async function handlePublicToggle(e) {
-        const newVal = e.target.checked
+    async function handlePublicToggle() {
+        const newVal = !isPublic
         setSaving(true)
         setError(null)
         try {
             const updated = await apiReq('setting/update', { id, public: newVal })
+            markSaved()
             onUpdate?.(updated || { ...setting, public: newVal })
         } catch (err) {
-            setError(err?.message || 'Failed to update public flag')
+            setError(err?.message || TR('settings_public_failed'))
         } finally {
             setSaving(false)
         }
     }
 
+    const rowActions = {
+        setting,
+        busy: saving || uploading,
+        error,
+        saved,
+        onEditFull,
+        onDelete: onDelete ? handleDelete : undefined,
+        onTogglePublic: canEditValues ? handlePublicToggle : undefined
+    }
+
     if (isToggleType) {
-        return (
-            <div className={styles.settingItem}>
-                <div className={styles.settingMain}>
-                    <div className={styles.settingInfo}>
-                        <div className={styles.settingKeyRow}>
-                            {onEditFull && <Button className={styles.gearBtn} onClick={() => onEditFull(setting)} title="Edit all fields" icon='edit' />}
-                            {onDelete && <ConfirmButton q={`Delete "${key}"?`} onOk={handleDelete} icon="trash" className={styles.deleteBtn} title="Delete setting" disabled={saving} />}
-                            <span className={styles.settingKey}>{key}</span>
-                            <label title={isPublic ? 'Public — sent to client' : 'Private — not sent to client'} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', color: isPublic ? 'var(--text-success-primary)' : 'var(--text-tertiary)', cursor: saving ? 'wait' : 'pointer', marginInlineStart: '0.5rem' }}>
-                                <input type="checkbox" checked={!!isPublic} onChange={handlePublicToggle} disabled={saving} style={{ accentColor: 'var(--bg-brand-primary)' }} />
-                                public
-                            </label>
-                        </div>
-                        {error && <span className={styles.settingError}>{error}</span>}
-                    </div>
-                    <div className={styles.settingControl}>
-                        <Checkbox
-                            switchMode={formType === 'switch' || renderType === 'v-boolean'}
-                            checked={value === 'true' || value === true || value === '1'}
-                            onChange={handleToggleChange}
-                            disabled={saving}
-                        />
-                    </div>
-                </div>
-            </div>
-        )
+        return <SettingRow {...rowActions}>
+            <Checkbox
+                switchMode={formType === 'switch' || renderType === 'v-boolean'}
+                checked={value === 'true' || value === true || value === '1'}
+                onChange={handleToggleChange}
+                disabled={saving}
+            />
+        </SettingRow>
     }
 
     if (isConfig) {
@@ -168,63 +172,52 @@ export default function Setting({ setting, onUpdate, onEditFull, onDelete }) {
             setError(null)
         }
 
-        return (
-            <div className={`${styles.settingItem} ${expanded ? styles.expanded : ''}`}>
-                <div className={styles.settingMain} onClick={toggleExpand} style={{ cursor: 'pointer' }}>
-                    <div className={styles.settingInfo}>
-                        <div className={styles.settingKeyRow}>
-                            <Button
-                                className={styles.expandBtn}
-                                icon="down"
-                                mode="text"
-                                onClick={(e) => { e.stopPropagation(); toggleExpand() }}
-                                title={expanded ? 'Collapse' : 'Expand'}
-                                aria-expanded={expanded}
-                            />
-                            {onEditFull && <Button className={styles.gearBtn} onClick={(e) => { e.stopPropagation(); onEditFull(setting) }} title="Edit all fields" icon='edit' />}
-                            {onDelete && <ConfirmButton q={`Delete "${key}"?`} onOk={handleDelete} icon="trash" className={styles.deleteBtn} title="Delete setting" disabled={saving} />}
-                            <span className={styles.settingKey}>{key}</span>
-                            {!expanded && <span className={styles.configCount}>{configCount} keys</span>}
-                            <label onClick={(e) => e.stopPropagation()} title={isPublic ? 'Public — sent to client' : 'Private — not sent to client'} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', color: isPublic ? 'var(--text-success-primary)' : 'var(--text-tertiary)', cursor: saving ? 'wait' : 'pointer', marginInlineStart: '0.5rem' }}>
-                                <input type="checkbox" checked={!!isPublic} onChange={handlePublicToggle} disabled={saving} style={{ accentColor: 'var(--bg-brand-primary)' }} />
-                                public
-                            </label>
-                            {!canEditKeys && expanded && <span title="Only superAdmin can edit keys / add entries" style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', marginInlineStart: '0.35rem' }}>(keys read-only)</span>}
-                        </div>
-                        {error && <span className={styles.settingError}>{error}</span>}
-                        {!expanded && (
-                            <div className={styles.configPreview} onClick={(e) => e.stopPropagation()}>
-                                <span className={styles.settingValue}>{renderValueContent(value, renderType, formType, false, setting)}</span>
-                            </div>
-                        )}
-                    </div>
-                    <div className={styles.settingControl} onClick={(e) => e.stopPropagation()} style={{ gap: '0.25rem' }}>
-                        {!expanded && canEditValues && (
-                            <Button icon="edit" mode="text" onClick={toggleExpand} title={canEditKeys ? 'Edit keys & values' : 'Edit values'} />
-                        )}
-                    </div>
-                </div>
-                {expanded && (
-                    <div className={styles.settingExpanded} onClick={(e) => e.stopPropagation()}>
-                        <ConfigEditor
-                            value={editObj}
-                            onChange={(next) => setEditValue(next)}
-                            disabled={saving || !canEditValues}
-                            canEditKeys={canEditKeys}
-                            canEditValues={canEditValues}
+        return <SettingRow
+            {...rowActions}
+            expanded={expanded}
+            footer={<>
+                <ConfigEditor
+                    value={editObj}
+                    onChange={(next) => setEditValue(next)}
+                    disabled={saving || !canEditValues}
+                    canEditKeys={canEditKeys}
+                    canEditValues={canEditValues}
+                />
+                {canEditValues ? (
+                    <div className={styles.panelActions}>
+                        <Button
+                            icon="x"
+                            className={styles.cancelBtn}
+                            onClick={handleConfigCancel}
+                            disabled={saving || !isDirty}
+                            tooltip={TR('settings_revert')}
                         />
-                        {canEditValues ? (
-                            <div style={{ display: 'flex', gap: '0.35rem', marginTop: '0.5rem', justifyContent: 'flex-end', alignItems: 'center' }}>
-                                <Button icon="x" className={styles.cancelBtn} onClick={handleConfigCancel} disabled={saving || !isDirty} title="Revert changes" />
-                                <Button icon="check" className={styles.saveBtn} onClick={() => handleSave(editObj)} disabled={saving || !isDirty} title="Save changes" />
-                            </div>
-                        ) : (
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: '0.35rem' }}>View only — requires setting:update permission</div>
-                        )}
+                        <Button
+                            icon="check"
+                            className={styles.saveBtn}
+                            onClick={() => handleSave(editObj)}
+                            disabled={saving || !isDirty}
+                            tooltip={TR('save')}
+                        />
                     </div>
+                ) : (
+                    <p className={styles.panelNote}>{TR('settings_config_readonly')}</p>
                 )}
+            </>}
+        >
+            <div className={styles.configSummary}>
+                <span className={styles.configCount}>{TR('settings_config_keys', { count: configCount })}</span>
+                {!canEditKeys && <span className={styles.configNote}>{TR('settings_config_keys_readonly')}</span>}
             </div>
-        )
+            <Button
+                className={styles.expandBtn}
+                icon={expanded ? 'down' : 'left'}
+                mode="text"
+                onClick={toggleExpand}
+                tooltip={expanded ? TR('settings_collapse') : TR('settings_expand')}
+                aria-expanded={expanded}
+            />
+        </SettingRow>
     }
 
     if (isColor) {
@@ -232,116 +225,70 @@ export default function Setting({ setting, onUpdate, onEditFull, onDelete }) {
         const { light, dark } = normalizeColor(displayVal)
         const hasDual = displayVal && typeof displayVal === 'object' && !Array.isArray(displayVal) && ('light' in displayVal || 'dark' in displayVal)
 
-        return (
-            <div className={styles.settingItem}>
-                <div className={styles.settingMain}>
-                    <div className={styles.settingInfo}>
-                        <div className={styles.settingKeyRow}>
-                            {onEditFull && <Button className={styles.gearBtn} onClick={() => onEditFull(setting)} title="Edit all fields" icon='edit' />}
-                            {onDelete && <ConfirmButton q={`Delete "${key}"?`} onOk={handleDelete} icon="trash" className={styles.deleteBtn} title="Delete setting" disabled={saving} />}
-                            <span className={styles.settingKey}>{key}</span>
-                            <label title={isPublic ? 'Public — sent to client' : 'Private — not sent to client'} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', color: isPublic ? 'var(--text-success-primary)' : 'var(--text-tertiary)', cursor: saving ? 'wait' : 'pointer', marginInlineStart: '0.5rem' }}>
-                                <input type="checkbox" checked={!!isPublic} onChange={handlePublicToggle} disabled={saving} style={{ accentColor: 'var(--bg-brand-primary)' }} />
-                                public
-                            </label>
-                            {isThemeColor && (
-                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', marginInlineStart: '0.25rem' }}>
-                                    <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', fontFamily: 'monospace' }}>var(--{key})</span>
-                                    <Button icon={copied ? "check" : "copy"} mode="text" onClick={handleCopy} tooltip={copied ? "Copied!" : "Copy var(--" + key + ")"} style={{ padding: '0 2px' }} />
-                                </span>
-                            )}
-                        </div>
-                        {error && <span className={styles.settingError}>{error}</span>}
-                    </div>
-                    <div className={styles.settingControl} style={{ gap: '0.5rem' }}>
-                        <div
-                            className={styles.settingValueContainer}
-                            onClick={() => { if (!isEditing && formType !== 'info') setIsEditing(true) }}
-                            title={!isEditing && formType !== 'info' ? 'Click to edit' : undefined}
-                            style={{ cursor: !isEditing && formType !== 'info' ? 'pointer' : 'default', flex: 1, minWidth: 0 }}
-                        >
-                            <span className={styles.settingValue} style={{ flex: 1, minWidth: 0 }}>
-                                {hasDual ? (
-                                    <span style={{ display: 'inline-flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                                        <span className={styles.colorBadge} style={{ gap: '0.35rem' }}>
-                                            Dark: {dark}
-                                            <span
-                                                className={styles.colorSwatch}
-                                                style={{ backgroundColor: dark, cursor: isEditing ? 'pointer' : 'default', border: isEditing ? '1px solid var(--border-brand)' : undefined }}
-                                                onClick={(e) => {
-                                                    if (!isEditing) return
-                                                    e.stopPropagation()
-                                                    darkRef.current?.click()
-                                                }}
-                                                title={isEditing ? 'Click to pick dark color' : undefined}
-                                            />
-                                        </span>
-                                        <span className={styles.colorBadge} style={{ gap: '0.35rem' }}>
-                                            Light: {light}
-                                            <span
-                                                className={styles.colorSwatch}
-                                                style={{ backgroundColor: light, cursor: isEditing ? 'pointer' : 'default', border: isEditing ? '1px solid var(--border-brand)' : undefined }}
-                                                onClick={(e) => {
-                                                    if (!isEditing) return
-                                                    e.stopPropagation()
-                                                    lightRef.current?.click()
-                                                }}
-                                                title={isEditing ? 'Click to pick light color' : undefined}
-                                            />
-                                        </span>
-                                    </span>
-                                ) : (
-                                    <span className={styles.colorBadge}>
-                                        <span
-                                            className={styles.colorSwatch}
-                                            style={{ backgroundColor: displayVal || '#000000', cursor: isEditing ? 'pointer' : 'default' }}
-                                            onClick={(e) => {
-                                                if (!isEditing) return
-                                                e.stopPropagation()
-                                                lightRef.current?.click()
-                                            }}
-                                            title={isEditing ? 'Click to pick color' : undefined}
-                                        />
-                                        {displayVal || <em className={styles.emptyValue}>Not set</em>}
-                                    </span>
-                                )}
-                            </span>
-                        </div>
-                        {isEditing ? (
-                            <span style={{ display: 'inline-flex', gap: '0.35rem', flexShrink: 0 }}>
-                                <Button icon="check" className={styles.saveBtn} onClick={() => handleSave()} disabled={saving} stopPropagation />
-                                <Button icon="x" className={styles.cancelBtn} onClick={handleCancel} disabled={saving} stopPropagation />
-                            </span>
-                        ) : (
-                            formType !== 'info' && <Button icon='edit' mode='text' onClick={() => setIsEditing(true)} />
-                        )}
-                        {/* hidden pickers */}
-                        <input
-                            ref={lightRef}
-                            type="color"
-                            value={light}
-                            onChange={(e) => setEditValue(prev => {
-                                const cur = normalizeColor(prev ?? editValue)
-                                return { ...cur, light: e.target.value }
-                            })}
-                            style={{ position: 'absolute', opacity: 0, width: 0, height: 0, pointerEvents: 'none' }}
-                            tabIndex={-1}
-                        />
-                        <input
-                            ref={darkRef}
-                            type="color"
-                            value={dark}
-                            onChange={(e) => setEditValue(prev => {
-                                const cur = normalizeColor(prev ?? editValue)
-                                return { ...cur, dark: e.target.value }
-                            })}
-                            style={{ position: 'absolute', opacity: 0, width: 0, height: 0, pointerEvents: 'none' }}
-                            tabIndex={-1}
-                        />
+        return <SettingRow {...rowActions} controlClassName={styles.colorControl}>
+            {isEditing ? (
+                <div className={styles.colorEditor}>
+                    <label className={styles.colorField}>
+                        <span className={styles.colorFieldLabel}>{TR('settings_color_light')}</span>
+                        <span className={styles.colorFieldRow}>
+                            <input
+                                type="color"
+                                className={styles.colorInput}
+                                value={light}
+                                onChange={(e) => setEditValue((prev) => ({ ...normalizeColor(prev ?? editValue), light: e.target.value }))}
+                            />
+                            <code className={styles.colorHex}>{light}</code>
+                        </span>
+                    </label>
+                    <label className={styles.colorField}>
+                        <span className={styles.colorFieldLabel}>{TR('settings_color_dark')}</span>
+                        <span className={styles.colorFieldRow}>
+                            <input
+                                type="color"
+                                className={styles.colorInput}
+                                value={dark}
+                                onChange={(e) => setEditValue((prev) => ({ ...normalizeColor(prev ?? editValue), dark: e.target.value }))}
+                            />
+                            <code className={styles.colorHex}>{dark}</code>
+                        </span>
+                    </label>
+                    <div className={styles.controlActions}>
+                        <Button icon="check" className={styles.saveBtn} onClick={() => handleSave()} disabled={saving} tooltip={TR('save')} />
+                        <Button icon="x" className={styles.cancelBtn} onClick={handleCancel} disabled={saving} tooltip={TR('cancel')} />
                     </div>
                 </div>
-            </div>
-        )
+            ) : (
+                <div className={styles.colorValue}>
+                    <span className={styles.colorSwatches}>
+                        {hasDual ? (
+                            <>
+                                <span className={styles.colorSwatch} style={{ backgroundColor: light }} title={`${TR('settings_color_light')}: ${light}`} />
+                                <span className={styles.colorSwatch} style={{ backgroundColor: dark }} title={`${TR('settings_color_dark')}: ${dark}`} />
+                            </>
+                        ) : (
+                            <span className={styles.colorSwatch} style={{ backgroundColor: displayVal || '#000000' }} title={displayVal || ''} />
+                        )}
+                    </span>
+                    <code className={styles.colorCodes}>
+                        {hasDual ? `${light} · ${dark}` : (displayVal || TR('settings_not_set'))}
+                    </code>
+                    {isThemeColor && (
+                        <span className={styles.varChip}>
+                            <code>var(--{key})</code>
+                            <Button
+                                icon={copiedVar ? 'check' : 'copy'}
+                                mode="text"
+                                onClick={handleCopyVar}
+                                tooltip={copiedVar ? TR('settings_copied') : TR('settings_copy_var', { key })}
+                            />
+                        </span>
+                    )}
+                    {formType !== 'info' && (
+                        <Button icon="edit" mode="text" onClick={() => setIsEditing(true)} tooltip={TR('edit')} />
+                    )}
+                </div>
+            )}
+        </SettingRow>
     }
 
     const isFileType = formType === 'file' || formType === 'image' || renderType === 'image'
@@ -355,19 +302,19 @@ export default function Setting({ setting, onUpdate, onEditFull, onDelete }) {
         if (!file) return
         setError(null)
         if (isImageType && hasSizes && !/^image\/(png|jpe?g|webp)$/i.test(file.type || '')) {
-            setError('Size-variant image settings need a raster image (png/jpg/webp)')
+            setError(TR('settings_upload_raster_only'))
             return
         }
         if (isImageType && !hasSizes && !/^(image\/|.*\.(svg|ico)$)/i.test(`${file.type} ${file.name}`)) {
-            setError('Only image files (png/jpg/webp/svg/ico)')
+            setError(TR('settings_upload_image_only'))
             return
         }
         if (!isImageType && !/^(application\/pdf|.*\.pdf)$/i.test(`${file.type} ${file.name}`)) {
-            setError('Only PDF files')
+            setError(TR('settings_upload_pdf_only'))
             return
         }
         if (file.size > MAX_UPLOAD_BYTES) {
-            setError('File too large (max 8MB)')
+            setError(TR('settings_upload_too_large'))
             return
         }
         const reader = new FileReader()
@@ -378,10 +325,10 @@ export default function Setting({ setting, onUpdate, onEditFull, onDelete }) {
             try {
                 const res = await apiReq('setting/upload_file', { id, fileBase64, filename: file.name, contentType: file.type })
                 const next = res?.basePath || res?.setting?.value
-                if (!next) throw new Error('Upload failed')
+                if (!next) throw new Error(TR('settings_upload_failed'))
                 await handleSave(next)
             } catch (err) {
-                setError(err?.message || 'Upload failed')
+                setError(err?.message || TR('settings_upload_failed'))
             } finally {
                 setUploading(false)
             }
@@ -392,116 +339,82 @@ export default function Setting({ setting, onUpdate, onEditFull, onDelete }) {
     // File / image settings — upload to storage, value is the relative path
     if (isFileType) {
         const fileUrl = getSettingFileUrl(value, getSettingFileSize(setting))
-        return (
-            <div className={styles.settingItem}>
-                <div className={styles.settingMain}>
-                    <div className={styles.settingInfo}>
-                        <div className={styles.settingKeyRow}>
-                            {onEditFull && <Button className={styles.gearBtn} onClick={() => onEditFull(setting)} title="Edit all fields" icon='edit' />}
-                            {onDelete && <ConfirmButton q={`Delete "${key}"?`} onOk={handleDelete} icon="trash" className={styles.deleteBtn} title="Delete setting" disabled={saving || uploading} />}
-                            <span className={styles.settingKey}>{key}</span>
-                            <label title={isPublic ? 'Public — sent to client' : 'Private — not sent to client'} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', color: isPublic ? 'var(--text-success-primary)' : 'var(--text-tertiary)', cursor: saving ? 'wait' : 'pointer', marginInlineStart: '0.5rem' }}>
-                                <input type="checkbox" checked={!!isPublic} onChange={handlePublicToggle} disabled={saving || uploading} style={{ accentColor: 'var(--bg-brand-primary)' }} />
-                                public
-                            </label>
-                        </div>
-                        {error && <span className={styles.settingError}>{error}</span>}
-                    </div>
-                    <div className={styles.settingControl} style={{ gap: '0.5rem' }}>
-                        {isImageType ? (
-                            fileUrl
-                                ? <img src={fileUrl} alt={key} title={typeof value === 'string' ? value : ''} className={styles.settingThumb} />
-                                : <em className={styles.emptyValue}>Not set</em>
-                        ) : (
-                            <>
-                                <div className={styles.settingValueContainer} style={{ cursor: 'default', flex: 1, minWidth: 0 }}>
-                                    <span className={styles.settingValue} style={{ flex: 1, minWidth: 0 }} title={typeof value === 'string' ? value : ''}>
-                                        {value ? String(value) : <em className={styles.emptyValue}>Not set</em>}
-                                    </span>
-                                </div>
-                                {fileUrl && (
-                                    <a href={fileUrl} target="_blank" rel="noreferrer" className={styles.linkValue}>
-                                        PDF
-                                    </a>
-                                )}
-                            </>
+        return <SettingRow {...rowActions}>
+            <div className={styles.fileValue}>
+                {isImageType ? (
+                    fileUrl
+                        ? <img src={fileUrl} alt={key} title={typeof value === 'string' ? value : ''} className={styles.settingThumb} />
+                        : <span className={styles.emptyValue}>{TR('settings_not_set')}</span>
+                ) : (
+                    <>
+                        <code className={styles.fileName}>{value ? String(value) : TR('settings_not_set')}</code>
+                        {fileUrl && (
+                            <a href={fileUrl} target="_blank" rel="noreferrer" className={styles.linkValue}>
+                                {TR('settings_open_pdf')}
+                            </a>
                         )}
-                        {canEditValues && (
-                            <>
-                                <Button icon="upload" mode="text" disabled={uploading || saving} loading={uploading} onClick={() => fileInputRef.current?.click()} title={isImageType ? 'Upload image (png/jpg/webp/svg/ico)' : 'Upload PDF'} />
-                                <input
-                                    ref={fileInputRef}
-                                    type="file"
-                                    accept={isImageType ? imageAccept : 'application/pdf,.pdf'}
-                                    onChange={handleFileSelect}
-                                    disabled={uploading || saving}
-                                    style={{ display: 'none' }}
-                                />
-                            </>
-                        )}
-                    </div>
-                </div>
+                    </>
+                )}
+                {canEditValues && (
+                    <>
+                        <Button
+                            icon="upload"
+                            mode="text"
+                            disabled={uploading || saving}
+                            loading={uploading}
+                            onClick={() => fileInputRef.current?.click()}
+                            tooltip={isImageType ? TR('settings_upload_image') : TR('settings_upload_pdf')}
+                        />
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept={isImageType ? imageAccept : 'application/pdf,.pdf'}
+                            onChange={handleFileSelect}
+                            disabled={uploading || saving}
+                            style={{ display: 'none' }}
+                        />
+                    </>
+                )}
             </div>
-        )
+        </SettingRow>
     }
 
-    // Default (text, textarea, date, etc) - keep same container look, only icons differ
-    return (
-        <div className={styles.settingItem}>
-            <div className={styles.settingMain}>
-                <div className={styles.settingInfo}>
-                    <div className={styles.settingKeyRow}>
-                        {onEditFull && <Button className={styles.gearBtn} onClick={() => onEditFull(setting)} title="Edit all fields" icon='edit' />}
-                        {onDelete && <ConfirmButton q={`Delete "${key}"?`} onOk={handleDelete} icon="trash" className={styles.deleteBtn} title="Delete setting" disabled={saving} />}
-                        <span className={styles.settingKey}>{key}</span>
-                        <label title={isPublic ? 'Public — sent to client' : 'Private — not sent to client'} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', color: isPublic ? 'var(--text-success-primary)' : 'var(--text-tertiary)', cursor: saving ? 'wait' : 'pointer', marginInlineStart: '0.5rem' }}>
-                            <input type="checkbox" checked={!!isPublic} onChange={handlePublicToggle} disabled={saving} style={{ accentColor: 'var(--bg-brand-primary)' }} />
-                            public
-                        </label>
-                    </div>
-                    {error && <span className={styles.settingError}>{error}</span>}
-                </div>
-                <div className={styles.settingControl} style={{ gap: '0.5rem' }}>
-                    {isEditing ? (
-                        <>
-                            <div className={styles.settingValueContainer} style={{ cursor: 'default', flex: 1, minWidth: 0 }}>
-                                <span className={styles.settingValue} style={{ flex: 1, minWidth: 0 }}>
-                                    {renderFormInput({ formType, editValue, setEditValue, handleKeyDown, handleSave, saving })}
-                                </span>
-                            </div>
-                            <span style={{ display: 'inline-flex', gap: '0.35rem', flexShrink: 0 }}>
-                                <Button icon="check" className={styles.saveBtn} onClick={() => handleSave()} disabled={saving} stopPropagation />
-                                <Button icon="x" className={styles.cancelBtn} onClick={handleCancel} disabled={saving} stopPropagation />
-                            </span>
-                        </>
-                    ) : (
-                        <>
-                            <div
-                                className={styles.settingValueContainer}
-                                onClick={() => formType !== 'info' && setIsEditing(true)}
-                                title={formType !== 'info' ? 'Click to edit' : undefined}
-                                style={{ flex: 1, minWidth: 0 }}
-                            >
-                                <span className={styles.settingValue} style={{ flex: 1, minWidth: 0 }}>{renderValueContent(value, renderType, formType, false, setting)}</span>
-                            </div>
-                            {formType !== 'info' && <Button icon='edit' mode='text' onClick={() => setIsEditing(true)} />}
-                        </>
-                    )}
+    // Default (text, textarea, date, info…) — same shell, control differs
+    return <SettingRow {...rowActions}>
+        {isEditing ? (
+            <div className={styles.inlineEditor}>
+                {renderFormInput({ formType, editValue, setEditValue, handleKeyDown, saving })}
+                <div className={styles.controlActions}>
+                    <Button icon="check" className={styles.saveBtn} onClick={() => handleSave()} disabled={saving} tooltip={TR('save')} />
+                    <Button icon="x" className={styles.cancelBtn} onClick={handleCancel} disabled={saving} tooltip={TR('cancel')} />
                 </div>
             </div>
-        </div>
-    )
+        ) : (
+            <div className={styles.textValue}>
+                <button
+                    type="button"
+                    className={styles.valueButton}
+                    onClick={() => formType !== 'info' && setIsEditing(true)}
+                    disabled={formType === 'info'}
+                    title={formType !== 'info' ? TR('settings_click_to_edit') : undefined}
+                >
+                    <span className={styles.valueText}>{renderValueContent(value, renderType, formType, setting, TR)}</span>
+                    {formType !== 'info' && <Icon name="edit" className={styles.valueEditIcon} />}
+                </button>
+            </div>
+        )}
+    </SettingRow>
 }
 
-function renderValueContent(val, renderType, formType, isEditing, setting) {
+function renderValueContent(val, renderType, formType, setting, TR = (k) => k) {
     if (val === undefined || val === null || val === '') {
-        return <em className={styles.emptyValue}>Not set</em>
+        return <span className={styles.emptyValue}>{TR('settings_not_set')}</span>
     }
     const isConfig = formType === 'config' || renderType === 'config'
     if (isConfig) {
         if (val && typeof val === 'object' && !Array.isArray(val)) {
             const entries = Object.entries(val)
-            if (entries.length === 0) return <em className={styles.emptyValue}>Empty config</em>
+            if (entries.length === 0) return <span className={styles.emptyValue}>{TR('settings_empty_config')}</span>
             return (
                 <span className={styles.pillList}>
                     {entries.map(([k, v]) => (
@@ -518,9 +431,10 @@ function renderValueContent(val, renderType, formType, isEditing, setting) {
             const light = val.light || '#000000'
             const dark = val.dark || '#ffffff'
             return (
-                <span style={{ display: 'inline-flex', gap: '0.5rem', alignItems: 'center' }}>
-                    <span className={styles.colorBadge}>Light: {light}<span className={styles.colorSwatch} style={{ backgroundColor: light }} /></span>
-                    <span className={styles.colorBadge}>Dark: {dark}<span className={styles.colorSwatch} style={{ backgroundColor: dark }} /></span>
+                <span className={styles.colorBadge}>
+                    <span className={styles.colorSwatch} style={{ backgroundColor: light }} />
+                    <span className={styles.colorSwatch} style={{ backgroundColor: dark }} />
+                    {light} · {dark}
                 </span>
             )
         }
@@ -534,18 +448,18 @@ function renderValueContent(val, renderType, formType, isEditing, setting) {
     const isImage = formType === 'image' || renderType === 'image'
     if (isImage) {
         const url = getSettingFileUrl(val, getSettingFileSize(setting))
-        if (!url) return <em className={styles.emptyValue}>Not set</em>
+        if (!url) return <span className={styles.emptyValue}>{TR('settings_not_set')}</span>
         return <img src={url} alt="" className={styles.settingThumb} />
     }
     if (formType === 'file') {
         const url = getSettingFileUrl(val, getSettingFileSize(setting))
-        if (!url) return <em className={styles.emptyValue}>Not set</em>
-        return <a href={url} target="_blank" rel="noreferrer" className={styles.linkValue} onClick={(e) => e.stopPropagation()}>PDF</a>
+        if (!url) return <span className={styles.emptyValue}>{TR('settings_not_set')}</span>
+        return <a href={url} target="_blank" rel="noreferrer" className={styles.linkValue}>{TR('settings_open_pdf')}</a>
     }
     return render({ type: renderType, value: val })
 }
 
-function renderFormInput({ formType, editValue, setEditValue, handleKeyDown, handleSave, saving }) {
+function renderFormInput({ formType, editValue, setEditValue, handleKeyDown, saving }) {
     switch (formType) {
         case 'textarea':
         case 'css':
