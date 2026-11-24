@@ -1,6 +1,8 @@
 import { Readable } from 'node:stream'
+import sharp from 'sharp'
 import resolveDomainId from '#server/utils/resolveDomainId.js'
 import { getPwaIconUrl, PWA_ICON_FILES } from '#common/functions/pwaIconUrl.js'
+import { getSettingFileUrl } from '#common/functions/settingFileUrl.js'
 
 // URL variant -> the file name the upload pipeline generates (`appearance.appIcon`
 // is a storage dir holding these) -> the shipped icon used when none was uploaded.
@@ -12,38 +14,83 @@ const VARIANTS = {
     '180.png': { file: PWA_ICON_FILES.apple180, fallback: '/icons/apple-180.png' }
 }
 
+// Android's status-bar badge. It is fetched/rasterised here because the
+// favicon setting is often an SVG on the files host, and a notification badge
+// has to be a small PNG that the system can tint (it uses the alpha channel).
+const BADGE = 'badge.png'
+const BADGE_SIZE = 96
+const BADGE_FALLBACK = '/icons/badge-96.png'
+
 /**
- * The current host's app icon, served from the app origin.
+ * The current host's app icon, served from the app origin, plus the favicon as
+ * a badge PNG.
  *
- * An uploaded app icon lives on the files host, but notification icons (the
- * Android large icon) and `apple-touch-icon` must resolve on the app origin —
- * the browser/OS fetches them without the page's context and cross-origin
- * images are unreliable there. The path is fixed (`:file` is an allow-listed
- * variant), so this is a mapper, not an open proxy.
+ * An uploaded app icon lives on the files host, but notification images and
+ * `apple-touch-icon` must resolve on the app origin — the browser/OS fetches
+ * them without the page's context and cross-origin images are unreliable there.
+ * The path is fixed (`:file` is an allow-listed variant), so this is a mapper,
+ * not an open proxy.
  */
 export default function registerAppIconRoute(app, bootData) {
     const { DL, utils } = bootData
 
-    app.get('/icons/app/:file', async (req, res) => {
-        const file = req.params.file
-        if (!Object.hasOwn(VARIANTS, file)) return res.status(404).end()
-        const variant = VARIANTS[file]
-
-        // The URL is host-relative, so caches must key on the host.
-        res.setHeader('Vary', 'Host')
-        res.setHeader('Cache-Control', 'public, max-age=3600')
-        const fallback = () => res.redirect(302, variant.fallback)
-
-        let appIcon = ''
+    async function appearanceOf(req) {
         try {
             let domainId
             try {
                 domainId = await resolveDomainId(req, DL)
             } catch { }
             const settings = await utils.data.getSettings({ ...bootData, domainId })
-            appIcon = settings?.appearance?.appIcon || ''
-        } catch { }
+            return settings?.appearance || {}
+        } catch {
+            // Settings unavailable is not a reason to break the icon.
+            return {}
+        }
+    }
 
+    async function badge(req, res, appearance) {
+        const fallback = () => res.redirect(302, BADGE_FALLBACK)
+        const favicon = appearance?.favicon || ''
+        if (!favicon) return fallback()
+
+        try {
+            const upstream = await fetch(getSettingFileUrl(favicon), {
+                signal: AbortSignal.timeout(5000)
+            })
+            if (!upstream.ok) return fallback()
+
+            const png = await sharp(Buffer.from(await upstream.arrayBuffer()), { density: 384 })
+                .resize(BADGE_SIZE, BADGE_SIZE, {
+                    fit: 'contain',
+                    background: { r: 0, g: 0, b: 0, alpha: 0 }
+                })
+                .png()
+                .toBuffer()
+
+            res.setHeader('Content-Type', 'image/png')
+            return res.send(png)
+        } catch {
+            // Files host down, or a favicon format sharp cannot decode (.ico):
+            // the shipped bell is better than a missing status-bar icon.
+            if (!res.headersSent) return fallback()
+            return res.end()
+        }
+    }
+
+    app.get('/icons/app/:file', async (req, res) => {
+        const file = req.params.file
+        if (file !== BADGE && !Object.hasOwn(VARIANTS, file)) return res.status(404).end()
+
+        // The URL is host-relative, so caches must key on the host.
+        res.setHeader('Vary', 'Host')
+        res.setHeader('Cache-Control', 'public, max-age=3600')
+
+        const appearance = await appearanceOf(req)
+        if (file === BADGE) return badge(req, res, appearance)
+
+        const variant = VARIANTS[file]
+        const fallback = () => res.redirect(302, variant.fallback)
+        const appIcon = appearance?.appIcon || ''
         if (!appIcon) return fallback()
 
         try {
@@ -55,8 +102,6 @@ export default function registerAppIconRoute(app, bootData) {
             res.setHeader('Content-Type', upstream.headers.get('content-type') || 'image/png')
             Readable.fromWeb(upstream.body).pipe(res)
         } catch {
-            // Files host down or slow: the shipped icon is better than a broken
-            // notification icon.
             if (!res.headersSent) fallback()
         }
     })

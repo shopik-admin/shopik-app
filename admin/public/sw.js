@@ -14,11 +14,11 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(self.clients.claim())
 })
 
-// Same-origin app icon (so a domain's uploaded icon is used) plus a
-// monochrome badge: Android renders the badge as a silhouette in the status
-// bar, so a full-colour app icon there shows up as a solid square.
+// Same-origin app icon (so a domain's uploaded icon is used) plus the favicon
+// rasterised to a badge PNG: Android draws the status-bar icon from the badge's
+// alpha channel, so it must be small and transparent.
 const DEFAULT_ICON = '/icons/app/192.png'
-const DEFAULT_BADGE = '/icons/badge-96.png'
+const DEFAULT_BADGE = '/icons/app/badge.png'
 
 // Payload is JSON built by the server. The notification is plain text only —
 // no HTML is ever rendered from the message.

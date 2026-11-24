@@ -10,9 +10,11 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '.
 const ADMIN_PUBLIC = path.join(ROOT, 'admin', 'public')
 
 describe('push notification icons', () => {
-    it('ships a monochrome badge (Android status bar)', async () => {
-        const file = path.join(ADMIN_PUBLIC, PUSH_ICONS.badge.replace(/^\/+/, ''))
-        assert.ok(existsSync(file), `missing ${PUSH_ICONS.badge}`)
+    it('ships a fallback badge for domains without a favicon', async () => {
+        // Used by /icons/app/badge.png when appearance.favicon is empty.
+        const url = '/icons/badge-96.png'
+        const file = path.join(ADMIN_PUBLIC, url.replace(/^\/+/, ''))
+        assert.ok(existsSync(file), `missing ${url}`)
 
         const metadata = await sharp(file).metadata()
         assert.equal(metadata.format, 'png')
@@ -44,14 +46,17 @@ describe('push notification icons', () => {
         const icons = await pushIconsFor({ DL: {}, domainId: 'd1' })
 
         assert.equal(icons.icon, '/icons/app/192.png')
-        assert.equal(icons.badge, '/icons/badge-96.png')
+        assert.equal(icons.badge, '/icons/app/badge.png')
     })
 
-    it('serves the app icon from the app origin', () => {
-        // The payload points at a route, not a static file, so a domain's
-        // uploaded icon is used (and stays same-origin for the browser).
+    it('serves the app icon and the favicon badge from the app origin', () => {
+        // The payload points at routes, not static files, so a domain's
+        // uploaded icon/favicon is used (and stays same-origin for the browser).
         assert.equal(PUSH_ICONS.icon, '/icons/app/192.png')
-        assert.ok(existsSync(path.join(ROOT, 'server', 'routes', 'appIcon.js')))
+        assert.equal(PUSH_ICONS.badge, '/icons/app/badge.png')
+
+        const route = readFileSync(path.join(ROOT, 'server', 'routes', 'appIcon.js'), 'utf8')
+        assert.match(route, /BADGE = 'badge\.png'/)
         assert.match(
             readFileSync(path.join(ROOT, 'server', 'index.js'), 'utf8'),
             /registerAppIconRoute\(app, bootData\)/
@@ -62,7 +67,7 @@ describe('push notification icons', () => {
 
     it('uses the badge (not the app icon) as the service worker fallback', () => {
         const sw = readFileSync(path.join(ADMIN_PUBLIC, 'sw.js'), 'utf8')
-        assert.match(sw, /const DEFAULT_BADGE = '\/icons\/badge-96\.png'/)
+        assert.match(sw, /const DEFAULT_BADGE = '\/icons\/app\/badge\.png'/)
         assert.match(sw, /badge: data\.badge \|\| DEFAULT_BADGE/)
     })
 
