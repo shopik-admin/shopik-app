@@ -5,7 +5,7 @@ import Text from 'common/components/Text'
 import Tabs from 'common/components/Tabs'
 import CartList from 'common/components/CartList'
 import { groupCart } from 'common/functions/cartReplacements'
-import { getOrderSummary } from 'common/functions/orderSummary'
+import { getOrderSummary, isOrderFinalized } from 'common/functions/orderSummary'
 import OrderProductsTable from './OrderProductsTable'
 import styles from './order.module.css'
 
@@ -41,6 +41,6 @@ export default function ProductsSection({ order }) {
         </Flex>
         {view === 'table'
             ? <OrderProductsTable order={order} entries={entries} summary={summary} />
-            : <CartList entries={entries} admin showLineTotals />}
+            : <CartList entries={entries} admin showLineTotals finalized={isOrderFinalized(order)} />}
     </Card>
 }

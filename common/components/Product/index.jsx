@@ -12,6 +12,7 @@ import { getProductImageUrl, mainImageHash } from 'common/functions/productImage
 import { getRowPriceInfo, isBundleReached } from 'common/functions/rowPrice.js'
 import { getUnitPriceText, parseWeightOrVolume } from 'common/functions/unitPrice.js'
 import { getFirstSale, getSalePriceInfo } from 'common/functions/salePrice.js'
+import { getLineSummary, isLineNotSupplied } from 'common/functions/orderSummary.js'
 import { useState, useEffect } from 'react'
 import TR from 'common/texts/TR.js'
 
@@ -299,7 +300,32 @@ function RowPrice({ product, size, sales, saleTotalAmount }) {
     </Flex>
 }
 
-export function ProductPrice({ product, size = 'm', sales, priceMode = 'unit', saleTotalAmount }) {
+// The unit price the line is actually charged. A sale, a bundle split and a
+// partially supplied line all change what one unit costs, and the line's own
+// priceDistribution already holds that money — so divide it by the units that
+// were supplied. Nothing is derived from the catalog, so a sale that no longer
+// exists still prices the line as the customer got it.
+const LINE_EPSILON = 0.005
+
+function LinePrice({ product, summary, size = 's' }) {
+    const effective = round2(summary.charged / summary.units)
+    const hasDiscount = summary.saved > LINE_EPSILON
+    const CurrencySymbol = <Text size='s' bold>₪</Text>
+    const unitPriceText = getUnitPriceText(product, effective)
+
+    return <Flex
+        gap={8}
+        alignItems='center'
+        wrap
+        className={classNames(styles.price, styles[size], hasDiscount ? styles.priceDiscount : styles.priceRegular)}
+    >
+        <Text size='xxl' bold className={styles.salePrice}>{CurrencySymbol}{formatPrice(effective)}</Text>
+        {hasDiscount && <Text size='s' lineThrough className={styles.regularPrice}>{CurrencySymbol}{formatPrice(summary.unitPrice)}</Text>}
+        {unitPriceText && <Text size='s' mode='sub' className={styles.forgrams}>{unitPriceText}</Text>}
+    </Flex>
+}
+
+export function ProductPrice({ product, size = 'm', sales, priceMode = 'unit', saleTotalAmount, finalized = true }) {
     try {
         const price = product.price
         if (price == null) return null
@@ -309,6 +335,16 @@ export function ProductPrice({ product, size = 'm', sales, priceMode = 'unit', s
         const unitPriceText = getUnitPriceText(product, saleInfo?.saleSingle)
 
         const CurrencySymbol = <Text size='s' bold>₪</Text>
+
+        // A cart line is priced from its own money, never from the current
+        // catalog price. A line that was not supplied (missing or replaced)
+        // shows no price at all; one the picker added has no pricing until
+        // pick_complete, so it falls through to its current unit price.
+        if (priceMode === 'line') {
+            if (isLineNotSupplied(product)) return null
+            const summary = getLineSummary(product, { finalized })
+            if (summary?.priced && summary.units > 0) return <LinePrice product={product} summary={summary} size={size} />
+        }
         if (priceMode === 'row') {
             const row = getRowPriceInfo(product)
             // A row price only makes sense for a cart line: it has an amount

@@ -7,8 +7,10 @@ import Icon from 'common/components/Icon'
 import Button from 'common/components/Button'
 import Image from 'common/components/Image'
 import styles from './productPickModal.module.css'
-import { isWeightProduct, formatAmount, getUnitLabel, getUnitInfoText, ProductUnitInfo } from 'common/components/Product'
+import { isWeightProduct, formatAmount, getUnitLabel, getUnitInfoText, ProductUnitInfo, formatPrice } from 'common/components/Product'
 import { getProductImageUrls } from 'common/functions/productImageUrl.js'
+import { getLineSummary, isLineNotSupplied } from 'common/functions/orderSummary'
+import { round2 } from 'common/functions/calcOrder/utils.js'
 import { useText } from 'common/texts/TextProvider'
 
 export default function ProductPickModal({ product = {}, orderId, cart = [], onClose, onPicked }) {
@@ -79,7 +81,12 @@ function ProductDetails({ product = {}, orderId, onClose, onPicked, onScan, onRe
     const mainSrc = displayImages[imgIdx] || ''
     const dots = displayImages.length > 1 ? displayImages : (has360 ? Array.from({ length: 5 }) : [])
 
-    const price = product.price ?? product.prices?.[0]?.price ?? 36
+    // The price the line actually carries (sale included), not the catalog
+    // price. The pick is still open, so the checkout money is kept.
+    const line = getLineSummary(product, { finalized: false })
+    const pricedLine = line?.priced && !isLineNotSupplied(product) && line.units > 0
+    const price = pricedLine ? round2(line.charged / line.units) : (product.price ?? product.prices?.[0]?.price)
+    const regularPrice = pricedLine && line.saved > 0.005 ? line.unitPrice : null
     const barcode = product.barcode || ''
     const storageType = product.storageType
     const isCold = storageType === 'cold' || storageType === 'freeze'
@@ -111,7 +118,8 @@ function ProductDetails({ product = {}, orderId, onClose, onPicked, onScan, onRe
             )}
             <div className={styles.priceTop}>
                 <Icon name={isCold ? 'snow' : 'stock'} size={14} />
-                <Text size="m" bold>₪{price}</Text>
+                {price != null && <Text size="m" bold className={regularPrice ? styles.salePrice : undefined}>₪{formatPrice(price)}</Text>}
+                {regularPrice != null && <Text size="s" mode="sub" lineThrough>₪{formatPrice(regularPrice)}</Text>}
             </div>
         </div>
 

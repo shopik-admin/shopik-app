@@ -10,14 +10,15 @@ import ReplacementCard from 'common/components/ReplacementCard'
  *
  * `entries` comes from groupCart and is rendered in the order given — a screen that
  * groups its own view (the pick tabs) passes its own order. `onItemClick` is only
- * passed by the screens that can work on a product.
+ * passed by the screens that can work on a product. `finalized` follows the order
+ * status: while picking is open the lines keep their checkout money.
  */
-export default function CartList({ entries = [], admin = false, onItemClick, className, showLineTotals = false }) {
+export default function CartList({ entries = [], admin = false, onItemClick, className, showLineTotals = false, finalized = true }) {
     const click = line => onItemClick && (() => onItemClick(line))
 
     return <Flex col gap={10} className={className}>
         {entries.map(entry => entry.type === 'pair'
-            ? <ReplacementCard key={entry.key} original={entry.original} replacer={entry.replacer} onClick={click(entry.replacer)} showLineTotals={showLineTotals} />
+            ? <ReplacementCard key={entry.key} original={entry.original} replacer={entry.replacer} onClick={click(entry.replacer)} showLineTotals={showLineTotals} finalized={finalized} />
             : <ProductInline
                 key={entry.key}
                 product={entry.product}
@@ -25,6 +26,7 @@ export default function CartList({ entries = [], admin = false, onItemClick, cla
                 note={false}
                 admin={admin}
                 showLineTotals={showLineTotals}
+                finalized={finalized}
                 onClick={click(entry.product)}
                 style={onItemClick ? { cursor: 'pointer' } : undefined}
             />)}

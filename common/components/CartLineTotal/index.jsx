@@ -13,10 +13,11 @@ import styles from './cartLineTotal.module.css'
  * It is derived from the line itself (its priceDistribution), so it shows the
  * sale the customer actually got even if the sale no longer exists in the
  * catalog. Screens opt in with `showLineTotals`; the picking and ops screens
- * are about quantities, not money, and stay unchanged.
+ * pass `finalized={false}` while the pick is still open so the line keeps its
+ * checkout money and follows the supplied amounts only once pick_complete ran.
  */
-export default function CartLineTotal({ line }) {
-    const summary = getLineSummary(line)
+export default function CartLineTotal({ line, finalized = true }) {
+    const summary = getLineSummary(line, { finalized })
     // A replacement line the picker added has no price until pick_complete runs.
     if (!summary || !summary.priced) return null
 

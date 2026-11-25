@@ -58,6 +58,7 @@ export default function ProductInline({
     saleTotalAmount,
     priceMode = 'unit',
     showLineTotals = false,
+    finalized = true,
     maxAmount = 0,
     ...props
 }) {
@@ -67,18 +68,21 @@ export default function ProductInline({
     if (isAdmin) {
         const status = pickStatus(product)
         const barcode = product.barcode || ''
+        // A pick row is money as the order holds it, not the catalog price: show
+        // the unit price the line actually carries (sale and bundle included).
+        const adminPriceMode = priceMode === 'unit' ? 'line' : priceMode
 
         return <Flex tag={Card} gap={10} className={classNames(styles.productInline, styles.admin, styles[status])} {...props}>
             <ProductImage product={product} size={size} hideSaleBadge />
             <Flex col gap={5} grow={1} justifyContent='space-around'>
                 <Icon name={icon || pickIcon(product)} size={16} className={classNames(styles.remove, styles.iconSlot, styles[status])} />
-                <ProductInfo product={product} sales={sales} size={size} priceMode={priceMode} saleTotalAmount={saleTotalAmount} />
+                <ProductInfo product={product} sales={sales} size={size} priceMode={adminPriceMode} saleTotalAmount={saleTotalAmount} finalized={finalized} />
                 {barcode && <Flex alignItems="center" gap={4} justifyContent="end" className={styles.barcodeRow}>
                     <Text size="s" mode="sub">{barcode}</Text>
                     <Icon name="barcode" size={12} />
                 </Flex>}
                 <PickPill product={product} status={status} />
-                {showLineTotals && <CartLineTotal line={product} />}
+                {showLineTotals && <CartLineTotal line={product} finalized={finalized} />}
                 {product.picking?.recommendations && <Flex alignItems="center" gap={6} className={styles.noteRow}>
                     <Icon name="note" size={12} />
                     <Text size="xs">{product.picking.recommendations}</Text>

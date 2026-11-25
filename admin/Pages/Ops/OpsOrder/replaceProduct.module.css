@@ -67,6 +67,11 @@
     color: var(--text-secondary);
 }
 
+/* A candidate's price under an active sale — the same sale colour the store uses. */
+.salePrice {
+    color: var(--product-price-sale-color, var(--text-brand-primary)) !important;
+}
+
 .saleTag {
     background: #e6f4ef;
     color: #0a7a5a;

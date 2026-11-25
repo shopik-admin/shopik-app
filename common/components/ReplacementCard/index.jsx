@@ -5,7 +5,7 @@ import Icon from 'common/components/Icon'
 import TR from 'common/texts/TR.js'
 import { PickPill, pickStatus } from 'common/components/ProductInline'
 import CartLineTotal from 'common/components/CartLineTotal'
-import { formatPrice, ProductImage, ProductPrice, ProductUnitInfo } from 'common/components/Product'
+import { ProductImage, ProductPrice, ProductUnitInfo } from 'common/components/Product'
 import styles from './replacementCard.module.css'
 
 /**
@@ -17,17 +17,19 @@ import styles from './replacementCard.module.css'
  * and the order products list — so they cannot disagree about the same cart.
  * `onClick` is optional: only the screens that can work on a product pass it.
  */
-export default function ReplacementCard({ original = {}, replacer = {}, onClick, showLineTotals = false }) {
+export default function ReplacementCard({ original = {}, replacer = {}, onClick, showLineTotals = false, finalized = true }) {
     const status = pickStatus(replacer)
 
     // Same sizes as a regular pick row (name 14px, unit info and barcode 12px),
     // same ordered/supplied pill, which belongs to the product that filled the order.
     return <Flex col onClick={onClick} style={{ cursor: onClick ? 'pointer' : undefined }} className={classNames(styles.replacedCard, styles[status])}>
         <Flex col gap={6} className={styles.replacedOriginal}>
+            {/* The original was not supplied, so it carries no price of its own:
+                the line total below says it was not charged. */}
             <Text size="m" bold>
-                {original.name || TR('ops_product_name_fallback')}{original.price != null ? ` - ₪${formatPrice(original.price)}` : ''}
+                {original.name || TR('ops_product_name_fallback')}
             </Text>
-            {showLineTotals && <CartLineTotal line={original} />}
+            {showLineTotals && <CartLineTotal line={original} finalized={finalized} />}
             {original.barcode && <Flex alignItems="center" gap={4} justifyContent="end">
                 <Text size="s" mode="sub">{original.barcode}</Text>
                 <Icon name="barcode" size={12} />
@@ -36,7 +38,7 @@ export default function ReplacementCard({ original = {}, replacer = {}, onClick,
         <Flex gap={10} className={styles.replacedReplacement}>
             <ProductImage product={replacer} size="s" hideSaleBadge />
             <Flex col gap={5} grow={1} justifyContent='space-around'>
-                <ProductPrice product={replacer} size="s" />
+                <ProductPrice product={replacer} size="s" priceMode='line' finalized={finalized} />
                 <Text size="s" mode="sub"><ProductUnitInfo product={replacer} /></Text>
                 <Text size="m" bold className={styles.replacedName}>{replacer.name || TR('ops_product_name_fallback')}</Text>
                 {replacer.barcode && <Flex alignItems="center" gap={4} justifyContent="end" className={styles.replacedBarcode}>
@@ -44,7 +46,7 @@ export default function ReplacementCard({ original = {}, replacer = {}, onClick,
                     <Icon name="barcode" size={12} />
                 </Flex>}
                 <PickPill product={replacer} status={status} />
-                {showLineTotals && <CartLineTotal line={replacer} />}
+                {showLineTotals && <CartLineTotal line={replacer} finalized={finalized} />}
             </Flex>
         </Flex>
     </Flex>

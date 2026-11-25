@@ -84,6 +84,11 @@
     color: var(--text-primary);
 }
 
+/* The price the order line actually carries — the sale colour when it does. */
+.salePrice {
+    color: var(--product-price-sale-color, var(--text-brand-primary)) !important;
+}
+
 .barcodeRow {
     color: var(--text-tertiary);
 }

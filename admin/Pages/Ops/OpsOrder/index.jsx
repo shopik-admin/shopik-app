@@ -17,6 +17,7 @@ import { useState, useEffect } from 'react'
 import Tabs from '#common/components/Tabs/index.jsx'
 import CartList from 'common/components/CartList'
 import { groupCart } from 'common/functions/cartReplacements'
+import { isOrderFinalized } from 'common/functions/orderSummary'
 import Stepper from 'common/components/Stepper'
 import { useModal } from 'common/components/Modal'
 import ProductPickModal from './ProductPickModal'
@@ -342,7 +343,7 @@ function OrderView({ order = {}, setStep }) {
         <Flex alignItems='center' justifyContent='center' style={{ padding: 16 }}>
             <Text size='l' bold>ops_view_title</Text>
         </Flex>
-        <CartList entries={entries} admin className={styles.cartList} />
+        <CartList entries={entries} admin showLineTotals finalized={isOrderFinalized(order)} className={styles.cartList} />
         <Flex center gap={20} className={styles.footer}>
             <Button mode='text-brand' onClick={() => setStep(STEPS.PREVIEW)}>back</Button>
         </Flex>
@@ -457,7 +458,7 @@ function OrderPick({ order = {}, setStep, onPicked }) {
                 { text: 'wait_pick', badge: 0 },
                 { text: 'done_pick', badge: donePickItems.length + pairs.length },
             ]} />
-        <CartList entries={displayedEntries} admin onItemClick={handleProductClick} className={styles.cartList} />
+        <CartList entries={displayedEntries} admin showLineTotals finalized={isOrderFinalized(order)} onItemClick={handleProductClick} className={styles.cartList} />
         <Flex center gap={10} col className={styles.footer}>
             <Button disabled={!allHandled} loading={completing} onClick={handleFinishPick} className={styles.finishBtn}>finish_pick</Button>
             {toPickItems.length === 0 && order.phone && <Button
