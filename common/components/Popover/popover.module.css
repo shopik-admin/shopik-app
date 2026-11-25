@@ -26,7 +26,8 @@
         position: fixed;
         right: auto;
         width: fit-content;
-        max-width: min(420px, calc(100vw - 24px));
+        max-width: min(420px, calc(100vw - 24px - var(--safeLeft, 0px) - var(--safeRight, 0px)));
+        max-height: calc(100dvh - var(--safeTop, 0px) - var(--safeBottom, 0px) - 16px);
         z-index: 1001;
     }
 

@@ -45,14 +45,14 @@
 } */
 
 body .Table_ {
-    max-height: calc(100dvh - var(--admin-header-height) - 115px);
+    max-height: calc(100dvh - var(--admin-header-height) - var(--safeTop, 0px) - var(--safeBottom, 0px) - 115px);
     background-color: var(--bg-primary);
     border: 1px solid var(--border-tertiary);
     border-radius: var(--radius-xl);
     box-shadow: var(--shadow-sm);
 
     @media screen and (max-width: 650px) {
-        max-height: calc(100dvh - var(--admin-header-height) - 48px);
+        max-height: calc(100dvh - var(--admin-header-height) - var(--safeTop, 0px) - var(--safeBottom, 0px) - 48px);
         border-radius: var(--radius-lg);
     }
 }

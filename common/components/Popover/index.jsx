@@ -5,6 +5,21 @@ import styles from './popover.module.css'
 import { registerPopover, popoverOpened, popoverClosed } from './registry'
 import { useEffect, useId, useRef } from 'react'
 
+// The visible viewport inside the device safe areas. --safeTop/--safeBottom/
+// --safeLeft/--safeRight are defined with env() and already resolved by the
+// browser, so a notch, the status bar or the home indicator never covers a
+// popover.
+function safeInsets() {
+    const style = getComputedStyle(document.documentElement)
+    const px = name => parseFloat(style.getPropertyValue(name)) || 0
+    return {
+        top: px('--safeTop'),
+        bottom: px('--safeBottom'),
+        left: px('--safeLeft'),
+        right: px('--safeRight')
+    }
+}
+
 export default function Popover({ id, className, button, children, btnClassName, disabled, leftOffset = 0, topOffset = 0, icon, overlay, modal = true, ...props }) {
     const ref = useRef()
     const btnRef = useRef()
@@ -136,15 +151,18 @@ export default function Popover({ id, className, button, children, btnClassName,
         const
             btnRect = btnRef.current.getBoundingClientRect(),
             { width: popoverWidth, height: popoverHeight } = trueSize(),
-            gap = 5
+            gap = 5,
+            // Never place the popover under the notch, the status bar or the
+            // home indicator. env() is already resolved into these properties.
+            safe = safeInsets()
 
         let
             top = btnRect.top + btnRect.height + gap,
             left = btnRect.left - popoverWidth + btnRect.width
 
         const
-            overflowTop = top + popoverHeight > window.innerHeight - gap,
-            overflowLeft = props.left || left < 0
+            overflowTop = top + popoverHeight > window.innerHeight - safe.bottom - gap,
+            overflowLeft = props.left || left < safe.left + gap
 
         if (overflowTop)
             top = btnRect.top - popoverHeight - gap
@@ -153,10 +171,10 @@ export default function Popover({ id, className, button, children, btnClassName,
 
         top += topOffset
         left += leftOffset
-        left = Math.min(window.innerWidth - popoverWidth - gap, left)
-        top = Math.min(window.innerHeight - popoverHeight - gap, top)
-        left = Math.max(gap, left)
-        top = Math.max(gap, top)
+        left = Math.min(window.innerWidth - popoverWidth - safe.right - gap, left)
+        top = Math.min(window.innerHeight - popoverHeight - safe.bottom - gap, top)
+        left = Math.max(safe.left + gap, left)
+        top = Math.max(safe.top + gap, top)
 
         dialog.style.transformOrigin =
             `${overflowTop ? 'bottom' : 'top'} ${overflowLeft ? 'left' : 'right'}`
