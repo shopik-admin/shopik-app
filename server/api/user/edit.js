@@ -24,7 +24,7 @@ export default async function edit(payload, { DL, _user, external, utils }) {
         token
     if (update.phone) {
         const currentOtps = await DL.Otp.count({ phone: update.phone })
-        if (currentOtps >= 5) throw { status: 400, message: 'otp_too_many_requests', code: 'OTP_TOO_MANY_REQUESTS' }
+        if (currentOtps >= 5) throw { status: 400, message: 'otp_too_many_requests' }
         // Per-phone hourly cap (SMS-flood protection, IP-independent).
         // Fail-open when redis is unavailable.
         if (DL.redis) {
@@ -32,7 +32,7 @@ export default async function edit(payload, { DL, _user, external, utils }) {
                 const sendKey = `otp_send:${update.phone}`
                 const sent = await DL.redis.incr(sendKey)
                 if (sent === 1) await DL.redis.expire(sendKey, 3600)
-                if (sent > 10) throw { status: 400, message: 'otp_too_many_requests', code: 'OTP_TOO_MANY_REQUESTS' }
+                if (sent > 10) throw { status: 400, message: 'otp_too_many_requests' }
             } catch (e) {
                 if (e?.status === 400) throw e
             }

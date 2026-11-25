@@ -12,11 +12,11 @@ export default async function login({ domainId, phone, otpToken, otp, remember }
             const attempts = (storedOtp.attempts || 0) + 1
             if (attempts >= 5) {
                 await DL.Otp.deleteOne({ _id: storedOtp._id })
-                throw { message: 'otp_code_expired', code: 'OTP_TOO_MANY_ATTEMPTS', status: 403 }
+                throw { message: 'otp_code_expired', status: 403 }
             }
             await DL.Otp.updateOne({ _id: storedOtp._id }, { attempts })
         }
-        throw { message: 'otp_code_invalid', code: 'OTP_INVALID', status: 403 }
+        throw { message: 'otp_code_invalid', status: 403 }
     }
 
     let user
@@ -27,7 +27,7 @@ export default async function login({ domainId, phone, otpToken, otp, remember }
         // Resolve against the number the OTP was issued to, never the client-supplied one.
         user = await DL.User.readOne({ domainId, phone: storedOtp.phone })
         if (!user)
-            throw { message: 'login_failed', code: 'LOGIN_FAILED', status: 403 }
+            throw { message: 'login_failed', status: 403 }
     }
 
     const shouldRemember = toRemember(remember) || (remember === undefined && toRemember(storedOtp.remember))

@@ -11,20 +11,20 @@ export default async function verify_phone({ otpToken, otp }, { DL, utils, platf
             const attempts = (storedOtp.attempts || 0) + 1
             if (attempts >= 5) {
                 await DL.Otp.deleteOne({ _id: storedOtp._id })
-                throw { message: 'otp_code_expired', code: 'OTP_TOO_MANY_ATTEMPTS', status: 403 }
+                throw { message: 'otp_code_expired', status: 403 }
             }
             await DL.Otp.updateOne({ _id: storedOtp._id }, { attempts })
         }
-        throw { message: 'otp_code_invalid', code: 'OTP_INVALID', status: 403 }
+        throw { message: 'otp_code_invalid', status: 403 }
     }
 
     const user = await DL.User.readById(storedOtp.userId)
-    if (!user) throw { message: 'user_not_found', code: 'USER_NOT_FOUND', status: 404 }
+    if (!user) throw { message: 'user_not_found', status: 404 }
 
     try {
         await DL.User.updateOne({ id: storedOtp.userId }, { phone: storedOtp.phone })
     } catch (err) {
-        throw { message: 'phone_already_in_use', code: 'PHONE_ALREADY_IN_USE', status: 409 }
+        throw { message: 'phone_already_in_use', status: 409 }
     }
 
 
