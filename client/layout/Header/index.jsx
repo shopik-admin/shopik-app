@@ -27,30 +27,21 @@ export default function Header() {
     const [openMenu, setOpenMenu] = useState(null)
     const [popCount, setPopCount] = useState(0)
     const headerRef = useRef(null)
-    const topBarRef = useRef(null)
     const { cartOpen, setCartOpen } = useCart()
     const navigate = useNavigate()
     const { settings } = useAppData()
     const { TR } = useText?.() || {}
 
-    // The mobile drawer is fixed so it can only be scrolled inside the part of
-    // the viewport the header leaves free. It starts where the green top bar
-    // ends (not below the delivery row, which it covers) and the bar height
-    // changes with its insets and wrapped content, so measure it.
+    // The mobile drawer is fixed and starts exactly where the header ends, so
+    // it can only scroll inside the space the header leaves. The header height
+    // changes with its insets and wrapped rows, so measure it.
     useEffect(() => {
         const header = headerRef.current
-        const bar = topBarRef.current
-        if (!header || !bar) return
-        const apply = () => {
-            const headerRect = header.getBoundingClientRect()
-            const barRect = bar.getBoundingClientRect()
-            header.style.setProperty('--mobile-menu-top', `${barRect.bottom - headerRect.top}px`)
-        }
+        if (!header) return
+        const apply = () => header.style.setProperty('--mobile-header-height', `${header.offsetHeight}px`)
         apply()
         if (typeof ResizeObserver === 'undefined') return
         const ro = new ResizeObserver(apply)
-        ro.observe(bar)
-        // A safe-area/orientation change moves the bar without resizing it.
         ro.observe(header)
         return () => ro.disconnect()
     }, [])
@@ -112,7 +103,7 @@ export default function Header() {
 
     return (
         <header ref={headerRef} className={styles.header}>
-            <div ref={topBarRef} className={styles.topBar}>
+            <div className={styles.topBar}>
                 <Button
                     icon="menu"
                     aria-label={TR?.('aria_menu')}
