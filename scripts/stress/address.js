@@ -15,7 +15,7 @@
 // Results are printed next to the DB facts the observer collected, so a
 // regression (a missing cache / an accidental COLLSCAN) is visible immediately.
 
-import { latencyStats, pool } from './util.js'
+import { latencyStats, pool, sleep } from './util.js'
 
 const ADDRESSES = [
     { city: 'ירושלים', street: 'יפו', building: '100' },
@@ -80,6 +80,11 @@ export async function runAddressStress({ clients, observer, opts, log = () => { 
         { q: address.street.slice(0, 2), city: address.city, type: 'street' },
         { q: address.street.slice(1, 3), city: address.city, type: 'street' }
     ])
+    // The observer pads both window edges by 1s against server clock skew. The
+    // warm-up runs the index's one-time city-list load; without a settle longer
+    // than that pad, the load lands inside the measured window and the "0
+    // gov_addresses ops" check fails even though the burst itself is clean.
+    await sleep(1200)
     await observer.openWindow('address/autocomplete')
     const autocompleteResponses = await pool(burstCalls, concurrency, index =>
         admin.call('address/autocomplete', autocompleteQueries[index % autocompleteQueries.length]))
