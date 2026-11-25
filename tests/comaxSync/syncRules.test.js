@@ -1,4 +1,4 @@
-import { describe, it } from 'node:test'
+import { describe, it, mock } from 'node:test'
 import assert from 'node:assert/strict'
 import {
     buildSyncFilter,
@@ -262,5 +262,49 @@ describe('comax sync rules', () => {
         }
         assert.equal(await shouldEnforceBuyingPrice(failing), false)
         assert.equal(retried, 1)
+    })
+
+    it('keeps true permanently and re-checks false after the window', async () => {
+        mock.timers.enable({ apis: ['Date'], now: 1_000_000 })
+        try {
+            let trueCalls = 0
+            const arming = {
+                ComaxProduct: {
+                    Model: {
+                        exists: async () => {
+                            trueCalls += 1
+                            return { _id: 'any' }
+                        }
+                    }
+                }
+            }
+            assert.equal(await shouldEnforceBuyingPrice(arming), true)
+            mock.timers.tick(24 * 60 * 60 * 1000)
+            assert.equal(await shouldEnforceBuyingPrice(arming), true)
+            assert.equal(trueCalls, 1)
+
+            let falseCalls = 0
+            const unarmed = {
+                ComaxProduct: {
+                    Model: {
+                        exists: async () => {
+                            falseCalls += 1
+                            return null
+                        }
+                    }
+                }
+            }
+            assert.equal(await shouldEnforceBuyingPrice(unarmed), false)
+            // Inside the re-check window a false answer is served from the memo.
+            mock.timers.tick(60 * 1000)
+            assert.equal(await shouldEnforceBuyingPrice(unarmed), false)
+            assert.equal(falseCalls, 1)
+            // After it, the first import can arm the rule without a restart.
+            mock.timers.tick(5 * 60 * 1000)
+            assert.equal(await shouldEnforceBuyingPrice(unarmed), false)
+            assert.equal(falseCalls, 2)
+        } finally {
+            mock.timers.reset()
+        }
     })
 })

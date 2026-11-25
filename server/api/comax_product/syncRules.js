@@ -24,24 +24,29 @@ function statuses(DL) {
  *
  * The answer only flips false→true, so a boolean "does one exist" is enough:
  * an unindexed $gt count read the whole 23k catalog on every preview request.
- * `exists` stops at the first document with a price, and the memo keeps even
- * that to once per five minutes.
+ * `exists` stops at the first document with a price.
+ *
+ * A `true` answer is final for the process (prices do not un-import), so it is
+ * cached without expiry; only `false` is re-checked, once per five minutes, so
+ * the first import that brings prices arms the rule without a restart.
  *
  * The memo stores the in-flight promise too: a burst's first calls run
  * concurrently, and without single-flight every one of them missed the empty
- * cache and fired its own full scan (8 collscans in one stress window).
+ * cache and fired its own lookup (8 collscans in one stress window).
  */
-const ENFORCE_BUYING_PRICE_TTL_MS = 5 * 60 * 1000
+const FALSE_RECHECK_MS = 5 * 60 * 1000
 const enforceBuyingPriceCache = new WeakMap()
 
 export async function shouldEnforceBuyingPrice(DL) {
-    const now = Date.now()
     const cached = enforceBuyingPriceCache.get(DL)
-    if (cached && now - cached.at < ENFORCE_BUYING_PRICE_TTL_MS)
-        return 'pending' in cached ? cached.pending : cached.value
+    if (cached) {
+        if ('pending' in cached) return cached.pending
+        if (cached.value === true) return true
+        if (Date.now() - cached.at < FALSE_RECHECK_MS) return false
+    }
 
     const entry = {
-        at: now,
+        at: Date.now(),
         pending: DL.ComaxProduct.Model
             .exists({ buyingPrice: { $gt: 0 } })
             .then(found => !!found)
@@ -49,7 +54,7 @@ export async function shouldEnforceBuyingPrice(DL) {
     enforceBuyingPriceCache.set(DL, entry)
     try {
         const value = await entry.pending
-        enforceBuyingPriceCache.set(DL, { at: now, value })
+        enforceBuyingPriceCache.set(DL, { at: entry.at, value })
         return value
     } catch (error) {
         // Never cache a failed lookup: the next request retries.
