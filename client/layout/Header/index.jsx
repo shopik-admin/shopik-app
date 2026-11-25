@@ -17,7 +17,7 @@ import Icon from 'common/components/Icon'
 import Button from 'common/components/Button'
 import ContextMenu from 'common/components/ContextMenu'
 import classNames from 'common/functions/classNames'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router'
 import { useAppData } from 'App'
 import { useText } from 'common/texts/TextProvider'
@@ -26,10 +26,31 @@ export default function Header() {
     const [drawerOpen, setDrawerOpen] = useState(false)
     const [openMenu, setOpenMenu] = useState(null)
     const [popCount, setPopCount] = useState(0)
+    const menuWrapRef = useRef(null)
     const { cartOpen, setCartOpen } = useCart()
     const navigate = useNavigate()
     const { settings } = useAppData()
     const { TR } = useText?.() || {}
+
+    // Keep the card inside the viewport without touching its anchored top:
+    // measure where it actually starts and cap its height to the space left.
+    useEffect(() => {
+        if (!drawerOpen) return
+        const el = menuWrapRef.current
+        if (!el) return
+        const apply = () => {
+            const top = el.getBoundingClientRect().top
+            const available = Math.max(0, window.innerHeight - top - 8)
+            el.style.setProperty('--mobile-menu-max-height', `${available}px`)
+        }
+        apply()
+        window.addEventListener('resize', apply)
+        window.visualViewport?.addEventListener('resize', apply)
+        return () => {
+            window.removeEventListener('resize', apply)
+            window.visualViewport?.removeEventListener('resize', apply)
+        }
+    }, [drawerOpen])
     useEffect(() => {
         if (!drawerOpen && !openMenu) return
         const onKey = (e) => {
@@ -160,7 +181,7 @@ export default function Header() {
                 </div>
             </div>
 
-            <div className={classNames(styles.menuWrap, [styles.menuWrapOpen, drawerOpen], [styles.menuAbove, openMenu])}>
+            <div ref={menuWrapRef} className={classNames(styles.menuWrap, [styles.menuWrapOpen, drawerOpen], [styles.menuAbove, openMenu])}>
                 <div className={styles.desktopMenu}>
                     <MainMenu openMenu={openMenu} onOpenMenu={(v) => {
                         if (v) closeAllPopovers()
