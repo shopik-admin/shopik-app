@@ -17,7 +17,7 @@ import Icon from 'common/components/Icon'
 import Button from 'common/components/Button'
 import ContextMenu from 'common/components/ContextMenu'
 import classNames from 'common/functions/classNames'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router'
 import { useAppData } from 'App'
 import { useText } from 'common/texts/TextProvider'
@@ -26,34 +26,10 @@ export default function Header() {
     const [drawerOpen, setDrawerOpen] = useState(false)
     const [openMenu, setOpenMenu] = useState(null)
     const [popCount, setPopCount] = useState(0)
-    const headerRef = useRef(null)
-    const topBarRef = useRef(null)
     const { cartOpen, setCartOpen } = useCart()
     const navigate = useNavigate()
     const { settings } = useAppData()
     const { TR } = useText?.() || {}
-
-    // The mobile drawer is fixed and starts exactly where the green top header
-    // ends — it covers the delivery row, which is not part of the header the
-    // menu is attached to. The bar moves with the safe-area inset and may wrap,
-    // so measure it instead of guessing.
-    useEffect(() => {
-        const header = headerRef.current
-        const bar = topBarRef.current
-        if (!header || !bar) return
-        const apply = () => {
-            const headerRect = header.getBoundingClientRect()
-            const barRect = bar.getBoundingClientRect()
-            header.style.setProperty('--mobile-menu-top', `${barRect.bottom - headerRect.top}px`)
-        }
-        apply()
-        if (typeof ResizeObserver === 'undefined') return
-        const ro = new ResizeObserver(apply)
-        ro.observe(bar)
-        // A safe-area/orientation change moves the bar without resizing it.
-        ro.observe(header)
-        return () => ro.disconnect()
-    }, [])
     useEffect(() => {
         if (!drawerOpen && !openMenu) return
         const onKey = (e) => {
@@ -111,8 +87,8 @@ export default function Header() {
     }))
 
     return (
-        <header ref={headerRef} className={styles.header}>
-            <div ref={topBarRef} className={styles.topBar}>
+        <header className={styles.header}>
+            <div className={styles.topBar}>
                 <Button
                     icon="menu"
                     aria-label={TR?.('aria_menu')}

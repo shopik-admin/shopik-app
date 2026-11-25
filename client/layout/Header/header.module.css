@@ -343,29 +343,26 @@
 
         .menuWrap {
             display: none;
-            /* Fixed, attached to the end of the green top header (it covers the
-               delivery row), so the card floats with a gap from the screen
-               edges and always has a definite height to scroll inside. */
-            position: fixed;
-            top: var(--mobile-menu-top, 0px);
+            /* Restored to its original anchor; only the side gap and the
+               scroll container below are new. */
+            position: absolute;
+            top: -55px;
             right: calc(env(safe-area-inset-right, 0px) + 10px);
             left: calc(env(safe-area-inset-left, 0px) + 10px);
             background-color: var(--bg-primary, #fff);
             margin: 0;
             padding: 0;
             z-index: 10002;
+            border-top: 1px solid #e3ebea;
             box-shadow: 0 6px 20px rgba(0, 0, 0, .08);
-            max-height: calc(100dvh - var(--mobile-menu-top, 0px) - env(safe-area-inset-bottom, 0px) - 8px);
+            max-height: calc(100dvh - 100% - env(safe-area-inset-top, 0px));
             max-width: 410px;
             border-radius: 0 0 20px 20px;
         }
 
         .menuWrapOpen {
             display: flex;
-            /* Content height like a floating dropdown card; only a long list
-               (the departments panel) reaches the cap and scrolls. */
-            height: auto;
-            max-height: calc(100dvh - var(--mobile-menu-top, 0px) - env(safe-area-inset-bottom, 0px) - 8px);
+            /* The card itself scrolls, so the last rows are always reachable. */
             overflow-y: auto;
             overscroll-behavior: contain;
             border-radius: 0 0 20px 20px;
