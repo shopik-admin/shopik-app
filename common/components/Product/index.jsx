@@ -11,14 +11,14 @@ import { round2, round3 } from 'common/functions/calcOrder/utils.js'
 import { getProductImageUrl, mainImageHash } from 'common/functions/productImageUrl.js'
 import { getRowPriceInfo, isBundleReached } from 'common/functions/rowPrice.js'
 import { getUnitPriceText, parseWeightOrVolume } from 'common/functions/unitPrice.js'
-import { getFirstSale, getSalePriceInfo } from 'common/functions/salePrice.js'
+import { getFirstSale, getSalePriceInfo, getSaleLimitUnits, isSaleLimitExceeded } from 'common/functions/salePrice.js'
 import { getLineSummary, isLineNotSupplied } from 'common/functions/orderSummary.js'
 import { useState, useEffect } from 'react'
 import TR from 'common/texts/TR.js'
 
 // Re-exported for existing callers; the implementation lives in
 // common/functions/salePrice.js so the server feed can share it.
-export { getFirstSale, getSalePriceInfo }
+export { getFirstSale, getSalePriceInfo, getSaleLimitUnits, isSaleLimitExceeded }
 
 export function getSaleBadgeText(sale) {
     if (!sale) return null
@@ -54,8 +54,9 @@ export function getSaleRemaining(sale, amount) {
     return remaining
 }
 
-export function getInlineSaleBarText(sale, amount) {
+export function getInlineSaleBarText(sale, amount, product) {
     if (!sale) return null
+    if (isSaleLimitExceeded(sale, amount)) return getSaleLimitBarText(sale, product)
     const remaining = getSaleRemaining(sale, amount)
     if (remaining > 0) {
         const formatted = Number.isInteger(remaining) ? String(remaining) : String(Math.round(remaining * 1000) / 1000)
@@ -85,6 +86,26 @@ export function getSaleProgressText(sale, amount) {
         return TR('sale_progress_remaining', { amount: formatted })
     }
     return TR('sale_progress_reached')
+}
+
+// "2 יח'" / "1.5 ק\"ג" — the sale's cap in the product's own unit.
+export function getSaleLimitLabel(sale, product) {
+    const units = getSaleLimitUnits(sale)
+    if (!(units > 0)) return null
+    return `${formatAmountNumber(units)} ${getUnitLabel(product)}`
+}
+
+// Price-row note: the per-100g price stops being a promise once only the
+// first units are discounted, so a limited sale shows its cap instead.
+export function getSaleLimitNote(sale, product) {
+    const amount = getSaleLimitLabel(sale, product)
+    return amount ? TR('product_sale_limit', { amount }) : null
+}
+
+// Strip warning, shown only after the cart has gone past the cap.
+export function getSaleLimitBarText(sale, product) {
+    const amount = getSaleLimitLabel(sale, product)
+    return amount ? TR('sale_limit_reached', { amount }) : null
 }
 
 export function ProductSaleBadge({ product, sales, size = 'm' }) {
@@ -370,10 +391,17 @@ export function ProductPrice({ product, size = 'm', sales, priceMode = 'unit', s
                     {TR('product_sale_bundle', { amount: saleInfo.amount })}{CurrencySymbol}{formatPrice(saleInfo.saleTotal)}
                 </Text>
                 : <Text size='xxl' bold className={styles.salePrice}>{CurrencySymbol}{formatPrice(saleInfo.saleSingle)}</Text>
+            // A limited sale discounts only its first units, so the per-100g
+            // price of the sale price would claim more than the sale gives.
+            // Show the cap in that slot instead (all limited sales, not just
+            // those that had a per-100g price to replace).
+            const limitNote = getSaleLimitNote(sale, product)
             return <Flex gap={8} alignItems='center' wrap className={classNames(styles.price, styles[size], styles.sale)}>
                 <Text size='xxl' bold className={styles.salePrice}>{saleText}</Text>
                 <Text size='s' lineThrough className={styles.regularPrice}>{CurrencySymbol}{formatPrice(saleInfo.regular)}</Text>
-                {unitPriceText && <Text size='s' mode='sub' className={styles.forgrams}>{unitPriceText}</Text>}
+                {limitNote
+                    ? <Text size='s' mode='sub' className={styles.forgrams}>{limitNote}</Text>
+                    : unitPriceText && <Text size='s' mode='sub' className={styles.forgrams}>{unitPriceText}</Text>}
             </Flex>
         }
 

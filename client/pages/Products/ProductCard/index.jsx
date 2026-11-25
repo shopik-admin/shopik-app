@@ -10,6 +10,8 @@ import {
     ProductStamps,
     getFirstSale,
     getSaleProgressText,
+    getSaleLimitBarText,
+    isSaleLimitExceeded,
     getUnitPriceText
 } from 'common/components/Product'
 import Icon from 'common/components/Icon'
@@ -28,7 +30,12 @@ export default function ProductCard(props) {
     const { amount, updateAmount, productMaxAmount, saleTotalAmount } = useProductCart(product, sales)
     const sale = getFirstSale(product, sales)
     const { action, price } = getProductState({ amount, sale })
-    const saleProgressText = getSaleProgressText(sale, saleTotalAmount)
+    // The cap is sale-wide: the cart engine pools the limit across every line
+    // of the sale, so the warning counts what the whole cart holds.
+    const limitExceeded = isSaleLimitExceeded(sale, saleTotalAmount)
+    const saleBarText = limitExceeded
+        ? getSaleLimitBarText(sale, product)
+        : getSaleProgressText(sale, saleTotalAmount)
     const { isFavorite, toggleFavorite } = useUser() || {}
     const productLink = useProductModalLink(product, sales)
 
@@ -47,10 +54,10 @@ export default function ProductCard(props) {
                 alignItems='center'
                 justifyContent='center'
                 gap={6}
-                className={classNames(styles.saleBar, [styles.saleBarVisible, !!saleProgressText])}>
-                {saleProgressText && <>
-                    <Icon name='salePercent' size={16} className={styles.saleBarIcon} />
-                    <Text size='s' bold className={styles.saleBarText}>{saleProgressText}</Text>
+                className={classNames(styles.saleBar, [styles.saleBarVisible, !!saleBarText])}>
+                {saleBarText && <>
+                    <Icon name={limitExceeded ? 'warning' : 'salePercent'} size={16} className={styles.saleBarIcon} />
+                    <Text size='s' bold className={styles.saleBarText}>{saleBarText}</Text>
                 </>}
             </Flex>
         </Flex>

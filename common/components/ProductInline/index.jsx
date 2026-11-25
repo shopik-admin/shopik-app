@@ -1,4 +1,4 @@
-import { ProductButton, ProductImage, ProductInfo, ProductStamps, formatAmount, getUnitLabel, isWeightProduct, getFirstSale, getInlineSaleBarText } from 'common/components/Product'
+import { ProductButton, ProductImage, ProductInfo, ProductStamps, formatAmount, getUnitLabel, isWeightProduct, getFirstSale, getInlineSaleBarText, isSaleLimitExceeded } from 'common/components/Product'
 import classNames from 'common/functions/classNames'
 import styles from './productInline.module.css'
 import Button from 'common/components/Button'
@@ -94,7 +94,8 @@ export default function ProductInline({
     const sale = getFirstSale(product, sales)
     const showSaleBar = !!sale && !isAdmin
     const saleAmountForBar = saleTotalAmount != null ? saleTotalAmount : (amount ?? product?.amount ?? 0)
-    const saleBarText = showSaleBar ? getInlineSaleBarText(sale, saleAmountForBar) : null
+    const limitExceeded = showSaleBar && isSaleLimitExceeded(sale, saleAmountForBar)
+    const saleBarText = showSaleBar ? getInlineSaleBarText(sale, saleAmountForBar, product) : null
 
     // Same two axes as the product card — getProductState is shared so the
     // cart row and the listing card can never disagree about a product's
@@ -123,7 +124,7 @@ export default function ProductInline({
         </Flex>
         {showSaleBar && saleBarText && (
             <Flex alignItems="center" justifyContent="center" gap={6} className={styles.saleInlineBar}>
-                <Icon name="salePercent" size={18} className={styles.saleInlineBarIcon} />
+                <Icon name={limitExceeded ? 'warning' : 'salePercent'} size={18} className={styles.saleInlineBarIcon} />
                 <Text size="m" bold className={styles.saleInlineBarText}>{saleBarText}</Text>
             </Flex>
         )}

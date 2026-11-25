@@ -1566,6 +1566,8 @@
         "product_sale_percent": "מבצע [percent]%",
         "product_sale": "מבצע",
         "product_sale_remaining": "עוד [amount] יח' בשביל לקבל את המבצע",
+        "product_sale_limit": "מוגבל ל-[amount]",
+        "sale_limit_reached": "המבצע מוגבל ל-[amount]",
         "product_sale_bundle": "[amount] ב-",
         "product_max_reached_with_amount": "הגעת למגבלת כמות ([max])",
         "ops_scan": "סרוק",
