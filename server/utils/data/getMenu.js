@@ -5,6 +5,12 @@ import { redisDel, redisGet, redisSet } from '#server/utils/redisSafe.js'
 
 const CACHE_TTL_SEC = 60 * 60
 
+// Menu builds in flight, keyed by cacheKey. A cold key otherwise makes every
+// concurrent request rebuild the same menu: the stress sweep measured 7 full
+// active-catalog scans for one store (10 ops / 5.7k docs each under load)
+// before the first redisSet landed.
+const pendingBuilds = new Map()
+
 const baseMenu = [
     {
         name: 'Sales',
@@ -44,6 +50,17 @@ export default async function getMenu({ DL, req, utils, _user }) {
     const cached = await redisGet(DL.redis, cacheKey).catch(() => null)
     if (cached) return JSON.parse(cached)
 
+    // One build per key, shared by everyone who missed the same cold key.
+    let build = pendingBuilds.get(cacheKey)
+    if (!build) {
+        build = buildAndCacheMenu({ DL, storeId, cacheKey })
+            .finally(() => pendingBuilds.delete(cacheKey))
+        pendingBuilds.set(cacheKey, build)
+    }
+    return build
+}
+
+async function buildAndCacheMenu({ DL, storeId, cacheKey }) {
     const productFilter = { status: DL.Product.constants.STATUS.ACTIVE }
     if (storeId) productFilter.storeIds = storeId
 
