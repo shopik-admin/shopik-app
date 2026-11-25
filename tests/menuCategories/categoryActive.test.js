@@ -203,6 +203,7 @@ describe('category/update active checkbox', () => {
             },
             ComaxProduct: {
                 count: async () => 0,
+                Model: { exists: async () => null },
                 read: async () => comax
             },
             ComaxCategorySetting: {

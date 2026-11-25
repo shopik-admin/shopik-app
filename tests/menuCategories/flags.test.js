@@ -92,6 +92,9 @@ describe('category flag status sweep: the un-hide direction', () => {
                 // Any row with a buying price makes the sync enforce one, same as
                 // the nightly sync computes it.
                 count: async () => rows.filter(row => row.buyingPrice > 0).length,
+                Model: {
+                    exists: async () => (rows.some(row => row.buyingPrice > 0) ? { _id: 'any' } : null)
+                },
                 read: async filter => rows.filter(row => filter.barcode.$in.includes(row.barcode))
             },
             Product: {

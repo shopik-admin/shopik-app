@@ -1,4 +1,5 @@
 import { deriveStatus } from '#server/api/comax_product/status.js'
+import { shouldEnforceBuyingPrice } from '#server/api/comax_product/syncRules.js'
 import { loadCategoryLookup } from '#server/services/categoryMap/index.js'
 import { invalidateMenu } from '#server/utils/data/getMenu.js'
 import { scanDel } from '#server/utils/data/displayBlocks.js'
@@ -120,7 +121,7 @@ export async function recomputeCategoryProducts({ DL, path = 'global', codes = n
         loadCategoryLookup(DL),
         readActiveStoreIds(DL)
     ])
-    const enforceBuyingPrice = await DL.ComaxProduct.count({ buyingPrice: { $gt: 0 } }) > 0
+    const enforceBuyingPrice = await shouldEnforceBuyingPrice(DL)
     const statuses = DL.Product.constants.STATUS
 
     let afterBarcode = null

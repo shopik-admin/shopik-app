@@ -585,6 +585,7 @@ export async function buildCategoryProducts({
         vat: 1,
         archived: 1,
         showInWeb: 1,
+        siteStatus: 1,
         lastSaleDate: 1,
         salesLastDays: 1,
         superDepartment: 1,
@@ -653,6 +654,7 @@ export async function buildCategoryProducts({
                 barcode: 1,
                 scannableBarcodes: 1,
                 name: 1,
+                status: 1,
                 prices: 1,
                 kashrut: 1,
                 'images.product': 1,
@@ -759,13 +761,21 @@ export async function buildCategoryProducts({
             status,
             enforceBuyingPrice
         })
-        const existsOnSite = explained.status === status.ACTIVE
+        const derivedStatus = explained.status
+        // The filter matches the stored siteStatus, so the column must show it
+        // too. The ladder can be ahead of the nightly sync (an image that just
+        // arrived), and showing its forecast made a hidden product look active
+        // in a hidden-filtered table.
+        const storedStatus = item.siteStatus || product?.status || derivedStatus
+        const existsOnSite = storedStatus === status.ACTIVE
         const reasons = explained.reasons.map(reason => reasonText(reason, item))
 
         if (!existsOnSite) {
             const staleSales = staleSalesText(item, ruleLookup, now)
             if (staleSales) reasons.push(staleSales)
         }
+        if (storedStatus !== derivedStatus)
+            reasons.push(`הסטטוס הבא: ${statusText[derivedStatus] || derivedStatus} (בסנכרון הקרוב)`)
 
         const gs1 = gs1ByKey.get(key)
         const fallback = product ? null : gs1
@@ -781,8 +791,8 @@ export async function buildCategoryProducts({
             barcode: String(item.barcode ?? ''),
             name: product?.name || item.name || '',
             supplier: item.supplier || '',
-            status: explained.status,
-            statusText: statusText[explained.status] || explained.status,
+            status: storedStatus,
+            statusText: statusText[storedStatus] || storedStatus,
             existsOnSite,
             reason: reasons.join(' · '),
             stores: (stores || []).map(store => ({

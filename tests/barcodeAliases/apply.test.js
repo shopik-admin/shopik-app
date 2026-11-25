@@ -115,6 +115,7 @@ function makeDL({ orders = [], guestCarts = [] }) {
             DeletedProduct: { create: async doc => { calls.snapshots.push(doc); return doc } },
             ComaxProduct: {
                 count: async filter => (filter?.buyingPrice ? 1 : 2),
+                Model: { exists: async () => ({ _id: 'any' }) },
                 read: async filter => [
                     comaxRow('1111111111111'),
                     comaxRow('2222222222222', { storeIds: ['store-b'], salesLastDays: 207, price: 11 })

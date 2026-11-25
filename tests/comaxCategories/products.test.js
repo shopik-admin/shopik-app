@@ -14,7 +14,7 @@ function chain(docs) {
     return value
 }
 
-function makeDL({ settings = [] } = {}) {
+function makeDL({ settings = [], itemOverrides = {} } = {}) {
     const item = {
         barcode: '7290000000015',
         name: 'עגבניות',
@@ -28,7 +28,8 @@ function makeDL({ settings = [] } = {}) {
         departmentCode: '13',
         groupCode: '4',
         subGroupCode: '7',
-        picUrl: 'https://example.com/a.jpg'
+        picUrl: 'https://example.com/a.jpg',
+        ...itemOverrides
     }
 
     return {
@@ -41,9 +42,9 @@ function makeDL({ settings = [] } = {}) {
             }
         },
         ComaxProduct: {
-            count: async () => 1,
             Model: {
                 countDocuments: async () => 1,
+                exists: async () => ({ _id: 'any' }),
                 find: () => chain([item])
             }
         },
@@ -122,6 +123,26 @@ describe('category product preview', () => {
 
         assert.equal(result.rows[0].status, 'hidden')
         assert.match(result.rows[0].reason, /מוסתרת/)
+    })
+
+    it('shows the stored status when the ladder is ahead of the sync', async () => {
+        const result = await buildCategoryProducts({
+            DL: makeDL({ itemOverrides: { siteStatus: 'hidden' } }),
+            scope: {
+                level: 'subGroup',
+                superDepartmentCode: '3',
+                departmentCode: '13',
+                groupCode: '4',
+                subGroupCode: '7'
+            }
+        })
+
+        // The filter matched `siteStatus`, so the column must show it, not the
+        // ladder's forecast (which would have said active).
+        assert.equal(result.rows[0].status, 'hidden')
+        assert.equal(result.rows[0].statusText, 'מוסתר')
+        assert.equal(result.rows[0].existsOnSite, false)
+        assert.match(result.rows[0].reason, /הסטטוס הבא: פעיל/)
     })
 
     it('pushes search, filters and sort into the query', async () => {

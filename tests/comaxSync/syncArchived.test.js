@@ -20,6 +20,7 @@ describe('comax sync archived rows', () => {
         const DL = {
             ComaxProduct: {
                 count: async filter => (filter?.buyingPrice ? 1 : rows.length),
+                Model: { exists: async () => ({ _id: 'any' }) },
                 read: async (filter = {}, select, options) => {
                     if (filter.active === false) return []
                     const after = filter.barcode?.$gt

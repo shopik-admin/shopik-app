@@ -6,7 +6,8 @@ import {
     hideCategoryFlaggedProducts,
     hideInactiveProducts,
     hideKashrutMissingProducts,
-    hideStorelessProducts
+    hideStorelessProducts,
+    shouldEnforceBuyingPrice
 } from '../../server/api/comax_product/syncRules.js'
 import { KASHRUT_VALID_CODES } from '../../common/components/Kashrut/constants.js'
 
@@ -224,5 +225,42 @@ describe('comax sync rules', () => {
             DL,
             ruleLookup: { bySubGroupCode: new Map() }
         }), 0)
+    })
+
+    it('checks for buying prices once for concurrent callers and retries after a failure', async () => {
+        let calls = 0
+        const DL = {
+            ComaxProduct: {
+                Model: {
+                    exists: async () => {
+                        calls += 1
+                        return { _id: 'any' }
+                    }
+                }
+            }
+        }
+
+        const answers = await Promise.all([
+            shouldEnforceBuyingPrice(DL),
+            shouldEnforceBuyingPrice(DL),
+            shouldEnforceBuyingPrice(DL)
+        ])
+        assert.deepEqual(answers, [true, true, true])
+        assert.equal(calls, 1)
+
+        // Served from the memo afterwards.
+        assert.equal(await shouldEnforceBuyingPrice(DL), true)
+        assert.equal(calls, 1)
+
+        // A failed lookup is not cached: the next call retries.
+        const failing = { ComaxProduct: { Model: { exists: async () => { throw new Error('boom') } } } }
+        await assert.rejects(shouldEnforceBuyingPrice(failing), /boom/)
+        let retried = 0
+        failing.ComaxProduct.Model.exists = async () => {
+            retried += 1
+            return null
+        }
+        assert.equal(await shouldEnforceBuyingPrice(failing), false)
+        assert.equal(retried, 1)
     })
 })

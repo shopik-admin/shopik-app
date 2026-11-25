@@ -1,5 +1,6 @@
 import { hasValidKashrut } from '#common/components/Kashrut/constants.js'
 import { deriveStatus } from '#server/api/comax_product/status.js'
+import { shouldEnforceBuyingPrice } from '#server/api/comax_product/syncRules.js'
 import {
     effectiveStoreIds,
     loadRuleLookup,
@@ -136,7 +137,7 @@ export async function applyCategoryFlagStatuses({
 
             // The same buying-price rule the sync derives statuses with.
             const enforceBuyingPrice = candidates.length
-                ? await DL.ComaxProduct.count({ buyingPrice: { $gt: 0 } }) > 0
+                ? await shouldEnforceBuyingPrice(DL)
                 : false
 
             for (let start = 0; start < candidates.length; start += BATCH) {

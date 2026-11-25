@@ -18,6 +18,7 @@ const barcodes = Array.from({ length: TOTAL }, (_, i) => String(i + 1).padStart(
 const fakeDL = (pages, inactivePages) => ({
     ComaxProduct: {
         count: async () => TOTAL,
+        Model: { exists: async () => ({ _id: 'any' }) },
         read: async (filter, select, options) => {
             const target = filter.active === false && !filter.isTrailingItem ? inactivePages : pages
             target.push({ filter, options })

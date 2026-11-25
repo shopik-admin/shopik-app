@@ -22,10 +22,14 @@ function statuses(DL) {
  * imported — otherwise the first deploy would archive everything. Shared with
  * the catalog report so the "reason" it shows can never disagree with the sync.
  *
- * The answer only flips false→true, but the check is an unindexed $gt count:
- * the product preview called it on every request and paid a 23 279-document
- * collscan each time. A short per-DL memo keeps the desktop report and the
- * preview honest while turning the repeated cost into ~0.
+ * The answer only flips false→true, so a boolean "does one exist" is enough:
+ * an unindexed $gt count read the whole 23k catalog on every preview request.
+ * `exists` stops at the first document with a price, and the memo keeps even
+ * that to once per five minutes.
+ *
+ * The memo stores the in-flight promise too: a burst's first calls run
+ * concurrently, and without single-flight every one of them missed the empty
+ * cache and fired its own full scan (8 collscans in one stress window).
  */
 const ENFORCE_BUYING_PRICE_TTL_MS = 5 * 60 * 1000
 const enforceBuyingPriceCache = new WeakMap()
@@ -33,11 +37,25 @@ const enforceBuyingPriceCache = new WeakMap()
 export async function shouldEnforceBuyingPrice(DL) {
     const now = Date.now()
     const cached = enforceBuyingPriceCache.get(DL)
-    if (cached && now - cached.at < ENFORCE_BUYING_PRICE_TTL_MS) return cached.value
+    if (cached && now - cached.at < ENFORCE_BUYING_PRICE_TTL_MS)
+        return 'pending' in cached ? cached.pending : cached.value
 
-    const value = await DL.ComaxProduct.count({ buyingPrice: { $gt: 0 } }) > 0
-    enforceBuyingPriceCache.set(DL, { value, at: now })
-    return value
+    const entry = {
+        at: now,
+        pending: DL.ComaxProduct.Model
+            .exists({ buyingPrice: { $gt: 0 } })
+            .then(found => !!found)
+    }
+    enforceBuyingPriceCache.set(DL, entry)
+    try {
+        const value = await entry.pending
+        enforceBuyingPriceCache.set(DL, { at: now, value })
+        return value
+    } catch (error) {
+        // Never cache a failed lookup: the next request retries.
+        if (enforceBuyingPriceCache.get(DL) === entry) enforceBuyingPriceCache.delete(DL)
+        throw error
+    }
 }
 
 export async function hideActiveProduct({ DL, barcode }) {

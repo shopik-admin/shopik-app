@@ -42,8 +42,10 @@ function fakeDL({
         Domain: { readOne: async () => ({ id: 'default-domain' }) },
         Store: { Model: { find: () => list(STORES) } },
         ComaxProduct: {
-            Model: { find: filter => list(matching(comax, filter)) },
-            count: async () => buyingPriceRows
+            Model: {
+                find: filter => list(matching(comax, filter)),
+                exists: async () => (buyingPriceRows > 0 ? { _id: 'buying-price' } : null)
+            }
         },
         Product: {
             Model: { find: () => list(products) },
