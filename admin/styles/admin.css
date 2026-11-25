@@ -281,6 +281,8 @@ body .Card_ .Card_close {
    ============================================================ */
 
 body .Popover_ {
+    /* Admin popovers float free of their trigger, so every corner is rounded. */
+    --popover-radius: var(--radius-3xl);
     border: 1px solid var(--border-tertiary);
     box-shadow: var(--shadow-lg);
 }
