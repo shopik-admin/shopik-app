@@ -53,8 +53,17 @@ export async function validateSalePrice({ kind, price, amount, barcodes }, { DL 
 }
 
 /**
- * Sync (no-DB) version for Comax import: prices are pre-fetched into barcodeToPriceMap.
+ * Sync (no-DB) version for Comax import: prices are pre-fetched into
+ * barcodeToPriceMap — every catalog product, hidden and archived ones
+ * included, because a sale often targets a model whose variants are not
+ * active today.
+ *
  * Returns the first offending barcode, or null when valid / not applicable.
+ * Fails closed: when no barcode in the sale carries a usable regular price
+ * there is nothing proving the "sale" is a discount, so the first barcode is
+ * returned and the caller skips it. An uncatalogued barcode is tolerated only
+ * while another barcode proves the discount (the sale may be defined on a
+ * model variant that is catalogued later).
  */
 export function findInflatedBarcode({ kind, price, amount, barcodes }, barcodeToPriceMap, priceKind = 'price') {
     if (kind !== priceKind || price == null) return null
@@ -63,12 +72,16 @@ export function findInflatedBarcode({ kind, price, amount, barcodes }, barcodeTo
 
     const qty = Number(amount) || 1
     const salePrice = round2(price)
+    let priced = false
 
     for (const barcode of barcodes) {
-        const regular = barcodeToPriceMap.get(barcode)
-        if (regular == null) continue
-        const regularTotal = round2(Number(regular) * qty)
+        if (!barcodeToPriceMap.has(barcode)) continue
+        const regular = Number(barcodeToPriceMap.get(barcode))
+        if (!Number.isFinite(regular) || regular <= 0) continue
+        priced = true
+        const regularTotal = round2(regular * qty)
         if (salePrice >= regularTotal) return barcode
     }
-    return null
+
+    return priced ? null : barcodes[0]
 }

@@ -60,7 +60,7 @@ function makeDL({ sale = comaxSale(), active = [], modelProducts = [] } = {}) {
 }
 
 function activeProduct(barcode, price = 5) {
-    return { barcode, prices: [{ domainId: 'd1', price }] }
+    return { barcode, status: 'active', prices: [{ domainId: 'd1', price }] }
 }
 
 describe('comax sale model expansion', () => {
