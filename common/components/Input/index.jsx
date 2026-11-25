@@ -157,20 +157,20 @@ function getInputInvalidError(value, props) {
 
     // -------------------- Length Constraints --------------------
     if (props.minLength && value.length < props.minLength) {
-        return `Minimum length is ${props.minLength}`
+        return translate('input_min_length', { min: props.minLength })
     }
 
     if (props.maxLength && value.length > props.maxLength) {
-        return `Maximum length is ${props.maxLength}`
+        return translate('input_max_length', { max: props.maxLength })
     }
 
     // -------------------- Numeric Constraints --------------------
     if (props.min && typeof value === 'number' && value < props.min) {
-        return `Minimum value is ${props.min}`
+        return translate('input_min_value', { min: props.min })
     }
 
     if (props.max && typeof value === 'number' && value > props.max) {
-        return `Maximum value is ${props.max}`
+        return translate('input_max_value', { max: props.max })
     }
 
     // -------------------- Date Validation --------------------
@@ -181,7 +181,7 @@ function getInputInvalidError(value, props) {
         if (props.min) {
             const minDate = new Date(props.min)
             if (inputDate < minDate) {
-                return `Date must be later than or equal to ${props.min}`
+                return translate('input_date_min', { date: props.min })
             }
         }
 
@@ -189,13 +189,13 @@ function getInputInvalidError(value, props) {
         if (props.max) {
             const maxDate = new Date(props.max)
             if (inputDate > maxDate) {
-                return `Date must be earlier than or equal to ${props.max}`
+                return translate('input_date_max', { date: props.max })
             }
         }
 
         // Check if the input is a valid date
         if (isNaN(inputDate.getTime())) {
-            return 'Invalid date format'
+            return translate('input_invalid_date')
         }
     }
 
@@ -205,7 +205,7 @@ function getInputInvalidError(value, props) {
         case 'tel':
             const phoneRegex = /^[0-9]{10}$/  // Basic phone number format (10 digits)
             if (!phoneRegex.test(value)) {
-                return 'Invalid phone number'
+                return translate('input_invalid_phone')
             }
             break
 
@@ -213,42 +213,42 @@ function getInputInvalidError(value, props) {
         case 'email':
             const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/  // Simple email format validation
             if (!emailRegex.test(value)) {
-                return 'Invalid email address'
+                return translate('input_invalid_email')
             }
             break
 
         // -------------------- Number Validation --------------------
         case 'number':
             if (isNaN(value)) {
-                return 'Value must be a number'
+                return translate('input_must_be_number')
             }
             break
 
         // -------------------- Credit Card Validation --------------------
         case 'credit-card':
             if (!isValidCreditCard(value)) {
-                return 'Invalid credit card number'
+                return translate('input_invalid_credit_card')
             }
             break
 
         // -------------------- Password Validation --------------------
         case 'password':
             if (!isStrongPassword(value)) {
-                return 'Password must be at least 8 characters long, include uppercase and lowercase letters, a number, and a special character'
+                return translate('input_weak_password')
             }
             break
 
         // -------------------- Custom Regex Validation --------------------
         case 'custom':
             if (props.pattern && !new RegExp(props.pattern).test(value)) {
-                return 'Invalid format'
+                return translate('input_invalid_format')
             }
             break
 
         // -------------------- Alphanumeric Validation --------------------
         case 'alphanumeric':
             if (!/^[a-z0-9]+$/i.test(value)) {
-                return 'Value must be alphanumeric'
+                return translate('input_must_be_alphanumeric')
             }
             break
 
@@ -257,7 +257,7 @@ function getInputInvalidError(value, props) {
             if (props.accept) {
                 const fileType = value.type  // Assuming `value` is a file object
                 if (!props.accept.includes(fileType)) {
-                    return `Invalid file type. Accepted types are: ${props.accept.join(', ')}`
+                    return translate('input_invalid_file_type', { types: props.accept.join(', ') })
                 }
             }
             break
@@ -265,14 +265,14 @@ function getInputInvalidError(value, props) {
         // -------------------- IP Address Validation --------------------
         case 'ip':
             if (!isValidIP(value)) {
-                return 'Invalid IP address'
+                return translate('input_invalid_ip')
             }
             break
 
         // -------------------- Date of Birth Validation --------------------
         case 'dob':
             if (props.minAge && calculateAge(value) < props.minAge) {
-                return `You must be at least ${props.minAge} years old`
+                return translate('input_min_age', { age: props.minAge })
             }
             break
 
@@ -280,7 +280,7 @@ function getInputInvalidError(value, props) {
         case 'tag':
             const tagRegex = /^[A-Za-z]{2}$/  // Basic tag validation format (2 chars)
             if (!tagRegex.test(value)) {
-                return 'Invalid tag'
+                return translate('input_invalid_tag')
             }
             break
 
