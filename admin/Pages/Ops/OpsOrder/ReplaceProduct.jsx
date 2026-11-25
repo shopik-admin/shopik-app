@@ -304,7 +304,7 @@ export default function ReplaceProduct({ product = {}, orderId, cart = [], onClo
             <Flex alignItems="center" className={styles.header}>
                 <Button mode="text" size="s" onClick={() => setPhase('list')} className={styles.backBtn}>{TR('back')}</Button>
                 <Text size="m" bold>{TR('ops_replacement_confirm_title')}</Text>
-                <Button mode="text" size="s" onClick={onClose} className={styles.closeBtn}>✕</Button>
+                <span className={styles.closeSlot} aria-hidden />
             </Flex>
 
             <Flex col className={styles.linkedCard}>
@@ -372,7 +372,7 @@ export default function ReplaceProduct({ product = {}, orderId, cart = [], onClo
         return <Flex col className={styles.replaceProduct}>
             <Flex alignItems="center" className={styles.header}>
                 <Text size="m" bold>{TR('ops_replacement_title')}</Text>
-                <Button mode="text" size="s" onClick={onClose} className={styles.closeBtn}>✕</Button>
+                <span className={styles.closeSlot} aria-hidden />
             </Flex>
 
             <Flex col className={styles.originalWrap}>
@@ -423,7 +423,7 @@ export default function ReplaceProduct({ product = {}, orderId, cart = [], onClo
     return <Flex col className={styles.replaceProduct}>
         <Flex alignItems="center" className={styles.header}>
             <Text size="m" bold>{TR('ops_replacement_title')}</Text>
-            <Button mode="text" size="s" onClick={onClose} className={styles.closeBtn}>✕</Button>
+            <span className={styles.closeSlot} aria-hidden />
         </Flex>
 
         <Flex col className={styles.originalWrap}>

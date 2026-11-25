@@ -14,8 +14,12 @@
     position: relative;
 }
 
-.closeBtn {
-    padding: 4px;
+/* The modal itself owns the close X; this keeps the header's three-column
+   spacing without drawing a second one. */
+.closeSlot {
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
 }
 
 .originalWrap {
