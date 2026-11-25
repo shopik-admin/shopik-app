@@ -41,6 +41,6 @@ export default function ProductsSection({ order }) {
         </Flex>
         {view === 'table'
             ? <OrderProductsTable order={order} entries={entries} summary={summary} />
-            : <CartList entries={entries} admin showLineTotals finalized={isOrderFinalized(order)} />}
+            : <CartList entries={entries} admin finalized={isOrderFinalized(order)} />}
     </Card>
 }

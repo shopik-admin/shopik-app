@@ -8,7 +8,7 @@ import styles from './replaceProduct.module.css'
 import apiReq from 'common/functions/apiReq'
 import useApi from 'common/functions/useApi'
 import classNames from 'common/functions/classNames'
-import { isWeightProduct, getUnitLabel, ProductUnitInfo, formatAmount, formatPrice, ProductImage, getFirstSale, getSalePriceInfo } from 'common/components/Product'
+import { isWeightProduct, getUnitLabel, ProductUnitInfo, formatAmount, formatPrice, ProductImage, getFirstSale, getSalePriceInfo, getSaleBadgeText } from 'common/components/Product'
 import { getPickRange, isPickInRange, DEFAULT_PICK_LIMITS } from 'common/functions/pickLimits'
 import { setSalesCache } from 'common/functions/salesCache.js'
 import limitDecimalInput from 'common/functions/decimalInput'
@@ -68,8 +68,9 @@ export default function ReplaceProduct({ product = {}, orderId, cart = [], onClo
         if (base == null) return null
         const sale = getFirstSale(p, sales)
         const info = sale ? getSalePriceInfo({ ...p, price: base }, sale) : null
-        if (!info || info.isBundle) return { price: base, regular: null }
-        return { price: info.saleSingle, regular: info.regular }
+        if (!info) return { price: base, regular: null, saleLabel: '' }
+        if (info.isBundle) return { price: base, regular: null, saleLabel: getSaleBadgeText(sale) }
+        return { price: info.saleSingle, regular: info.regular, saleLabel: getSaleBadgeText(sale) }
     }
 
     async function loadSuggestions(text) {
@@ -313,11 +314,14 @@ export default function ReplaceProduct({ product = {}, orderId, cart = [], onClo
             </Flex>
 
             <Flex col className={styles.linkedCard}>
-                <Flex alignItems="center" gap={6}>
-                    <Icon name={repIsCold ? 'snow' : 'stock'} size={14} />
-                    {repPrice && <Text size="m" bold className={repPrice.regular != null ? styles.salePrice : undefined}>₪{formatPrice(repPrice.price)}</Text>}
-                    {repPrice?.regular != null && <Text size="xs" mode="sub" lineThrough>₪{formatPrice(repPrice.regular)}</Text>}
-                    <Text size="xs" mode="sub"><ProductUnitInfo product={selected} /></Text>
+                <Flex col gap={2}>
+                    <Flex alignItems="center" gap={6}>
+                        <Icon name={repIsCold ? 'snow' : 'stock'} size={14} />
+                        {repPrice && <Text size="m" bold className={repPrice.regular != null ? styles.salePrice : undefined}>₪{formatPrice(repPrice.price)}</Text>}
+                        {repPrice?.regular != null && <Text size="xs" mode="sub" lineThrough>₪{formatPrice(repPrice.regular)}</Text>}
+                        <Text size="xs" mode="sub"><ProductUnitInfo product={selected} /></Text>
+                    </Flex>
+                    {repPrice?.saleLabel && <Text size="xs" bold className={styles.salePrice}>{repPrice.saleLabel}</Text>}
                 </Flex>
                 <Flex gap={10} alignItems="center">
                     <ProductImage product={selected} size="s" hideSaleBadge />
@@ -326,7 +330,6 @@ export default function ReplaceProduct({ product = {}, orderId, cart = [], onClo
                         {repBarcode && <Text size="xs" mode="sub">{repBarcode}</Text>}
                     </Flex>
                 </Flex>
-                {selected.saleIds?.length ? <Text size="xs" className={styles.saleTag}>{TR('ops_sale_participating')}</Text> : null}
             </Flex>
 
             <Flex center>
@@ -447,11 +450,14 @@ export default function ReplaceProduct({ product = {}, orderId, cart = [], onClo
                 const price = priceFor(p)
                 const isCold = p.storageType === 'cold' || p.storageType === 'freeze'
                 return <Flex col key={p.id || p.barcode} className={styles.rowCard}>
-                    <Flex alignItems="center" gap={6} className={styles.rowTop}>
-                        <Icon name={isCold ? 'snow' : 'stock'} size={14} />
-                        {price && <Text size="m" bold className={price.regular != null ? styles.salePrice : undefined}>₪{formatPrice(price.price)}</Text>}
-                        {price?.regular != null && <Text size="xs" mode="sub" lineThrough>₪{formatPrice(price.regular)}</Text>}
-                        <Text size="xs" mode="sub"><ProductUnitInfo product={p} /></Text>
+                    <Flex col gap={2} className={styles.rowTop}>
+                        <Flex alignItems="center" gap={6}>
+                            <Icon name={isCold ? 'snow' : 'stock'} size={14} />
+                            {price && <Text size="m" bold className={price.regular != null ? styles.salePrice : undefined}>₪{formatPrice(price.price)}</Text>}
+                            {price?.regular != null && <Text size="xs" mode="sub" lineThrough>₪{formatPrice(price.regular)}</Text>}
+                            <Text size="xs" mode="sub"><ProductUnitInfo product={p} /></Text>
+                        </Flex>
+                        {price?.saleLabel && <Text size="xs" bold className={styles.salePrice}>{price.saleLabel}</Text>}
                     </Flex>
                     <Flex gap={10} alignItems="center">
                         <ProductImage product={p} size="s" hideSaleBadge />
@@ -463,7 +469,6 @@ export default function ReplaceProduct({ product = {}, orderId, cart = [], onClo
                             </Flex>}
                         </Flex>
                     </Flex>
-                    {p.saleIds?.length ? <Text size="xs" className={styles.saleTag}>{TR('ops_sale_participating')}</Text> : null}
                     <Button onClick={() => chooseCandidate(p)} className={styles.selectBtn}>{TR('ops_choose_replacement')}</Button>
                 </Flex>
             })}

@@ -172,6 +172,13 @@
     text-decoration: line-through;
 }
 
+/* The sale label that sits on its own line under the sale and the struck-through
+   regular price in a cart line. */
+.saleTag {
+    color: var(--product-price-sale-color, var(--menu-sales-border));
+    flex-shrink: 0;
+}
+
 /* Row total (cart line): the line total instead of the unit price. */
 .rowTotal {
     color: var(--pc-price, var(--text-primary));

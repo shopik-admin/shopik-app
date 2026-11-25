@@ -24,12 +24,13 @@ export default function ReplacementCard({ original = {}, replacer = {}, onClick,
     // same ordered/supplied pill, which belongs to the product that filled the order.
     return <Flex col onClick={onClick} style={{ cursor: onClick ? 'pointer' : undefined }} className={classNames(styles.replacedCard, styles[status])}>
         <Flex col gap={6} className={styles.replacedOriginal}>
-            {/* The original was not supplied, so it carries no price of its own:
-                the line total below says it was not charged. */}
+            {/* The original was not supplied, so it carries no price of its own. */}
             <Text size="m" bold>
                 {original.name || TR('ops_product_name_fallback')}
             </Text>
-            {showLineTotals && <CartLineTotal line={original} finalized={finalized} />}
+            {showLineTotals
+                ? <CartLineTotal line={original} finalized={finalized} />
+                : <Text size="s" mode="sub">{TR('line_not_charged')}</Text>}
             {original.barcode && <Flex alignItems="center" gap={4} justifyContent="end">
                 <Text size="s" mode="sub">{original.barcode}</Text>
                 <Icon name="barcode" size={12} />

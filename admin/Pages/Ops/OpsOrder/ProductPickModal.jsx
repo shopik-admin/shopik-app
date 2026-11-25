@@ -87,6 +87,9 @@ function ProductDetails({ product = {}, orderId, onClose, onPicked, onScan, onRe
     const pricedLine = line?.priced && !isLineNotSupplied(product) && line.units > 0
     const price = pricedLine ? round2(line.charged / line.units) : (product.price ?? product.prices?.[0]?.price)
     const regularPrice = pricedLine && line.saved > 0.005 ? line.unitPrice : null
+    const saleLabel = regularPrice
+        ? (line.sales.map(sale => sale.name).filter(Boolean).join(' · ') || TR('onSale'))
+        : ''
     const barcode = product.barcode || ''
     const storageType = product.storageType
     const isCold = storageType === 'cold' || storageType === 'freeze'
@@ -117,9 +120,12 @@ function ProductDetails({ product = {}, orderId, onClose, onPicked, onScan, onRe
                 </div>
             )}
             <div className={styles.priceTop}>
-                <Icon name={isCold ? 'snow' : 'stock'} size={14} />
-                {price != null && <Text size="m" bold className={regularPrice ? styles.salePrice : undefined}>₪{formatPrice(price)}</Text>}
-                {regularPrice != null && <Text size="s" mode="sub" lineThrough>₪{formatPrice(regularPrice)}</Text>}
+                <Flex alignItems="center" gap={4}>
+                    <Icon name={isCold ? 'snow' : 'stock'} size={14} />
+                    {price != null && <Text size="m" bold className={regularPrice ? styles.salePrice : undefined}>₪{formatPrice(price)}</Text>}
+                    {regularPrice != null && <Text size="s" mode="sub" lineThrough>₪{formatPrice(regularPrice)}</Text>}
+                </Flex>
+                {saleLabel && <Text size="xs" bold className={styles.salePrice}>{saleLabel}</Text>}
             </div>
         </div>
 
