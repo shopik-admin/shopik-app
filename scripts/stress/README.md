@@ -66,11 +66,32 @@ and then checks the stress DB directly:
 Expected output includes `PASS` and `1 dictionary document(s)`. A `FAIL` means
 either a lost key or the dictionary was split into per-key documents.
 
-Deliberately not fired (they do no DB read to rank): `geocode/*`, `address/autocomplete`,
+Deliberately not fired by the generic sweep (their DB work is measured by the
+dedicated `--address` scenario below): `geocode/*`, `address/autocomplete`,
 `address/validate`, `bot/*`, `sms/voice_test`, `cache/reset`, `user/sync_stats`,
 `gs1/status` (BullMQ job counts), `gs1/retention` (GS1 API), `report/download`
 (streams an xlsx from storage). A route that was never fired shows as a `skipped (…)`
 row with a reason — never read it as a cheap route.
+
+### Address scenario (`--address`)
+
+Autocomplete is answered from the per-process street index, so the meaningful
+measurement is not latency but **DB work**: the warm autocomplete window must
+show zero `gov_addresses` operations. The scenario:
+
+1. warms one city/street query per fixture city and one `address/validate` per
+   address (fills the street index and the GeocodeCache),
+2. bursts `address/autocomplete` against the warm cities,
+3. bursts `address/validate` on cached addresses (expects no provider calls),
+4. hits cities that were not warmed — one indexed read per city is the
+   expected cost,
+5. optionally geocodes `--address-cold-geocode <n>` uncached addresses (real
+   GovMap/Google traffic — keep this small).
+
+It prints `PASS`/`FAIL` and the profiler facts per window; the `0 ops` assertion
+needs `--target local` (Atlas does not expose the profiler). Run the app with
+`REQUEST_LOG=off` (or a very low sample) while measuring: the read audit row
+would otherwise show up as `logs` writes in the validate window.
 
 ## Feed-only benchmark (sitemap + Google Merchant)
 

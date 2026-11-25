@@ -58,7 +58,8 @@ const addressSchema = {
         enum: Object.values(RESIDENCE)
     },
     hasService: Boolean,
-    accuracy: String
+    accuracy: String,
+    geocodeSource: String
 }
 
 const creditCardSchema = {

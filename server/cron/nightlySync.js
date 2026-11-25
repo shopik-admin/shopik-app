@@ -5,6 +5,7 @@ import importComaxProducts from '#server/api/comax_product/import.js'
 import syncComax from '#server/api/comax_product/sync.js'
 import enqueueChangedImages from '#server/services/image/enqueue.js'
 import importGovAddresses from '#server/scripts/importGovAddresses.js'
+import { clearStreetIndexes } from '#server/external/addressProvider/streetIndex.js'
 import { trimMemory } from '#server/utils/mem.js'
 
 const LOCK_KEY = 'nightly-sync:lock'
@@ -52,6 +53,7 @@ export async function runGovAddressSync({ DL }) {
         if (!release) return null
         log.warn('[GovSync] Started')
         await importGovAddresses({ DL })
+        clearStreetIndexes()
         trimMemory('after gov import', 'GovSync')
         log.success('[GovSync] Done')
     } catch (e) {

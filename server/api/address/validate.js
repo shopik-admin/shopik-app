@@ -1,5 +1,6 @@
 import { validateAddress } from '#server/external/addressProvider/index.js'
 import { findByLocation } from '#server/external/supplyArea.js'
+import { addressNotFoundError } from '#server/utils/addressErrors.js'
 
 /**
  * POST /api/address/validate
@@ -11,7 +12,7 @@ export default async function validate(payload, { DL }) {
     if (!city || !street || !building) throw { status: 400, message: 'city, street, building required' }
 
     const validated = await validateAddress({ DL, city, street, building })
-    if (!validated?.location) throw { status: 404, message: 'address not found' }
+    if (!validated?.location) throw addressNotFoundError()
 
     // Check service area
     let hasService = false

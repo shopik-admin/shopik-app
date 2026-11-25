@@ -9,6 +9,7 @@ import { findByLocation } from '#server/external/supplyArea.js'
 import { isElevatorRequired } from '#common/functions/address.js'
 import { normalizeInvoiceRequest } from '#common/functions/invoice/request.js'
 import removeCouponFromCart from '#server/utils/data/removeCouponFromCart.js'
+import { addressNoServiceError, elevatorRequiredError } from '#server/utils/addressErrors.js'
 
 const MAX_PAYMENTS_LIMIT = 36
 const DEFAULT_MAX_PAYMENTS = 6
@@ -227,19 +228,9 @@ export default async function create(payload, info) {
     if (!isPickup) {
         const deliveryAddr = updates.address || order.address
         if (deliveryAddr) {
-            if (isElevatorRequired(deliveryAddr)) throw {
-                status: 400,
-                message: 'address_elevator_required',
-                code: 'ELEVATOR_REQUIRED',
-                missingFields: ['address']
-            }
+            if (isElevatorRequired(deliveryAddr)) throw elevatorRequiredError({ missingFields: ['address'] })
             const area = await findByLocation(DL, deliveryAddr.location)
-            if (!area) throw {
-                status: 400,
-                message: 'Address has no service',
-                code: 'NO_SERVICE',
-                missingFields: ['address']
-            }
+            if (!area) throw addressNoServiceError({ missingFields: ['address'] })
         }
     }
 

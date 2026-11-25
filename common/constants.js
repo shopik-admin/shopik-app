@@ -42,6 +42,14 @@ export const ADDRESS_PROVIDER_CHAIN = {
     [ADDRESS_PROVIDERS.HYBRID]: [ADDRESS_PROVIDERS.GOVMAP, ADDRESS_PROVIDERS.OSM, ADDRESS_PROVIDERS.GOOGLE]
 }
 
+// Coordinate resolution chain (server/external/geocode.js), independent of the
+// autocomplete chain above. `google` is the emergency rollback to the previous
+// unvalidated behaviour.
+export const ADDRESS_GEOCODE_CHAIN = {
+    [ADDRESS_PROVIDERS.GOVMAP]: [ADDRESS_PROVIDERS.GOVMAP, ADDRESS_PROVIDERS.GOOGLE],
+    [ADDRESS_PROVIDERS.GOOGLE]: [ADDRESS_PROVIDERS.GOOGLE]
+}
+
 export const OPS_PROXIMITY_RADIUS_M = 300
 export const OPS_STORE_AUTO_SELECT_M = 100
 export const OPS_LOCATION_THROTTLE_MS = 30 * 1000

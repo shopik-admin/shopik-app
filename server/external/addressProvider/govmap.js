@@ -1,11 +1,25 @@
 /**
- * GovMap local DB provider — single collection gov_addresses (city/street/building)
- * Fast prefix search via DL.GovAddress, no external call.
+ * GovMap local DB provider — collection gov_addresses (city/street/aliases).
+ *
+ * The hot path answers from the in-memory street index (streetIndex.js), so a
+ * keystroke costs no Mongo operation. `ADDRESS_STREET_CACHE=off` restores the
+ * legacy per-request queries as a rollback switch.
  */
+import { getStreetIndex } from './streetIndex.js'
+
 export async function searchGovmap({ DL, q, city, street, type = 'street', limit = 10 }) {
+    if (process.env.ADDRESS_STREET_CACHE === 'off')
+        return searchMongo({ DL, q, city, type, limit })
+
+    const index = getStreetIndex(DL)
+    if (!index) return []
+    return index.search({ q, type, city, limit })
+}
+
+async function searchMongo({ DL, q, city, type = 'street', limit = 10 }) {
     if (!DL?.GovAddress) return []
     const query = (q || '').trim()
-    if (!query && !city && !street) return []
+    if (!query && !city) return []
 
     try {
         if (type === 'city') {
@@ -26,36 +40,20 @@ export async function searchGovmap({ DL, q, city, street, type = 'street', limit
 
         if (type === 'street') {
             if (!city) return []
-            const filter = { city }
+            const filter = { city, street: { $ne: '' } }
             if (query) filter.street = new RegExp(escapeRegex(query))
-            const docs = await DL.GovAddress.Model.aggregate([
-                { $match: filter },
-                { $group: { _id: { city: '$city', street: '$street' }, city: { $first: '$city' }, street: { $first: '$street' } } },
-                { $sort: { street: 1 } },
-                { $limit: limit }
-            ])
-            return (docs || []).map(s => ({
-                label: s.street,
-                city: s.city,
-                street: s.street,
+            const docs = await DL.GovAddress.Model.find(filter)
+                .select({ _id: 0, street: 1, aliases: 1 })
+                .sort({ street: 1 })
+                .limit(limit)
+                .lean()
+            return (docs || []).map(doc => ({
+                label: doc.street,
+                city,
+                street: doc.street,
                 source: 'govmap'
             }))
         }
-
-        // if (type === 'building') {
-        //     if (!city || !street) return []
-        //     const filter = { city, street }
-        //     if (query) filter.building = new RegExp(`^${escapeRegex(query)}`)
-        //     const docs = await DL.GovAddress.read(filter, { _id: 0, city: 1, street: 1, building: 1, location: 1 }, { limit, sort: { building: 1 } })
-        //     return (docs || []).map(b => ({
-        //         label: String(b.building),
-        //         city: b.city,
-        //         street: b.street,
-        //         building: String(b.building),
-        //         location: b.location,
-        //         source: 'govmap'
-        //     }))
-        // }
     } catch (e) {
         console.warn('[govmap] search failed', e.message)
     }

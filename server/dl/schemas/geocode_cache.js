@@ -26,7 +26,9 @@ const geocodeCacheSchema = {
     accuracy: {
         type: String,
         default: 'ROOFTOP'
-    }
+    },
+    // Which provider produced the point (govmap / google), for auditing.
+    source: String
 }
 
 export const meta = {

@@ -1,5 +1,6 @@
 import { validateAddress } from '#server/external/addressProvider/index.js'
 import { findByLocation } from '#server/external/supplyArea.js'
+import { addressNotFoundError } from '#server/utils/addressErrors.js'
 import getShippingConfig from '#server/utils/data/getShippingConfig.js'
 import { extractLimits, getMinSumForMethod } from '#common/functions/limits.js'
 import formatISODate from '#common/functions/formatISODate.js'
@@ -26,9 +27,9 @@ export default async function delivery_check(payload, { DL }) {
         DL,
         city,
         street,
-        building: building || street
+        building: building || null
     })
-    if (!validated?.location) throw { status: 404, message: 'address not found' }
+    if (!validated?.location) throw addressNotFoundError({ status: 404 })
 
     const area = await findByLocation(DL, validated.location).catch(() => null)
     const hasService = !!area

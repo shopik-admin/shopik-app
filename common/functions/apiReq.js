@@ -1,3 +1,5 @@
+import TR from '#common/texts/TR.js'
+
 const isClient = typeof window !== 'undefined'
 
 export default async function apiReq(path, data = {}, ctx) {
@@ -52,14 +54,17 @@ export default async function apiReq(path, data = {}, ctx) {
             window.__reloading = true
             location.reload()
         }
-        // Preserve structured errors (e.g. MISSING_FIELDS) so callers can inspect missingFields
-        if (err && typeof err === 'object' && (err.missingFields || err.code === 'MISSING_FIELDS')) throw err
-        if (err && typeof err === 'object' && err.message) {
-            // attach raw payload to string error for callers that check err.missingFields
-            const e = new Error(err.message)
-            Object.assign(e, err)
+        // Server errors carry a machine `code` and an i18n `message` key (e.g.
+        // code ADDRESS_NOT_FOUND, message address_not_found). Translate the key
+        // here so every screen shows Hebrew, while keeping `code`/`missingFields`
+        // available to callers that branch on them.
+        if (err && typeof err === 'object') {
+            const raw = typeof err.message === 'string' ? err.message : ''
+            const message = raw ? TR(raw) : raw
+            const e = new Error(message)
+            Object.assign(e, err, { message })
             throw e
         }
-        throw err?.message || err
+        throw typeof err === 'string' ? TR(err) : err
     }
 }

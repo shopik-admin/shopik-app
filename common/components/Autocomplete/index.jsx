@@ -171,12 +171,13 @@ function Autocomplete({
                         ? <div className={styles.empty}><Text size="s">no_results</Text></div>
                         : options.map((opt, i) => {
                             const label = typeof opt === 'object' ? (opt.label ?? opt.text ?? opt.value) : opt
+                            const hint = typeof opt === 'object' ? opt.hint : null
                             return <div
                                 key={i}
                                 className={`${styles.option} ${i === activeIndex ? styles.active : ''}`}
                                 onMouseDown={(e) => { e.preventDefault(); handleSelect(opt) }}
                             >
-                                {label}
+                                {label}{hint ? ` (${hint})` : ''}
                             </div>
                         })}
             </div>
