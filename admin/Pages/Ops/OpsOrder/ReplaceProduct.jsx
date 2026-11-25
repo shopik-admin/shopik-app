@@ -8,8 +8,9 @@ import styles from './replaceProduct.module.css'
 import apiReq from 'common/functions/apiReq'
 import useApi from 'common/functions/useApi'
 import classNames from 'common/functions/classNames'
-import { isWeightProduct, getUnitLabel, ProductUnitInfo, formatAmount, ProductImage } from 'common/components/Product'
+import { isWeightProduct, getUnitLabel, ProductUnitInfo, formatAmount, formatPrice, ProductImage, getFirstSale, getSalePriceInfo, getSaleBadgeText } from 'common/components/Product'
 import { getPickRange, isPickInRange, DEFAULT_PICK_LIMITS } from 'common/functions/pickLimits'
+import { setSalesCache } from 'common/functions/salesCache.js'
 import limitDecimalInput from 'common/functions/decimalInput'
 import { isProductInCart } from 'common/functions/cartReplacements'
 import { useText } from 'common/texts/TextProvider'
@@ -19,6 +20,7 @@ export default function ReplaceProduct({ product = {}, orderId, cart = [], onClo
     const [phase, setPhase] = useState('list') // list | scanning | amount
     const [query, setQuery] = useState('')
     const [results, setResults] = useState([])
+    const [sales, setSales] = useState({})
     const [searching, setSearching] = useState(false)
     const [selected, setSelected] = useState(null)
     const [supplied, setSupplied] = useState('')
@@ -56,6 +58,21 @@ export default function ReplaceProduct({ product = {}, orderId, cart = [], onClo
         : ''
     const canContinue = isSuppliedValid && !!selected && !repOutOfRange
 
+    // A candidate's real price: its active sale when it takes part in one.
+    // The suggestions/scans response carries those sales, so the picker sees
+    // the price the replacement will actually be charged at. A multi-buy
+    // bundle only pays off once its size is reached, so it keeps the regular
+    // unit price and is flagged by the sale tag instead.
+    function priceFor(p) {
+        const base = p?.price ?? p?.prices?.[0]?.price
+        if (base == null) return null
+        const sale = getFirstSale(p, sales)
+        const info = sale ? getSalePriceInfo({ ...p, price: base }, sale) : null
+        if (!info) return { price: base, regular: null, saleLabel: '' }
+        if (info.isBundle) return { price: base, regular: null, saleLabel: getSaleBadgeText(sale) }
+        return { price: info.saleSingle, regular: info.regular, saleLabel: getSaleBadgeText(sale) }
+    }
+
     async function loadSuggestions(text) {
         setSearching(true)
         setError('')
@@ -74,6 +91,12 @@ export default function ReplaceProduct({ product = {}, orderId, cart = [], onClo
                 .filter(p => String(p.barcode || '').trim() !== origBarcode)
                 .filter(p => !isProductInCart(p, cart))
             setResults(list)
+            // Candidates carry the active sales that price them; the same cache
+            // keeps a replacement line showing its sale once it is in the cart.
+            if (res?.sales) {
+                setSales(res.sales)
+                setSalesCache(res.sales)
+            }
         } catch (e) {
             setError(e.message || 'search failed')
         } finally {
@@ -181,6 +204,10 @@ export default function ReplaceProduct({ product = {}, orderId, cart = [], onClo
                 setScanError(TR('ops_product_already_in_cart'))
                 return
             }
+            if (res?.sales) {
+                setSales(res.sales)
+                setSalesCache(res.sales)
+            }
             stopCamera()
             chooseCandidate(found)
         } catch (e) {
@@ -270,14 +297,14 @@ export default function ReplaceProduct({ product = {}, orderId, cart = [], onClo
     }
 
     if (phase === 'amount' && selected) {
-        const repPrice = selected.price ?? selected.prices?.[0]?.price
+        const repPrice = priceFor(selected)
         const repBarcode = selected.barcode || ''
         const repIsCold = selected.storageType === 'cold' || selected.storageType === 'freeze'
         return <Flex col className={styles.replaceProduct}>
             <Flex alignItems="center" className={styles.header}>
                 <Button mode="text" size="s" onClick={() => setPhase('list')} className={styles.backBtn}>{TR('back')}</Button>
                 <Text size="m" bold>{TR('ops_replacement_confirm_title')}</Text>
-                <Button mode="text" size="s" onClick={onClose} className={styles.closeBtn}>✕</Button>
+                <span className={styles.closeSlot} aria-hidden />
             </Flex>
 
             <Flex col className={styles.linkedCard}>
@@ -287,10 +314,14 @@ export default function ReplaceProduct({ product = {}, orderId, cart = [], onClo
             </Flex>
 
             <Flex col className={styles.linkedCard}>
-                <Flex alignItems="center" gap={6}>
-                    <Icon name={repIsCold ? 'snow' : 'stock'} size={14} />
-                    {repPrice != null && <Text size="m" bold>₪{repPrice}</Text>}
-                    <Text size="xs" mode="sub"><ProductUnitInfo product={selected} /></Text>
+                <Flex col gap={2}>
+                    <Flex alignItems="center" gap={6}>
+                        <Icon name={repIsCold ? 'snow' : 'stock'} size={14} />
+                        {repPrice && <Text size="m" bold className={repPrice.regular != null ? styles.salePrice : undefined}>₪{formatPrice(repPrice.price)}</Text>}
+                        {repPrice?.regular != null && <Text size="xs" mode="sub" lineThrough>₪{formatPrice(repPrice.regular)}</Text>}
+                        <Text size="xs" mode="sub"><ProductUnitInfo product={selected} /></Text>
+                    </Flex>
+                    {repPrice?.saleLabel && <Text size="xs" bold className={styles.salePrice}>{repPrice.saleLabel}</Text>}
                 </Flex>
                 <Flex gap={10} alignItems="center">
                     <ProductImage product={selected} size="s" hideSaleBadge />
@@ -299,7 +330,6 @@ export default function ReplaceProduct({ product = {}, orderId, cart = [], onClo
                         {repBarcode && <Text size="xs" mode="sub">{repBarcode}</Text>}
                     </Flex>
                 </Flex>
-                {selected.saleIds?.length ? <Text size="xs" className={styles.saleTag}>{TR('ops_sale_participating')}</Text> : null}
             </Flex>
 
             <Flex center>
@@ -342,7 +372,7 @@ export default function ReplaceProduct({ product = {}, orderId, cart = [], onClo
         return <Flex col className={styles.replaceProduct}>
             <Flex alignItems="center" className={styles.header}>
                 <Text size="m" bold>{TR('ops_replacement_title')}</Text>
-                <Button mode="text" size="s" onClick={onClose} className={styles.closeBtn}>✕</Button>
+                <span className={styles.closeSlot} aria-hidden />
             </Flex>
 
             <Flex col className={styles.originalWrap}>
@@ -393,7 +423,7 @@ export default function ReplaceProduct({ product = {}, orderId, cart = [], onClo
     return <Flex col className={styles.replaceProduct}>
         <Flex alignItems="center" className={styles.header}>
             <Text size="m" bold>{TR('ops_replacement_title')}</Text>
-            <Button mode="text" size="s" onClick={onClose} className={styles.closeBtn}>✕</Button>
+            <span className={styles.closeSlot} aria-hidden />
         </Flex>
 
         <Flex col className={styles.originalWrap}>
@@ -417,13 +447,17 @@ export default function ReplaceProduct({ product = {}, orderId, cart = [], onClo
             {searching && !results.length ? <Flex center><Text size="s" mode="sub">{TR('ops_searching')}</Text></Flex> : null}
             {!searching && !results.length ? <Flex center><Text size="s" mode="sub">{TR('ops_no_replacements')}</Text></Flex> : null}
             {results.map(p => {
-                const price = p.price ?? p.prices?.[0]?.price
+                const price = priceFor(p)
                 const isCold = p.storageType === 'cold' || p.storageType === 'freeze'
                 return <Flex col key={p.id || p.barcode} className={styles.rowCard}>
-                    <Flex alignItems="center" gap={6} className={styles.rowTop}>
-                        <Icon name={isCold ? 'snow' : 'stock'} size={14} />
-                        {price != null && <Text size="m" bold>₪{price}</Text>}
-                        <Text size="xs" mode="sub"><ProductUnitInfo product={p} /></Text>
+                    <Flex col gap={2} className={styles.rowTop}>
+                        <Flex alignItems="center" gap={6}>
+                            <Icon name={isCold ? 'snow' : 'stock'} size={14} />
+                            {price && <Text size="m" bold className={price.regular != null ? styles.salePrice : undefined}>₪{formatPrice(price.price)}</Text>}
+                            {price?.regular != null && <Text size="xs" mode="sub" lineThrough>₪{formatPrice(price.regular)}</Text>}
+                            <Text size="xs" mode="sub"><ProductUnitInfo product={p} /></Text>
+                        </Flex>
+                        {price?.saleLabel && <Text size="xs" bold className={styles.salePrice}>{price.saleLabel}</Text>}
                     </Flex>
                     <Flex gap={10} alignItems="center">
                         <ProductImage product={p} size="s" hideSaleBadge />
@@ -435,7 +469,6 @@ export default function ReplaceProduct({ product = {}, orderId, cart = [], onClo
                             </Flex>}
                         </Flex>
                     </Flex>
-                    {p.saleIds?.length ? <Text size="xs" className={styles.saleTag}>{TR('ops_sale_participating')}</Text> : null}
                     <Button onClick={() => chooseCandidate(p)} className={styles.selectBtn}>{TR('ops_choose_replacement')}</Button>
                 </Flex>
             })}

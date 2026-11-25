@@ -14,8 +14,12 @@
     position: relative;
 }
 
-.closeBtn {
-    padding: 4px;
+/* The modal itself owns the close X; this keeps the header's three-column
+   spacing without drawing a second one. */
+.closeSlot {
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
 }
 
 .originalWrap {
@@ -67,13 +71,9 @@
     color: var(--text-secondary);
 }
 
-.saleTag {
-    background: #e6f4ef;
-    color: #0a7a5a;
-    border-radius: 999px;
-    padding: 4px 10px;
-    width: fit-content;
-    margin-top: 6px;
+/* A candidate's price under an active sale — the same sale colour the store uses. */
+.salePrice {
+    color: var(--product-price-sale-color, var(--text-brand-primary)) !important;
 }
 
 .selectBtn {

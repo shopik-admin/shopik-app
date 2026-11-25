@@ -343,23 +343,28 @@
 
         .menuWrap {
             display: none;
+            /* Restored to its original anchor; only the side gap and the
+               scroll container below are new. */
             position: absolute;
             top: -55px;
-            right: 0;
-            left: 0;
+            right: calc(env(safe-area-inset-right, 0px) + 10px);
+            left: calc(env(safe-area-inset-left, 0px) + 10px);
             background-color: var(--bg-primary, #fff);
             margin: 0;
             padding: 0;
             z-index: 10002;
             border-top: 1px solid #e3ebea;
             box-shadow: 0 6px 20px rgba(0, 0, 0, .08);
-            max-height: calc(100dvh - 100% - env(safe-area-inset-top, 0px));
+            max-height: var(--mobile-menu-max-height, calc(100dvh - 100% - env(safe-area-inset-top, 0px)));
             max-width: 410px;
+            border-radius: 0 0 20px 20px;
         }
 
         .menuWrapOpen {
             display: flex;
-            overflow: hidden;
+            /* The card itself scrolls, so the last rows are always reachable. */
+            overflow-y: auto;
+            overscroll-behavior: contain;
             border-radius: 0 0 20px 20px;
 
             :global([class*="content"]) {

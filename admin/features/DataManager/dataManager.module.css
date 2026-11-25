@@ -4,17 +4,19 @@
     gap: 12px;
     min-height: 0;
     overflow: hidden;
-    height: calc(100vh - var(--admin-header-height) - 48px - var(--safeBottom, 0px));
-    height: calc(100dvh - var(--admin-header-height) - 48px - var(--safeBottom, 0px));
-    max-height: calc(100vh - var(--admin-header-height) - 48px - var(--safeBottom, 0px));
-    max-height: calc(100dvh - var(--admin-header-height) - 48px - var(--safeBottom, 0px));
+    /* The main page already pads by 24px (16px on phones) on every side, plus
+       the fixed header and both safe areas. */
+    height: calc(100vh - var(--admin-header-height) - var(--safeTop, 0px) - 48px - var(--safeBottom, 0px));
+    height: calc(100dvh - var(--admin-header-height) - var(--safeTop, 0px) - 48px - var(--safeBottom, 0px));
+    max-height: calc(100vh - var(--admin-header-height) - var(--safeTop, 0px) - 48px - var(--safeBottom, 0px));
+    max-height: calc(100dvh - var(--admin-header-height) - var(--safeTop, 0px) - 48px - var(--safeBottom, 0px));
 }
 
 @media screen and (max-width: 650px) {
     .dataManager {
-        height: calc(100vh - var(--admin-header-height) - 32px - var(--safeBottom, 0px));
-        height: calc(100dvh - var(--admin-header-height) - 32px - var(--safeBottom, 0px));
-        max-height: calc(100vh - var(--admin-header-height) - 32px - var(--safeBottom, 0px));
-        max-height: calc(100dvh - var(--admin-header-height) - 32px - var(--safeBottom, 0px));
+        height: calc(100vh - var(--admin-header-height) - var(--safeTop, 0px) - 32px - var(--safeBottom, 0px));
+        height: calc(100dvh - var(--admin-header-height) - var(--safeTop, 0px) - 32px - var(--safeBottom, 0px));
+        max-height: calc(100vh - var(--admin-header-height) - var(--safeTop, 0px) - 32px - var(--safeBottom, 0px));
+        max-height: calc(100dvh - var(--admin-header-height) - var(--safeTop, 0px) - 32px - var(--safeBottom, 0px));
     }
 }

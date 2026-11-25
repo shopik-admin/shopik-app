@@ -3,7 +3,7 @@
 }
 
 .opsOrder {
-    padding-top: calc(var(--admin-header-height));
+    padding-top: calc(var(--admin-header-height) + var(--safeTop, 0px));
 }
 
 .orderTitle {
@@ -33,7 +33,7 @@
 }
 
 .orderPreview {
-    height: calc(100dvh - 20px - var(--admin-header-height));
+    height: calc(100dvh - 20px - var(--admin-header-height) - var(--safeTop, 0px) - var(--safeBottom, 0px));
     position: relative;
     padding-top: 5px;
 

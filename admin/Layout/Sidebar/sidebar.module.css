@@ -62,6 +62,7 @@
     /* border-inline-end: 1px solid #e4eaed;
     background-color: var(--bg-primary); */
     height: 100vh;
+    height: 100dvh;
     flex-shrink: 0;
     padding-inline-start: calc(var(--sidebarWidth) - 10px);
 

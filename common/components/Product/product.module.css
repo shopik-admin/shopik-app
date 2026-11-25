@@ -160,6 +160,16 @@
     }
 }
 
+/* A line price with a sale under it: the two prices stay together and the gap
+   moves below the sale line. */
+.priceTight {
+    margin-bottom: 0;
+}
+
+.saleLine {
+    margin-bottom: 10px;
+}
+
 .salePrice {
     color: var(--pc-price, var(--text-primary));
     font-weight: 700 !important;
@@ -170,6 +180,13 @@
     color: var(--pc-strike, var(--text-error-primary));
     font-size: var(--text-sm);
     text-decoration: line-through;
+}
+
+/* The sale label that sits on its own line under the sale and the struck-through
+   regular price in a cart line. */
+.saleTag {
+    color: var(--product-price-sale-color, var(--menu-sales-border));
+    flex-shrink: 0;
 }
 
 /* Row total (cart line): the line total instead of the unit price. */
