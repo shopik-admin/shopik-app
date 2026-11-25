@@ -1,0 +1,27 @@
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 23px 16px;
+    border-bottom: 1px solid var(--border-tertiary);
+    flex-shrink: 0;
+}
+
+.title {
+    flex: 1;
+    text-align: center;
+}
+
+/* Back and close share one size, so they line up exactly. */
+.sideBtn {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    flex-shrink: 0;
+}
+
+.side {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+}

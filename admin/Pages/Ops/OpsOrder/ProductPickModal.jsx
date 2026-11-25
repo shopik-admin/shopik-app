@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import ScanProduct from './ScanProduct'
 import ReplaceProduct from './ReplaceProduct'
+import FlowHeader from './FlowHeader'
 import Flex from 'common/components/Flex'
 import Text from 'common/components/Text'
 import Icon from 'common/components/Icon'
@@ -46,6 +47,7 @@ export default function ProductPickModal({ product = {}, orderId, cart = [], onC
             product={product}
             orderId={orderId}
             onClose={onClose}
+            onBack={() => setPhase('details')}
             onPicked={onPicked}
             initialPhase="weight"
             initialSupplied={initialSupplied}
@@ -60,6 +62,7 @@ export default function ProductPickModal({ product = {}, orderId, cart = [], onC
         product={product}
         orderId={orderId}
         onClose={onClose}
+        onBack={() => setPhase('details')}
         onPicked={onPicked}
         initialPhase={initialPhase}
         initialSupplied={initialSupplied}
@@ -102,6 +105,7 @@ function ProductDetails({ product = {}, orderId, onClose, onPicked, onScan, onRe
     const recommendations = product.picking?.recommendations
 
     return <Flex col className={styles.pickModal}>
+        <FlowHeader title={TR('product_details')} onClose={onClose} />
         <div className={styles.imageWrap}>
             {has360 && (
                 <button type="button" className={styles.view360} onClick={() => setImgIdx(i => (i + 1) % Math.max(displayImages.length, 1))}>

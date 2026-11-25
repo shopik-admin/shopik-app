@@ -5,34 +5,6 @@
     min-height: 100%;
 }
 
-.header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 23px 16px;
-    border-bottom: 1px solid var(--border-tertiary);
-    position: relative;
-}
-
-/* Back on the right, title centred, the modal's close X on the left. */
-.headerBack {
-    width: 40px;
-    height: 40px;
-    padding: 0;
-    flex-shrink: 0;
-}
-
-.headerTitle {
-    flex: 1;
-    text-align: center;
-}
-
-.headerSide {
-    width: 40px;
-    height: 40px;
-    flex-shrink: 0;
-}
-
 .originalWrap {
     padding: 12px 16px 4px;
     background: #fff;

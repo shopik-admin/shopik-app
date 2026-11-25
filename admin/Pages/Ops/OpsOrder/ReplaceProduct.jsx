@@ -14,6 +14,7 @@ import { setSalesCache } from 'common/functions/salesCache.js'
 import limitDecimalInput from 'common/functions/decimalInput'
 import { isProductInCart } from 'common/functions/cartReplacements'
 import { useText } from 'common/texts/TextProvider'
+import FlowHeader from './FlowHeader'
 
 export default function ReplaceProduct({ product = {}, orderId, cart = [], onClose, onBack, onPicked }) {
     const { TR } = useText()
@@ -301,11 +302,11 @@ export default function ReplaceProduct({ product = {}, orderId, cart = [], onClo
         const repBarcode = selected.barcode || ''
         const repIsCold = selected.storageType === 'cold' || selected.storageType === 'freeze'
         return <Flex col className={styles.replaceProduct}>
-            <Flex alignItems="center" className={styles.header}>
-                <Button mode="text" icon="back" onClick={() => setPhase('list')} className={styles.headerBack} aria-label={TR('back')} />
-                <Text size="m" bold className={styles.headerTitle}>{TR('ops_replacement_confirm_title')}</Text>
-                <span className={styles.headerSide} aria-hidden />
-            </Flex>
+            <FlowHeader
+                title={TR('ops_replacement_confirm_title')}
+                onBack={() => setPhase('list')}
+                onClose={onClose}
+            />
 
             <Flex col className={styles.linkedCard}>
                 <Text size="xs" mode="sub">{TR('ops_original_product_ordered', { amount: orderedLabel })}</Text>
@@ -370,11 +371,11 @@ export default function ReplaceProduct({ product = {}, orderId, cart = [], onClo
 
     if (phase === 'scanning') {
         return <Flex col className={styles.replaceProduct}>
-            <Flex alignItems="center" className={styles.header}>
-                <Button mode="text" icon="back" onClick={goToList} className={styles.headerBack} aria-label={TR('back')} />
-                <Text size="m" bold className={styles.headerTitle}>{TR('ops_replacement_title')}</Text>
-                <span className={styles.headerSide} aria-hidden />
-            </Flex>
+            <FlowHeader
+                title={TR('ops_replacement_title')}
+                onBack={goToList}
+                onClose={onClose}
+            />
 
             <Flex col className={styles.originalWrap}>
                 <ProductInline product={product} remove={false} note={false} admin />
@@ -421,11 +422,11 @@ export default function ReplaceProduct({ product = {}, orderId, cart = [], onClo
     }
 
     return <Flex col className={styles.replaceProduct}>
-        <Flex alignItems="center" className={styles.header}>
-            <Button mode="text" icon="back" onClick={onBack || onClose} className={styles.headerBack} aria-label={TR('back')} />
-            <Text size="m" bold className={styles.headerTitle}>{TR('ops_replacement_title')}</Text>
-            <span className={styles.headerSide} aria-hidden />
-        </Flex>
+        <FlowHeader
+            title={TR('ops_replacement_title')}
+            onBack={onBack || onClose}
+            onClose={onClose}
+        />
 
         <Flex col className={styles.originalWrap}>
             <ProductInline product={product} remove={false} note={false} admin />

@@ -242,9 +242,9 @@
 }
 
 .pickModal :global(.modal-close) {
-    /* The flow wants the close X on the physical left in every language. */
-    left: 12px !important;
-    right: auto !important;
+    /* The flow draws its own header (back / title / X) so there is one X and
+       it lines up with the back button. */
+    display: none !important;
 }
 
 .pickModal :global(.modal-body) {
