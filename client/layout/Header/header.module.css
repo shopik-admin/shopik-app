@@ -343,22 +343,25 @@
 
         .menuWrap {
             display: none;
-            position: absolute;
-            top: -55px;
-            right: 0;
-            left: 0;
+            /* Fixed, directly under the measured header, so the drawer always
+               has a definite height for its inner panels to scroll in. */
+            position: fixed;
+            top: var(--mobile-header-height, 0px);
+            right: env(safe-area-inset-right, 0px);
+            left: env(safe-area-inset-left, 0px);
             background-color: var(--bg-primary, #fff);
             margin: 0;
             padding: 0;
             z-index: 10002;
             border-top: 1px solid #e3ebea;
             box-shadow: 0 6px 20px rgba(0, 0, 0, .08);
-            max-height: calc(100dvh - 100% - env(safe-area-inset-top, 0px));
+            max-height: calc(100dvh - var(--mobile-header-height, 0px) - env(safe-area-inset-bottom, 0px));
             max-width: 410px;
         }
 
         .menuWrapOpen {
             display: flex;
+            height: calc(100dvh - var(--mobile-header-height, 0px) - env(safe-area-inset-bottom, 0px));
             overflow: hidden;
             border-radius: 0 0 20px 20px;
 

@@ -74,6 +74,9 @@
     .overlay {
         align-items: stretch;
         justify-content: stretch;
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+        padding-inline-start: env(safe-area-inset-left, 0px);
+        padding-inline-end: env(safe-area-inset-right, 0px);
         background: var(--bg-page, #fff);
         animation: none;
     }

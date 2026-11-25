@@ -17,7 +17,7 @@ import Icon from 'common/components/Icon'
 import Button from 'common/components/Button'
 import ContextMenu from 'common/components/ContextMenu'
 import classNames from 'common/functions/classNames'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router'
 import { useAppData } from 'App'
 import { useText } from 'common/texts/TextProvider'
@@ -26,10 +26,25 @@ export default function Header() {
     const [drawerOpen, setDrawerOpen] = useState(false)
     const [openMenu, setOpenMenu] = useState(null)
     const [popCount, setPopCount] = useState(0)
+    const headerRef = useRef(null)
     const { cartOpen, setCartOpen } = useCart()
     const navigate = useNavigate()
     const { settings } = useAppData()
     const { TR } = useText?.() || {}
+
+    // The mobile drawer is fixed so it can only be scrolled inside the part of
+    // the viewport the header leaves free. Measure the header (its rows wrap
+    // and its top inset changes with the device) instead of guessing a height.
+    useEffect(() => {
+        const el = headerRef.current
+        if (!el) return
+        const apply = () => el.style.setProperty('--mobile-header-height', `${el.offsetHeight}px`)
+        apply()
+        if (typeof ResizeObserver === 'undefined') return
+        const ro = new ResizeObserver(apply)
+        ro.observe(el)
+        return () => ro.disconnect()
+    }, [])
     useEffect(() => {
         if (!drawerOpen && !openMenu) return
         const onKey = (e) => {
@@ -87,7 +102,7 @@ export default function Header() {
     }))
 
     return (
-        <header className={styles.header}>
+        <header ref={headerRef} className={styles.header}>
             <div className={styles.topBar}>
                 <Button
                     icon="menu"
