@@ -54,7 +54,7 @@ export async function runTranslationStress({ clients, fixtures, log = () => { } 
         const dictionary = await admin.call('translation/dictionary', { code }, { keepBody: true })
         const texts = dictionary.body?.data?.texts || {}
         const lost = Array.from({ length: CREATE_COUNT }, (_, index) => `stress_${index}`)
-            .filter(key => texts[key] !== `value ${index}`)
+            .filter((key, index) => texts[key] !== `value ${index}`)
 
         // A 300-row import is still one document write per language.
         const csv = [
