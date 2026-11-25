@@ -1,6 +1,11 @@
 import uid from '#common/functions/uid.js'
 import { isElevatorRequired } from '#common/functions/address.js'
 import { findByLocation } from '#server/external/supplyArea.js'
+import {
+    addressNotFoundError,
+    addressRecordNotFoundError,
+    elevatorRequiredError
+} from '#server/utils/addressErrors.js'
 
 // Shared address geocoding + area resolution used by both the client
 // self-service endpoints (user/address/*, _user-scoped) and the admin
@@ -8,21 +13,8 @@ import { findByLocation } from '#server/external/supplyArea.js'
 
 const normalizeHasElevator = value => value !== false
 
-const elevatorRequiredError = {
-    status: 400,
-    code: 'ELEVATOR_REQUIRED',
-    field: 'hasElevator',
-    message: 'address_elevator_required'
-}
-
-const addressNotFoundError = {
-    status: 422,
-    code: 'ADDRESS_NOT_FOUND',
-    message: 'address_not_found'
-}
-
 function assertGeocoded(geocoded) {
-    if (!geocoded?.location?.coordinates?.length) throw addressNotFoundError
+    if (!geocoded?.location?.coordinates?.length) throw addressNotFoundError()
 }
 
 // `source` describes the response; `geocodeSource` is the persisted copy.
@@ -33,7 +25,7 @@ function applyGeocodeMeta(geocoded) {
 
 function assertElevatorAllowed(address, allowNoElevator) {
     if (allowNoElevator) return
-    if (isElevatorRequired(address)) throw elevatorRequiredError
+    if (isElevatorRequired(address)) throw elevatorRequiredError()
 }
 
 export async function addAddress({ DL, external, user, address, allowNoElevator = false }) {
@@ -77,7 +69,7 @@ export const isSameAddressLocation = (address1, address2) => {
 
 export async function editAddress({ DL, external, user, addressId, address, allowNoElevator = false }) {
     const existingAddr = (user.addresses || []).find(a => a.addressId === addressId)
-    if (!existingAddr) throw { status: 404, message: 'address not found' }
+    if (!existingAddr) throw addressRecordNotFoundError()
 
     const geocoded = (await external.geocode.address(address)) || {}
     const sameParts = ['city', 'street', 'building'].every(field =>
@@ -86,7 +78,7 @@ export async function editAddress({ DL, external, user, addressId, address, allo
     // No trustworthy point: keep the old one only while the address itself did
     // not change. A changed address must not silently inherit a wrong point.
     if (!geocoded.location) {
-        if (!sameParts || !existingAddr.location?.coordinates?.length) throw addressNotFoundError
+        if (!sameParts || !existingAddr.location?.coordinates?.length) throw addressNotFoundError()
         geocoded.location = existingAddr.location
         geocoded.accuracy = existingAddr.accuracy
         geocoded.geocodeSource = existingAddr.geocodeSource

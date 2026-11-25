@@ -120,7 +120,7 @@ describe('address geocoding guard', () => {
                 user: { addresses: [] },
                 address
             }),
-            err => err.code === 'ADDRESS_NOT_FOUND' && err.status === 422
+            err => err.code === 'ADDRESS_NOT_FOUND' && err.status === 422 && err.message === 'address_not_found'
         )
     })
 
@@ -159,7 +159,7 @@ describe('address geocoding guard', () => {
                 addressId: 'a',
                 address: { city: 'city', street: 'other street', building: 2 }
             }),
-            err => err.code === 'ADDRESS_NOT_FOUND'
+            err => err.code === 'ADDRESS_NOT_FOUND' && err.message === 'address_not_found'
         )
     })
 
@@ -176,6 +176,21 @@ describe('address geocoding guard', () => {
         })
 
         assert.equal(geocoded.geocodeSource, 'govmap')
+    })
+
+    it('uses the same contract for a missing address record', async () => {
+        await assert.rejects(
+            () => editAddress({
+                DL: makeDL(true),
+                external,
+                user: { addresses: [] },
+                addressId: 'missing',
+                address
+            }),
+            err => err.code === 'ADDRESS_RECORD_NOT_FOUND' &&
+                err.status === 404 &&
+                err.message === 'address_record_not_found'
+        )
     })
 })
 
