@@ -56,7 +56,7 @@ function makeDL({ sale = comaxSale(), active = [], comaxRows = [], owners = [] }
     return { DL, calls }
 }
 
-const ACTIVE = [{ barcode: '111', prices: [{ domainId: 'd1', price: 5 }] }]
+const ACTIVE = [{ barcode: '111', status: 'active', prices: [{ domainId: 'd1', price: 5 }] }]
 const OWNERS = [{ barcode: '111', scannableBarcodes: ['999'] }]
 
 describe('comax sale barcode families', () => {

@@ -213,6 +213,17 @@ function buildSale(cs, kodToBarcodeMap, activeBarcodesSet, barcodeToPriceMap, ba
             return null
     }
 
+    // A `price` sale means "amount units for price": the cart divides price by
+    // amount to get the per-unit price. Comax sends weight promotions as
+    // fractional quantities (0.01 for a per-kg item), which turns ₪49.90 into
+    // ₪4,990/kg and repeats it for every 0.01 of the line. Refuse it instead
+    // of overcharging until Comax is configured with a whole-unit quantity.
+    if (kind === KINDS.PRICE && !(Number(amount) >= 1)) {
+        if (stats) stats.skippedFractional = (stats.skippedFractional || 0) + 1
+        console.log(`[Comax Sales Sync] Skipping price sale ${cs.comaxId}: fractional amount ${amount}`)
+        return null
+    }
+
     const now = Date.now()
     const start = new Date(cs.fromDate || Date.now())
     const end = new Date(cs.toDate || now + 7 * 24 * 60 * 60 * 1000)
@@ -268,7 +279,7 @@ function buildSale(cs, kodToBarcodeMap, activeBarcodesSet, barcodeToPriceMap, ba
         )
         if (inflated) {
             if (stats) stats.skippedInflated = (stats.skippedInflated || 0) + 1
-            console.log(`[Comax Sales Sync] Skipping inflated sale ${cs.comaxId}: price ${price} >= regular total for barcode ${inflated}`)
+            console.log(`[Comax Sales Sync] Skipping price sale ${cs.comaxId}: ${price} is not a valid discount for barcode ${inflated}`)
             return null
         }
     }
@@ -320,6 +331,31 @@ function buildSale(cs, kodToBarcodeMap, activeBarcodesSet, barcodeToPriceMap, ba
     return saleDoc
 }
 
+/**
+ * Cancel Sale docs whose Comax promotion stopped producing a valid sale.
+ *
+ * `bulkWrite` only upserts the sales buildSale approves: a doc written by an
+ * earlier sync is never removed or downgraded. Without this, a promotion that
+ * later fails the guards (fractional amount, no verifiable discount, no valid
+ * barcode) stays live until its end date — exactly how a 0.01-unit sale kept
+ * charging ₪4,990/kg after it should have been blocked.
+ */
+export async function cancelRejectedSales(DL, saleIds) {
+    const ids = [...new Set((saleIds || []).filter(Boolean))]
+    if (!ids.length) return 0
+
+    const { STATUS } = DL.Sale.constants
+    const res = await DL.Sale.update(
+        {
+            id: { $in: ids },
+            createdBy: 'Comax Sync',
+            status: { $in: [STATUS.ACTIVE, STATUS.PENDING] }
+        },
+        { status: STATUS.CANCELED }
+    )
+    return res?.modifiedCount || res?.nModified || 0
+}
+
 export default async function syncComaxSales(payload, { DL }) {
     const comaxSales = await DL.ComaxSale.read(
         { swActive: true, promotionType: { $nin: IGNORE_PROMO_TYPES } },
@@ -360,15 +396,23 @@ export default async function syncComaxSales(payload, { DL }) {
         console.log(`[Comax Sales Sync] Deduplicated ${deduplicateSaleIds.size} duplicate sales`)
     }
 
-    // Get active product barcodes + regular prices (min across domains)
-    const activeProducts = await DL.Product.read(
-        { status: DL.Product.constants.STATUS.ACTIVE },
-        { _id: 0, barcode: 1, prices: 1 },
+    // Regular prices come from the whole catalog, not only the active products.
+    // A sale is usually defined on a model whose variants are hidden today, so
+    // reading only active products made the inflated-price guard blind to
+    // exactly the barcodes a model sale covers — that is how a 0.01-unit price
+    // sale became live and charged ₪4,990/kg. Active barcodes are still the
+    // only ones a new item-based sale may target.
+    const pricedProducts = await DL.Product.read(
+        {},
+        { _id: 0, barcode: 1, status: 1, prices: 1 },
         { limit: 0 }
     )
-    const activeBarcodesSet = new Set((activeProducts || []).map(p => p.barcode))
+    const { ACTIVE } = DL.Product.constants.STATUS
+    const activeBarcodesSet = new Set(
+        (pricedProducts || []).filter(p => p.status === ACTIVE).map(p => p.barcode)
+    )
     const barcodeToPriceMap = new Map(
-        (activeProducts || []).map(p => [p.barcode, minAcrossDomains(p?.prices)])
+        (pricedProducts || []).map(p => [p.barcode, minAcrossDomains(p?.prices)])
     )
 
     // Comax runs a promotion on one barcode; the catalog sells one product that
@@ -438,19 +482,40 @@ export default async function syncComaxSales(payload, { DL }) {
         }
     }
 
-    const stats = { skippedInflated: 0 }
+    const stats = { skippedInflated: 0, skippedFractional: 0 }
     const salesToSync = uniqueComaxSales
         .map(cs => buildSale(cs, kodToBarcodeMap, activeBarcodesSet, barcodeToPriceMap, barcodeToDepositMap, modelKodToBarcodes, DL, stats))
         .filter(Boolean)
 
     if (stats.skippedInflated > 0) {
-        console.log(`[Comax Sales Sync] Skipped ${stats.skippedInflated} inflated sales (price >= regular total)`)
+        console.log(`[Comax Sales Sync] Skipped ${stats.skippedInflated} price sales that are not a verifiable discount`)
+    }
+    if (stats.skippedFractional > 0) {
+        console.log(`[Comax Sales Sync] Skipped ${stats.skippedFractional} price sales with a fractional amount`)
+    }
+
+    // A promotion that produced no sale this run must not keep the Sale doc an
+    // earlier run created: bulkWrite never removes or downgrades one.
+    const syncedSaleIds = new Set(salesToSync.map(sale => sale.id))
+    const rejectedSaleIds = uniqueComaxSales
+        .map(cs => cs.comaxId)
+        .filter(id => id && !syncedSaleIds.has(id))
+    const canceled = await cancelRejectedSales(DL, rejectedSaleIds)
+    if (canceled > 0) {
+        console.log(`[Comax Sales Sync] Canceled ${canceled} sales that no longer pass the price guards`)
     }
 
     if (salesToSync.length === 0) {
         console.log('[Comax Sales Sync] No valid sales matching active products to sync')
         await updateSalesAndProducts({ DL })
-        return { synced: 0, updated: 0, created: 0, skippedInflated: stats.skippedInflated }
+        return {
+            synced: 0,
+            updated: 0,
+            created: 0,
+            skippedInflated: stats.skippedInflated,
+            skippedFractional: stats.skippedFractional,
+            canceled
+        }
     }
 
     const result = await DL.Sale.bulkWrite({
@@ -472,6 +537,8 @@ export default async function syncComaxSales(payload, { DL }) {
         created: result.upsertedCount,
         updated: result.modifiedCount,
         skippedInflated: stats.skippedInflated,
+        skippedFractional: stats.skippedFractional,
+        canceled,
         saleUpdates: saleResults
     }
 }
