@@ -136,11 +136,14 @@
 .saleLimitBadge {
     position: absolute;
     inset-inline-start: -11px;
-    bottom: 4px;
-    background: var(--product-sale-limit-badge-bg, var(--bg-secondary));
-    color: var(--product-sale-limit-badge-text, var(--text-secondary));
-    padding: 2px 7px;
-    border: 1px solid var(--border-primary);
+    bottom: 3px;
+    /* Solid muted grey, the neutral sibling of the sale badge: text uses the
+       page background so contrast holds in both themes (#fff on #65716E in
+       light, #242A28 on #A4B0AD in dark). */
+    background: var(--product-sale-limit-badge-bg, var(--fg-tertiary));
+    color: var(--product-sale-limit-badge-text, var(--bg-primary));
+    padding: 3px 8px;
+    border: 1px solid var(--product-sale-limit-badge-bg, var(--fg-tertiary));
     border-radius: var(--radius-full) 0 0 var(--radius-full);
     z-index: 1;
     max-width: calc(100% - var(--spacing-lg));
