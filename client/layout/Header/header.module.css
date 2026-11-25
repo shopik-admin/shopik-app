@@ -361,8 +361,12 @@
 
         .menuWrapOpen {
             display: flex;
-            height: calc(100dvh - var(--mobile-header-height, 0px) - env(safe-area-inset-bottom, 0px));
-            overflow: hidden;
+            /* Content height like a dropdown card; only a long list (the
+               departments panel) reaches the cap and scrolls. */
+            height: auto;
+            max-height: calc(100dvh - var(--mobile-header-height, 0px) - env(safe-area-inset-bottom, 0px));
+            overflow-y: auto;
+            overscroll-behavior: contain;
             border-radius: 0 0 20px 20px;
 
             :global([class*="content"]) {

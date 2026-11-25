@@ -173,6 +173,11 @@
         padding: 12px 8px calc(12px + env(safe-area-inset-bottom, 0px));
         border-inline-start: 1px solid #e3ebea;
         overflow-y: auto;
+        /* The drawer itself scrolls (it keeps its content height); the rail
+           stays put while a long panel goes by. */
+        position: sticky;
+        top: 0;
+        align-self: flex-start;
     }
 
     .railBtn {
