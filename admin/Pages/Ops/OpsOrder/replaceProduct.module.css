@@ -14,11 +14,22 @@
     position: relative;
 }
 
-/* The modal itself owns the close X; this keeps the header's three-column
-   spacing without drawing a second one. */
-.closeSlot {
-    width: 24px;
-    height: 24px;
+/* Back on the right, title centred, the modal's close X on the left. */
+.headerBack {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    flex-shrink: 0;
+}
+
+.headerTitle {
+    flex: 1;
+    text-align: center;
+}
+
+.headerSide {
+    width: 40px;
+    height: 40px;
     flex-shrink: 0;
 }
 
@@ -270,11 +281,6 @@
     background: #c5cfcc;
     opacity: 1;
     color: #fff;
-}
-
-.backBtn {
-    margin: 4px 16px 0;
-    align-self: flex-start;
 }
 
 @media (min-width: 650px) {

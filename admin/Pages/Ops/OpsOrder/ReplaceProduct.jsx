@@ -15,7 +15,7 @@ import limitDecimalInput from 'common/functions/decimalInput'
 import { isProductInCart } from 'common/functions/cartReplacements'
 import { useText } from 'common/texts/TextProvider'
 
-export default function ReplaceProduct({ product = {}, orderId, cart = [], onClose, onPicked }) {
+export default function ReplaceProduct({ product = {}, orderId, cart = [], onClose, onBack, onPicked }) {
     const { TR } = useText()
     const [phase, setPhase] = useState('list') // list | scanning | amount
     const [query, setQuery] = useState('')
@@ -302,9 +302,9 @@ export default function ReplaceProduct({ product = {}, orderId, cart = [], onClo
         const repIsCold = selected.storageType === 'cold' || selected.storageType === 'freeze'
         return <Flex col className={styles.replaceProduct}>
             <Flex alignItems="center" className={styles.header}>
-                <Button mode="text" size="s" onClick={() => setPhase('list')} className={styles.backBtn}>{TR('back')}</Button>
-                <Text size="m" bold>{TR('ops_replacement_confirm_title')}</Text>
-                <span className={styles.closeSlot} aria-hidden />
+                <Button mode="text" icon="back" onClick={() => setPhase('list')} className={styles.headerBack} aria-label={TR('back')} />
+                <Text size="m" bold className={styles.headerTitle}>{TR('ops_replacement_confirm_title')}</Text>
+                <span className={styles.headerSide} aria-hidden />
             </Flex>
 
             <Flex col className={styles.linkedCard}>
@@ -371,8 +371,9 @@ export default function ReplaceProduct({ product = {}, orderId, cart = [], onClo
     if (phase === 'scanning') {
         return <Flex col className={styles.replaceProduct}>
             <Flex alignItems="center" className={styles.header}>
-                <Text size="m" bold>{TR('ops_replacement_title')}</Text>
-                <span className={styles.closeSlot} aria-hidden />
+                <Button mode="text" icon="back" onClick={goToList} className={styles.headerBack} aria-label={TR('back')} />
+                <Text size="m" bold className={styles.headerTitle}>{TR('ops_replacement_title')}</Text>
+                <span className={styles.headerSide} aria-hidden />
             </Flex>
 
             <Flex col className={styles.originalWrap}>
@@ -389,7 +390,6 @@ export default function ReplaceProduct({ product = {}, orderId, cart = [], onClo
                 />
                 <Icon name="barcode" size={18} />
             </Flex>
-            <Button mode="text" size="s" onClick={goToList} className={styles.backBtn}>{TR('ops_back_to_list')}</Button>
 
             <Flex col className={styles.cameraWrap}>
                 <video ref={videoRef} autoPlay playsInline muted className={styles.video} />
@@ -422,8 +422,9 @@ export default function ReplaceProduct({ product = {}, orderId, cart = [], onClo
 
     return <Flex col className={styles.replaceProduct}>
         <Flex alignItems="center" className={styles.header}>
-            <Text size="m" bold>{TR('ops_replacement_title')}</Text>
-            <span className={styles.closeSlot} aria-hidden />
+            <Button mode="text" icon="back" onClick={onBack || onClose} className={styles.headerBack} aria-label={TR('back')} />
+            <Text size="m" bold className={styles.headerTitle}>{TR('ops_replacement_title')}</Text>
+            <span className={styles.headerSide} aria-hidden />
         </Flex>
 
         <Flex col className={styles.originalWrap}>

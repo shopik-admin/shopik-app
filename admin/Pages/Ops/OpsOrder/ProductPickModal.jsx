@@ -36,6 +36,7 @@ export default function ProductPickModal({ product = {}, orderId, cart = [], onC
             orderId={orderId}
             cart={cart}
             onClose={onClose}
+            onBack={() => setPhase('details')}
             onPicked={onPicked}
         />
     }

@@ -241,6 +241,12 @@
     overflow: hidden !important;
 }
 
+.pickModal :global(.modal-close) {
+    /* The flow wants the close X on the physical left in every language. */
+    left: 12px !important;
+    right: auto !important;
+}
+
 .pickModal :global(.modal-body) {
     padding: 0;
 }
