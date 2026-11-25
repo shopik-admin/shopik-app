@@ -30,6 +30,9 @@ const AUTH_TABS = [
 export default function AuthPanel({ onClose }) {
     const user = useUser()
     const [tab, setTab] = useState('login')
+    // Keep the typed number across tab switches: login and register are separate
+    // forms, so without lifting it here "to register" would forget the phone.
+    const [phone, setPhone] = useState('')
 
     if (user?.id)
         return <Flex gap={20} col className={styles.authPanel}>
@@ -40,8 +43,8 @@ export default function AuthPanel({ onClose }) {
         <Tabs options={AUTH_TABS} active={tab} onChange={setTab} className={styles.tabs} />
 
         {tab === 'login'
-            ? <LoginForm onClose={onClose} onToRegister={() => setTab('register')} />
-            : <RegisterForm onClose={onClose} onToLogin={() => setTab('login')} />}
+            ? <LoginForm phone={phone} onPhoneChange={setPhone} onClose={onClose} onToRegister={() => setTab('register')} />
+            : <RegisterForm phone={phone} onPhoneChange={setPhone} onClose={onClose} onToLogin={() => setTab('login')} />}
     </Flex>
 }
 
@@ -64,10 +67,10 @@ function RememberRow() {
     </Checkbox>
 }
 
-function useOtpFlow(requestOtp) {
+function useOtpFlow(requestOtp, { initialPhone = '', onPhoneChange } = {}) {
     const
         [step, setStep] = useState(1),
-        [phone, setPhone] = useState(''),
+        [phone, setPhone] = useState(initialPhone),
         [otpToken, setOtpToken] = useState(''),
         [remember, setRemember] = useState(true),
         [error, setError] = useState(''),
@@ -80,7 +83,10 @@ function useOtpFlow(requestOtp) {
         try {
             const res = await requestOtp(vals, { phone, ...opts })
             setOtpToken(res.token)
-            if (vals?.phone) setPhone(vals.phone)
+            if (vals?.phone) {
+                setPhone(vals.phone)
+                onPhoneChange?.(vals.phone)
+            }
             setRemember(vals?.remember === true)
             setStep(2)
         } catch (err) {
@@ -90,7 +96,12 @@ function useOtpFlow(requestOtp) {
         }
     }
 
-    return { step, setStep, phone, otpToken, remember, error, loading, values, setValues, setError, request }
+    function handleChange(vals) {
+        setValues(vals)
+        onPhoneChange?.(vals?.phone ?? '')
+    }
+
+    return { step, setStep, phone, otpToken, remember, error, loading, values, setValues, setError, request, onChange: handleChange }
 }
 
 function PhoneInput({ defaultValue }) {
@@ -120,7 +131,7 @@ function VoiceOtpButton({ flow }) {
         if (flow.loading) return
         const digits = String(flow.values?.phone ?? '').replace(/\D/g, '')
         if (!/^0?5\d{8}$/.test(digits)) {
-            flow.setError('Invalid phone number')
+            flow.setError('input_invalid_phone')
             return
         }
         return flow.request(flow.values, { channel: 'voice' })
@@ -133,14 +144,14 @@ function VoiceOtpButton({ flow }) {
     </Flex>
 }
 
-function LoginForm({ onClose, onToRegister }) {
+function LoginForm({ onClose, onToRegister, phone, onPhoneChange }) {
     const { features } = useAppData() || {}
     const flow = useOtpFlow((vals, opts) =>
         apiReq('user/login_otp', {
             phone: vals?.phone || opts?.phone,
             remember: vals?.remember === true,
             channel: opts?.channel
-        }))
+        }), { initialPhone: phone, onPhoneChange })
 
     if (flow.step === 2) {
         return <DigitsInputStep
@@ -156,7 +167,7 @@ function LoginForm({ onClose, onToRegister }) {
 
     return <>
         <AuthHero />
-        <Form action={flow.request} error={flow.error} disabled={flow.loading} submitText='send_otp' className={styles.form} onChange={flow.setValues}>
+        <Form action={flow.request} error={flow.error} disabled={flow.loading} submitText='send_otp' className={styles.form} onChange={flow.onChange}>
             <Flex col gap={4}>
                 <PhoneInput defaultValue={flow.phone} />
             </Flex>
@@ -167,7 +178,7 @@ function LoginForm({ onClose, onToRegister }) {
     </>
 }
 
-function RegisterForm({ onClose, onToLogin }) {
+function RegisterForm({ onClose, onToLogin, phone, onPhoneChange }) {
     const { features } = useAppData() || {}
     const flow = useOtpFlow((vals, opts) =>
         apiReq('user/register', {
@@ -175,7 +186,7 @@ function RegisterForm({ onClose, onToLogin }) {
             phone: vals?.phone || opts?.phone,
             remember: vals?.remember === true,
             channel: opts?.channel
-        }))
+        }), { initialPhone: phone, onPhoneChange })
 
     if (flow.step === 2) {
         return <DigitsInputStep
@@ -192,9 +203,9 @@ function RegisterForm({ onClose, onToLogin }) {
 
     return <>
         <AuthHero icon='circleUser' title='web_register_title' subtitle='web_register_phone_subTitle' />
-        <Form action={flow.request} error={flow.error} disabled={flow.loading} submitText='send_otp' className={styles.form} onChange={flow.setValues}>
+        <Form action={flow.request} error={flow.error} disabled={flow.loading} submitText='send_otp' className={styles.form} onChange={flow.onChange}>
             <Flex col gap={10}>
-                <PhoneInput />
+                <PhoneInput defaultValue={flow.phone} />
                 <Input name='name.first' />
                 <Input name='name.last' />
             </Flex>

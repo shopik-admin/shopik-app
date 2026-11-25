@@ -3,10 +3,11 @@ import toRemember from '#common/functions/toRemember.js'
 
 export default async function login_otp({ phone, remember, domainId, channel }, { DL, external }) {
     const user = await DL.User.readOne({ phone }, { phone: 1 })
-    // Generic message: do not reveal whether the number is registered.
-    if (!user) throw { status: 400, message: 'Could not send a verification code to this number' }
+    // Deliberately explicit: the login screen points unregistered users to
+    // registration. (This does reveal whether a number has an account.)
+    if (!user) throw { status: 400, message: 'login_user_not_registered', code: 'USER_NOT_REGISTERED' }
     const currentOtps = await DL.Otp.count({ phone })
-    if (currentOtps >= 5) throw { status: 400, message: 'too many otps' }
+    if (currentOtps >= 5) throw { status: 400, message: 'otp_too_many_requests', code: 'OTP_TOO_MANY_REQUESTS' }
 
     // Per-phone hourly cap (SMS-flood protection, IP-independent).
     // Fail-open when redis is unavailable.
@@ -15,7 +16,7 @@ export default async function login_otp({ phone, remember, domainId, channel }, 
             const sendKey = `otp_send:${phone}`
             const sent = await DL.redis.incr(sendKey)
             if (sent === 1) await DL.redis.expire(sendKey, 3600)
-            if (sent > 10) throw { status: 400, message: 'too many otps' }
+            if (sent > 10) throw { status: 400, message: 'otp_too_many_requests', code: 'OTP_TOO_MANY_REQUESTS' }
         } catch (e) {
             if (e?.status === 400) throw e
         }
