@@ -150,7 +150,8 @@
     position: relative;
     background: #fff;
 
-    :global(.Product_saleBadge) {
+    :global(.Product_saleBadge),
+    :global(.Product_saleLimitBadge) {
         inset-inline-start: 0 !important;
     }
 }

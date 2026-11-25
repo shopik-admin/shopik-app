@@ -95,11 +95,12 @@ export function getSaleLimitLabel(sale, product) {
     return `${formatAmountNumber(units)} ${getUnitLabel(product)}`
 }
 
-// Price-row note: the per-100g price stops being a promise once only the
-// first units are discounted, so a limited sale shows its cap instead.
-export function getSaleLimitNote(sale, product) {
+// Image badge under the sale badge: "עד 2 יח'" / "עד 1.5 ק\"ג". The cap is
+// promotional fine print, so it gets a quiet pill instead of the price row,
+// which stays reserved for the legally required per-100g price.
+export function getSaleLimitBadgeText(sale, product) {
     const amount = getSaleLimitLabel(sale, product)
-    return amount ? TR('product_sale_limit', { amount }) : null
+    return amount ? TR('product_sale_limit_up_to', { amount }) : null
 }
 
 // Strip warning, shown only after the cart has gone past the cap.
@@ -112,10 +113,18 @@ export function ProductSaleBadge({ product, sales, size = 'm' }) {
     const sale = getFirstSale(product, sales)
     if (!sale) return null
     const label = getSaleBadgeText(sale)
-    return <Flex alignItems="center" gap={4} className={classNames(styles.saleBadge, styles[size])}>
-        <Icon name="salePercent" size={14} className={styles.saleBadgeIcon} />
-        <Text size="s" bold className={styles.saleBadgeText}>{label}</Text>
-    </Flex>
+    // The tiny badge used on thumbnails has no room for a second row; the
+    // cap only shows where a shopper can reasonably read it.
+    const limitLabel = size === 's' ? null : getSaleLimitBadgeText(sale, product)
+    return <>
+        <Flex alignItems="center" gap={4} className={classNames(styles.saleBadge, styles[size])}>
+            <Icon name="salePercent" size={14} className={styles.saleBadgeIcon} />
+            <Text size="s" bold className={styles.saleBadgeText}>{label}</Text>
+        </Flex>
+        {limitLabel && <Flex alignItems="center" className={styles.saleLimitBadge}>
+            <Text size="xs" bold className={styles.saleLimitBadgeText}>{limitLabel}</Text>
+        </Flex>}
+    </>
 }
 
 export function ProductImage({ product, size = 'm', sales, hideSaleBadge = false, className = '' }) {
@@ -361,8 +370,13 @@ export function ProductPrice({ product, size = 'm', sales, priceMode = 'unit', s
         if (price == null) return null
         const sale = getFirstSale(product, sales)
         const saleInfo = sale ? getSalePriceInfo(product, sale) : null
-        // Show per-100g/ml for the effective price: sale unit price when on sale, regular otherwise.
-        const unitPriceText = getUnitPriceText(product, saleInfo?.saleSingle)
+        // Per-100g/ml is a legal requirement, not a promo extra. A limited
+        // sale discounts only its first units, so quoting the sale price here
+        // would claim more than the sale gives: use the regular price for
+        // that figure (the price the rest of the units pay). Unlimited sales
+        // keep the sale price.
+        const hasLimit = saleInfo && getSaleLimitUnits(sale) > 0
+        const unitPriceText = getUnitPriceText(product, saleInfo ? (hasLimit ? saleInfo.regular : saleInfo.saleSingle) : undefined)
 
         const CurrencySymbol = <Text size='s' bold>₪</Text>
 
@@ -391,17 +405,10 @@ export function ProductPrice({ product, size = 'm', sales, priceMode = 'unit', s
                     {TR('product_sale_bundle', { amount: saleInfo.amount })}{CurrencySymbol}{formatPrice(saleInfo.saleTotal)}
                 </Text>
                 : <Text size='xxl' bold className={styles.salePrice}>{CurrencySymbol}{formatPrice(saleInfo.saleSingle)}</Text>
-            // A limited sale discounts only its first units, so the per-100g
-            // price of the sale price would claim more than the sale gives.
-            // Show the cap in that slot instead (all limited sales, not just
-            // those that had a per-100g price to replace).
-            const limitNote = getSaleLimitNote(sale, product)
             return <Flex gap={8} alignItems='center' wrap className={classNames(styles.price, styles[size], styles.sale)}>
                 <Text size='xxl' bold className={styles.salePrice}>{saleText}</Text>
                 <Text size='s' lineThrough className={styles.regularPrice}>{CurrencySymbol}{formatPrice(saleInfo.regular)}</Text>
-                {limitNote
-                    ? <Text size='s' mode='sub' className={styles.forgrams}>{limitNote}</Text>
-                    : unitPriceText && <Text size='s' mode='sub' className={styles.forgrams}>{unitPriceText}</Text>}
+                {unitPriceText && <Text size='s' mode='sub' className={styles.forgrams}>{unitPriceText}</Text>}
             </Flex>
         }
 
