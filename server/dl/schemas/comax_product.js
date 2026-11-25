@@ -38,7 +38,19 @@ const comaxProductSchema = {
     vat: Boolean,
     // Shopik store ids (cash_register.storeId) this item is in stock in.
     // Written by the per-store HasInventory feed and the fresh-department feed.
+    // This is the raw physical stock; the minimum-stock gate is applied to the
+    // copy written on Product, so these ids stay a faithful Comax statement.
     storeIds: { type: [String], filter: true },
+    // Per-store balance from the Comax balance feed, keyed by Shopik store id.
+    // Missing means "not tracked" (fresh counters), which passes the min-stock
+    // gate instead of hiding the item.
+    stockByStore: { type: Object },
+    // Stores where the item sold inside its old sale window, and the stores the
+    // sale feed actually checked. A store that was checked but is not in
+    // saleStoreIds did not sell there. Missing checked data means the feed was
+    // incomplete and the sale gate fails open.
+    saleStoreIds: { type: [String], default: undefined },
+    saleCheckedStores: { type: [String], default: undefined },
 
     superDepartmentCode: String,
     departmentCode: String,
@@ -111,7 +123,19 @@ const comaxProductSchema = {
     // sales-window feed. Units over the queried window (the widest configured
     // one), fractional for weighed goods. The sync copies it to
     // product.totalSalesUnits; missing means "never measured", which is not 0.
-    salesLastDays: Number
+    salesLastDays: Number,
+
+    // Denormalised preview flags, written by the nightly sync/recompute so the
+    // category settings page can filter and sort them without re-deriving every
+    // row from Product + Gs1Product + category settings at query time.
+    siteStatus: {
+        type: String,
+        enum: ['active', 'hidden', 'archived'],
+        filter: true
+    },
+    hasImage: { type: Boolean, filter: true },
+    inGs1: { type: Boolean, filter: true },
+    kashrutValid: { type: Boolean, filter: true }
 }
 
 export const meta = {
@@ -137,7 +161,29 @@ export const meta = {
         // The category map reads a whole sub-group at a time: tree's $in over the
         // unassigned codes and the assign/apply metadata lookups scanned all 20 358
         // rows to return 101 (16 s).
-        { subGroupCode: 1 },
+        // A category-map read loads a whole sub-group. The product preview sorts
+        // inside one sub-group, so each compound carries the scope, the sort
+        // field and the barcode tie-breaker. All keys ascend: the preview's sort
+        // takes the barcode direction from the sort field, so a reverse index
+        // scan serves the descending order too — a mixed-direction sort forced a
+        // COLLSCAN of all 23 279 docs per call.
+        { subGroupCode: 1, name: 1, barcode: 1 },
+        { subGroupCode: 1, salesLastDays: 1, barcode: 1 },
+        { subGroupCode: 1, price: 1, barcode: 1 },
+        { subGroupCode: 1, buyingPrice: 1, barcode: 1 },
+        // The category preview filters these denormalised flags inside a
+        // sub-group, and sorts them the same way.
+        { subGroupCode: 1, siteStatus: 1, barcode: 1 },
+        { subGroupCode: 1, hasImage: 1, barcode: 1 },
+        { subGroupCode: 1, inGs1: 1, barcode: 1 },
+        { subGroupCode: 1, kashrutValid: 1, barcode: 1 },
+        { subGroupCode: 1, storeIds: 1 },
+        // The category tree and preview filter on group/super code. department
+        // already has its compound below.
+        { groupCode: 1 },
+        { superDepartmentCode: 1 },
+        // Prefix search / name sort outside a single sub-group.
+        { name: 1 },
         // reports/version.js fingerprints the catalog with the newest comax updatedAt
         // to decide whether a produced report file can be reused. With no index that
         // probe read every row and blocking-sorted it: 21 514 docs / 9 ms on the copy,

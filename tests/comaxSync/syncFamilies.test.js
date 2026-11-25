@@ -13,7 +13,7 @@ const EGGS = { id: 'nc:206:2027', name: 'ביצים', parentIds: ['nc:206'] }
 const LOOKUP = {
     mapByCode: new Map([['10110', EGGS.id]]),
     categoriesById: new Map([[EGGS.id, EGGS]]),
-    flagsByCode: new Map([['10110', { categoryActive: true, showOnSite: true, requireKashrut: false }]]),
+    flagsByCode: new Map([['10110', { categoryActive: true, requireKashrut: false }]]),
     hasMap: true
 }
 

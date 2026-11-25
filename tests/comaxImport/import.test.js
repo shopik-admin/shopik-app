@@ -25,6 +25,8 @@ function makeDL({
     registers = [reg('store-a', '84'), reg('store-b', '52')],
     state = null,
     settings = { 'comax.freshDepartments': '13' },
+    categorySettings = [],
+    categoryMap = [],
     failBatch = false
 } = {}) {
     const writes = []
@@ -44,10 +46,22 @@ function makeDL({
         Setting: {
             readOne: async ({ key }) => (key in settings ? { value: settings[key] } : null)
         },
+        CategoryMap: {
+            read: async () => categoryMap
+        },
+        ComaxCategorySetting: {
+            read: async () => categorySettings,
+            updateOne: async () => ({}),
+            create: async () => ({})
+        },
         ComaxProduct: {
             Model: {
                 findOne: () => {
                     const chain = { sort: () => chain, lean: async () => null }
+                    return chain
+                },
+                find: () => {
+                    const chain = { lean: async () => [] }
                     return chain
                 },
                 distinct: async (field, filter) => {
@@ -418,7 +432,10 @@ describe('comax store feed import', () => {
         assert.deepEqual(distinctFilters.filter(f => f?.storeIds), [{ storeIds: 'store-a' }])
         assert.equal(pulls.length, 1)
         assert.deepEqual(pulls[0].filter, { barcode: { $in: ['9999'] }, storeIds: 'store-a' })
-        assert.deepEqual(pulls[0].update, { $pull: { storeIds: 'store-a' } })
+        assert.deepEqual(pulls[0].update, {
+            $pull: { storeIds: 'store-a' },
+            $unset: { 'stockByStore.store-a': '' }
+        })
         assert.equal(result.removed, 1)
     })
 
@@ -633,15 +650,15 @@ describe('comax sales window', () => {
     const daysAgo = days => new Date(Date.now() - days * 24 * 60 * 60 * 1000)
 
     function row(barcode, departmentCode, lastSaleDate, salesLastDays = 0) {
-        return { barcode, departmentCode, lastSaleDate, salesLastDays }
+        return { barcode, departmentCode, superDepartmentCode: '3', lastSaleDate, salesLastDays }
     }
 
     it('asks every store for the widest configured window', async () => {
         const { DL } = makeDL({
-            settings: {
-                ...SETTINGS,
-                'comax.salesWindow': { defaultDays: 30, rules: [{ days: 90, departments: ['54'] }] }
-            }
+            categorySettings: [
+                { path: 'global', level: 'global', saleEnabled: true, saleDays: 30 },
+                { path: '3/54', level: 'department', saleEnabled: true, saleDays: 90 }
+            ]
         })
         const { external, calls } = makeExternal({
             stores: { 84: [makeProduct(0)], 52: [makeProduct(1)] },
@@ -669,7 +686,11 @@ describe('comax sales window', () => {
 
         await importComaxProducts({}, { DL, external })
 
-        assert.equal(pulls.length, 0)
+        // The physical stock is never pulled by the sale step any more: the
+        // sale result is stored separately and applied by the sync.
+        assert.equal(pulls.filter(p => p.update.$pull?.storeIds).length, 0)
+        assert.ok(pulls.some(p => p.update.$addToSet?.saleStoreIds === 'store-a'))
+        assert.ok(pulls.some(p => p.update.$addToSet?.saleCheckedStores === 'store-a'))
         assert.deepEqual(modelBulkWrites[0].updateOne.filter, { barcode: '1000' })
         assert.ok(modelBulkWrites[0].updateOne.update.$max.lastSaleDate instanceof Date)
     })
@@ -749,7 +770,7 @@ describe('comax sales window', () => {
         assert.equal(result.noPriceSkipped, 0)
     })
 
-    it('removes the store id when the item did not sell inside its window', async () => {
+    it('removes the sale eligibility when the item did not sell inside its window', async () => {
         const { DL, pulls, setStoreBarcodes } = makeDL({
             registers: [reg('store-a', '84')],
             settings: SETTINGS
@@ -763,19 +784,21 @@ describe('comax sales window', () => {
 
         const result = await importComaxProducts({}, { DL, external })
 
-        assert.equal(pulls.length, 1)
-        assert.deepEqual(pulls[0].filter, { barcode: { $in: ['1000'] }, storeIds: 'store-a' })
-        assert.deepEqual(pulls[0].update, { $pull: { storeIds: 'store-a' } })
+        const salePulls = pulls.filter(p => p.update.$pull?.saleStoreIds)
+        assert.equal(salePulls.length, 1)
+        assert.deepEqual(salePulls[0].filter, { barcode: { $in: ['1000'] } })
+        assert.deepEqual(salePulls[0].update, { $pull: { saleStoreIds: 'store-a' } })
+        assert.equal(pulls.filter(p => p.update.$pull?.storeIds).length, 0)
         assert.equal(result.removed, 1)
     })
 
     it('judges each department by its own window', async () => {
         const { DL, pulls, setStoreBarcodes } = makeDL({
             registers: [reg('store-a', '84')],
-            settings: {
-                ...SETTINGS,
-                'comax.salesWindow': { defaultDays: 30, rules: [{ days: 90, departments: ['54'] }] }
-            }
+            categorySettings: [
+                { path: 'global', level: 'global', saleEnabled: true, saleDays: 30 },
+                { path: '3/54', level: 'department', saleEnabled: true, saleDays: 90 }
+            ]
         })
         setStoreBarcodes({ 'store-a': ['1000', '1001'] })
         const { external } = makeExternal({
@@ -788,17 +811,18 @@ describe('comax sales window', () => {
 
         await importComaxProducts({}, { DL, external })
 
-        assert.equal(pulls.length, 1)
-        assert.deepEqual(pulls[0].filter.barcode.$in, ['1000'])
+        const salePulls = pulls.filter(p => p.update.$pull?.saleStoreIds)
+        assert.equal(salePulls.length, 1)
+        assert.deepEqual(salePulls[0].filter.barcode.$in, ['1000'])
     })
 
-    it('treats 0 days as "never filter this department"', async () => {
+    it('treats a disabled department sale gate as "never filter"', async () => {
         const { DL, pulls, setStoreBarcodes } = makeDL({
             registers: [reg('store-a', '84')],
-            settings: {
-                ...SETTINGS,
-                'comax.salesWindow': { defaultDays: 30, rules: [{ days: 0, departments: ['13'] }] }
-            }
+            categorySettings: [
+                { path: 'global', level: 'global', saleEnabled: true, saleDays: 30 },
+                { path: '3/13', level: 'department', saleEnabled: false }
+            ]
         })
         setStoreBarcodes({ 'store-a': ['1000'] })
         const { external } = makeExternal({
@@ -809,7 +833,7 @@ describe('comax sales window', () => {
 
         await importComaxProducts({}, { DL, external })
 
-        assert.equal(pulls.length, 0)
+        assert.equal(pulls.filter(p => p.update.$pull?.saleStoreIds).length, 0)
     })
 
     it('keeps an item whose last sale date cannot be read', async () => {
@@ -826,7 +850,7 @@ describe('comax sales window', () => {
 
         await importComaxProducts({}, { DL, external })
 
-        assert.equal(pulls.length, 0)
+        assert.equal(pulls.filter(p => p.update.$pull?.saleStoreIds).length, 0)
     })
 
     it('never removes store ids when the sales feed is empty', async () => {
@@ -889,7 +913,7 @@ describe('comax sales window', () => {
     it('skips the whole step when every window is 0', async () => {
         const { DL, pulls, setStoreBarcodes } = makeDL({
             registers: [reg('store-a', '84')],
-            settings: { ...SETTINGS, 'comax.salesWindow': { defaultDays: 0, rules: [] } }
+            categorySettings: [{ path: 'global', level: 'global', saleEnabled: false }]
         })
         setStoreBarcodes({ 'store-a': ['1000'] })
         const { external, calls } = makeExternal({

@@ -59,6 +59,30 @@
     top: calc(100% + 4px);
 }
 
+/* Align the bubble to a wrapper edge instead of centering it. Useful near a
+   panel/card edge where a centered bubble would be clipped. */
+.wrapper[data-align='left']::after {
+    left: 0;
+    transform: none;
+}
+
+.wrapper[data-align='left']::before {
+    left: 10px;
+    transform: rotate(45deg);
+}
+
+.wrapper[data-align='right']::after {
+    right: 0;
+    left: auto;
+    transform: none;
+}
+
+.wrapper[data-align='right']::before {
+    right: 10px;
+    left: auto;
+    transform: rotate(45deg);
+}
+
 .wrapper:hover::after,
 .wrapper:focus-within::after,
 .wrapper:hover::before,

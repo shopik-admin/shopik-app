@@ -1,0 +1,448 @@
+.page {
+    height: 100%;
+    min-height: 32rem;
+}
+
+.notice {
+    padding: 0.6rem 0.8rem;
+    border-radius: var(--radius-md);
+    background: var(--bg-secondary);
+    color: var(--text-brand);
+}
+
+.body {
+    flex: 1;
+    min-height: 0;
+    align-items: stretch;
+}
+
+.treePanel,
+.detailPanel,
+.productsPanel {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.treePanel {
+    flex: 0 0 28rem;
+    padding: 0.75rem;
+}
+
+.detailColumn {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+}
+
+.detailPanel {
+    flex: 0 0 auto;
+    max-height: 55%;
+    padding: 1rem;
+    overflow: auto;
+}
+
+.productsPanel {
+    flex: 1 1 0;
+    min-height: 12rem;
+    padding: 0.75rem;
+}
+
+.treeToolbar {
+    margin-bottom: 0.6rem;
+}
+
+.tree {
+    flex: 1;
+    overflow: auto;
+    padding-inline-end: 0.25rem;
+}
+
+.node {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-height: 2rem;
+    padding: 0.2rem 0.35rem;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    user-select: none;
+}
+
+.node:hover {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+.selected,
+.selected:hover {
+    background: var(--bg-brand-primary);
+    color: var(--text-primary-on-brand);
+}
+
+.globalNode {
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+.chevron,
+.chevronPlaceholder {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.1rem;
+    height: 1.1rem;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    flex: 0 0 auto;
+}
+
+.chevronIcon {
+    transition: transform 0.15s ease;
+}
+
+.chevronOpen {
+    transform: rotate(-90deg);
+}
+
+.levelTag {
+    flex: 0 0 auto;
+    min-width: 1.5rem;
+    padding: 0 0.2rem;
+    border-radius: 0.25rem;
+    background: var(--bg-tertiary, rgba(0, 0, 0, 0.08));
+    font-size: 0.62rem;
+    line-height: 1.25rem;
+    text-align: center;
+    opacity: 0.75;
+}
+
+.selected .levelTag {
+    background: rgba(255, 255, 255, 0.2);
+    opacity: 1;
+}
+
+.nodeName {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.code {
+    flex: 0 0 auto;
+    font-size: 0.72rem;
+    opacity: 0.6;
+}
+
+.badge,
+.flagSale,
+.flagStock {
+    flex: 0 0 auto;
+    min-width: 1.25rem;
+    padding: 0 0.3rem;
+    border-radius: 999px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 0.68rem;
+    line-height: 1.15rem;
+    text-align: center;
+}
+
+.flagSale {
+    color: var(--text-brand);
+}
+
+.flagStock {
+    color: var(--text-success, #2e7d32);
+}
+
+.flagHidden {
+    display: inline-flex;
+    align-items: center;
+    color: var(--text-error, #c62828);
+}
+
+.nodeFlags {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.15rem;
+    flex: 0 0 auto;
+}
+
+.kashrutDot {
+    flex: 0 0 auto;
+    width: 0.45rem;
+    height: 0.45rem;
+    border-radius: 50%;
+    background: var(--text-success, #2e7d32);
+}
+
+.overrideDot {
+    flex: 0 0 auto;
+    width: 0.45rem;
+    height: 0.45rem;
+    border-radius: 50%;
+    background: var(--bg-brand-primary);
+}
+
+.selected .overrideDot {
+    background: var(--text-primary-on-brand);
+}
+
+.gates {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 1rem 2rem;
+    padding: 0.9rem 0;
+    border-bottom: 1px solid var(--border-secondary, rgba(0, 0, 0, 0.08));
+}
+
+.gate {
+    display: flex;
+    flex: 1 1 15rem;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-width: 0;
+}
+
+.gateControls {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-width: 0;
+}
+
+.gateCheck {
+    flex: 0 0 auto;
+}
+
+@media (min-width: 1100px) {
+    .gateControls {
+        flex-direction: row;
+        align-items: center;
+        flex-wrap: nowrap;
+        min-height: 4.5rem;
+    }
+
+    .gate {
+        flex: 1 1 auto;
+    }
+
+    .gateCheck {
+        flex: 0 0 auto;
+    }
+}
+
+.gateInput {
+    width: 8rem;
+    max-width: 100%;
+}
+
+.actions {
+    margin-top: 1rem;
+}
+
+.inheritedTag,
+.overrideTag {
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    white-space: nowrap;
+}
+
+.inheritedTag {
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+}
+
+.overrideTag {
+    background: var(--bg-brand-primary);
+    color: var(--text-primary-on-brand);
+}
+
+.productsHeader {
+    margin-bottom: 0.6rem;
+    min-height: 1.25rem;
+}
+
+/* Fixed slot so the spinner appearing during a fetch cannot resize the header. */
+.headerLoader {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 1rem;
+    height: 1rem;
+}
+
+.productsCount {
+    padding: 0.1rem 0.45rem;
+    border-radius: 999px;
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    font-size: 0.72rem;
+}
+
+.productsToolbar {
+    margin-bottom: 0.6rem;
+}
+
+.searchField {
+    flex: 0 0 18rem;
+    width: 18rem;
+    max-width: 100%;
+}
+
+.filterField {
+    flex: 0 0 auto;
+    width: 10.5rem;
+}
+
+.sortableTh {
+    cursor: pointer;
+    user-select: none;
+}
+
+.sortIdle {
+    opacity: 0.35;
+}
+
+.productsLoading {
+    min-height: 8rem;
+}
+
+.productTableWrap {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    border: 1px solid var(--border-secondary, rgba(0, 0, 0, 0.08));
+    border-radius: var(--radius-md);
+}
+
+.productTable {
+    width: 100%;
+    min-width: 94.5rem;
+    table-layout: fixed;
+    border-collapse: collapse;
+    font-size: 0.78rem;
+}
+
+.productTable th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    padding: 0.45rem;
+    border-bottom: 1px solid var(--border-secondary, rgba(0, 0, 0, 0.08));
+    background: var(--bg-surface, var(--bg-primary));
+    font-weight: 600;
+    text-align: start;
+    white-space: nowrap;
+}
+
+.productTable td {
+    padding: 0.45rem;
+    border-bottom: 1px solid var(--border-secondary, rgba(0, 0, 0, 0.08));
+    vertical-align: top;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.productTable tr:hover td {
+    background: var(--bg-secondary);
+}
+
+.productNameCell > * {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.reasonCell {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.35;
+}
+
+.numberCell {
+    text-align: center;
+    white-space: nowrap;
+}
+
+.storeChip {
+    display: inline-block;
+    padding: 0.05rem 0.4rem;
+    border-radius: 999px;
+    background: var(--bg-secondary);
+    font-size: 0.7rem;
+    white-space: nowrap;
+}
+
+.boolYes,
+.boolNo {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.15rem;
+    white-space: nowrap;
+}
+
+.boolYes {
+    color: var(--text-success, #2e7d32);
+}
+
+.boolNo {
+    color: var(--text-error, #c62828);
+}
+
+.statusBadge {
+    display: inline-block;
+    padding: 0.1rem 0.45rem;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    white-space: nowrap;
+}
+
+.statusActive {
+    background: rgba(46, 125, 50, 0.12);
+    color: var(--text-success, #2e7d32);
+}
+
+.statusHidden {
+    background: rgba(198, 40, 40, 0.12);
+    color: var(--text-error, #c62828);
+}
+
+.statusArchived {
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+}
+
+.productsPager {
+    margin-top: 0.5rem;
+}
+
+@media (max-width: 900px) {
+    .body {
+        flex-direction: column;
+    }
+
+    .treePanel {
+        flex: 0 0 auto;
+        max-height: 45vh;
+    }
+
+    .detailPanel {
+        max-height: none;
+    }
+
+    .productsPanel {
+        min-height: 20rem;
+    }
+}

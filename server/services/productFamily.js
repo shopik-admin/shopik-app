@@ -16,6 +16,7 @@
 // model reads needed to page a large catalog without loading it whole.
 
 import { productCategoryFor } from '#server/services/categoryMap/index.js'
+import { effectiveStoreIds } from '#server/services/comaxCategorySettings/index.js'
 import { deriveStatus, retailPrice } from '#server/api/comax_product/status.js'
 
 const FALLBACK_STATUS = { ACTIVE: 'active', HIDDEN: 'hidden', ARCHIVED: 'archived' }
@@ -163,15 +164,32 @@ export function familyLabel(ownerLabel, memberLabels = []) {
 
 // Union of every tracked store list. null when no row was ever tracked, which
 // means "unknown" and must not hide the product.
-export function unionStoreIds(rows = []) {
+export function unionStoreIds(rows = [], field = 'storeIds') {
     const ids = new Set()
     let tracked = false
     for (const row of rows || []) {
-        if (!Array.isArray(row?.storeIds)) continue
+        if (!Array.isArray(row?.[field])) continue
         tracked = true
-        for (const id of row.storeIds) if (id) ids.add(id)
+        for (const id of row[field]) if (id) ids.add(id)
     }
     return tracked ? [...ids].sort() : null
+}
+
+// A family is one product, so its per-store balance is the sum over its
+// barcodes. Missing values stay missing (unknown, not zero).
+export function sumStockByStore(rows = []) {
+    const totals = {}
+    let tracked = false
+    for (const row of rows || []) {
+        const balances = row?.stockByStore
+        if (!balances || typeof balances !== 'object') continue
+        for (const [storeId, raw] of Object.entries(balances)) {
+            if (!storeId || raw == null) continue
+            tracked = true
+            totals[storeId] = (totals[storeId] || 0) + Number(raw || 0)
+        }
+    }
+    return tracked ? totals : null
 }
 
 function storedPriceOf(owner, defaultDomainId) {
@@ -203,6 +221,8 @@ export function buildFamilyUpdate({
     owner,
     rows = [],
     categoryLookup,
+    ruleLookup,
+    activeStoreIds,
     defaultDomainId,
     enforceBuyingPrice = false,
     statuses,
@@ -218,10 +238,26 @@ export function buildFamilyUpdate({
     const effective = own || pickEffectiveComaxRow(familyRows)
     if (!effective) return null
 
-    const storeIds = unionStoreIds(familyRows)
+    const physicalStoreIds = unionStoreIds(familyRows)
+    const rules = ruleLookup?.ruleFor?.(effective) || null
+    const storeIds = effectiveStoreIds({
+        ...effective,
+        storeIds: physicalStoreIds,
+        stockByStore: sumStockByStore(familyRows),
+        saleStoreIds: unionStoreIds(familyRows, 'saleStoreIds'),
+        saleCheckedStores: unionStoreIds(familyRows, 'saleCheckedStores')
+    }, rules, activeStoreIds)
     const totalSalesUnits = sumFamilySales(familyRows)
     const subGroupCode = effective.subGroupCode == null ? null : String(effective.subGroupCode)
     const category = subGroupCode ? productCategoryFor(subGroupCode, categoryLookup) : null
+    const categoryFlags = subGroupCode ? categoryLookup?.flagsByCode?.get(subGroupCode) : null
+    const flags = rules
+        ? {
+            ...(categoryFlags || {}),
+            hidden: rules.hidden,
+            requireKashrut: rules.requireKashrut
+        }
+        : categoryFlags
 
     // A product without its own Comax row keeps the price the catalog already
     // shows. Only the status ladder gets a fallback from the alias row, so a
@@ -250,7 +286,7 @@ export function buildFamilyUpdate({
             showInWeb
         },
         existing: owner,
-        flags: subGroupCode ? categoryLookup?.flagsByCode?.get(subGroupCode) : null,
+        flags,
         status: statuses || FALLBACK_STATUS,
         enforceBuyingPrice
     })
@@ -287,6 +323,7 @@ export default {
     pickEffectiveComaxRow,
     sumFamilySales,
     unionStoreIds,
+    sumStockByStore,
     familyLabel,
     buildFamilyUpdate
 }

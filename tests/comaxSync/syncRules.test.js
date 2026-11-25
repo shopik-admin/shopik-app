@@ -1,4 +1,4 @@
-import { describe, it } from 'node:test'
+import { describe, it, mock } from 'node:test'
 import assert from 'node:assert/strict'
 import {
     buildSyncFilter,
@@ -6,7 +6,8 @@ import {
     hideCategoryFlaggedProducts,
     hideInactiveProducts,
     hideKashrutMissingProducts,
-    hideStorelessProducts
+    hideStorelessProducts,
+    shouldEnforceBuyingPrice
 } from '../../server/api/comax_product/syncRules.js'
 import { KASHRUT_VALID_CODES } from '../../common/components/Kashrut/constants.js'
 
@@ -148,16 +149,14 @@ describe('comax sync rules', () => {
         assert.equal(await hideStorelessProducts({ DL }), 0)
     })
 
-    it('hides active products in sub-groups marked hide on site or in an inactive category', async () => {
+    it('hides active products in hidden sub-groups or in an inactive category', async () => {
         const calls = []
         const filters = []
         const DL = {
             CategoryMap: {
                 read: async (filter, select) => {
                     filters.push({ filter, select })
-                    return filter.showOnSite === false
-                        ? [{ subGroupCode: '1' }, { subGroupCode: 2 }]
-                        : [{ subGroupCode: '3' }]
+                    return [{ subGroupCode: '2' }]
                 }
             },
             Product: {
@@ -169,15 +168,17 @@ describe('comax sync rules', () => {
             }
         }
 
-        const hidden = await hideCategoryFlaggedProducts({ DL })
+        const hidden = await hideCategoryFlaggedProducts({
+            DL,
+            ruleLookup: { bySubGroupCode: new Map([['1', { hidden: true }]]) }
+        })
 
         assert.equal(hidden, 3)
         assert.deepEqual(filters, [
-            { filter: { showOnSite: false }, select: { _id: 0, subGroupCode: 1 } },
             { filter: { categoryActive: false }, select: { _id: 0, subGroupCode: 1 } }
         ])
         assert.deepEqual(calls, [{
-            filter: { status: 'active', comaxSubGroupCode: { $in: ['1', '2', '3'] } },
+            filter: { status: 'active', comaxSubGroupCode: { $in: ['2', '1'] } },
             update: { status: 'hidden' }
         }])
     })
@@ -185,12 +186,6 @@ describe('comax sync rules', () => {
     it('hides active products in kashrut-required sub-groups without a valid code', async () => {
         const calls = []
         const DL = {
-            CategoryMap: {
-                read: async filter => {
-                    assert.deepEqual(filter, { requireKashrut: true })
-                    return [{ subGroupCode: '90200' }]
-                }
-            },
             Product: {
                 constants: { STATUS },
                 update: async (filter, update) => {
@@ -200,7 +195,10 @@ describe('comax sync rules', () => {
             }
         }
 
-        const hidden = await hideKashrutMissingProducts({ DL })
+        const hidden = await hideKashrutMissingProducts({
+            DL,
+            ruleLookup: { bySubGroupCode: new Map([['90200', { requireKashrut: true }]]) }
+        })
 
         assert.equal(hidden, 2)
         assert.deepEqual(calls, [{
@@ -223,6 +221,90 @@ describe('comax sync rules', () => {
         }
 
         assert.equal(await hideCategoryFlaggedProducts({ DL }), 0)
-        assert.equal(await hideKashrutMissingProducts({ DL }), 0)
+        assert.equal(await hideKashrutMissingProducts({
+            DL,
+            ruleLookup: { bySubGroupCode: new Map() }
+        }), 0)
+    })
+
+    it('checks for buying prices once for concurrent callers and retries after a failure', async () => {
+        let calls = 0
+        const DL = {
+            ComaxProduct: {
+                Model: {
+                    exists: async () => {
+                        calls += 1
+                        return { _id: 'any' }
+                    }
+                }
+            }
+        }
+
+        const answers = await Promise.all([
+            shouldEnforceBuyingPrice(DL),
+            shouldEnforceBuyingPrice(DL),
+            shouldEnforceBuyingPrice(DL)
+        ])
+        assert.deepEqual(answers, [true, true, true])
+        assert.equal(calls, 1)
+
+        // Served from the memo afterwards.
+        assert.equal(await shouldEnforceBuyingPrice(DL), true)
+        assert.equal(calls, 1)
+
+        // A failed lookup is not cached: the next call retries.
+        const failing = { ComaxProduct: { Model: { exists: async () => { throw new Error('boom') } } } }
+        await assert.rejects(shouldEnforceBuyingPrice(failing), /boom/)
+        let retried = 0
+        failing.ComaxProduct.Model.exists = async () => {
+            retried += 1
+            return null
+        }
+        assert.equal(await shouldEnforceBuyingPrice(failing), false)
+        assert.equal(retried, 1)
+    })
+
+    it('keeps true permanently and re-checks false after the window', async () => {
+        mock.timers.enable({ apis: ['Date'], now: 1_000_000 })
+        try {
+            let trueCalls = 0
+            const arming = {
+                ComaxProduct: {
+                    Model: {
+                        exists: async () => {
+                            trueCalls += 1
+                            return { _id: 'any' }
+                        }
+                    }
+                }
+            }
+            assert.equal(await shouldEnforceBuyingPrice(arming), true)
+            mock.timers.tick(24 * 60 * 60 * 1000)
+            assert.equal(await shouldEnforceBuyingPrice(arming), true)
+            assert.equal(trueCalls, 1)
+
+            let falseCalls = 0
+            const unarmed = {
+                ComaxProduct: {
+                    Model: {
+                        exists: async () => {
+                            falseCalls += 1
+                            return null
+                        }
+                    }
+                }
+            }
+            assert.equal(await shouldEnforceBuyingPrice(unarmed), false)
+            // Inside the re-check window a false answer is served from the memo.
+            mock.timers.tick(60 * 1000)
+            assert.equal(await shouldEnforceBuyingPrice(unarmed), false)
+            assert.equal(falseCalls, 1)
+            // After it, the first import can arm the rule without a restart.
+            mock.timers.tick(5 * 60 * 1000)
+            assert.equal(await shouldEnforceBuyingPrice(unarmed), false)
+            assert.equal(falseCalls, 2)
+        } finally {
+            mock.timers.reset()
+        }
     })
 })

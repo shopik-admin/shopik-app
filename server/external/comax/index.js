@@ -229,9 +229,11 @@ async function getProductsFromFile({ inputFile }) {
 
 }
 
-async function getBalance({ DL, ...options }) {
+async function getBalance({ DL, changesAfter = '01/01/2025', ...options }) {
     const params = buildComaxParams(options)
-    params.ChangesAfter = '01/01/2025'
+    // Empty ChangesAfter = full snapshot. The min-stock gate needs every item's
+    // current balance, not only the ones that changed since a fixed date.
+    params.ChangesAfter = changesAfter ?? ''
     const xml = await fetchComaxBalance({ params }, { DL })
     const parsed = parseXml(xml)
     const items = normalizeArray(

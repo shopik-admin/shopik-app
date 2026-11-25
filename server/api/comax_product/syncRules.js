@@ -1,4 +1,5 @@
 import { KASHRUT_VALID_CODES } from '#common/components/Kashrut/constants.js'
+import { loadRuleLookup } from '#server/services/comaxCategorySettings/index.js'
 
 export function buildSyncFilter() {
     return {
@@ -20,9 +21,46 @@ function statuses(DL) {
  * The buying-price requirement is armed only once buying prices were actually
  * imported — otherwise the first deploy would archive everything. Shared with
  * the catalog report so the "reason" it shows can never disagree with the sync.
+ *
+ * The answer only flips false→true, so a boolean "does one exist" is enough:
+ * an unindexed $gt count read the whole 23k catalog on every preview request.
+ * `exists` stops at the first document with a price.
+ *
+ * A `true` answer is final for the process (prices do not un-import), so it is
+ * cached without expiry; only `false` is re-checked, once per five minutes, so
+ * the first import that brings prices arms the rule without a restart.
+ *
+ * The memo stores the in-flight promise too: a burst's first calls run
+ * concurrently, and without single-flight every one of them missed the empty
+ * cache and fired its own lookup (8 collscans in one stress window).
  */
+const FALSE_RECHECK_MS = 5 * 60 * 1000
+const enforceBuyingPriceCache = new WeakMap()
+
 export async function shouldEnforceBuyingPrice(DL) {
-    return await DL.ComaxProduct.count({ buyingPrice: { $gt: 0 } }) > 0
+    const cached = enforceBuyingPriceCache.get(DL)
+    if (cached) {
+        if ('pending' in cached) return cached.pending
+        if (cached.value === true) return true
+        if (Date.now() - cached.at < FALSE_RECHECK_MS) return false
+    }
+
+    const entry = {
+        at: Date.now(),
+        pending: DL.ComaxProduct.Model
+            .exists({ buyingPrice: { $gt: 0 } })
+            .then(found => !!found)
+    }
+    enforceBuyingPriceCache.set(DL, entry)
+    try {
+        const value = await entry.pending
+        enforceBuyingPriceCache.set(DL, { at: entry.at, value })
+        return value
+    } catch (error) {
+        // Never cache a failed lookup: the next request retries.
+        if (enforceBuyingPriceCache.get(DL) === entry) enforceBuyingPriceCache.delete(DL)
+        throw error
+    }
 }
 
 export async function hideActiveProduct({ DL, barcode }) {
@@ -97,16 +135,21 @@ async function flaggedCodes(DL, field, value) {
 
 /**
  * Backstop for products the sync loop never visits (Comax row gone or filtered
- * out): an ACTIVE product whose sub-group is marked "hide on site", or whose
- * mapped category was deactivated, must not stay visible. Hide-only — nothing
- * is ever un-hidden here.
+ * out): an ACTIVE product whose mapped category was deactivated, or whose Comax
+ * category setting is hidden, must not stay visible. Hide-only — nothing is
+ * ever un-hidden here.
  */
-export async function hideCategoryFlaggedProducts({ DL }) {
-    // Two independent hide flags: Comax's showOnSite and the mirrored category
-    // active state. Union the codes so a single update covers both.
+export async function hideCategoryFlaggedProducts({ DL, ruleLookup = null }) {
+    // Independent hide flags: the mirrored category active state and the admin's
+    // category setting. Union the codes so a single update covers both.
+    const hiddenSettingCodes = []
+    for (const [code, rule] of ruleLookup?.bySubGroupCode || []) {
+        if (rule?.hidden === true) hiddenSettingCodes.push(String(code))
+    }
+
     const codes = [...new Set([
-        ...await flaggedCodes(DL, 'showOnSite', false),
-        ...await flaggedCodes(DL, 'categoryActive', false)
+        ...await flaggedCodes(DL, 'categoryActive', false),
+        ...hiddenSettingCodes
     ])]
     if (!codes.length) return 0
     const { ACTIVE, HIDDEN } = statuses(DL)
@@ -129,8 +172,12 @@ export async function hideCategoryFlaggedProducts({ DL }) {
  * "no entry has a valid code", matching products with no kashrut at all, empty
  * rabbinates, name-only entries and legacy string kashrut too.
  */
-export async function hideKashrutMissingProducts({ DL }) {
-    const codes = await flaggedCodes(DL, 'requireKashrut', true)
+export async function hideKashrutMissingProducts({ DL, ruleLookup = null }) {
+    const lookup = ruleLookup || await loadRuleLookup(DL)
+    const codes = []
+    for (const [code, rule] of lookup?.bySubGroupCode || []) {
+        if (rule?.requireKashrut === true) codes.push(String(code))
+    }
     if (!codes.length) return 0
     const { ACTIVE, HIDDEN } = statuses(DL)
     const res = await DL.Product.update(

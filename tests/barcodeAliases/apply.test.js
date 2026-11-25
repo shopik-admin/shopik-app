@@ -115,6 +115,7 @@ function makeDL({ orders = [], guestCarts = [] }) {
             DeletedProduct: { create: async doc => { calls.snapshots.push(doc); return doc } },
             ComaxProduct: {
                 count: async filter => (filter?.buyingPrice ? 1 : 2),
+                Model: { exists: async () => ({ _id: 'any' }) },
                 read: async filter => [
                     comaxRow('1111111111111'),
                     comaxRow('2222222222222', { storeIds: ['store-b'], salesLastDays: 207, price: 11 })
@@ -122,7 +123,7 @@ function makeDL({ orders = [], guestCarts = [] }) {
             },
             Category: { read: async () => [{ id: 'nc:206:2027', name: 'ביצים', parentIds: ['nc:206'] }] },
             CategoryMap: {
-                read: async () => [{ subGroupCode: '10110', categoryId: 'nc:206:2027', showOnSite: true, requireKashrut: false, categoryActive: true }]
+                read: async () => [{ subGroupCode: '10110', categoryId: 'nc:206:2027', requireKashrut: false, categoryActive: true }]
             },
             Domain: { readOne: async () => ({ id: 'dom' }) },
             Order: { Model: cartModelFor(orders) },

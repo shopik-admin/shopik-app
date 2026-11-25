@@ -1,20 +1,18 @@
 /**
- * Per-department sale windows.
+ * Per-category sale windows.
  *
  * The store feeds answer "can this store sell the item right now". This module
  * answers the stricter question "did it actually sell there recently": a
  * separate Comax call returns the last sale date per item per store, and a
- * store's in-stock mark is dropped when that date is older than the window of
- * the item's department.
+ * store is not sale-eligible when that date is older than the window of the
+ * item's category.
  *
- * Days are per department, with one default for everything else:
- *   a department listed in a rule → that rule's days
- *   no rule                      → `defaultDays`
- *   `0` anywhere                 → never filtered (always kept)
- *
- * The stored value comes from the hidden `comax.salesWindow` setting; when it
- * is absent the 30-day default applies.
+ * Windows now come from the Comax category settings tree (subGroup > group >
+ * department > superDepartment > global). A category with `saleEnabled=false`
+ * is kept regardless of its last sale.
  */
+import { BASE_RULES, loadRuleLookup, resolveRules } from '#server/services/comaxCategorySettings/index.js'
+
 export const SALES_WINDOW_KEY = 'comax.salesWindow'
 export const DEFAULT_SALES_WINDOW_DAYS = 30
 export const MAX_SALES_WINDOW_DAYS = 365
@@ -210,4 +208,72 @@ export async function resolveSalesWindow(DL) {
 
     const config = normalizeSalesWindow(raw)
     return { ...config, enabled: buildDepartmentWindows(config).maxDays > 0 }
+}
+
+/**
+ * The widest positive window across every resolved sub-group. One Comax call
+ * covers all stores; the per-category cut is made from each row's date.
+ */
+export function buildCategoryWindows(ruleLookup, baseRules = BASE_RULES) {
+    let maxDays = 0
+    const consider = rule => {
+        if (!rule || rule.saleEnabled === false) return
+        const days = Number(rule.saleDays) || 0
+        if (days > 0) maxDays = Math.max(maxDays, days)
+    }
+
+    const base = resolveRules(ruleLookup?.settingsByPath || new Map(), {}, baseRules)
+    consider(base)
+    for (const rule of ruleLookup?.bySubGroupCode?.values() || []) consider(rule)
+    // Department/group rows that no sub-group row has resolved yet still widen
+    // the single Comax query.
+    for (const row of ruleLookup?.settingsByPath?.values() || []) {
+        if (row?.saleEnabled === false) continue
+        const days = Number(row?.saleDays) || 0
+        if (days > 0) maxDays = Math.max(maxDays, days)
+    }
+
+    return { maxDays, enabled: maxDays > 0 }
+}
+
+/**
+ * Did this row pass its category's sale gate?
+ * Missing codes simply inherit from the levels that are present.
+ */
+export function ruleForSaleRow(row, ruleLookup) {
+    if (!ruleLookup?.ruleFor) return { saleEnabled: true, saleDays: DEFAULT_SALES_WINDOW_DAYS }
+    return ruleLookup.ruleFor(row)
+}
+
+/**
+ * Keep a row when its category has the sale gate off, or when it sold inside
+ * that category's window. `0` days also means unfiltered, as before.
+ */
+export function buildKeptBarcodesWithRules(rows, ruleLookup, now = new Date()) {
+    const kept = new Set()
+    const lastSale = new Map()
+    let unknownDates = 0
+
+    for (const row of rows || []) {
+        const barcode = String(row?.barcode ?? '').trim()
+        if (!barcode) continue
+
+        if (row.lastSaleDate instanceof Date && !Number.isNaN(row.lastSaleDate.getTime())) {
+            const previous = lastSale.get(barcode)
+            if (!previous || row.lastSaleDate > previous) lastSale.set(barcode, row.lastSaleDate)
+        } else {
+            unknownDates++
+        }
+
+        const rule = ruleForSaleRow(row, ruleLookup)
+        if (rule.saleEnabled === false || isWithinWindow(row.lastSaleDate, rule.saleDays, now))
+            kept.add(barcode)
+    }
+
+    return { kept, lastSale, unknownDates }
+}
+
+export async function resolveCategorySaleWindows(DL) {
+    const ruleLookup = await loadRuleLookup(DL)
+    return { ruleLookup, ...buildCategoryWindows(ruleLookup) }
 }

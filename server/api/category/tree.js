@@ -1,4 +1,5 @@
 import { COMAX_META_FIELDS, metaFromComax } from '#server/services/categoryMap/index.js'
+import { loadRuleLookup } from '#server/services/comaxCategorySettings/index.js'
 
 const CATEGORY_SELECT = {
     _id: 0,
@@ -26,19 +27,17 @@ const MAP_SELECT = {
     groupCode: 1,
     group: 1,
     subGroup: 1,
-    showOnSite: 1,
-    requireKashrut: 1,
     categoryActive: 1
 }
 
-function withMeta(mapDoc) {
+function withMeta(mapDoc, rules = null) {
     return {
         code: mapDoc.subGroupCode,
         categoryId: mapDoc.categoryId || null,
         productCount: 0,
-        // Missing flags mean the default: shown, no kashrut requirement, active.
-        showOnSite: mapDoc.showOnSite !== false,
-        requireKashrut: mapDoc.requireKashrut === true,
+        // Missing flags mean the default: not hidden, no kashrut requirement.
+        hidden: rules?.hidden === true,
+        requireKashrut: rules?.requireKashrut === true,
         categoryActive: mapDoc.categoryActive !== false,
         oldPath: [mapDoc.superDepartment, mapDoc.department, mapDoc.group, mapDoc.subGroup]
             .filter(Boolean)
@@ -55,14 +54,15 @@ function withMeta(mapDoc) {
 
 export default async function tree(payload, { DL }) {
     const activeFilter = { status: DL.Product.constants.STATUS.ACTIVE }
-    const [categories, mapDocs, counts, activeProducts] = await Promise.all([
+    const [categories, mapDocs, counts, activeProducts, ruleLookup] = await Promise.all([
         DL.Category.read({}, CATEGORY_SELECT, { limit: 0, sort: { level: 1, sortOrder: 1, name: 1 } }),
         DL.CategoryMap.read({}, MAP_SELECT, { limit: 0 }),
         DL.Product.Model.aggregate([
             { $match: activeFilter },
             { $group: { _id: '$comaxSubGroupCode', count: { $sum: 1 } } }
         ], { allowDiskUse: true }),
-        DL.Product.Model.countDocuments(activeFilter)
+        DL.Product.Model.countDocuments(activeFilter),
+        loadRuleLookup(DL)
     ])
 
     const countByCode = new Map()
@@ -100,7 +100,8 @@ export default async function tree(payload, { DL }) {
     const assigned = []
     for (const row of mapDocs || []) {
         if (!row.categoryId || !categoryIds.has(row.categoryId)) continue
-        const entry = withMeta(row)
+        const rules = ruleLookup?.bySubGroupCode?.get(String(row.subGroupCode)) || ruleLookup?.ruleFor?.(row)
+        const entry = withMeta(row, rules)
         entry.productCount = countByCode.get(String(row.subGroupCode)) || 0
         assigned.push(entry)
     }
@@ -109,11 +110,13 @@ export default async function tree(payload, { DL }) {
     for (const [code, productCount] of countByCode) {
         if (isMapped(code)) continue
         const mapDoc = mapByCode.get(code)
-        const entry = withMeta(mapDoc || {
+        const source = mapDoc || {
             subGroupCode: code,
             categoryId: null,
             ...(missingMeta.get(code) || {})
-        })
+        }
+        const rules = ruleLookup?.bySubGroupCode?.get(String(code)) || ruleLookup?.ruleFor?.(source)
+        const entry = withMeta(source, rules)
         entry.productCount = productCount
         unassigned.push(entry)
     }

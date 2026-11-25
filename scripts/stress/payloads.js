@@ -41,6 +41,18 @@ export function payloadFor(route, fixtures) {
         case 'category/products': return fx.subGroupCode
             ? { subGroupCode: fx.subGroupCode, limit: 60 }
             : { skip: 'no sampled product carries a comaxSubGroupCode' }
+        // Scoped product preview from the Comax category settings page. The
+        // search/sort paths are part of the route's real work.
+        case 'comax_category/products': return fx.subGroupCode
+            ? {
+                level: 'subGroup',
+                subGroupCode: fx.subGroupCode,
+                limit: 25,
+                search: '',
+                sort: 'sales',
+                dir: -1
+            }
+            : { skip: 'no sampled product carries a comaxSubGroupCode' }
         case 'comax_product/id': return fx.comaxProductId ? { id: fx.comaxProductId } : null
         case 'comax_sale/id': return fx.comaxSaleId ? { id: fx.comaxSaleId } : null
         case 'coupon/id': return fx.couponId ? { id: fx.couponId } : null

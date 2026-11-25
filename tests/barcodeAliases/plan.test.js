@@ -10,8 +10,8 @@ const LOOKUP = {
     mapByCode: new Map([['10110', EGGS.id], ['10112', EGGS.id]]),
     categoriesById: new Map([[EGGS.id, EGGS]]),
     flagsByCode: new Map([
-        ['10110', { categoryActive: true, showOnSite: true, requireKashrut: false }],
-        ['10112', { categoryActive: true, showOnSite: true, requireKashrut: false }]
+        ['10110', { categoryActive: true, requireKashrut: false }],
+        ['10112', { categoryActive: true, requireKashrut: false }]
     ]),
     hasMap: true
 }

@@ -28,8 +28,6 @@ import Text from 'common/components/Text'
 import Icon from 'common/components/Icon'
 import { useModal } from 'common/components/Modal'
 import { useText } from 'common/texts/TextProvider'
-import { FLAGS_HEADER } from 'common/constants/categoryFlags.js'
-import { buildFlagsTemplate } from 'common/functions/buildFlagsTemplate.js'
 import usePermission from 'common/permissions/usePermision'
 import classNames from 'common/functions/classNames'
 import { siblingTargetFor } from './siblingTarget.js'
@@ -206,7 +204,7 @@ function SubGroupRow({ entry, isAssigned, canUpdate, selectedId, onAssign, onPre
         >
             {TR('menu_categories_flag_category_inactive')}
         </span> : null}
-        {entry.showOnSite === false ? <span className={classNames(styles.flagTag, styles.flagHidden)}>
+        {entry.hidden === true ? <span className={classNames(styles.flagTag, styles.flagHidden)}>
             {TR('menu_categories_flag_hidden')}
         </span> : null}
         {entry.requireKashrut === true ? <span className={classNames(styles.flagTag, styles.flagKashrut)}>
@@ -290,7 +288,7 @@ export default function MenuCategories() {
             }
         }
         for (const entry of assigned) {
-            if (entry.showOnSite === false) add(entry.categoryId, 'hidden')
+            if (entry.hidden === true) add(entry.categoryId, 'hidden')
             if (entry.requireKashrut === true) add(entry.categoryId, 'kashrut')
         }
         return counts
@@ -452,32 +450,6 @@ export default function MenuCategories() {
         )
     }
 
-    // The flags file is separate from the tree file: it only updates the
-    // show/hide + kashrut flags of existing sub-groups.
-    function openFlagsImport() {
-        openModal(
-            <FlagImportModal
-                onClose={closeModal}
-                onDone={async summary => {
-                    closeModal()
-                    await callReq()
-                    setNotice(
-                        TR('menu_categories_flags_done', {
-                            written: summary.written,
-                            unchanged: summary.unchanged,
-                            hidden: summary.hidden,
-                            unhidden: summary.unhidden
-                        }) +
-                        (summary.unknown
-                            ? TR('menu_categories_flags_unknown', { count: summary.unknown })
-                            : '')
-                    )
-                }}
-            />,
-            { title: TR('menu_categories_flags_title') }
-        )
-    }
-
     // Renaming rewrites the slug, every path under the category and the titles
     // stored on its products, so the tree is refetched rather than patched.
     async function afterRename(result) {
@@ -602,9 +574,6 @@ export default function MenuCategories() {
                 <Flex gap={8}>
                     <Button icon='upload' onClick={openImport} disabled={busy} permission='category:update'>
                         {TR('menu_categories_import')}
-                    </Button>
-                    <Button icon='shield' onClick={openFlagsImport} disabled={busy} permission='category:update'>
-                        {TR('menu_categories_flags_import')}
                     </Button>
                 </Flex>
             </Flex>
@@ -1018,70 +987,6 @@ function ImportModal({ onDone, onClose }) {
                     disabled={!file || state?.exporting}
                 >
                     {TR('menu_categories_import_confirm')}
-                </Button>
-            </Flex>
-        </Flex>
-    </form>
-}
-
-function FlagImportModal({ onDone, onClose }) {
-    const { TR } = useText()
-    const [file, setFile] = useState(null)
-    const [state, setState] = useState()
-    const fileInput = useRef(null)
-
-    async function submit(event) {
-        event.preventDefault()
-        if (!file) return
-        setState({ loading: true })
-        try {
-            const csvBase64 = await readFileAsDataUrl(file)
-            const summary = await apiReq('category/import_flags', { csvBase64, filename: file.name })
-            await onDone(summary)
-        } catch (e) {
-            setState({ error: e })
-        }
-    }
-
-    function downloadTemplate() {
-        downloadCsvFile('category-flags-template.csv', buildFlagsTemplate())
-    }
-
-    return <form className={styles.importForm} onSubmit={submit}>
-        <Text>{TR('menu_categories_flags_hint')}</Text>
-        <Text size='s' mode='sub'>{TR('menu_categories_flags_headers')}</Text>
-        <div className={styles.headerList}>
-            {FLAGS_HEADER.map(name => <span key={name} className={styles.headerChip}>{name}</span>)}
-        </div>
-        <input
-            ref={fileInput}
-            type='file'
-            accept='.csv,text/csv'
-            className={styles.fileInput}
-            onChange={event => {
-                setFile(event.target.files?.[0] || null)
-                event.target.value = ''
-            }}
-        />
-        <Flex gap={8} alignItems='center' className={styles.filePicker}>
-            <Button type='button' mode='text' icon='csv' onClick={() => fileInput.current?.click()}>
-                {TR('menu_categories_choose_file')}
-            </Button>
-            <Text size='s' mode={file ? undefined : 'sub'} className={styles.fileName}>
-                {file?.name || TR('menu_categories_no_file')}
-            </Text>
-        </Flex>
-        {state?.error && <Text mode='error'>{state.error?.message || String(state.error)}</Text>}
-        <Flex gap={8} justifyContent='space-between'>
-            <Button type='button' mode='text' icon='download' onClick={downloadTemplate}>
-                {TR('menu_categories_flags_template')}
-            </Button>
-            <Flex gap={8}>
-                <Button type='button' mode='text' onClick={onClose} disabled={state?.loading}>
-                    {TR('cancel')}
-                </Button>
-                <Button type='submit' icon='shield' loading={state?.loading} disabled={!file}>
-                    {TR('menu_categories_flags_confirm')}
                 </Button>
             </Flex>
         </Flex>

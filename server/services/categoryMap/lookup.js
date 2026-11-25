@@ -17,24 +17,22 @@ export async function loadCategoryLookup(DL) {
     const [maps, categories] = await Promise.all([
         DL.CategoryMap.read(
             {},
-            { _id: 0, subGroupCode: 1, categoryId: 1, showOnSite: 1, requireKashrut: 1, categoryActive: 1 },
+            { _id: 0, subGroupCode: 1, categoryId: 1, categoryActive: 1 },
             { limit: 0 }
         ),
         DL.Category.read({}, { _id: 0, id: 1, name: 1, parentIds: 1 }, { limit: 0 })
     ])
 
     const mapByCode = new Map()
-    // Missing flags mean the default (show, no kashrut rule), so rows imported
-    // before the flags file keep behaving exactly as they did.
+    // Missing flags mean the default (active), so rows imported before the
+    // mirror existed keep behaving exactly as they did.
     const flagsByCode = new Map()
     for (const row of maps || []) {
         if (!row?.subGroupCode) continue
         const code = String(row.subGroupCode)
         mapByCode.set(code, row.categoryId || null)
         flagsByCode.set(code, {
-            categoryActive: row.categoryActive !== false,
-            showOnSite: row.showOnSite !== false,
-            requireKashrut: row.requireKashrut === true
+            categoryActive: row.categoryActive !== false
         })
     }
 

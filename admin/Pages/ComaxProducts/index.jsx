@@ -2,12 +2,13 @@ import DataManager from 'features/DataManager'
 import apiReq from 'common/functions/apiReq'
 import { useModal } from 'common/components/Modal'
 import { useNotificationCount } from 'features/Notifications'
-import SalesWindowModal from './SalesWindowModal'
+import { useNavigate } from 'react-router'
 import Gs1MatchModal from './Gs1MatchModal'
 import BackfillCatalogModal from './BackfillCatalogModal'
 
 export default function ComaxProducts({ }) {
     const { openModal, closeModal } = useModal()
+    const navigate = useNavigate()
     const gs1Pending = useNotificationCount('comax.gs1Aliases')
 
     const gs1Matches = {
@@ -20,14 +21,11 @@ export default function ComaxProducts({ }) {
         ),
         permission: 'comax_product:update'
     }
-    const salesWindow = {
-        icon: 'settings',
-        text: 'comax_products_sales_window',
-        onClick: () => openModal(
-            <SalesWindowModal onClose={closeModal} />,
-            { title: 'comax_products_sales_window' }
-        ),
-        permission: 'comax_product:update'
+    const categorySettings = {
+        icon: 'grid',
+        text: 'comax_category_settings_nav',
+        onClick: () => navigate('/comax-categories'),
+        permission: 'comax_product:read'
     }
     const importProducts = {
         icon: 'download',
@@ -61,7 +59,7 @@ export default function ComaxProducts({ }) {
     }
     return <DataManager
         apiRoute='comax_product'
-        actions={[importProducts, syncProducts, backfillCatalog, gs1Matches, salesWindow, 'export', 'refresh']}
+        actions={[importProducts, syncProducts, backfillCatalog, gs1Matches, categorySettings, 'export', 'refresh']}
         rowActions={['active']}
         defaultSort={{ lastImportedAt: -1 }}
         cols={[

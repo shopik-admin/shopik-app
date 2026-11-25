@@ -17,6 +17,7 @@
 
 import { buildFamilyUpdate, readAliasIndex, readDeletedLabels } from '#server/services/productFamily.js'
 import { loadCategoryLookup } from '#server/services/categoryMap/index.js'
+import { loadRuleLookup, readActiveStoreIds } from '#server/services/comaxCategorySettings/index.js'
 import { shouldEnforceBuyingPrice } from '#server/api/comax_product/syncRules.js'
 import { parseAliasCsv } from './parse.js'
 
@@ -50,9 +51,15 @@ const COMAX_SELECT = {
     buyingPrice: 1,
     salesLastDays: 1,
     storeIds: 1,
+    stockByStore: 1,
+    saleStoreIds: 1,
+    saleCheckedStores: 1,
+    superDepartmentCode: 1,
+    departmentCode: 1,
+    groupCode: 1,
+    subGroupCode: 1,
     archived: 1,
-    showInWeb: 1,
-    subGroupCode: 1
+    showInWeb: 1
 }
 
 function chunks(list, size) {
@@ -72,6 +79,8 @@ export function planAliasRows({
     deletedLabels = new Map(),
     ownerByAlias = new Map(),
     categoryLookup,
+    ruleLookup,
+    activeStoreIds,
     defaultDomainId,
     enforceBuyingPrice = false,
     statuses
@@ -143,6 +152,8 @@ export function planAliasRows({
                 owner: { ...main, scannableBarcodes: aliases },
                 rows: familyRows,
                 categoryLookup,
+                ruleLookup,
+                activeStoreIds,
                 defaultDomainId,
                 enforceBuyingPrice,
                 statuses,
@@ -250,12 +261,24 @@ export async function planBarcodeAliases(payload = {}, { DL } = {}) {
 
     const barcodes = [...new Set(rows.flatMap(row => [row.mainBarcode, ...row.secondaries]))]
 
-    const [products, comaxRows, deletedLabels, { ownerByAlias }, categoryLookup, defaultDomain, enforceBuyingPrice] = await Promise.all([
+    const [
+        products,
+        comaxRows,
+        deletedLabels,
+        { ownerByAlias },
+        categoryLookup,
+        ruleLookup,
+        activeStoreIds,
+        defaultDomain,
+        enforceBuyingPrice
+    ] = await Promise.all([
         readProducts(DL, barcodes),
         readComaxRows(DL, barcodes),
         readDeletedLabels(DL, barcodes),
         readAliasIndex(DL),
         loadCategoryLookup(DL),
+        loadRuleLookup(DL),
+        readActiveStoreIds(DL),
         DL.Domain?.readOne
             ? DL.Domain.readOne({ isDefault: true, active: true }, { _id: 0, id: 1 })
             : null,
@@ -269,6 +292,8 @@ export async function planBarcodeAliases(payload = {}, { DL } = {}) {
         deletedLabels,
         ownerByAlias,
         categoryLookup,
+        ruleLookup,
+        activeStoreIds,
         defaultDomainId: defaultDomain?.id,
         enforceBuyingPrice,
         statuses: DL.Product.constants.STATUS

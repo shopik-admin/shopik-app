@@ -6,12 +6,12 @@ import { applyCategoryFlagStatuses } from '../services/categoryMap/index.js'
 import { invalidateMenu } from '../utils/data/getMenu.js'
 import { scanDel } from '../utils/data/displayBlocks.js'
 
-// Apply the category_map flags already stored in the DB to today's catalog:
-// hide ACTIVE products in a "show on site = false" sub-group and ACTIVE products
-// in a "kashrut required" sub-group that lack a valid rabbinate code.
+// Apply the category settings and category_map flags already stored in the DB
+// to today's catalog: hide ACTIVE products in a hidden sub-group, in an inactive
+// site category, or in a "kashrut required" sub-group without a valid rabbinate
+// code.
 // With --unhide, HIDDEN products are re-derived through the full status ladder
-// too, which reconciles the catalog with the flags of an earlier upload instead of
-// waiting for the nightly sync.
+// too, which reconciles the catalog instead of waiting for the nightly sync.
 //
 // Usage: node server/scripts/applyCategoryFlags.js [--dry-run] [--limit N]
 //          [--unhide] [--rollback <path.json>]
@@ -39,7 +39,7 @@ const summary = await applyCategoryFlagStatuses({
 })
 
 console.log(`[categoryFlags] active products: ${summary.products}${dryRun ? ' (DRY RUN — no writes)' : ''}`)
-console.log(`[categoryFlags] hidden by category flag: ${summary.reasons.category}`)
+console.log(`[categoryFlags] hidden by category setting: ${summary.reasons.hidden}`)
 console.log(`[categoryFlags] hidden by inactive category: ${summary.reasons.categoryActive}`)
 console.log(`[categoryFlags] hidden by kashrut rule: ${summary.reasons.kashrut}`)
 console.log(`[categoryFlags] hidden by more than one rule: ${summary.reasons.both}`)

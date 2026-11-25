@@ -32,6 +32,7 @@ const ALSO_READ = new Set([
     'user/coupon', // getUserOrder + Coupon.read
     'user/favorites', // the shopper's favorite ids
     'category/products', // Product.read + countDocuments of one Comax sub-group
+    'comax_category/products', // scoped product preview for the category settings page
     'display_block/categories', // Category.read over every category
     'role/children', // Role.readById + Role.read({ parentIds })
     'payment/refunds', // Order.readById + PaymentTransaction.read
