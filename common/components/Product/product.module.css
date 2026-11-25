@@ -160,6 +160,16 @@
     }
 }
 
+/* A line price with a sale under it: the two prices stay together and the gap
+   moves below the sale line. */
+.priceTight {
+    margin-bottom: 0;
+}
+
+.saleLine {
+    margin-bottom: 10px;
+}
+
 .salePrice {
     color: var(--pc-price, var(--text-primary));
     font-weight: 700 !important;

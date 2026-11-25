@@ -314,19 +314,20 @@ function LinePrice({ product, summary, size = 's' }) {
     const unitPriceText = getUnitPriceText(product, effective)
     const saleLabel = summary.sales.map(sale => sale.name).filter(Boolean).join(' · ') || TR('onSale')
 
-    return <Flex col gap={4}>
+    return <Flex col>
         <Flex
             gap={8}
             alignItems='center'
             wrap
-            className={classNames(styles.price, styles[size], hasDiscount ? styles.priceDiscount : styles.priceRegular)}
+            className={classNames(styles.price, styles[size], hasDiscount && styles.priceTight, hasDiscount ? styles.priceDiscount : styles.priceRegular)}
         >
             <Text size='xxl' bold className={styles.salePrice}>{CurrencySymbol}{formatPrice(effective)}</Text>
             {hasDiscount && <Text size='s' lineThrough className={styles.regularPrice}>{CurrencySymbol}{formatPrice(summary.unitPrice)}</Text>}
             {unitPriceText && <Text size='s' mode='sub' className={styles.forgrams}>{unitPriceText}</Text>}
         </Flex>
-        {/* The sale that produced the price, on its own line under it. */}
-        {hasDiscount && <Flex alignItems='center' gap={4}>
+        {/* The sale that produced the price, on its own line under it. The space
+            that used to sit between the two prices belongs under the sale. */}
+        {hasDiscount && <Flex alignItems='center' gap={4} className={styles.saleLine}>
             <Icon name='salePercent' size={13} className={styles.saleTag} />
             <Text size='s' bold className={styles.saleTag}>{saleLabel}</Text>
         </Flex>}
