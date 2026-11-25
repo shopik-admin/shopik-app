@@ -5,23 +5,6 @@
     min-height: 100%;
 }
 
-.header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 23px 16px;
-    border-bottom: 1px solid var(--border-tertiary);
-    position: relative;
-}
-
-/* The modal itself owns the close X; this keeps the header's three-column
-   spacing without drawing a second one. */
-.closeSlot {
-    width: 24px;
-    height: 24px;
-    flex-shrink: 0;
-}
-
 .originalWrap {
     padding: 12px 16px 4px;
     background: #fff;
@@ -270,11 +253,6 @@
     background: #c5cfcc;
     opacity: 1;
     color: #fff;
-}
-
-.backBtn {
-    margin: 4px 16px 0;
-    align-self: flex-start;
 }
 
 @media (min-width: 650px) {

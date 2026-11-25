@@ -12,8 +12,9 @@ import { isWeightProduct, getUnitLabel, formatAmount } from 'common/components/P
 import { getPickRange, isPickInRange, DEFAULT_PICK_LIMITS } from 'common/functions/pickLimits'
 import limitDecimalInput from 'common/functions/decimalInput'
 import { useText } from 'common/texts/TextProvider'
+import FlowHeader from './FlowHeader'
 
-export default function ScanProduct({ product = {}, orderId, onClose, onPicked, initialPhase, initialSupplied, initialBarcode, onReplace, resettable = false }) {
+export default function ScanProduct({ product = {}, orderId, onClose, onBack, onPicked, initialPhase, initialSupplied, initialBarcode, onReplace, resettable = false }) {
     const { TR } = useText()
     const videoRef = useRef(null)
     const streamRef = useRef(null)
@@ -252,9 +253,11 @@ export default function ScanProduct({ product = {}, orderId, onClose, onPicked, 
     if (phase === 'amount' || phase === 'weight') {
         const isWeightPhase = weight || phase === 'weight'
         return <Flex col className={styles.scanProduct}>
-            <Flex center className={styles.header}>
-                <Text size="m" bold>{TR(isWeightPhase ? 'ops_weigh_product_title' : 'ops_scan_product_title')}</Text>
-            </Flex>
+            <FlowHeader
+                title={isWeightPhase ? 'ops_weigh_product_title' : 'ops_scan_product_title'}
+                onBack={onBack}
+                onClose={onClose}
+            />
 
             <Flex col className={styles.productSummary}>
                 {/*  <Flex alignItems="center" gap={6} className={styles.topMeta}>
@@ -323,9 +326,11 @@ export default function ScanProduct({ product = {}, orderId, onClose, onPicked, 
     }
 
     return <Flex col className={styles.scanProduct}>
-        <Flex center className={styles.header}>
-            <Text size="m" bold>{TR('ops_scan_product_title')}</Text>
-        </Flex>
+        <FlowHeader
+            title='ops_scan_product_title'
+            onBack={onBack}
+            onClose={onClose}
+        />
 
         <Flex col className={styles.productSummary}>
             {/*  <Flex alignItems="center" gap={6} className={styles.topMeta}>

@@ -241,6 +241,12 @@
     overflow: hidden !important;
 }
 
+.pickModal :global(.modal-close) {
+    /* The flow draws its own header (back / title / X) so there is one X and
+       it lines up with the back button. */
+    display: none !important;
+}
+
 .pickModal :global(.modal-body) {
     padding: 0;
 }
