@@ -88,19 +88,11 @@ export function getSaleProgressText(sale, amount) {
     return TR('sale_progress_reached')
 }
 
-// "2 יח'" / "1.5 ק\"ג" — the sale's cap in the product's own unit.
+// "2 יח'" / "1.5 ק"ג" — the sale's cap in the product's own unit.
 export function getSaleLimitLabel(sale, product) {
     const units = getSaleLimitUnits(sale)
     if (!(units > 0)) return null
     return `${formatAmountNumber(units)} ${getUnitLabel(product)}`
-}
-
-// Image badge under the sale badge: "עד 2 יח'" / "עד 1.5 ק\"ג". The cap is
-// promotional fine print, so it gets a quiet pill instead of the price row,
-// which stays reserved for the legally required per-100g price.
-export function getSaleLimitBadgeText(sale, product) {
-    const amount = getSaleLimitLabel(sale, product)
-    return amount ? TR('product_sale_limit_up_to', { amount }) : null
 }
 
 // Strip warning, shown only after the cart has gone past the cap.
@@ -113,18 +105,10 @@ export function ProductSaleBadge({ product, sales, size = 'm' }) {
     const sale = getFirstSale(product, sales)
     if (!sale) return null
     const label = getSaleBadgeText(sale)
-    // The tiny badge used on thumbnails has no room for a second row; the
-    // cap only shows where a shopper can reasonably read it.
-    const limitLabel = size === 's' ? null : getSaleLimitBadgeText(sale, product)
-    return <>
-        <Flex alignItems="center" gap={4} className={classNames(styles.saleBadge, styles[size])}>
-            <Icon name="salePercent" size={14} className={styles.saleBadgeIcon} />
-            <Text size="s" bold className={styles.saleBadgeText}>{label}</Text>
-        </Flex>
-        {limitLabel && <Flex alignItems="center" className={styles.saleLimitBadge}>
-            <Text size="s" bold className={styles.saleLimitBadgeText}>{limitLabel}</Text>
-        </Flex>}
-    </>
+    return <Flex alignItems="center" gap={4} className={classNames(styles.saleBadge, styles[size])}>
+        <Icon name="salePercent" size={14} className={styles.saleBadgeIcon} />
+        <Text size="s" bold className={styles.saleBadgeText}>{label}</Text>
+    </Flex>
 }
 
 export function ProductImage({ product, size = 'm', sales, hideSaleBadge = false, className = '' }) {
