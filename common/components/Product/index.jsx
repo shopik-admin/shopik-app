@@ -11,14 +11,14 @@ import { round2, round3 } from 'common/functions/calcOrder/utils.js'
 import { getProductImageUrl, mainImageHash } from 'common/functions/productImageUrl.js'
 import { getRowPriceInfo, isBundleReached } from 'common/functions/rowPrice.js'
 import { getUnitPriceText, parseWeightOrVolume } from 'common/functions/unitPrice.js'
-import { getFirstSale, getSalePriceInfo } from 'common/functions/salePrice.js'
+import { getFirstSale, getSalePriceInfo, getSaleLimitUnits, isSaleLimitExceeded } from 'common/functions/salePrice.js'
 import { getLineSummary, isLineNotSupplied } from 'common/functions/orderSummary.js'
 import { useState, useEffect } from 'react'
 import TR from 'common/texts/TR.js'
 
 // Re-exported for existing callers; the implementation lives in
 // common/functions/salePrice.js so the server feed can share it.
-export { getFirstSale, getSalePriceInfo }
+export { getFirstSale, getSalePriceInfo, getSaleLimitUnits, isSaleLimitExceeded }
 
 export function getSaleBadgeText(sale) {
     if (!sale) return null
@@ -54,8 +54,9 @@ export function getSaleRemaining(sale, amount) {
     return remaining
 }
 
-export function getInlineSaleBarText(sale, amount) {
+export function getInlineSaleBarText(sale, amount, product) {
     if (!sale) return null
+    if (isSaleLimitExceeded(sale, amount)) return getSaleLimitBarText(sale, product)
     const remaining = getSaleRemaining(sale, amount)
     if (remaining > 0) {
         const formatted = Number.isInteger(remaining) ? String(remaining) : String(Math.round(remaining * 1000) / 1000)
@@ -85,6 +86,19 @@ export function getSaleProgressText(sale, amount) {
         return TR('sale_progress_remaining', { amount: formatted })
     }
     return TR('sale_progress_reached')
+}
+
+// "2 יח'" / "1.5 ק"ג" — the sale's cap in the product's own unit.
+export function getSaleLimitLabel(sale, product) {
+    const units = getSaleLimitUnits(sale)
+    if (!(units > 0)) return null
+    return `${formatAmountNumber(units)} ${getUnitLabel(product)}`
+}
+
+// Strip warning, shown only after the cart has gone past the cap.
+export function getSaleLimitBarText(sale, product) {
+    const amount = getSaleLimitLabel(sale, product)
+    return amount ? TR('sale_limit_reached', { amount }) : null
 }
 
 export function ProductSaleBadge({ product, sales, size = 'm' }) {
@@ -340,8 +354,10 @@ export function ProductPrice({ product, size = 'm', sales, priceMode = 'unit', s
         if (price == null) return null
         const sale = getFirstSale(product, sales)
         const saleInfo = sale ? getSalePriceInfo(product, sale) : null
-        // Show per-100g/ml for the effective price: sale unit price when on sale, regular otherwise.
-        const unitPriceText = getUnitPriceText(product, saleInfo?.saleSingle)
+        // Per-100g/ml is a legal requirement and is always quoted for the
+        // product's regular price: a promotion (limited or not) must not
+        // change the unit-price figure shown next to the price.
+        const unitPriceText = getUnitPriceText(product, price)
 
         const CurrencySymbol = <Text size='s' bold>₪</Text>
 
