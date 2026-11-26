@@ -122,7 +122,7 @@ export function ProductSaleBadge({ product, sales, size = 'm' }) {
             <Text size="s" bold className={styles.saleBadgeText}>{label}</Text>
         </Flex>
         {limitLabel && <Flex alignItems="center" className={styles.saleLimitBadge}>
-            <Text size="xs" bold className={styles.saleLimitBadgeText}>{limitLabel}</Text>
+            <Text size="s" bold className={styles.saleLimitBadgeText}>{limitLabel}</Text>
         </Flex>}
     </>
 }
@@ -370,13 +370,10 @@ export function ProductPrice({ product, size = 'm', sales, priceMode = 'unit', s
         if (price == null) return null
         const sale = getFirstSale(product, sales)
         const saleInfo = sale ? getSalePriceInfo(product, sale) : null
-        // Per-100g/ml is a legal requirement, not a promo extra. A limited
-        // sale discounts only its first units, so quoting the sale price here
-        // would claim more than the sale gives: use the regular price for
-        // that figure (the price the rest of the units pay). Unlimited sales
-        // keep the sale price.
-        const hasLimit = saleInfo && getSaleLimitUnits(sale) > 0
-        const unitPriceText = getUnitPriceText(product, saleInfo ? (hasLimit ? saleInfo.regular : saleInfo.saleSingle) : undefined)
+        // Per-100g/ml is a legal requirement and is always quoted for the
+        // product's regular price: a promotion (limited or not) must not
+        // change the unit-price figure shown next to the price.
+        const unitPriceText = getUnitPriceText(product, price)
 
         const CurrencySymbol = <Text size='s' bold>₪</Text>
 
